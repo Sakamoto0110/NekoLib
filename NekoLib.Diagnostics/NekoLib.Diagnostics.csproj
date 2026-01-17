@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>false</ImplicitUsings>
+
+    <OutputType>Library</OutputType>
+    <AssemblyName>NekoLib.Diagnostics</AssemblyName>
+    <RootNamespace>NekoLib.Diagnostics</RootNamespace>
+
+    <DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
+    <DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+    <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NekoLib.Core\NekoLib.Core.csproj" />
+    <ProjectReference Include="..\NekoLib.Diagnostics.Abstractions\NekoLib.Diagnostics.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

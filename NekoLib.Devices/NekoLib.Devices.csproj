@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>true</ImplicitUsings>
+
+		<OutputType>Library</OutputType>
+
+		<AssemblyName>NekoLib.Devices</AssemblyName>
+		<RootNamespace>NekoLib.Devices</RootNamespace>
+	</PropertyGroup>
+
+	<!-- Framework flags -->
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+	</PropertyGroup>
+
+	<!-- net481 references -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+		<Reference Include="System.IO.Ports" />
+	</ItemGroup>
+
+	<!-- net9 references -->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<PackageReference Include="System.IO.Ports" Version="9.0.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
+	</ItemGroup>
+
+	<!-- Core -->
+	<ItemGroup>
+		<ProjectReference Include="..\NekoLib.Core\NekoLib.Core.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,348 @@
+﻿using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Diagnostics;
+using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime.Factories;
+using NekoLib.Navigation.Runtime.Lifecycle;
+using NekoLib.Navigation.Runtime.Registry;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace NekoLib.Navigation.Runtime.Core
+{
+
+    internal sealed class NavigationRuntime : IAsyncDisposable
+    {
+        private bool _isNavigating;
+        private readonly NavigationContext _ctx;
+
+        private IPageTimeoutService _timeout;
+        private PageLifecycleCleanupService _cleanup;
+        private IInteractionObserverService _interactionObserver;
+        private PageFactory _pageFactory;
+
+        private readonly HashSet<IPageView> _attachedPages = new();
+        private readonly HashSet<IPageView> _visiblePages = new();
+
+        public IPageView Current { get; private set; }
+
+        // ---------------------------------------------------------------------
+        // EVENTS
+        // ---------------------------------------------------------------------
+
+        public event Action<IPageView, Type, NavigationArgs> Navigating;
+        public event Action<IPageView, IPageView, NavigationArgs> Navigated;
+        public event Action<IPageView, Type, Exception> NavigationFailed;
+        public event Action<IPageView> CurrentChanged;
+        public event Action HistoryChanged;
+        public event Action TimeoutReached;
+        public event Action<IPageView> OnFirstPageAttached;
+        public event Action OnNoPageAttached;
+        public event Action OnNoPageVisible;
+
+        // ---------------------------------------------------------------------
+        // CTOR
+        // ---------------------------------------------------------------------
+
+        public NavigationRuntime(NavigationContext ctx)
+        {
+            _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
+        }
+
+        // ---------------------------------------------------------------------
+        // PUBLIC API
+        // ---------------------------------------------------------------------
+
+        public Task NavigateAsync(Type pageType, NavigationArgs args)
+        {
+            EnsureRuntimeServices();
+            return SwitchInternalAsync(pageType, args ?? NavigationArgs.Empty);
+        }
+
+        public async Task GoBackAsync()
+        {
+            EnsureRuntimeServices();
+
+            var entry = _ctx.History.PopBack();
+            if (entry == null)
+                return;
+
+            if (Current != null)
+            {
+                _ctx.History.PushForward(new PageHistoryEntry(
+                    Current.GetType(),
+                    Current.Name,
+                    (Current as IPageStateful)?.CaptureState()
+                ));
+            }
+
+            await SwitchInternalAsync(
+                entry.PageType,
+                NavigationArgs.Default(entry.State));
+        }
+
+        public async Task ResetAsync()
+        {
+            if (Current != null)
+            {
+                _ctx.Host.Detach(Current);
+
+                if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
+                    await _cleanup.CleanupAsync(Current, desc, forceDispose: true);
+                else
+                    Current.Dispose();
+
+                Current = null;
+                CurrentChanged?.Invoke(null);
+            }
+
+            _attachedPages.Clear();
+            _visiblePages.Clear();
+
+            OnNoPageAttached?.Invoke();
+            OnNoPageVisible?.Invoke();
+
+            _ctx.History.Clear();
+            HistoryChanged?.Invoke();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Current != null)
+            {
+                _ctx.Host.Detach(Current);
+
+                if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
+                    await _cleanup.CleanupAsync(Current, desc, forceDispose: true);
+                else
+                    Current.Dispose();
+
+                Current = null;
+            }
+
+            if (_interactionObserver != null)
+                _interactionObserver.InteractionDetected -= OnInteractionDetected;
+
+            if (_timeout != null)
+            {
+                _timeout.TimeoutReached -= OnTimeoutReached;
+                _timeout.Stop();
+                _timeout.Dispose();
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // CORE NAVIGATION
+        // ---------------------------------------------------------------------
+
+        private async Task SwitchInternalAsync(Type pageType, NavigationArgs navArgs)
+        {
+            if (pageType == null)
+                throw new ArgumentNullException(nameof(pageType));
+
+            if (_isNavigating)
+                return;
+
+            _isNavigating = true;
+
+            IPageView from = Current;
+            IPageView to = null;
+
+            try
+            {
+                if (!PageRegistry.TryGetDescriptor(pageType, out var toDesc))
+                {
+                    throw new InvalidOperationException(
+                        $"Type '{pageType.FullName}' is not a registered page.");
+                }
+
+                var canonicalPageType = toDesc.PageType;
+                if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
+                {
+                    throw new InvalidOperationException(
+                        $"Navigation target '{canonicalPageType.FullName}' is not a page.");
+                }
+                PageRegistry.TryGetDescriptor(from?.GetType(), out var fromDesc);
+
+                Navigating?.Invoke(Current, canonicalPageType, navArgs);
+
+                if (!navArgs.Behavior.HasFlag(NavigationBehavior.NoMask) &&
+                    _ctx.Services.CanResolve(typeof(IInteractionBlocker)))
+                {
+                    ((IInteractionBlocker)_ctx.Services.Get(typeof(IInteractionBlocker))).Block();
+                }
+
+                _timeout?.Reset();
+
+                var factory = EnsurePageFactory();
+                to = PageRegistry.ResolveInstance(toDesc, factory.Create);
+
+                PageLifecycleTracker.Register(to, toDesc);
+
+                if (from is IPageVisibility fromVis)
+                    fromVis.HidePage();
+
+                if (from is IPageLifecycle leave)
+                    await leave.OnNavigatedFromAsync();
+
+                if (from != null)
+                {
+                    _ctx.Host.Detach(from);
+
+                    if (_visiblePages.Remove(from) && _visiblePages.Count == 0)
+                        OnNoPageVisible?.Invoke();
+
+                    if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
+                        OnNoPageAttached?.Invoke();
+
+                    await _cleanup.CleanupAsync(from, fromDesc, forceDispose: false);
+                }
+
+                bool firstAttach = _attachedPages.Count == 0;
+
+                _ctx.Host.Attach(to);
+                _ctx.Host.BringToFront(to);
+
+                if (_attachedPages.Add(to) && firstAttach)
+                    OnFirstPageAttached?.Invoke(to);
+
+                if (to is IPageVisibility toVis)
+                {
+                    toVis.ShowPage();
+                    _visiblePages.Add(to);
+                }
+
+                Current = to;
+                CurrentChanged?.Invoke(Current);
+
+                await LoadAsync(to, navArgs.Payload);
+
+                if (to is IPageLifecycle enter)
+                    await enter.OnNavigatedToAsync(navArgs);
+
+                if (!navArgs.Behavior.HasFlag(NavigationBehavior.NoHistory) && from != null)
+                {
+                    _ctx.History.Record(new PageHistoryEntry(
+                        from.GetType(),
+                        from.Name,
+                        (from as IPageStateful)?.CaptureState()
+                    ));
+                    HistoryChanged?.Invoke();
+                }
+
+                Navigated?.Invoke(from, to, navArgs);
+                NavigationDiagnostics.EmitSuccess(from, to, navArgs);
+            }
+            catch (Exception ex)
+            {
+                NavigationFailed?.Invoke(from, pageType, ex);
+                NavigationDiagnostics.EmitFailure(from, to, navArgs);
+                throw;
+            }
+            finally
+            {
+                if (_ctx.Services.CanResolve(typeof(IInteractionBlocker)))
+                {
+                    try
+                    {
+                        ((IInteractionBlocker)_ctx.Services.Get(typeof(IInteractionBlocker))).Unblock();
+                    }
+                    catch { }
+                }
+
+                _isNavigating = false;
+            }
+        }
+
+        private static async Task LoadAsync(IPageView page, object payload)
+        {
+            if (page is IBackgroundLoadable bg)
+            {
+                // Always run background load off the UI thread
+                await Task.Run(() => bg.LoadInBackgroundAsync(payload))
+                          .ConfigureAwait(true);
+
+                // Apply results back on captured context (UI thread)
+                await bg.ApplyBackgroundResultAsync()
+                        .ConfigureAwait(true);
+            }
+        }
+
+
+        // ---------------------------------------------------------------------
+        // RUNTIME SERVICES
+        // ---------------------------------------------------------------------
+
+        private void EnsureRuntimeServices()
+        {
+            var services = _ctx.Services
+                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
+
+            if (_timeout == null && services.CanResolve(typeof(IPageTimeoutService)))
+            {
+                _timeout = (IPageTimeoutService)services.Get(typeof(IPageTimeoutService));
+                _timeout.TimeoutReached += OnTimeoutReached;
+            }
+
+            if (_cleanup == null)
+            {
+                if (!services.CanResolve(typeof(IEventDispatcherAdapter)))
+                    throw new InvalidOperationException(
+                        "IEventDispatcherAdapter is required but not registered.");
+
+                var dispatcher =
+                    (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
+
+                if (_cleanup == null)
+                {
+                    if (!_ctx.Services.CanResolve(typeof(IEventDispatcherAdapter)))
+                        throw new InvalidOperationException(
+                            "IEventDispatcherAdapter is required but not registered.");
+
+                    dispatcher =
+                       (IEventDispatcherAdapter)_ctx.Services.Get(typeof(IEventDispatcherAdapter));
+
+                    _cleanup = new PageLifecycleCleanupService(dispatcher);
+                }
+            }
+
+            if (_interactionObserver == null &&
+                services.CanResolve(typeof(IInteractionObserverService)))
+            {
+                _interactionObserver =
+                    (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
+
+                _interactionObserver.InteractionDetected += OnInteractionDetected;
+            }
+        }
+
+        private PageFactory EnsurePageFactory()
+        {
+            if (_pageFactory != null)
+                return _pageFactory;
+
+            if (!_ctx.Services.CanResolve(typeof(PageFactory)))
+                throw new InvalidOperationException(
+                    "PageFactory is required but not registered.");
+
+            _pageFactory = (PageFactory)_ctx.Services.Get(typeof(PageFactory));
+            return _pageFactory;
+        }
+
+        // ---------------------------------------------------------------------
+        // EVENT HANDLERS
+        // ---------------------------------------------------------------------
+
+        private void OnTimeoutReached()
+        {
+            TimeoutReached?.Invoke();
+        }
+
+        private void OnInteractionDetected()
+        {
+            _timeout?.Reset();
+        }
+    }
+}

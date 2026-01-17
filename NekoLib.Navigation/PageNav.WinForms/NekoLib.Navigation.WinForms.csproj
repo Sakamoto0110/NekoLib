@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		 
+
+		 
+
+		<!-- Language / compiler behavior -->
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+
+		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+		<UseWindowsForms>true</UseWindowsForms>
+		 
+		<!-- Library -->
+		<OutputType>Library</OutputType>
+
+		<!-- Assembly info -->
+		<AssemblyName>NekoLib.Navigation.WinForms</AssemblyName>
+		<RootNamespace>NekoLib.Navigation.WinForms</RootNamespace>
+
+		<!-- Identity -->
+		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+		<!-- WinForms -->
+		
+ 
+
+	</PropertyGroup>
+
+	<!-- .NET Framework–specific tweaks -->
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK;WINFORMS_NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+	<!-- .NET 9 Windows–specific tweaks -->
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
+		<DefineConstants>$(DefineConstants);NET_9;WINFORMS;WINFORMS_NET_9</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Properties\**" />
+		<EmbeddedResource Remove="Properties\**" />
+		<None Remove="Properties\**" />
+	</ItemGroup>
+
+	<!-- References -->
+	<ItemGroup>
+		<ProjectReference Include="..\PageNav\NekoLib.Navigation.csproj" />
+	</ItemGroup>
+
+</Project>

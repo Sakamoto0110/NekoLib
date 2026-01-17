@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>false</ImplicitUsings>
+ 
+		<!-- Library -->
+		<OutputType>Library</OutputType>
+
+		<!-- Assembly info -->
+		<AssemblyName>NekoLib.Data</AssemblyName>
+		<RootNamespace>NekoLib.Data</RootNamespace>
+ 
+		<!-- Identity -->
+		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\NekoLib.Core\NekoLib.Core.csproj" />
+	</ItemGroup>
+</Project>

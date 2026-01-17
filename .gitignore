@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+[Bb]uild/
+[Dd]ist/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

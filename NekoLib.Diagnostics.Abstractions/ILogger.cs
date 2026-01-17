@@ -1,0 +1,15 @@
+using System;
+
+namespace NekoLib.Diagnostics
+{
+    public interface ILogger
+    {
+        void Log(LogLevel level, string message, Exception exception = null);
+
+        void Debug(string message);
+        void Info(string message);
+        void Warn(string message);
+        void Error(string message, Exception exception = null);
+        void Critical(string message, Exception exception = null);
+    }
+}
