@@ -8,6 +8,7 @@ using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using System;
 using System.Reflection;
+using NekoLib.Navigation.Diagnostics;
 
 namespace NekoLib.Navigation.Bootstrap
 {
@@ -27,7 +28,7 @@ namespace NekoLib.Navigation.Bootstrap
 
         private int _timeoutSeconds = 10;
 
-        private NekoLib.Diagnostics.IDiagnosticContext _diagnostics;
+        private NekoLib.Diagnostics.IDiagnostics _diagnostics;
 
         private PageNavBootstrap(object nativeHost, IPlatformAdapter adapter)
         {
@@ -86,7 +87,7 @@ namespace NekoLib.Navigation.Bootstrap
             // ------------------------------------------------------------
             return new NavigationContext(
                 host: host,
-                services: services,TimeSpan.FromSeconds(10)
+                 services: services
             );
         }
 
@@ -113,15 +114,9 @@ namespace NekoLib.Navigation.Bootstrap
         // Configuration
         // --------------------------------------------------------------------
 
-        public PageNavBootstrap Timeout(int seconds)
-        {
-            if(seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
-            _timeoutSeconds = seconds;
-            return this;
-        }
 
         
-        public PageNavBootstrap UseDiagnostics(IDiagnosticContext diagnostics)
+        public PageNavBootstrap UseDiagnostics(IDiagnostics diagnostics)
         {
             _diagnostics = diagnostics;
             return this;
@@ -160,35 +155,113 @@ namespace NekoLib.Navigation.Bootstrap
 
         public NavigationContext Start()
         {
-            // 1) Register pages by attribute scan (optional but typical)
-            if(_pagesAssembly != null)
+            // ------------------------------------------------------------
+            // 1) Page registration (attributes + hybrid tweaks)
+            // ------------------------------------------------------------
+            if (_pagesAssembly != null)
                 PageRegistry.RegisterFromAssembly(_pagesAssembly);
 
-            // 2) Apply manual tweaks (hybrid)
-            if(_pageConfig != null)
+            if (_pageConfig != null)
                 _pageConfig(new PageRegistryConfigurator());
 
-            // 3) Build navigation context via builder (composition root)
-            var ctx = new NavigationContextBuilder()
-                .UseHost((IPageHost)_nativeHost)
-                .UseTimeout(_timeoutSeconds)
-                .UseDiagnostics(_diagnostics)
-                
-                .Build();
+            // ------------------------------------------------------------
+            // 2) Service locator (OPEN phase)
+            // ------------------------------------------------------------
+            var services = new ServiceLocator();
 
+            // ------------------------------------------------------------
+            // 3) Core + platform services
+            // ------------------------------------------------------------
 
-            // 4) Allow app to add extra services before lock
-            if(_serviceConfig != null)
-                _serviceConfig(ctx.Services,_platform);
+            // Host (UI-owned, required)
+            var host = (IPageHost)_nativeHost;
+            services.Register(host);
 
-            // 5) Register context itself (handy for overlays / dialogs / DM extensions)
-            ctx.Services.Register(ctx);
+            // Platform-provided services
+            if (_platform != null)
+            {
+                services.Register(
+                    typeof(IEventDispatcherAdapter),
+                    _platform.CreateEventDispatcher(host));
 
-            // 6) Lock locator
-            ctx.Services.Lock();
+                services.Register(
+                    typeof(IInteractionBlocker),
+                    _platform.CreateInteractionBlocker(host));
 
-            return ctx;
+                services.Register(
+                    typeof(ITimerAdapter),
+                    _platform.CreateTimerAdapter());
+            }
+
+            // Runtime services
+            var pageFactory = new PageFactory();
+            services.Register(pageFactory);
+
+            // ------------------------------------------------------------
+            // 4) Diagnostics bridge (legacy-safe, optional)
+            // ------------------------------------------------------------
+            if (_diagnostics != null)
+                NavigationDiagnostics.Context = _diagnostics;
+
+            // ------------------------------------------------------------
+            // 5) Allow app-level service extensions (still OPEN)
+            // ------------------------------------------------------------
+            _serviceConfig?.Invoke(services, _platform);
+
+            // ------------------------------------------------------------
+            // 6) Create navigation context
+            // ------------------------------------------------------------
+            var context = new NavigationContext(
+                host: host,
+                services: services,
+               // timeout: TimeSpan.FromSeconds(_timeoutSeconds),
+                diagnostics: _diagnostics
+            );
+
+            // ------------------------------------------------------------
+            // 7) Self-register context (useful for overlays, extensions)
+            // ------------------------------------------------------------
+            services.Register(context);
+
+            // ------------------------------------------------------------
+            // 8) Lock services (NO MORE REGISTRATION)
+            // ------------------------------------------------------------
+            services.Lock();
+
+            return context;
         }
+
+        //public NavigationContext Start()
+        //{
+        //    // 1) Register pages by attribute scan (optional but typical)
+        //    if(_pagesAssembly != null)
+        //        PageRegistry.RegisterFromAssembly(_pagesAssembly);
+
+        //    // 2) Apply manual tweaks (hybrid)
+        //    if(_pageConfig != null)
+        //        _pageConfig(new PageRegistryConfigurator());
+
+        //    // 3) Build navigation context via builder (composition root)
+        //    var ctx = new NavigationContextBuilder()
+        //        .UseHost((IPageHost)_nativeHost)
+        //        .UseTimeout(_timeoutSeconds)
+        //        .UseDiagnostics(_diagnostics)
+
+        //        .Build();
+
+
+        //    // 4) Allow app to add extra services before lock
+        //    if(_serviceConfig != null)
+        //        _serviceConfig(ctx.Services,_platform);
+
+        //    // 5) Register context itself (handy for overlays / dialogs / DM extensions)
+        //    ctx.Services.Register(ctx);
+
+        //    // 6) Lock locator
+        //    ctx.Services.Lock();
+
+        //    return ctx;
+        //}
 
         // Convenience to keep legacy static facade alive if you still want it:
         public NavigationContext StartAsDefault()

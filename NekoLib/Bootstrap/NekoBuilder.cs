@@ -10,8 +10,7 @@ namespace NekoLib
         private readonly List<INekoModule> _modules = new List<INekoModule>();
         private INekoConfiguration _configuration = NekoConfiguration.Empty;
         private INekoEnvironment _environment = DefaultEnvironment.Production;
-
-        private readonly DiagnosticsRuntime _diagnosticsRuntime = new DiagnosticsRuntime();
+        private IDiagnostics _diagnostics = null;
 
         public NekoBuilder() { }
 
@@ -27,10 +26,9 @@ namespace NekoLib
             return this;
         }
 
-        public NekoBuilder UseDiagnostics(Action<IDiagnosticsBuilder> configure)
+        public INekoBuilder UseDiagnostics(IDiagnostics diagnostics)
         {
-            if(configure == null) return this;
-            configure(new DiagnosticsBuilder(_diagnosticsRuntime));
+            _diagnostics = diagnostics  ;
             return this;
         }
 
@@ -49,12 +47,9 @@ namespace NekoLib
             services.RegisterInstance(_configuration);
             services.RegisterInstance(_environment);
 
-            // Diagnostics runtime + default context
-            services.RegisterInstance<IDiagnosticsRuntime>(_diagnosticsRuntime);
-            services.RegisterInstance<IDiagnosticContext>(_diagnosticsRuntime.CreateContext("NekoLib"));
-            services.RegisterInstance<ILogger>(_diagnosticsRuntime.CreateLogger("NekoLib"));
+             
 
-            var ctx = new NekoModuleContext(services, _configuration, _environment);
+            var ctx = new NekoModuleContext(services, _configuration, _environment, _diagnostics);
 
             // Configure all modules before start
             for(int i = 0; i < _modules.Count; i++)
@@ -62,39 +57,24 @@ namespace NekoLib
                 _modules[i].Configure(ctx);
             }
 
-            return new NekoHost(_modules, services, _diagnosticsRuntime);
+            return new NekoHost(_modules, services, _diagnostics.Logger);
         }
 
-        private sealed class DiagnosticsBuilder : IDiagnosticsBuilder
-        {
-            private readonly DiagnosticsRuntime _rt;
-
-            public DiagnosticsBuilder(DiagnosticsRuntime rt) { _rt = rt; }
-
-            public IDiagnosticsBuilder AddLogSink(ILogSink sink)
-            {
-                _rt.AddLogSink(sink);
-                return this;
-            }
-
-            public IDiagnosticsBuilder AddTelemetrySink(ITelemetrySink sink)
-            {
-                _rt.AddTelemetrySink(sink);
-                return this;
-            }
-        }
+    
 
         private sealed class NekoModuleContext : INekoModuleContext
         {
             public INekoServiceRegistry Services { get; }
             public INekoConfiguration Configuration { get; }
             public INekoEnvironment Environment { get; }
+            public IDiagnostics Diagnostics { get; }
 
-            public NekoModuleContext(INekoServiceRegistry services, INekoConfiguration configuration, INekoEnvironment environment)
+            public NekoModuleContext(INekoServiceRegistry services, INekoConfiguration configuration, INekoEnvironment environment, IDiagnostics diagnostics)
             {
                 Services = services;
                 Configuration = configuration;
                 Environment = environment;
+                Diagnostics = diagnostics;
             }
         }
     }

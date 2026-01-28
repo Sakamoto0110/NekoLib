@@ -25,4 +25,8 @@
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\NekoLib.Diagnostics.Abstractions\NekoLib.Diagnostics.Abstractions.csproj" />
+	</ItemGroup>
+
 </Project>

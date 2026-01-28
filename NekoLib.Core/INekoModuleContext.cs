@@ -8,5 +8,6 @@ namespace NekoLib.Core
         INekoServiceRegistry Services { get; }
         INekoConfiguration Configuration { get; }
         INekoEnvironment Environment { get; }
+        Diagnostics.IDiagnostics Diagnostics { get; }
     }
 }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net481;net9.0</TargetFrameworks>
@@ -21,9 +21,5 @@
     <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\NekoLib.Core\NekoLib.Core.csproj" />
-  </ItemGroup>
 
 </Project>

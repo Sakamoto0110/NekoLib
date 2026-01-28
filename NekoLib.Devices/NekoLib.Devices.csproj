@@ -22,7 +22,7 @@
 	</PropertyGroup>
 
 	<!-- net481 references -->
-	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481-Windows'">
 		<Reference Include="System.IO.Ports" />
 	</ItemGroup>
 

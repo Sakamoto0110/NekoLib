@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.Adapters
 
         public IPageHost CreateHost(object host)
         {
-            // host is ALWAYS the native Control passed to Initialize
+            // host is ALWAYS the native Control passed to UseContext
 
             if(host.GetType() == typeof(Panel)) return new Hosting.PanelPageHost((Panel)host);
             throw new ArgumentException();
@@ -30,7 +30,7 @@ namespace NekoLib.Navigation.Adapters
         public IEventSubscriptionAdapter CreateEventSubscriber(object host) => new WinFormsEventSubscriptionAdapter();
         public IEventDispatcherAdapter CreateEventDispatcher(object host) => new WinFormsEventDispatcherAdapter((Control)host);
         public ITimerAdapter CreateTimerAdapter() => new WinFormsTimerAdapter();
-        public IPageTimeoutAdapter CreateTimeoutAdapter() => new WinFormsPageTimeoutAdapter();
+      
         public IInteractionObserverService CreateInteractionObserverAdapter(object host) => new WinFormsInteractionObserver((Control)host);
         public void InvokeOnUI(Action action)
         {

@@ -20,3 +20,12 @@ Thumbs.db
 
 # Logs
 *.log
+/Demo/Form1.cs
+/Demo/Pages/PageA.cs
+/Demo/Pages/PageA.Designer.cs
+/Demo/Pages/PageA.resx
+/Demo/Program.cs
+/Demo/Demo.csproj
+/Demo/Pages/PageHost.cs
+/Demo/Pages/PageHost.Designer.cs
+/Demo/Pages/PageHost.resx

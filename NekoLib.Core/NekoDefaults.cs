@@ -2,8 +2,8 @@ namespace NekoLib.Core
 {
     public sealed class NekoEnvironment : INekoEnvironment
     {
-        public bool IsDevelopment { get; set; }
-        public bool IsProduction { get; set; } = true;
+        public bool IsDevelopment { get; set; } = true;
+        public bool IsProduction { get; set; } = false;
         public bool IsHeadless { get; set; }
     }
 
