@@ -247,7 +247,7 @@ namespace NekoLib.Data.Internal.Gateway
             return DynamicMode.Disabled;
         }
 
-        private DynamicRow CreateDynamicRow(QueryExecutionContext ctx, SchemaInfo schema, DbDataReader reader)
+        private DynamicRow CreateDynamicRow(SchemaInfo schema, DbDataReader reader)
         {
             var mode = ResolveDynamicMode(ctx);
 
@@ -302,29 +302,28 @@ namespace NekoLib.Data.Internal.Gateway
 
         #region Dynamic API (IL + DynamicRow, no DTO)
 
-        public async Task<List<DynamicRow>> GetDynamic(QueryExecutionContext ctx,  QueryBuilder Builder,  CancellationToken Ct = default)
+        public async Task<List<DynamicRow>> GetDynamic(QueryBuilder Builder,  CancellationToken Ct = default)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
             List<DynamicRow> list = new List<DynamicRow>();
-            await ReadDynamic(ctx, Builder, delegate (DynamicRow row) { list.Add(row); }, Ct)
+            await ReadDynamic(Builder, delegate (DynamicRow row) { list.Add(row); }, Ct)
                 .ConfigureAwait(false);
             return list;
         }
 
-        public async Task ReadDynamic(QueryExecutionContext ctx, QueryBuilder Builder ,Action<DynamicRow> Callback,CancellationToken Ct = default)
+        public async Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback,CancellationToken Ct = default)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
+            
 
             var translator = ctx.Translator;
             QueryModel model = Builder.Build();
             ctx.RaiseSqlGenerated(model.Sql);
             DatabaseQuery dbq = translator.Translate(model);
 
-            await WithCommandAsync(ctx, dbq.Sql,  dbq.Parameters, async delegate (DbCommand cmd)
+            await WithCommandAsync(dbq.Sql,  dbq.Parameters, async delegate (DbCommand cmd)
             {
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, Ct).ConfigureAwait(false))
                 {
@@ -335,7 +334,7 @@ namespace NekoLib.Data.Internal.Gateway
 
                     while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
                     {
-                        DynamicRow row = CreateDynamicRow(ctx, schema, reader);
+                        DynamicRow row = CreateDynamicRow(schema, reader);
                         try
                         {
                             Callback(row);
@@ -360,10 +359,9 @@ namespace NekoLib.Data.Internal.Gateway
         #if NET6_0_OR_GREATER
         #region DataStreaming
 
-        public IAsyncEnumerable<DynamicRow> StreamDynamic(QueryExecutionContext ctx,  QueryBuilder builder, CancellationToken ct = default)
+        public IAsyncEnumerable<DynamicRow> StreamDynamic(QueryBuilder builder, CancellationToken ct = default)
 
-        {
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
+        {          
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             var translator = ctx.Translator;
@@ -374,7 +372,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             try
             {
-                return StreamDynamicInternal(ctx, dbq, ct);
+                return StreamDynamicInternal(dbq, ct);
             }
             catch(Exception ex)
             {
@@ -382,7 +380,7 @@ namespace NekoLib.Data.Internal.Gateway
                 throw;
             }
         }
-        private async IAsyncEnumerable<DynamicRow> StreamDynamicInternal(QueryExecutionContext ctx, DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        private async IAsyncEnumerable<DynamicRow> StreamDynamicInternal(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
             DbConnection conn = null;
             DbCommand cmd = null;
@@ -408,7 +406,7 @@ namespace NekoLib.Data.Internal.Gateway
                 while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                 {
                     ct.ThrowIfCancellationRequested();
-                    yield return CreateDynamicRow(ctx, schema, reader);
+                    yield return CreateDynamicRow(schema, reader);
                 }
 
                 ctx.RaiseSuccess(dbq.Sql);

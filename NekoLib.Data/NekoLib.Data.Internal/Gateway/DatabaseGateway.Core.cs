@@ -28,21 +28,23 @@ namespace NekoLib.Data.Internal.Gateway
     public partial class DatabaseGateway
     {
 
+        QueryExecutionContext ctx;
+
         #region ctor
 
         /// <summary>
-        /// Cria um <see cref="DatabaseGateway"/>
+        /// Cria um <see cref="DatabaseGateway"/> baseado no contexto de execução fornecido. 
         /// </summary>
-        public DatabaseGateway()
+        public DatabaseGateway(QueryExecutionContext _ctx)
         {
-            
+            ctx = _ctx;
         }
 
         #endregion
 
         #region Connection / command helpers
 
-        private async Task<DbConnection> OpenConnectionAsync(QueryExecutionContext ctx,CancellationToken Ct)
+        private async Task<DbConnection> OpenConnectionAsync(CancellationToken Ct)
         {
             var conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
 
@@ -61,12 +63,12 @@ namespace NekoLib.Data.Internal.Gateway
             
         }
 
-        private async Task<T> WithCommandAsync<T>(QueryExecutionContext ctx, string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct)
+        private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct)
         {
             if(Sql == null) throw new ArgumentNullException(nameof(Sql));
             if(work == null) throw new ArgumentNullException(nameof(work));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
-            using(DbConnection conn = await OpenConnectionAsync(ctx,Ct).ConfigureAwait(false))
+            using(DbConnection conn = await OpenConnectionAsync(Ct).ConfigureAwait(false))
             {
                 using(DbCommand cmd = conn.CreateCommand())
                 {
@@ -90,9 +92,9 @@ namespace NekoLib.Data.Internal.Gateway
             }
         }
 
-        private Task<T> WithCommandAsync<T>(QueryExecutionContext ctx, string Sql, Func<DbCommand, Task<T>> work, CancellationToken Ct)
+        private Task<T> WithCommandAsync<T>(string Sql, Func<DbCommand, Task<T>> work, CancellationToken Ct)
         {
-            return WithCommandAsync(ctx, Sql, null, work, Ct);
+            return WithCommandAsync(Sql, null, work, Ct);
         }
 
         private static async Task<DbDataReader> ExecuteReaderSafeAsync(DbCommand Cmd, CancellationToken Ct)
