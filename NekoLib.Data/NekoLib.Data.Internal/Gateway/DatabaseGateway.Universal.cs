@@ -13,7 +13,7 @@ using NekoLib.Data.Internal.Gateway.Query;
 using NekoLib.Data.Internal.Gateway.Dynamic;
 using NekoLib.Data.Internal.Gateway.Mapping;
 using NekoLib.Data.Query;
-
+ 
 #if NET6_0_OR_GREATER
 using System.Diagnostics.CodeAnalysis;
 #endif
@@ -132,9 +132,9 @@ namespace NekoLib.Data.Internal.Gateway
                                         Type = schema.ColumnTypes[col].FullName,
                                         Value = reader[col] is DBNull ? string.Empty : (Convert.ToString(reader[col], CultureInfo.InvariantCulture) ?? string.Empty)
                                     };
+
+
                                 
-
-
                                 object dto = DataMapper.Map(record, targetType);
                                 handler.DynamicInvoke(dto);
                                 continue;

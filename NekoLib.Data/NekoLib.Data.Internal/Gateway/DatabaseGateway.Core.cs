@@ -1,16 +1,16 @@
 #nullable enable
+ 
+using NekoLib.Data.Internal.Gateway.Connection;
 using NekoLib.Data.Internal.Gateway.Query;
-
-
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.OleDb;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Globalization;
 
 namespace NekoLib.Data.Internal.Gateway
 {
@@ -25,7 +25,7 @@ namespace NekoLib.Data.Internal.Gateway
     ///   <item><b>Universal</b>: Get/Read com fallback DTO → Dynamic.</item>
     /// </list>
     /// </summary>
-    public partial class DatabaseGateway
+    public partial class DatabaseGateway  
     {
 
         QueryExecutionContext ctx;
@@ -62,12 +62,15 @@ namespace NekoLib.Data.Internal.Gateway
 
             
         }
-
+        public async Task<DbSession> OpenSessionAsync(CancellationToken ct = default)
+        {
+            var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+            return new DbSession(conn);
+        }
         private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct)
         {
             if(Sql == null) throw new ArgumentNullException(nameof(Sql));
             if(work == null) throw new ArgumentNullException(nameof(work));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
             using(DbConnection conn = await OpenConnectionAsync(Ct).ConfigureAwait(false))
             {
                 using(DbCommand cmd = conn.CreateCommand())
@@ -94,7 +97,59 @@ namespace NekoLib.Data.Internal.Gateway
 
         private Task<T> WithCommandAsync<T>(string Sql, Func<DbCommand, Task<T>> work, CancellationToken Ct)
         {
-            return WithCommandAsync(Sql, null, work, Ct);
+           return WithCommandAsync(Sql, null, work, Ct);
+        }
+
+        private async Task<T> WithCommandAsync<T>(string sql, Dictionary<string, object?>? parameters, Func<DbCommand, Task<T>> work, CancellationToken ct, DbSession? session)
+        {
+            DbConnection conn;
+            bool ownsConnection = false;
+
+            if (session != null)
+            {
+                conn = session.Connection;
+            }
+            else
+            {
+                conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                ownsConnection = true;
+            }
+
+            try
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
+                    cmd.CommandType = CommandType.Text;
+
+                    if (session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
+
+                    ApplyParameters(cmd, parameters);
+
+                    ctx.RaiseSqlDispatch(sql);
+                    var result = await work(cmd).ConfigureAwait(false);
+                    ctx.RaiseSuccess(sql, result);
+
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                ctx.RaiseError(sql, ex);
+                throw;
+            }
+            finally
+            {
+                if (ownsConnection)
+                    conn.Dispose();
+            }
+
+        }
+
+        private Task<T> WithCommandAsync<T>(string sql, Func<DbCommand, Task<T>> work, CancellationToken ct, DbSession? session)
+        {
+            return WithCommandAsync(sql, null, work, ct,session);
         }
 
         private static async Task<DbDataReader> ExecuteReaderSafeAsync(DbCommand Cmd, CancellationToken Ct)
