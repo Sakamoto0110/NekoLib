@@ -24,8 +24,4 @@
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net481'">
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 	</PropertyGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="..\NekoLib.Core\NekoLib.Core.csproj" />
-	</ItemGroup>
 </Project>
