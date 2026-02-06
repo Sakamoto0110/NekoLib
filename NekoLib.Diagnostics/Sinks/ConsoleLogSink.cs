@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 namespace NekoLib.Diagnostics.Sinks
 {
@@ -13,7 +14,7 @@ namespace NekoLib.Diagnostics.Sinks
             try
             {
                 var ex = entry.Exception == null ? "" : (" | " + entry.Exception);
-                Console.WriteLine($"[{entry.TimestampUtc:O}] {entry.Level} {entry.Category}: {entry.Message}{ex}");
+                Debug.WriteLine($"[{entry.TimestampUtc:O}] {entry.Level} {entry.Category}: {entry.Message}{ex}");
             }
             catch { }
         }
