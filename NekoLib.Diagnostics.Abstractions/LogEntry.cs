@@ -1,4 +1,4 @@
-using System;
+    using System;
 
 namespace NekoLib.Diagnostics
 {
@@ -10,6 +10,14 @@ namespace NekoLib.Diagnostics
         public string Message { get; }
         public Exception Exception { get; }
 
+        public LogEntry(DateTime timestampUtc, LogLevel level, string message, Exception exception = null)
+        {
+            TimestampUtc = timestampUtc;
+            Level = level;
+            Category = "";
+            Message = message;
+            Exception = exception;
+        }
         public LogEntry(DateTime timestampUtc, LogLevel level, string category, string message, Exception exception = null)
         {
             TimestampUtc = timestampUtc;

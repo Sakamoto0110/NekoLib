@@ -8,6 +8,7 @@ using NekoLib.Navigation.Runtime.Lifecycle;
 using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
@@ -18,7 +19,6 @@ namespace NekoLib.Navigation.Runtime.Core
         private bool _isNavigating;
         private readonly NavigationContext _ctx;
 
-        private IPageTimeoutService _timeout;
         private PageLifecycleCleanupService _cleanup;
         private IInteractionObserverService _interactionObserver;
         private PageFactory _pageFactory;
@@ -41,7 +41,7 @@ namespace NekoLib.Navigation.Runtime.Core
         public event Action<IPageView> OnFirstPageAttached;
         public event Action OnNoPageAttached;
         public event Action OnNoPageVisible;
-
+ 
         // ---------------------------------------------------------------------
         // CTOR
         // ---------------------------------------------------------------------
@@ -125,12 +125,7 @@ namespace NekoLib.Navigation.Runtime.Core
             if (_interactionObserver != null)
                 _interactionObserver.InteractionDetected -= OnInteractionDetected;
 
-            if (_timeout != null)
-            {
-                _timeout.TimeoutReached -= OnTimeoutReached;
-                _timeout.Stop();
-                _timeout.Dispose();
-            }
+            
         }
 
         // ---------------------------------------------------------------------
@@ -174,8 +169,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     ((IInteractionBlocker)_ctx.Services.Get(typeof(IInteractionBlocker))).Block();
                 }
 
-                _timeout?.Reset();
-
+ 
                 var factory = EnsurePageFactory();
                 to = PageRegistry.ResolveInstance(toDesc, factory.Create);
 
@@ -280,11 +274,9 @@ namespace NekoLib.Navigation.Runtime.Core
             var services = _ctx.Services
                 ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
 
-            if (_timeout == null && services.CanResolve(typeof(IPageTimeoutService)))
-            {
-                _timeout = (IPageTimeoutService)services.Get(typeof(IPageTimeoutService));
-                _timeout.TimeoutReached += OnTimeoutReached;
-            }
+            // timeout logic goes here
+
+            //
 
             if (_cleanup == null)
             {
@@ -335,6 +327,8 @@ namespace NekoLib.Navigation.Runtime.Core
         // EVENT HANDLERS
         // ---------------------------------------------------------------------
 
+       
+
         private void OnTimeoutReached()
         {
             TimeoutReached?.Invoke();
@@ -342,7 +336,7 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private void OnInteractionDetected()
         {
-            _timeout?.Reset();
+            
         }
     }
 }

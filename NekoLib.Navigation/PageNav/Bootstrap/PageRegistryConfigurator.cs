@@ -77,11 +77,7 @@ namespace NekoLib.Navigation.Bootstrap
             return this;
         }
 
-        public PageRule<T> Timeout(PageTimeoutBehavior behavior)
-        {
-            Get().Timeout = behavior;
-            return this;
-        }
+        
 
         public PageRule<T> LoadMode(NavigationLoadMode mode)
         {

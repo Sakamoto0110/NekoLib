@@ -37,7 +37,7 @@ namespace NekoLib.Navigation
         public static event Action<IPageView> OnFirstPageAttached;
         public static event Action OnNoPageAttached;
         public static event Action OnNoPageVisible;
-
+ 
         private static int _attachedPages;
         private static int _visiblePages;
 
@@ -46,7 +46,7 @@ namespace NekoLib.Navigation
         // INIT / SHUTDOWN
         // -------------------------------------------------------------------------
 
-        public static void Initialize(NavigationContext context)
+        public static void UseContext(NavigationContext context)
         {
 #if DEBUG
             if(context == null)
@@ -146,7 +146,7 @@ namespace NekoLib.Navigation
             _runtime.NavigationFailed += OnNavigationFailed;
             _runtime.CurrentChanged += OnCurrentChanged;
             _runtime.HistoryChanged += OnHistoryChanged;
-
+             
             _runtime.TimeoutReached += OnTimeout;
         }
 
@@ -160,7 +160,7 @@ namespace NekoLib.Navigation
             _runtime.CurrentChanged -= OnCurrentChanged;
             _runtime.HistoryChanged -= OnHistoryChanged;
         }
-
+        
         private static void OnNavigating(IPageView from, Type to, NavigationArgs args)
             => Navigating?.Invoke(from, to, args);
 

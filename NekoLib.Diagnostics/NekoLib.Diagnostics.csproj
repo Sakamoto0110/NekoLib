@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net481;net9.0</TargetFrameworks>
@@ -23,7 +23,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NekoLib.Core\NekoLib.Core.csproj" />
     <ProjectReference Include="..\NekoLib.Diagnostics.Abstractions\NekoLib.Diagnostics.Abstractions.csproj" />
   </ItemGroup>
 

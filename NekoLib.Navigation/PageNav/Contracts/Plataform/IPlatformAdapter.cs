@@ -20,7 +20,7 @@ namespace NekoLib.Navigation.Contracts.Plataform
         ITimerAdapter CreateTimerAdapter();
 
         IPageOverlay CreateOverlayService(object host);
-        IPageTimeoutAdapter CreateTimeoutAdapter();
+        
 
           IInteractionObserverService CreateInteractionObserverAdapter(object host);
 

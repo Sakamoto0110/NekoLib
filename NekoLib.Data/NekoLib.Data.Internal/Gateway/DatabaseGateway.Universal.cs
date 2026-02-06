@@ -13,7 +13,7 @@ using NekoLib.Data.Internal.Gateway.Query;
 using NekoLib.Data.Internal.Gateway.Dynamic;
 using NekoLib.Data.Internal.Gateway.Mapping;
 using NekoLib.Data.Query;
-
+ 
 #if NET6_0_OR_GREATER
 using System.Diagnostics.CodeAnalysis;
 #endif
@@ -28,16 +28,15 @@ namespace NekoLib.Data.Internal.Gateway
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(QueryExecutionContext ctx,  QueryBuilder Builder, CancellationToken Ct = default) where TTranslator : IDbQueryTranslator, new() where T : new()
+            T>(QueryBuilder Builder, CancellationToken Ct = default) where TTranslator : IDbQueryTranslator, new() where T : new()
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
             Type targetType = typeof(T);
 
             if(targetType == typeof(DynamicRow) || targetType == typeof(object))
             {
-                List<DynamicRow> dynRows = await GetDynamic(ctx, Builder, Ct).ConfigureAwait(false);
+                List<DynamicRow> dynRows = await GetDynamic(Builder, Ct).ConfigureAwait(false);
                 List<T> castResult = dynRows.Cast<T>().ToList();
                 return castResult;
             }
@@ -46,7 +45,7 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 try
                 {
-                    List<T> dtoResult = await GetDto<T>(ctx, Builder, Ct).ConfigureAwait(false);
+                    List<T> dtoResult = await GetDto<T>(Builder, Ct).ConfigureAwait(false);
                     return dtoResult;
                 }
                 catch
@@ -54,7 +53,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
             }
 
-            List<DynamicRow> dynFallback = await GetDynamic(ctx, Builder, Ct).ConfigureAwait(false);
+            List<DynamicRow> dynFallback = await GetDynamic(Builder, Ct).ConfigureAwait(false);
             List<T> fallbackCast = dynFallback.Cast<T>().ToList();
             return fallbackCast;
         }
@@ -68,13 +67,12 @@ namespace NekoLib.Data.Internal.Gateway
         /// O tipo do parâmetro do callback determina a estratégia:
         /// DynamicRow → IL, object → IL, DTO com ctor padrão → DTO, senão fallback IL.
         /// </summary>
-        public Task Read( QueryExecutionContext ctx, QueryBuilder builder,Delegate handler,CancellationToken ct = default)
+        public Task Read(QueryBuilder builder,Delegate handler,CancellationToken ct = default)
         {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
             if(handler == null) throw new ArgumentNullException(nameof(handler));
 
-            return ReadUniversalDispatch(ctx, builder, handler, ct);
+            return ReadUniversalDispatch(builder, handler, ct);
         }
 
 
@@ -85,15 +83,14 @@ namespace NekoLib.Data.Internal.Gateway
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>( QueryExecutionContext ctx, QueryBuilder builder,Action<T> callback,CancellationToken ct = default)
+            T>(QueryBuilder builder,Action<T> callback,CancellationToken ct = default)
         {
             if(callback == null) throw new ArgumentNullException(nameof(callback));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
-            return Read(ctx, builder, (Delegate)callback, ct);
+            return Read(builder, (Delegate)callback, ct);
         }
 
-        private async Task ReadUniversalDispatch( QueryExecutionContext ctx, QueryBuilder builder,Delegate handler,CancellationToken ct)
+        private async Task ReadUniversalDispatch(QueryBuilder builder,Delegate handler,CancellationToken ct)
         {
             ParameterInfo[] pars = handler.Method.GetParameters();
             if(pars.Length != 1)
@@ -107,7 +104,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             try
             {
-                await WithCommandAsync(ctx, dbq.Sql, dbq.Parameters, async cmd => {
+                await WithCommandAsync(dbq.Sql, dbq.Parameters, async cmd => {
                     using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct))
                     {
                         SchemaInfo schema = ExtractSchema(reader);
@@ -135,15 +132,15 @@ namespace NekoLib.Data.Internal.Gateway
                                         Type = schema.ColumnTypes[col].FullName,
                                         Value = reader[col] is DBNull ? string.Empty : (Convert.ToString(reader[col], CultureInfo.InvariantCulture) ?? string.Empty)
                                     };
+
+
                                 
-
-
                                 object dto = DataMapper.Map(record, targetType);
                                 handler.DynamicInvoke(dto);
                                 continue;
                             }
                             // Dynamic path (IL/Expando) conforme opções
-                            handler.DynamicInvoke((object)CreateDynamicRow(ctx, schema, reader));
+                            handler.DynamicInvoke((object)CreateDynamicRow(schema, reader));
 }
                     }
 
@@ -164,9 +161,8 @@ namespace NekoLib.Data.Internal.Gateway
 
 #if NET6_0_OR_GREATER
         #region DataStreaming
-        public IAsyncEnumerable<dynamic> StreamData(QueryExecutionContext ctx, QueryBuilder builder, CancellationToken ct = default)
+        public IAsyncEnumerable<dynamic> StreamData(QueryBuilder builder, CancellationToken ct = default)
         {
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -176,7 +172,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             try
             {
-                return StreamDataCore<dynamic>(ctx, dbq, ct);
+                return StreamDataCore<dynamic>(dbq, ct);
             }
             catch(Exception ex)
             {
@@ -189,9 +185,8 @@ namespace NekoLib.Data.Internal.Gateway
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(QueryExecutionContext ctx, QueryBuilder builder, CancellationToken ct = default)
+            T>(QueryBuilder builder, CancellationToken ct = default)
         {
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -201,7 +196,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             try
             {
-                return StreamDataCore<T>(ctx, dbq, ct);
+                return StreamDataCore<T>(dbq, ct);
             }
             catch(Exception ex)
             {
@@ -210,7 +205,7 @@ namespace NekoLib.Data.Internal.Gateway
             }
         }
 
-        private async IAsyncEnumerable<T> StreamDataCore<T>(QueryExecutionContext ctx, DatabaseQuery dbq,[EnumeratorCancellation] CancellationToken ct)
+        private async IAsyncEnumerable<T> StreamDataCore<T>(DatabaseQuery dbq,[EnumeratorCancellation] CancellationToken ct)
         {
             DbConnection conn = null;
             DbCommand cmd = null;
@@ -264,7 +259,7 @@ namespace NekoLib.Data.Internal.Gateway
                     }
                     else
                     {
-                        yield return (T)(object)CreateDynamicRow(ctx, schema, reader);
+                        yield return (T)(object)CreateDynamicRow(schema, reader);
                     }
                 }
 

@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Collections.Concurrent;
-
+ 
 namespace NekoLib.Data.Internal.Gateway.Mapping
 {
     /// <summary>

@@ -15,22 +15,22 @@ namespace NekoLib.Navigation.Runtime.Core
         public IPageHost Host { get; }
         public ServiceLocator Services { get; }
         public NavigationHistory History { get; }
-        public TimeSpan Timeout { get; }
+       // public TimeSpan Timeout { get; }
 
         /// <summary>
         /// Optional diagnostics context. When not provided, navigation emits no logs/telemetry.
         /// </summary>
-        public IDiagnosticContext Diagnostics { get; }
+        public IDiagnostics Diagnostics { get; }
 
         public NavigationContext(
             IPageHost host,
             ServiceLocator services,
-            TimeSpan timeout,
-            IDiagnosticContext diagnostics = null)
+          //  TimeSpan timeout,
+            IDiagnostics diagnostics = null)
         {
             Host = host ?? throw new ArgumentNullException(nameof(host));
             Services = services ?? throw new ArgumentNullException(nameof(services));
-            Timeout = timeout;
+           // Timeout = timeout;
             Diagnostics = diagnostics;
 
             History = new NavigationHistory();

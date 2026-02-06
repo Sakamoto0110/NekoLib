@@ -23,6 +23,7 @@ namespace NekoLib.Navigation.Runtime.Factories
 
         public void Register(Type pageType, Func<IPageView> factory)
         {
+             
             _factories[pageType] = factory
                 ?? throw new ArgumentNullException(nameof(factory));
         }

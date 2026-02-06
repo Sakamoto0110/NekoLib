@@ -152,7 +152,7 @@ namespace NekoLib.Data
 
 
 
-    public interface IDatabaseGateway : IDisposable
+    public interface IDatabaseGateway0 : IDisposable
     {
         // ─────────────────────────────────────────────
         // Connection / lifecycle
