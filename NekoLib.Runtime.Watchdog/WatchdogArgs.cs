@@ -13,9 +13,9 @@ namespace NekoLib.Runtime.Watchdog
         /// --target, --args, --workdir, --instancetag, --delay, --backoff, --maxbackoff, --attachpid, --flagsdir
         /// Supports --key value and --key=value.
         /// </summary>
-        public static WatchdogOptions FromArgs(string[] args)
+        public static WatchdogOptions_old FromArgs(string[] args)
         {
-            var o = new WatchdogOptions();
+            var o = new WatchdogOptions_old();
 
             string GetVal(string key, string defVal)
             {

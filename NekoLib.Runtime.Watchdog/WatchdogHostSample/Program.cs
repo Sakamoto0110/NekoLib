@@ -11,7 +11,7 @@ namespace WatchdogHostSample
             var options = WatchdogArgs.FromArgs(args);
             options.EnableHotkeys = true;
 
-            using(var wdg = new WatchdogRuntime(options))
+            using(var wdg = new WatchdogRuntime_old(options))
             {
                 wdg.Start();
 
