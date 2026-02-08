@@ -1,5 +1,3 @@
-using NekoLib.Diagnostics.Abstractions;
-
 namespace NekoLib.Diagnostics.Sinks
 {
     public sealed class NullTelemetrySink : ITelemetrySink

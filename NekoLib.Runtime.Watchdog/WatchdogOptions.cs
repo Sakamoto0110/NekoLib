@@ -32,6 +32,16 @@ namespace NekoLib.Runtime.Watchdog
         public int GracefulKillTimeoutMs { get; set; } = 1000;
 
         public int ForceKillTimeoutMs { get; set; } = 1000;
+        public int HeartbeatIntervalMs { get; set; } = 5000;   // 0 disables
+        public bool BringToFrontOnStartIfRunning { get; set; } = true;
+
+        // Crash bundling
+        public bool EnableCrashBundling { get; set; } = true;
+        public string PendingCrashRoot { get; set; } = null;   // default: BaseDir\crash\pending
+        public string BundleRoot { get; set; } = null;         // default: BaseDir\crash\bundles
+        public int MaxBundles { get; set; } = 10;
+        public bool EnableBundleChecksums { get; set; } = true;
+        public bool EnableBundleManifests { get; set; } = true;
         public void Normalize()
         {
             if (string.IsNullOrWhiteSpace(TargetPath))
@@ -42,6 +52,12 @@ namespace NekoLib.Runtime.Watchdog
 
             if (EnableFileLogging && string.IsNullOrWhiteSpace(LogPath))
                 LogPath = Path.Combine(WorkingDirectory, "watchdog.log");
+            if (string.IsNullOrWhiteSpace(PendingCrashRoot))
+                PendingCrashRoot = Path.Combine(WorkingDirectory, "crash", "pending");
+
+            if (string.IsNullOrWhiteSpace(BundleRoot))
+                BundleRoot = Path.Combine(WorkingDirectory, "crash", "bundles");
+
         }
     }
 }

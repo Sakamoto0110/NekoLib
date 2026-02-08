@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace NekoLib.Runtime.Watchdog
 {
@@ -102,12 +103,19 @@ namespace NekoLib.Runtime.Watchdog
         private volatile ExitReason _lastExitReason = ExitReason.None;
         private volatile RestartReason _lastRestartReason = RestartReason.None;
 
-        public event Action<string> LogEmitted;
+        public event Action<string> LogEmitted
+        {
+            add { _LogEmitted += value; }
+            remove { _LogEmitted -= value; }
+        }
 
+        private Action<string> _LogEmitted;
+      
         public WatchdogRuntime(WatchdogOptions options)
         {
+           
             _o = options ?? throw new ArgumentNullException(nameof(options));
-            _o.Normalize();
+            _o.Normalize(); 
         }
 
 
@@ -167,108 +175,6 @@ namespace NekoLib.Runtime.Watchdog
         }
 
         // ============================================================
-        // Monitor loop (original semantics)
-        // ============================================================
-
-        /// <summary>
-        /// Main supervision loop.
-        /// 
-        /// Loop responsibilities:
-        /// - Waits while paused
-        /// - Starts the child process when enabled
-        /// - Monitors the child until it exits or is killed
-        /// - Classifies exit reasons (natural, crash, pause, stop)
-        /// - Applies restart policy with configurable delays
-        /// 
-        /// ExitReason describes why the child stopped.
-        /// RestartReason describes why the next start happens.
-        /// 
-        /// The loop runs until Stop is requested or the runtime is disposed.
-        /// </summary>
-
-        private void MonitorLoop()
-        {
-            while (!_exiting)
-            {
-                // Hard stop requested
-                if (_shutdownRequested)
-                {
-                    _lastExitReason = ExitReason.Stop;
-                    break;
-                }
-
-                // Paused state
-                if (!_enabled)
-                {
-                    _lastExitReason = ExitReason.Pause;
-                    IdleUntilEnabledOrExit();
-                    continue;
-                }
-
-                // Start / restart child (restart reason must already be set by:
-                // - Start(): InitialStart
-                // - Enable(): PauseResume
-                // - Natural exit block below: NaturalExit / Crash
-                // - TryKill(force): ForceKilled
-                var child = StartChild();
-                if (child == null)
-                {
-                    Log("[monitor] start_failed");
-                    Thread.Sleep(_o.RestartDelayMs);
-                    continue;
-                }
-
-                // Monitor running child
-                while (!_exiting && !_shutdownRequested && !child.HasExited)
-                {
-                    if (!_enabled)
-                    {
-                        _lastExitReason = ExitReason.Pause;
-                        TryKill(child);
-                        break;
-                    }
-
-                    Thread.Sleep(_o.MonitorPollMs);
-                }
-
-                // Shutdown path
-                if (_shutdownRequested || _exiting)
-                {
-                    _lastExitReason = ExitReason.Stop;
-                    break;
-                }
-
-                // Child exited by itself
-                if (child.HasExited)
-                {
-                    _childUptime?.Stop();
-                    _childUptime = null;
-
-                    // Heuristic: non-zero exit code => "Crash"
-                    if (child.ExitCode != 0)
-                    {
-                        _lastExitReason = ExitReason.Crash;
-                        _lastRestartReason = RestartReason.Crash;
-                    }
-                    else
-                    {
-                        _lastExitReason = ExitReason.NaturalExit;
-                        _lastRestartReason = RestartReason.NaturalExit;
-                    }
-
-                    Log("[child_exit] code=" + child.ExitCode);
-                }
-
-                // Restart delay before next loop
-                Thread.Sleep(_o.RestartDelayMs);
-            }
-
-            // Final cleanup
-            TryKill(_child);
-            Log("[monitor] exit");
-        }
-
-        // ============================================================
         // Pipe control
         // ============================================================
 
@@ -300,6 +206,178 @@ namespace NekoLib.Runtime.Watchdog
                 }
             }
         }
+        // ============================================================
+        // Monitor loop (original semantics)
+        // ============================================================
+
+        /// <summary>
+        /// Main supervision loop.
+        /// 
+        /// Loop responsibilities:
+        /// - Waits while paused
+        /// - Starts the child process when enabled
+        /// - Monitors the child until it exits or is killed
+        /// - Classifies exit reasons (natural, crash, pause, stop)
+        /// - Applies restart policy with configurable delays
+        /// 
+        /// ExitReason describes why the child stopped.
+        /// RestartReason describes why the next start happens.
+        /// 
+        /// The loop runs until Stop is requested or the runtime is disposed.
+        /// </summary>
+
+        private void MonitorLoop()
+        {
+            var hb = Stopwatch.StartNew();
+
+            while (!_exiting)
+            {
+                // =================================================
+                // Global shutdown
+                // =================================================
+                if (_shutdownRequested)
+                {
+                    _lastExitReason = ExitReason.Stop;
+                    break;
+                }
+
+                // =================================================
+                // Paused state
+                // =================================================
+                if (!_enabled)
+                {
+                    _lastExitReason = ExitReason.Pause;
+                    IdleUntilEnabledOrExit();
+                    continue;
+                }
+
+                // =================================================
+                // Acquire / start child
+                // =================================================
+                Process child = null;
+
+                if (_o.BringToFrontOnStartIfRunning)
+                {
+                    var existing = FindExistingTargetProcess();
+                    if (existing != null)
+                    {
+                        lock (_childLock)
+                        {
+                            _child = existing;
+                            _childUptime = Stopwatch.StartNew();
+                        }
+
+                        _lastRestartReason = RestartReason.ManualStart;
+                        Log("[attach] existing pid=" + existing.Id);
+
+                        BringToFront(existing);
+                        child = existing;
+                    }
+                }
+
+                if (child == null)
+                {
+                    KillExistingInstances();
+                    child = StartChild();
+                }
+
+                if (child == null)
+                {
+                    Log("[monitor] start_failed");
+                    Thread.Sleep(_o.RestartDelayMs);
+                    continue;
+                }
+
+                // =================================================
+                // Monitor running child
+                // =================================================
+                hb.Restart();
+
+                while (!_exiting && !_shutdownRequested && !child.HasExited)
+                {
+                    if (!_enabled)
+                    {
+                        _lastExitReason = ExitReason.Pause;
+                        _lastRestartReason = RestartReason.PauseResume;
+                        TryKill(child);
+                        break;
+                    }
+
+                    // Heartbeat (CORRECT PLACE)
+                    if (_o.HeartbeatIntervalMs > 0 &&
+                        hb.ElapsedMilliseconds >= _o.HeartbeatIntervalMs)
+                    {
+                        hb.Restart();
+                        var cu = _childUptime != null
+                            ? _childUptime.ElapsedMilliseconds
+                            : 0;
+
+                        Log("[hb] child_alive pid=" +
+                            SafePid(child) +
+                            " childUptimeMs=" + cu +
+                            " restartCount=" + _restartCount);
+                    }
+
+                    Thread.Sleep(_o.MonitorPollMs);
+                }
+
+                // =================================================
+                // Shutdown path
+                // =================================================
+                if (_shutdownRequested || _exiting)
+                {
+                    _lastExitReason = ExitReason.Stop;
+                    break;
+                }
+
+                // =================================================
+                // Child exited
+                // =================================================
+                _childUptime?.Stop();
+                _childUptime = null;
+
+                int exitCode = 0;
+                try { exitCode = child.ExitCode; } catch { exitCode = -1; }
+
+                if (exitCode != 0)
+                {
+                    _lastExitReason = ExitReason.Crash;
+                    _lastRestartReason = RestartReason.Crash;
+
+                    Log("[child_exit] crash code=" + exitCode);
+
+                    if (_o.EnableCrashBundling)
+                        TryFinalizeCrashBundle();
+                }
+                else
+                {
+                    _lastExitReason = ExitReason.NaturalExit;
+                    _lastRestartReason = RestartReason.NaturalExit;
+
+                    Log("[child_exit] natural code=0");
+                }
+
+                // =================================================
+                // Restart delay
+                // =================================================
+                Thread.Sleep(_o.RestartDelayMs);
+            }
+
+            // =====================================================
+            // Final cleanup (only if still alive)
+            // =====================================================
+            lock (_childLock)
+            {
+                if (_child != null && !_child.HasExited)
+                    TryKill(_child);
+            }
+
+            Log("[monitor] exit");
+        }
+
+        
+
+      
         /// <summary>
         /// Handles control commands received via named pipe.
         /// 
@@ -315,38 +393,51 @@ namespace NekoLib.Runtime.Watchdog
 
         private string HandleCommand(string cmd)
         {
+            if (string.IsNullOrWhiteSpace(cmd))
+                return "empty";
+
+            cmd = cmd.Trim().ToLowerInvariant();
+
             switch (cmd)
             {
-                case "start":
-                    Log("[cmd] start");
-                    Enable();
-                    return "running";
-
-                case "pause":
-                    Log("[cmd] pause");
-                    _enabled = false;
-                    _lastExitReason = ExitReason.Pause;
-                    TryKill(_child);
-                    return "paused";
-
-                case "stop":
-                    Log("[cmd] stop");
-                    _shutdownRequested = true;
-                    _exiting = true;
-                    _lastExitReason = ExitReason.Stop;
-                    TryKill(_child);
-                    return "stopped";
-
                 case "ping":
                     return "pong";
 
                 case "status":
                     return GetStatus();
 
+                case "pause":
+                    Log("[cmd] pause");
+                    _enabled = false;
+                    _lastExitReason = ExitReason.Pause;
+                    _lastRestartReason = RestartReason.PauseResume;
+                    return "paused";
+
+case "resume":
+                                case "start":
+                    Log("[cmd] resume");
+                    _enabled = true;
+                    _shutdownRequested = false;
+                    _lastRestartReason = RestartReason.PauseResume;
+                    return "running";
+
+                case "stop":
+                    Log("[cmd] stop");
+                    _shutdownRequested = true;
+                    _exiting = true;
+                    lock (_childLock) TryKill(_child);
+                    _lastExitReason = ExitReason.Stop;
+                    return "stopped";
+
+                case "bringfront":
+                    Log("[cmd] bringfront");
+                    return BringChildToFront() ? "ok" : "fail";
+
                 default:
                     return "unknown";
             }
         }
+
         /// <summary>
         /// Returns the current watchdog status as a structured string.
         /// 
@@ -387,7 +478,77 @@ namespace NekoLib.Runtime.Watchdog
         // ============================================================
         // Process helpers
         // ============================================================
+        private Process FindExistingTargetProcess()
+        {
+            try
+            {
+                var targetFull = SafeFullPath(_o.TargetPath);
+                if (string.IsNullOrEmpty(targetFull)) return null;
 
+                var name = Path.GetFileNameWithoutExtension(targetFull);
+                foreach (var p in Process.GetProcessesByName(name))
+                {
+                    try
+                    {
+                        if (p == null || p.HasExited) continue;
+
+                        var pFull = SafeFullPath(SafeModulePath(p));
+                        if (string.IsNullOrEmpty(pFull)) continue;
+
+                        if (!string.Equals(pFull, targetFull, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        // Don't pick ourselves if same exe used as host (rare if host uses same exe name)
+                        if (p.Id == Process.GetCurrentProcess().Id) continue;
+
+                        return p;
+                    }
+                    catch { try { p.Dispose(); } catch { } }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private void TryFinalizeCrashBundle()
+        {
+            try
+            {
+                var o = new CrashBundlerOptions
+                {
+                    PendingCrashRoot = _o.PendingCrashRoot,
+                    BundleRoot = _o.BundleRoot,
+                    MaxBundles = _o.MaxBundles,
+
+                    EnableManifests = _o.EnableBundleManifests,
+                    EnableChecksums = _o.EnableBundleChecksums,
+
+                    CopyWatchdogLogTail = _o.EnableFileLogging,
+                    WatchdogLogPath = _o.LogPath,
+                    TailLines = 600,
+
+                    GetWatchdogStatus = () => GetStatus(),
+                    GetAppVersion = () => null,
+                    GetWatchdogVersion = () => typeof(WatchdogRuntime).Assembly.GetName().Version?.ToString()
+                };
+
+                CrashBundler.TryFinalizeLatestCrashBundle(
+                    o,
+                    restartReason: "Crash",
+                    restartCount: _restartCount,
+                    log: Log);
+            }
+            catch (Exception ex)
+            {
+                Log("[bundler] error " + ex.Message);
+            }
+        }
+
+        private static int SafePid(Process p)
+        {
+            try { return p != null ? p.Id : -1; } catch { return -1; }
+        }
         private Process StartChild()
         {
             try
@@ -396,6 +557,7 @@ namespace NekoLib.Runtime.Watchdog
                 {
                     FileName = _o.TargetPath,
                     WorkingDirectory = _o.WorkingDirectory,
+                    Arguments = "--under-watchdog",
                     UseShellExecute = true
                 };
 
@@ -416,6 +578,7 @@ namespace NekoLib.Runtime.Watchdog
                 return null;
             }
         }
+
         /// <summary>
         /// Attempts to terminate the child process.
         /// 
@@ -514,6 +677,156 @@ namespace NekoLib.Runtime.Watchdog
                 Thread.Sleep(_o.MonitorPollMs);
             }
         }
+        private void KillExistingInstances()
+        {
+            // IMPORTANT:
+            // - must NOT kill the watchdog process (self)
+            // - must NOT use TryKill(), because TryKill() mutates watchdog child state
+            // - must only kill processes that match the exact TargetPath
+
+            try
+            {
+                var targetFull = SafeFullPath(_o.TargetPath);
+                if (string.IsNullOrEmpty(targetFull))
+                    return;
+
+                int selfPid = 0;
+                try { selfPid = Process.GetCurrentProcess().Id; } catch { }
+
+                // If we already have a child tracked, never kill that PID here.
+                int childPid = 0;
+                lock (_childLock)
+                {
+                    try
+                    {
+                        if (_child != null && !_child.HasExited)
+                            childPid = _child.Id;
+                    }
+                    catch { childPid = 0; }
+                }
+
+                // Fast prefilter by name (same exe), then confirm by full path (identity)
+                var name = Path.GetFileNameWithoutExtension(targetFull);
+                var list = Process.GetProcessesByName(name);
+
+                bool killedAny = false;
+
+                for (int i = 0; i < list.Length; i++)
+                {
+                    var p = list[i];
+                    try
+                    {
+                        if (p == null) continue;
+
+                        int pid;
+                        try { pid = p.Id; }
+                        catch { continue; }
+
+                        if (pid == selfPid) continue;
+                        if (pid == childPid) continue;
+
+                        var pPath = SafeModulePath(p);
+                        var pFull = SafeFullPath(pPath);
+                        if (string.IsNullOrEmpty(pFull)) continue;
+
+                        if (!string.Equals(pFull, targetFull, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        // Kill other instance
+                        var sw = Stopwatch.StartNew();
+                        var outcome = KillExternalProcess(p);
+                        sw.Stop();
+
+                        killedAny = true;
+                        Log("[single_instance] killed pid=" + pid + " outcome=" + outcome + " elapsed=" + sw.ElapsedMilliseconds + "ms");
+                    }
+                    catch { }
+                    finally
+                    {
+                        try { p.Dispose(); } catch { }
+                    }
+                }
+
+                // If we replaced an existing instance, reflect that as the reason for this start.
+                // (Optional but makes status/reports truthful)
+                if (killedAny && _lastRestartReason == RestartReason.InitialStart)
+                    _lastRestartReason = RestartReason.ForceKilled;
+            }
+            catch { }
+        }
+        private static string SafeModulePath(Process p)
+        {
+            try
+            {
+                // Works for same-bitness + normal permissions
+                return p.MainModule?.FileName;
+            }
+            catch
+            {
+                try
+                {
+                    // Fallback: some system / protected processes
+                    // (still may fail, but safer than throwing)
+                    return p.ProcessName;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+        }
+
+        private static string SafeFullPath(string p)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(p)) return "";
+                return Path.GetFullPath(p);
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Kills a process WITHOUT touching watchdog child state.
+        /// Returns KillOutcome only for logging.
+        /// </summary>
+        private KillOutcome KillExternalProcess(Process p)
+        {
+            try
+            {
+                if (p == null || p.HasExited)
+                    return KillOutcome.None;
+
+                // Graceful if possible
+                try
+                {
+                    if (p.MainWindowHandle != IntPtr.Zero)
+                    {
+                        p.CloseMainWindow();
+                        if (p.WaitForExit(_o.GracefulKillTimeoutMs))
+                            return KillOutcome.GracefulSuccess;
+
+                        // graceful timeout -> fall through to force
+                        // (do not return yet)
+                        // note: we intentionally do not write _lastKillOutcome here
+                    }
+                }
+                catch { }
+
+                // Force kill
+                try { p.Kill(); } catch { }
+
+                if (p.WaitForExit(_o.ForceKillTimeoutMs))
+                    return KillOutcome.ForceSuccess;
+
+                return KillOutcome.ForceTimeout;
+            }
+            catch
+            {
+                return KillOutcome.Error;
+            }
+        }
+
 
         // ============================================================
         // Logging (with rotation)
@@ -534,9 +847,8 @@ namespace NekoLib.Runtime.Watchdog
             var line =
                 "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " +
                 msg;
-
-            try { LogEmitted?.Invoke(line); } catch { }
-
+            WatchdogLog.Emit(line);
+            
             if (!_o.EnableFileLogging)
                 return;
 
@@ -595,6 +907,65 @@ namespace NekoLib.Runtime.Watchdog
                 _instanceMutex?.Dispose();
             }
             catch { }
+
+        }
+        public void WaitForExit()
+        {
+            while (!_exiting)
+            {
+                Thread.Sleep(250);
+            }
+        }
+      
+      
+        private bool BringChildToFront()
+        {
+            lock (_childLock)
+            {
+                return BringToFront(_child);
+            }
+        }
+
+        private bool BringToFront(Process p)
+        {
+            try
+            {
+                if (p == null || p.HasExited) return false;
+
+                var h = p.MainWindowHandle;
+                if (h == IntPtr.Zero) return false;
+
+                if (Win32.IsIconic(h))
+                    Win32.ShowWindow(h, Win32.SW_RESTORE);
+
+                return Win32.SetForegroundWindow(h);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+    }
+
+    internal static class Win32
+    {
+        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+
+        public const int SW_RESTORE = 9;
+    }
+
+    public static class WatchdogLog
+    {
+        public static event Action<string> OnLog;
+
+        internal static void Emit(string msg)
+        {
+            try { OnLog?.Invoke(msg); }
+            catch { /* never let logging break watchdog */ }
         }
     }
+
 }
