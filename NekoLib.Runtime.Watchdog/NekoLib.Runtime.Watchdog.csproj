@@ -4,6 +4,8 @@
     <TargetFrameworks>net481;net9.0</TargetFrameworks>
     <ImplicitUsings>false</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
+
   </PropertyGroup>
 
 </Project>
