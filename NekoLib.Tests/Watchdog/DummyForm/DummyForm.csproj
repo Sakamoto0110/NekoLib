@@ -8,4 +8,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\NekoLib.Runtime.Watchdog\NekoLib.Runtime.Watchdog.csproj" />
+  </ItemGroup>
+<PropertyGroup Condition="'$(TargetFramework)' == 'net481' 
+                        Or '$(TargetFramework)' == 'net9.0-windows'">
+  <DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
+</PropertyGroup>
+
 </Project>

@@ -8,4 +8,13 @@
 
   </PropertyGroup>
 
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
 </Project>

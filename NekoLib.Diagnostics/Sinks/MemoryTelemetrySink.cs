@@ -1,5 +1,4 @@
-using NekoLib.Diagnostics.Abstractions;
-using System;
+ using System;
 using System.Collections.Generic;
 
 namespace NekoLib.Diagnostics.Runtime.Sinks

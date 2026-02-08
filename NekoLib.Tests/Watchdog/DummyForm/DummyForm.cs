@@ -1,3 +1,6 @@
+using NekoLib.Runtime.Watchdog;
+using System.Diagnostics;
+
 namespace NekoLib.Tests.Watchdog;
 
 public partial class DummyForm : Form
@@ -6,7 +9,10 @@ public partial class DummyForm : Form
     {
         InitializeComponent();
         Text = "Watchdog Dummy App";
-    }
+        WatchdogController.SubscribeLogs(msg => outputTop.AppendText(msg + '\n'));
+       
+
+     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -29,5 +35,28 @@ public partial class DummyForm : Form
     private void btnCrash_Click(object sender, EventArgs e)
     {
         throw new InvalidOperationException("Intentional crash");
+    }
+
+    private void btnPause_Click(object sender, EventArgs e)
+    {
+        WatchdogController.Pause();
+
+    }
+
+    private void btnShutdown_Click(object sender, EventArgs e)
+    {
+        WatchdogController.Stop();
+    }
+
+    private void btnStatus_Click(object sender, EventArgs e)
+    {
+        Debug.WriteLine(WatchdogController.Status());
+        outputBottom.AppendText(WatchdogController.Status() + '\n');
+    }
+
+    private void btnPing_Click(object sender, EventArgs e)
+    {
+        Debug.WriteLine(WatchdogController.Ping());
+
     }
 }
