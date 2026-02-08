@@ -1,3 +1,4 @@
+using NekoLib.Diagnostics.Abstractions;
 using System;
 using System.Diagnostics;
 
