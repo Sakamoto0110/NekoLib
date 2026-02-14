@@ -6,7 +6,6 @@ using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 
 
@@ -857,13 +856,8 @@ case "resume":
             var line =
                 "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " +
                 msg;
-             
-
-            try
-            {
-                _logPipe?.Enqueue(line);
-            }
-            catch { /* never let IPC break watchdog */ }
+            WatchdogLog.Emit(line);
+            
             if (!_o.EnableFileLogging)
                 return;
 
@@ -1032,140 +1026,54 @@ case "resume":
             // Never block watchdog: if full, drop.
             try { _queue.TryAdd(line); }
             catch { }
-        }
 
-        private void AcceptLoop()
+        }
+        public void WaitForExit()
         {
             while (!_exiting)
             {
-                NamedPipeServerStream server = null;
-
-                try
-                {
-                    server = new NamedPipeServerStream(
-                        _pipeName,
-                        PipeDirection.Out,
-                        NamedPipeServerStream.MaxAllowedServerInstances,
-                        PipeTransmissionMode.Message,
-                        PipeOptions.Asynchronous);
-
-                    server.WaitForConnection();
-
-                    var writer = new StreamWriter(server, Encoding.UTF8, 1024, leaveOpen: true)
-                    {
-                        AutoFlush = true
-                    };
-
-                    lock (_lock)
-                    {
-                        _clients.Add(new Client { Pipe = server, Writer = writer });
-                    }
-
-                    // Ownership transferred to clients list
-                    server = null;
-                }
-                catch
-                {
-                    try { server?.Dispose(); } catch { }
-                    Thread.Sleep(150);
-                }
+                Thread.Sleep(250);
+            }
+        }
+      
+      
+        private bool BringChildToFront()
+        {
+            lock (_childLock)
+            {
+                return BringToFront(_child);
             }
         }
 
-        private void DispatchLoop()
+        private bool BringToFront(Process p)
         {
             try
             {
-                foreach (var line in _queue.GetConsumingEnumerable())
-                {
-                    if (_exiting) break;
-                    BroadcastInternal(line);
-                }
+                if (p == null || p.HasExited) return false;
+
+                var h = p.MainWindowHandle;
+                if (h == IntPtr.Zero) return false;
+
+                if (Win32.IsIconic(h))
+                    Win32.ShowWindow(h, Win32.SW_RESTORE);
+
+                return Win32.SetForegroundWindow(h);
             }
             catch
             {
-                // never throw from background threads
+                return false;
             }
         }
 
-        private void BroadcastInternal(string line)
-        {
-            Client[] snapshot;
+    }
 
-            lock (_lock)
-            {
-                snapshot = _clients.ToArray();
-            }
+    internal static class Win32
+    {
+        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
 
-            if (snapshot.Length == 0)
-                return;
-
-            // Write to all clients; slow/broken clients are removed.
-            for (int i = 0; i < snapshot.Length; i++)
-            {
-                var c = snapshot[i];
-                if (c == null) continue;
-
-                bool remove = false;
-
-                try
-                {
-                    if (c.Pipe == null || !c.Pipe.IsConnected)
-                    {
-                        remove = true;
-                    }
-                    else
-                    {
-                        // Avoid blocking forever if a client stops reading.
-                        var t = Task.Run(() => c.Writer.WriteLine(line));
-                        if (!t.Wait(200))
-                            remove = true;
-                    }
-                }
-                catch
-                {
-                    remove = true;
-                }
-
-                if (remove)
-                    RemoveClient(c);
-            }
-        }
-
-        private void RemoveClient(Client c)
-        {
-            if (c == null) return;
-
-            lock (_lock)
-            {
-                _clients.Remove(c);
-            }
-
-            try { c.Writer?.Dispose(); } catch { }
-            try { c.Pipe?.Dispose(); } catch { }
-        }
-
-        public void Dispose()
-        {
-            _exiting = true;
-
-            try { _queue.CompleteAdding(); } catch { }
-
-            try { _acceptThread?.Join(500); } catch { }
-            try { _dispatchThread?.Join(500); } catch { }
-
-            lock (_lock)
-            {
-                for (int i = 0; i < _clients.Count; i++)
-                {
-                    try { _clients[i]?.Writer?.Dispose(); } catch { }
-                    try { _clients[i]?.Pipe?.Dispose(); } catch { }
-                }
-                _clients.Clear();
-            }
-
-            try { _queue.Dispose(); } catch { }
-        }
+        public const int SW_RESTORE = 9;
     }
 
     public static class WatchdogLog
