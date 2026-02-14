@@ -24,15 +24,15 @@ namespace NekoLib.Navigation.Metadata
     /// <summary>
     /// Defines how page instances are cached and reused.
     /// </summary>
-    [Flags]
+     
     public enum PageCachePolicy
     {
-        None = 0,
+        
 
         /// <summary>
         /// Always create a new instance, dispose on detach.
         /// </summary>
-        Disabled = 1,
+        Transient = 1,
 
         /// <summary>
         /// Single instance, released on navigation away.
@@ -51,7 +51,7 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>
         /// Force page to be disposed when cleaned up.
         /// </summary>
-        ForceDispose = 16
+         
     }
 
     // ============================================================

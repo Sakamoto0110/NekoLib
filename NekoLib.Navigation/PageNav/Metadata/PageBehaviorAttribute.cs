@@ -25,7 +25,7 @@ public sealed class PageBehaviorAttribute : Attribute
 
     /// <summary>
     /// Cache policy for page instances.
-    /// Default: PageCachePolicy.Disabled
+    /// Default: PageCachePolicy.Transient
     /// </summary>
     public PageCachePolicy CachePolicy { get; }
 
@@ -63,7 +63,7 @@ public sealed class PageBehaviorAttribute : Attribute
 
     public PageBehaviorAttribute(
         PageKind kind = PageKind.Default,
-        PageCachePolicy cachePolicy = PageCachePolicy.Disabled)
+        PageCachePolicy cachePolicy = PageCachePolicy.Transient)
     {
         Kind = kind;
         CachePolicy = cachePolicy;

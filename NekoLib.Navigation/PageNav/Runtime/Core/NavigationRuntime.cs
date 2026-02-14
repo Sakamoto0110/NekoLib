@@ -4,22 +4,19 @@ using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Factories;
-using NekoLib.Navigation.Runtime.Lifecycle;
 using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
 {
-
     internal sealed class NavigationRuntime : IAsyncDisposable
     {
         private bool _isNavigating;
         private readonly NavigationContext _ctx;
 
-        private PageLifecycleCleanupService _cleanup;
+        private IEventDispatcherAdapter _dispatcher;
         private IInteractionObserverService _interactionObserver;
         private PageFactory _pageFactory;
 
@@ -41,7 +38,7 @@ namespace NekoLib.Navigation.Runtime.Core
         public event Action<IPageView> OnFirstPageAttached;
         public event Action OnNoPageAttached;
         public event Action OnNoPageVisible;
- 
+
         // ---------------------------------------------------------------------
         // CTOR
         // ---------------------------------------------------------------------
@@ -90,9 +87,9 @@ namespace NekoLib.Navigation.Runtime.Core
                 _ctx.Host.Detach(Current);
 
                 if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
-                    await _cleanup.CleanupAsync(Current, desc, forceDispose: true);
+                    await CleanupAsync(Current, desc, forceDispose: true);
                 else
-                    Current.Dispose();
+                    DisposePage(Current);
 
                 Current = null;
                 CurrentChanged?.Invoke(null);
@@ -115,17 +112,15 @@ namespace NekoLib.Navigation.Runtime.Core
                 _ctx.Host.Detach(Current);
 
                 if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
-                    await _cleanup.CleanupAsync(Current, desc, forceDispose: true);
+                    await CleanupAsync(Current, desc, forceDispose: true);
                 else
-                    Current.Dispose();
+                    DisposePage(Current);
 
                 Current = null;
             }
 
             if (_interactionObserver != null)
                 _interactionObserver.InteractionDetected -= OnInteractionDetected;
-
-            
         }
 
         // ---------------------------------------------------------------------
@@ -148,32 +143,21 @@ namespace NekoLib.Navigation.Runtime.Core
             try
             {
                 if (!PageRegistry.TryGetDescriptor(pageType, out var toDesc))
-                {
                     throw new InvalidOperationException(
                         $"Type '{pageType.FullName}' is not a registered page.");
-                }
 
                 var canonicalPageType = toDesc.PageType;
+
                 if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
-                {
                     throw new InvalidOperationException(
                         $"Navigation target '{canonicalPageType.FullName}' is not a page.");
-                }
+
                 PageRegistry.TryGetDescriptor(from?.GetType(), out var fromDesc);
 
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
 
-                if (!navArgs.Behavior.HasFlag(NavigationBehavior.NoMask) &&
-                    _ctx.Services.CanResolve(typeof(IInteractionBlocker)))
-                {
-                    ((IInteractionBlocker)_ctx.Services.Get(typeof(IInteractionBlocker))).Block();
-                }
-
- 
                 var factory = EnsurePageFactory();
                 to = PageRegistry.ResolveInstance(toDesc, factory.Create);
-
-                PageLifecycleTracker.Register(to, toDesc);
 
                 if (from is IPageVisibility fromVis)
                     fromVis.HidePage();
@@ -191,7 +175,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
                         OnNoPageAttached?.Invoke();
 
-                    await _cleanup.CleanupAsync(from, fromDesc, forceDispose: false);
+                    await CleanupAsync(from, fromDesc, forceDispose: false);
                 }
 
                 bool firstAttach = _attachedPages.Count == 0;
@@ -223,6 +207,7 @@ namespace NekoLib.Navigation.Runtime.Core
                         from.Name,
                         (from as IPageStateful)?.CaptureState()
                     ));
+
                     HistoryChanged?.Invoke();
                 }
 
@@ -237,15 +222,6 @@ namespace NekoLib.Navigation.Runtime.Core
             }
             finally
             {
-                if (_ctx.Services.CanResolve(typeof(IInteractionBlocker)))
-                {
-                    try
-                    {
-                        ((IInteractionBlocker)_ctx.Services.Get(typeof(IInteractionBlocker))).Unblock();
-                    }
-                    catch { }
-                }
-
                 _isNavigating = false;
             }
         }
@@ -254,16 +230,65 @@ namespace NekoLib.Navigation.Runtime.Core
         {
             if (page is IBackgroundLoadable bg)
             {
-                // Always run background load off the UI thread
                 await Task.Run(() => bg.LoadInBackgroundAsync(payload))
                           .ConfigureAwait(true);
 
-                // Apply results back on captured context (UI thread)
                 await bg.ApplyBackgroundResultAsync()
                         .ConfigureAwait(true);
             }
         }
 
+        // ---------------------------------------------------------------------
+        // LIFECYCLE (MERGED)
+        // ---------------------------------------------------------------------
+
+        private Task CleanupAsync(
+            IPageView page,
+            PageDescriptor descriptor,
+            bool forceDispose)
+        {
+            if (page == null || page.IsDisposed)
+                return Task.CompletedTask;
+
+            if (forceDispose)
+            {
+                DisposePage(page);
+                return Task.CompletedTask;
+            }
+
+            if (descriptor == null)
+                return Task.CompletedTask;
+
+            switch (descriptor.CachePolicy)
+            {
+                case PageCachePolicy.Transient:
+                    DisposePage(page);
+                    break;
+
+                case PageCachePolicy.WeakSingleton:
+                case PageCachePolicy.StrongSingleton:
+                case PageCachePolicy.Stackable:
+                    break;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private void DisposePage(IPageView page)
+        {
+            if (page == null || page.IsDisposed)
+                return;
+
+            try
+            {
+                _dispatcher?.Invoke(() =>
+                {
+                    try { page.Dispose(); }
+                    catch { }
+                });
+            }
+            catch { }
+        }
 
         // ---------------------------------------------------------------------
         // RUNTIME SERVICES
@@ -272,32 +297,17 @@ namespace NekoLib.Navigation.Runtime.Core
         private void EnsureRuntimeServices()
         {
             var services = _ctx.Services
-                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
+                ?? throw new InvalidOperationException(
+                    "NavigationContext.Services is not initialized.");
 
-            // timeout logic goes here
-
-            //
-
-            if (_cleanup == null)
+            if (_dispatcher == null)
             {
                 if (!services.CanResolve(typeof(IEventDispatcherAdapter)))
                     throw new InvalidOperationException(
                         "IEventDispatcherAdapter is required but not registered.");
 
-                var dispatcher =
+                _dispatcher =
                     (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
-
-                if (_cleanup == null)
-                {
-                    if (!_ctx.Services.CanResolve(typeof(IEventDispatcherAdapter)))
-                        throw new InvalidOperationException(
-                            "IEventDispatcherAdapter is required but not registered.");
-
-                    dispatcher =
-                       (IEventDispatcherAdapter)_ctx.Services.Get(typeof(IEventDispatcherAdapter));
-
-                    _cleanup = new PageLifecycleCleanupService(dispatcher);
-                }
             }
 
             if (_interactionObserver == null &&
@@ -323,20 +333,9 @@ namespace NekoLib.Navigation.Runtime.Core
             return _pageFactory;
         }
 
-        // ---------------------------------------------------------------------
-        // EVENT HANDLERS
-        // ---------------------------------------------------------------------
-
-       
-
-        private void OnTimeoutReached()
-        {
-            TimeoutReached?.Invoke();
-        }
-
         private void OnInteractionDetected()
         {
-            
+            // intentionally empty (extension point)
         }
     }
 }

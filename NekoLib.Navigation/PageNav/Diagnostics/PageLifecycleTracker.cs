@@ -87,7 +87,7 @@ namespace NekoLib.Navigation.Diagnostics
                 var now = DateTime.UtcNow;
                 return _pages.Values
                     .Where(p =>
-                        p.CachePolicy == PageCachePolicy.Disabled &&
+                        p.CachePolicy == PageCachePolicy.Transient &&
                         p.State != PageLifecycleState.Disposed &&
                         now - p.CreatedAt > minAge)
                     .ToList();

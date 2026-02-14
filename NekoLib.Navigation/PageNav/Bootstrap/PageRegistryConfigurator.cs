@@ -59,7 +59,7 @@ namespace NekoLib.Navigation.Bootstrap
         }
 
         public PageRule<T> DisabledCache()
-            => Cache(PageCachePolicy.Disabled);
+            => Cache(PageCachePolicy.Transient);
 
         public PageRule<T> WeakSingleton()
             => Cache(PageCachePolicy.WeakSingleton);

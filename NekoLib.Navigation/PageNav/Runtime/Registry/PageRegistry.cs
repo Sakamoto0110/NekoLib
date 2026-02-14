@@ -114,7 +114,7 @@ namespace NekoLib.Navigation.Runtime.Registry
                 PageType = pageType,
                 Name = name,
                 Kind = attr?.Kind ?? PageKind.Default,
-                CachePolicy = attr?.CachePolicy ?? PageCachePolicy.Disabled,
+                CachePolicy = attr?.CachePolicy ?? PageCachePolicy.Transient,
                 Timeout = attr?.Timeout ?? PageTimeoutBehavior.Default,
                 WaitCompletionBeforeShow =
         attr?.LoadMode ?? NavigationLoadMode.ShowImmediately
@@ -209,7 +209,7 @@ namespace NekoLib.Navigation.Runtime.Registry
 
             switch(d.CachePolicy)
             {
-                case PageCachePolicy.Disabled:
+                case PageCachePolicy.Transient:
                     return factory(d.PageType);
 
                 case PageCachePolicy.WeakSingleton:

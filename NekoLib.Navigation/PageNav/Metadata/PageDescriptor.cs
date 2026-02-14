@@ -36,7 +36,7 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>Additional classification tags.</summary>
         public HashSet<string> Tags { get; set; }
         public PageTimeoutBehavior Timeout { get; set; } = PageTimeoutBehavior.Default;
-      
+        public bool ForceDispose { get; set; }
         /// <summary>
         /// Initializes the descriptor with empty stack and tag set.
         /// </summary>
