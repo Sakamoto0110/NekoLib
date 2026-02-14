@@ -7,6 +7,7 @@ using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
@@ -24,6 +25,12 @@ namespace NekoLib.Navigation.Runtime.Core
         private readonly HashSet<IPageView> _visiblePages = new();
 
         public IPageView Current { get; private set; }
+
+
+        // Runtime-owned caches (instance scoped)
+        private readonly Dictionary<Type, IPageView> _strongCache = new();
+        private readonly Dictionary<Type, WeakReference<IPageView>> _weakCache = new();
+        private readonly Dictionary<Type, Stack<IPageView>> _stackCache = new();
 
         // ---------------------------------------------------------------------
         // EVENTS
@@ -157,7 +164,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
 
                 var factory = EnsurePageFactory();
-                to = PageRegistry.ResolveInstance(toDesc, factory.Create);
+                to = ResolvePage(toDesc);
 
                 if (from is IPageVisibility fromVis)
                     fromVis.HidePage();
@@ -238,40 +245,130 @@ namespace NekoLib.Navigation.Runtime.Core
             }
         }
 
+        private IPageView ResolvePage(PageDescriptor d)
+        {
+            var factory = EnsurePageFactory();
+
+            switch (d.ReusePolicy)
+            {
+                case PageReusePolicy.Transient:
+                    return factory.Create(d.PageType);
+
+                case PageReusePolicy.StrongSingleton:
+                    if (_strongCache.TryGetValue(d.PageType, out var strong))
+                    {
+                        if (!strong.IsDisposed)
+                            return strong;
+
+                        _strongCache.Remove(d.PageType);
+                    }
+
+                    strong = factory.Create(d.PageType);
+                    _strongCache[d.PageType] = strong;
+                    return strong;
+
+                case PageReusePolicy.WeakSingleton:
+                    if (_weakCache.TryGetValue(d.PageType, out var weak) &&
+                        weak.TryGetTarget(out var target) &&
+                        !target.IsDisposed)
+                    {
+                        return target;
+                    }
+
+                    var newPage = factory.Create(d.PageType);
+                    _weakCache[d.PageType] =
+                        new WeakReference<IPageView>(newPage);
+                    return newPage;
+
+                case PageReusePolicy.Stackable:
+                    var page = factory.Create(d.PageType);
+
+                    if (!_stackCache.TryGetValue(d.PageType, out var stack))
+                    {
+                        stack = new Stack<IPageView>();
+                        _stackCache[d.PageType] = stack;
+                    }
+
+                    stack.Push(page);
+                    return page;
+
+                default:
+                    return factory.Create(d.PageType);
+            }
+        }
+
+
+
         // ---------------------------------------------------------------------
         // LIFECYCLE (MERGED)
         // ---------------------------------------------------------------------
 
         private Task CleanupAsync(
-            IPageView page,
-            PageDescriptor descriptor,
-            bool forceDispose)
+    IPageView page,
+    PageDescriptor descriptor,
+    bool forceDispose)
         {
             if (page == null || page.IsDisposed)
                 return Task.CompletedTask;
 
             if (forceDispose)
             {
+                RemoveFromCaches(descriptor.PageType, page);
                 DisposePage(page);
                 return Task.CompletedTask;
             }
 
-            if (descriptor == null)
-                return Task.CompletedTask;
-
-            switch (descriptor.CachePolicy)
+            if (descriptor.ReusePolicy == PageReusePolicy.Transient)
             {
-                case PageCachePolicy.Transient:
-                    DisposePage(page);
-                    break;
-
-                case PageCachePolicy.WeakSingleton:
-                case PageCachePolicy.StrongSingleton:
-                case PageCachePolicy.Stackable:
-                    break;
+                DisposePage(page);
             }
 
             return Task.CompletedTask;
+        }
+
+        private void RemoveFromCaches(Type pageType, IPageView page)
+        {
+            // ------------------------------------------------------------
+            // Strong cache
+            // ------------------------------------------------------------
+            if (_strongCache.TryGetValue(pageType, out var strong))
+            {
+                if (ReferenceEquals(strong, page))
+                    _strongCache.Remove(pageType);
+            }
+
+            // ------------------------------------------------------------
+            // Weak cache
+            // ------------------------------------------------------------
+            if (_weakCache.TryGetValue(pageType, out var weak))
+            {
+                if (weak.TryGetTarget(out var target))
+                {
+                    if (ReferenceEquals(target, page))
+                        _weakCache.Remove(pageType);
+                }
+                else
+                {
+                    // Weak reference already dead
+                    _weakCache.Remove(pageType);
+                }
+            }
+
+            // ------------------------------------------------------------
+            // Stack cache
+            // ------------------------------------------------------------
+            if (_stackCache.TryGetValue(pageType, out var stack) && stack.Count > 0)
+            {
+                var newStack = new Stack<IPageView>(
+                    stack.Where(p => !ReferenceEquals(p, page))
+                         .Reverse() // preserve original order
+                );
+
+                if (newStack.Count == 0)
+                    _stackCache.Remove(pageType);
+                else
+                    _stackCache[pageType] = newStack;
+            }
         }
 
         private void DisposePage(IPageView page)

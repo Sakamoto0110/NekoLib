@@ -24,7 +24,7 @@ namespace NekoLib.Navigation.Metadata
         public PageKind Kind { get; set; }
 
         /// <summary>Caching rules for resolving pages.</summary>
-        public PageCachePolicy CachePolicy { get; set; }
+        public PageReusePolicy ReusePolicy { get; set; }
 
         /// <summary>Instance used when page is a singleton.</summary>
         public IPageView CachedInstance { get; set; }

@@ -25,9 +25,9 @@ public sealed class PageBehaviorAttribute : Attribute
 
     /// <summary>
     /// Cache policy for page instances.
-    /// Default: PageCachePolicy.Transient
+    /// Default: PageReusePolicy.Transient
     /// </summary>
-    public PageCachePolicy CachePolicy { get; }
+    public PageReusePolicy ReusePolicy { get; }
 
     // --------------------------------------------------------------------
     // Optional overrides (nullable = not specified)
@@ -63,9 +63,9 @@ public sealed class PageBehaviorAttribute : Attribute
 
     public PageBehaviorAttribute(
         PageKind kind = PageKind.Default,
-        PageCachePolicy cachePolicy = PageCachePolicy.Transient)
+        PageReusePolicy reusePolicy = PageReusePolicy.Transient)
     {
         Kind = kind;
-        CachePolicy = cachePolicy;
+        ReusePolicy = reusePolicy;
     }
 }

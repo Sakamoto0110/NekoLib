@@ -52,23 +52,23 @@ namespace NekoLib.Navigation.Bootstrap
         public PageRule<T> AsPopup()
             => Kind(PageKind.Popup);
 
-        public PageRule<T> Cache(PageCachePolicy policy)
+        public PageRule<T> Cache(PageReusePolicy policy)
         {
-            Get().CachePolicy = policy;
+            Get().ReusePolicy = policy;
             return this;
         }
 
         public PageRule<T> DisabledCache()
-            => Cache(PageCachePolicy.Transient);
+            => Cache(PageReusePolicy.Transient);
 
         public PageRule<T> WeakSingleton()
-            => Cache(PageCachePolicy.WeakSingleton);
+            => Cache(PageReusePolicy.WeakSingleton);
 
         public PageRule<T> StrongSingleton()
-            => Cache(PageCachePolicy.StrongSingleton);
+            => Cache(PageReusePolicy.StrongSingleton);
 
         public PageRule<T> Stackable()
-            => Cache(PageCachePolicy.Stackable);
+            => Cache(PageReusePolicy.Stackable);
 
         public PageRule<T> Tag(string tag)
         {

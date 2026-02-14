@@ -25,7 +25,7 @@ namespace NekoLib.Navigation.Metadata
     /// Defines how page instances are cached and reused.
     /// </summary>
      
-    public enum PageCachePolicy
+    public enum PageReusePolicy
     {
         
 
@@ -48,9 +48,6 @@ namespace NekoLib.Navigation.Metadata
         /// Multiple instances stacked (push/pop behavior).
         /// </summary>
         Stackable = 8,
-        /// <summary>
-        /// Force page to be disposed when cleaned up.
-        /// </summary>
          
     }
 

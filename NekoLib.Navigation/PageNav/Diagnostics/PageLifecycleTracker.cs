@@ -16,12 +16,12 @@ namespace NekoLib.Navigation.Diagnostics
     {
         public Type PageType { get; }
         public string Name { get; }
-        public PageCachePolicy CachePolicy { get; }
+        public PageReusePolicy CachePolicy { get; }
         public PageLifecycleState State { get; internal set; }
         public DateTime CreatedAt { get; } = DateTime.UtcNow;
         public int EnterCount { get; internal set; }
 
-        internal PageLifecycleInfo(Type type, string name, PageCachePolicy policy)
+        internal PageLifecycleInfo(Type type, string name, PageReusePolicy policy)
         {
             PageType = type;
             Name = name;
@@ -50,7 +50,7 @@ namespace NekoLib.Navigation.Diagnostics
                 _pages[page] = new PageLifecycleInfo(
                     page.GetType(),
                     page.Name,
-                    desc.CachePolicy
+                    desc.ReusePolicy
                 );
 
                 CreatedCount++;
@@ -87,7 +87,7 @@ namespace NekoLib.Navigation.Diagnostics
                 var now = DateTime.UtcNow;
                 return _pages.Values
                     .Where(p =>
-                        p.CachePolicy == PageCachePolicy.Transient &&
+                        p.CachePolicy == PageReusePolicy.Transient &&
                         p.State != PageLifecycleState.Disposed &&
                         now - p.CreatedAt > minAge)
                     .ToList();
