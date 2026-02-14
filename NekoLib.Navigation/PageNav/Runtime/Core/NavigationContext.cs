@@ -3,6 +3,7 @@
 /// </summary>
 // FILE: PageNav.Core/Services/NavigationContext.cs
 using NekoLib.Diagnostics;
+using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Runtime.History;
 using NekoLib.Navigation.Runtime.Services;
@@ -15,7 +16,8 @@ namespace NekoLib.Navigation.Runtime.Core
         public IPageHost Host { get; }
         public ServiceLocator Services { get; }
         public NavigationHistory History { get; }
-       // public TimeSpan Timeout { get; }
+        public IUserContext User { get; }
+        // public TimeSpan Timeout { get; }
 
         /// <summary>
         /// Optional diagnostics context. When not provided, navigation emits no logs/telemetry.
@@ -26,8 +28,10 @@ namespace NekoLib.Navigation.Runtime.Core
             IPageHost host,
             ServiceLocator services,
           //  TimeSpan timeout,
-            IDiagnostics diagnostics = null)
+          IUserContext user = null,
+          IDiagnostics diagnostics = null)
         {
+            User = user ?? new DefaultUserContext();
             Host = host ?? throw new ArgumentNullException(nameof(host));
             Services = services ?? throw new ArgumentNullException(nameof(services));
            // Timeout = timeout;

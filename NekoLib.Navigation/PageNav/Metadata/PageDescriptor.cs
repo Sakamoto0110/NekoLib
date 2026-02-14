@@ -1,6 +1,9 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
+﻿using NekoLib.Navigation.Contracts.Guards;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Runtime.Guards;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace NekoLib.Navigation.Metadata
 {
@@ -27,23 +30,43 @@ namespace NekoLib.Navigation.Metadata
         public PageReusePolicy ReusePolicy { get; set; }
 
         /// <summary>Instance used when page is a singleton.</summary>
-        public IPageView CachedInstance { get; set; }
-
-        /// <summary>Stack for stackable pages.</summary>
-        public Stack<IPageView> StackInstances { get; private set; }
-        public NavigationLoadMode WaitCompletionBeforeShow { get; set; }
+        
+         public NavigationLoadMode WaitCompletionBeforeShow { get; set; }
 
         /// <summary>Additional classification tags.</summary>
         public HashSet<string> Tags { get; set; }
         public PageTimeoutBehavior Timeout { get; set; } = PageTimeoutBehavior.Default;
-        public bool ForceDispose { get; set; }
+        public IGuard? Guard { get; set; }
         /// <summary>
         /// Initializes the descriptor with empty stack and tag set.
         /// </summary>
+
+
+        public void Guards(params IGuard[] guards)
+        {
+            Guard = guards == null || !guards.Any()
+    ? null
+    : guards.Length == 1
+        ? guards[0]
+        : new AndGuard(guards);
+        }
+
         public PageDescriptor()
         {
-            StackInstances = new Stack<IPageView>();
-            Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+             Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+        public PageDescriptor(
+       Type pageType,
+       params IGuard[] guards)
+        {
+            PageType = pageType
+                ?? throw new ArgumentNullException(nameof(pageType));
+
+            Guard = guards == null || !guards.Any()
+    ? null
+    : guards.Length == 1
+        ? guards[0]
+        : new AndGuard(guards);
         }
     }
 

@@ -1,6 +1,9 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
+﻿using NekoLib.Navigation.Attributes;
+using NekoLib.Navigation.Contracts.Guards;
+using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime.Guards;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -89,27 +92,69 @@ namespace NekoLib.Navigation.Runtime.Registry
         private static bool IsPageType(Type t)
             => typeof(IPageView).IsAssignableFrom(t) && !t.IsAbstract;
 
-        private static PageDescriptor BuildDescriptor(Type pageType)
+        private static PageDescriptor BuildDescriptor(
+    Type pageType )
         {
-            var attr = pageType
-                .GetCustomAttributes(typeof(PageBehaviorAttribute), true)
-                .FirstOrDefault() as PageBehaviorAttribute;
+            if (pageType == null)
+                throw new ArgumentNullException(nameof(pageType));
 
-            var name = attr?.NameOverride ?? pageType.Name;
+            // ------------------------------------------------------------
+            // PageBehavior (single)
+            // ------------------------------------------------------------
+            var behaviorAttr = pageType
+                .GetCustomAttributes(typeof(PageBehaviorAttribute), true)
+                .OfType<PageBehaviorAttribute>()
+                .FirstOrDefault();
+
+            // ------------------------------------------------------------
+            // Guard attributes (stacked, AllowMultiple = true)
+            // ------------------------------------------------------------
+            var guardAttributes = pageType
+                .GetCustomAttributes(typeof(GuardAttribute), true)
+                .OfType<GuardAttribute>()
+                .ToArray();
+
+            IGuard composedGuard = null;
+
+            if (guardAttributes.Length > 0)
+            {
+                var guards = new List<IGuard>(guardAttributes.Length);
+
+                foreach (var attr in guardAttributes)
+                {
+                    var guard = attr.CreateGuard( );
+
+                    if (guard != null)
+                        guards.Add(guard);
+                }
+
+                if (guards.Count == 1)
+                {
+                    composedGuard = guards[0];
+                }
+                else if (guards.Count > 1)
+                {
+                    composedGuard = new AndGuard(guards.ToArray());
+                }
+            }
+
+            var name = behaviorAttr?.NameOverride ?? pageType.Name;
 
             return new PageDescriptor
             {
                 PageType = pageType,
+                Guard = composedGuard,
                 Name = name,
-                Kind = attr?.Kind ?? PageKind.Default,
-                ReusePolicy = attr?.ReusePolicy ?? PageReusePolicy.Transient,
-                Timeout = attr?.Timeout ?? PageTimeoutBehavior.Default,
+                Kind = behaviorAttr?.Kind ?? PageKind.Default,
+                ReusePolicy = behaviorAttr?.ReusePolicy ?? PageReusePolicy.Transient,
+                Timeout = behaviorAttr?.Timeout ?? PageTimeoutBehavior.Default,
                 WaitCompletionBeforeShow =
-                    attr?.LoadMode ?? NavigationLoadMode.ShowImmediately,
-                Tags = attr?.Tags?.ToHashSet(StringComparer.OrdinalIgnoreCase)
-                        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    behaviorAttr?.LoadMode ?? NavigationLoadMode.ShowImmediately,
+                Tags = behaviorAttr?.Tags?.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                       ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             };
         }
+
 
         // --------------------------------------------------------------------
         // Queries

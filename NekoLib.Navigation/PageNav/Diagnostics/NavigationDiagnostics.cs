@@ -21,6 +21,7 @@ public static class NavigationDiagnostics
     public static IDiagnostics Context { get; set; }
 
     public static event Action<PageLogEntry> NavigationLogged;
+    public static event Action<GuardDeniedEvent> GuardDenied;
 
     internal static void EmitNavigation(PageLogEntry entry)
     {
@@ -73,7 +74,26 @@ public static class NavigationDiagnostics
 
     internal static void EmitBack(IPageView from, IPageView to, NavigationArgs args)
         => EmitNavigation(new PageLogEntry(from?.GetType(), from?.Name, to?.GetType(), to?.Name, args, success: true, isBackNavigation: true));
-
+    internal static void EmitGuardDenied(
+        IPageView from,
+        Type target,
+        Type redirect,
+        string reason)
+    {
+        try
+        {
+            GuardDenied?.Invoke(
+                new GuardDeniedEvent(
+                    from,
+                    target,
+                    redirect,
+                    reason));
+        }
+        catch
+        {
+            // Never let diagnostics break navigation
+        }
+    }
     internal static void EmitError(string message, Exception ex)
     {
         try

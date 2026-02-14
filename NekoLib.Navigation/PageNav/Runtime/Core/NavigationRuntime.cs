@@ -4,6 +4,7 @@ using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Factories;
+using NekoLib.Navigation.Runtime.Guards;
 using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
@@ -134,12 +135,17 @@ namespace NekoLib.Navigation.Runtime.Core
         // CORE NAVIGATION
         // ---------------------------------------------------------------------
 
-        private async Task SwitchInternalAsync(Type pageType, NavigationArgs navArgs)
+        private async Task SwitchInternalAsync(
+      Type pageType,
+      NavigationArgs navArgs,
+      int redirectDepth = 0,
+      HashSet<Type> visited = null)
         {
             if (pageType == null)
                 throw new ArgumentNullException(nameof(pageType));
 
-            if (_isNavigating)
+            // Prevent re-entry except for internal redirects
+            if (_isNavigating && redirectDepth == 0)
                 return;
 
             _isNavigating = true;
@@ -154,6 +160,84 @@ namespace NekoLib.Navigation.Runtime.Core
                         $"Type '{pageType.FullName}' is not a registered page.");
 
                 var canonicalPageType = toDesc.PageType;
+
+                visited = visited ?? new HashSet<Type>();
+
+                // Redirect cycle protection
+                if (!visited.Add(canonicalPageType))
+                {
+                    NavigationDiagnostics.EmitGuardDenied(
+                        from,
+                        canonicalPageType,
+                        null,
+                        "Guard redirect cycle detected.");
+                    return;
+                }
+
+                if (redirectDepth > 4)
+                {
+                    NavigationDiagnostics.EmitGuardDenied(
+                        from,
+                        canonicalPageType,
+                        null,
+                        "Max guard redirect depth exceeded.");
+                    return;
+                }
+
+                // =============================
+                // GUARD PIPELINE
+                // =============================
+
+                var guard = toDesc.Guard;
+
+                if (guard != null)
+                {
+                    var guardCtx = new GuardContext(
+                        canonicalPageType,
+                         _ctx.User);
+
+                    GuardResult result;
+
+                    try
+                    {
+                        result = await guard.EvaluateAsync(guardCtx);
+                    }
+                    catch (Exception ex)
+                    {
+                        NavigationDiagnostics.EmitGuardDenied(
+                            from,
+                            canonicalPageType,
+                            null,
+                            $"Guard exception: {ex.Message}");
+                        return;
+                    }
+
+                    if (!result.Allowed)
+                    {
+                        NavigationDiagnostics.EmitGuardDenied(
+                            from,
+                            canonicalPageType,
+                            result.RedirectPage,
+                            result.Reason);
+
+                        if (result.RedirectPage != null)
+                        {
+                            await SwitchInternalAsync(
+                                result.RedirectPage,
+                                navArgs,
+                                redirectDepth + 1,
+                                visited);
+
+                            return;
+                        }
+
+                        return;
+                    }
+                }
+
+                // =============================
+                // NORMAL NAVIGATION FLOW
+                // =============================
 
                 if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
                     throw new InvalidOperationException(
