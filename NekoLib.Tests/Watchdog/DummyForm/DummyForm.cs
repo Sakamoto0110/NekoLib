@@ -9,13 +9,7 @@ public partial class DummyForm : Form
     {
         InitializeComponent();
         Text = "Watchdog Dummy App";
-        WatchdogLog.OnLog += msg =>
-        {
-            if (InvokeRequired)
-                BeginInvoke(new Action(() => outputTop.AppendText(msg + '\n')));
-            else
-                outputTop.AppendText(msg + '\n');
-        };
+       
 
      }
 

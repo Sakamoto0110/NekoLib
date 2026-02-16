@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using System.Runtime.InteropServices;
 
 namespace NekoLib.Runtime.Watchdog
 {
@@ -46,7 +46,6 @@ namespace NekoLib.Runtime.Watchdog
     {
         private readonly object _childLock = new object();
         private readonly object _logLock = new object();
-
         private readonly WatchdogOptions _o;
 
         private Process _child;
@@ -129,13 +128,95 @@ namespace NekoLib.Runtime.Watchdog
             };
             _pipeThread.Start();
 
-            // Start global hotkeys (WinAPI)
             _hotkeyThread = new Thread(HotkeyLoop)
             {
                 IsBackground = true,
                 Name = "WDG-Hotkeys"
             };
             _hotkeyThread.Start();
+        }
+
+        public void WaitForExit()
+        {
+            var thread = _monitorThread;
+            if (thread == null)
+                return;
+
+            try
+            {
+                if (thread.IsAlive)
+                    thread.Join();
+            }
+            catch (ThreadStateException)
+            {
+                // Thread already stopped
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        // ============================================================
+        // Child start / kill
+        // ============================================================
+
+        private Process StartChildProcess()
+        {
+            // MUST match WatchdogEntrypoint.ResolveMode
+            var psi = new ProcessStartInfo
+            {
+                FileName = _o.TargetPath,
+                WorkingDirectory = _o.WorkingDirectory,
+                Arguments = "--under-watchdog",
+                UseShellExecute = true
+            };
+
+            return Process.Start(psi);
+        }
+
+        private KillOutcome TryKill(Process child)
+        {
+            if (child == null)
+                return KillOutcome.None;
+
+            try
+            {
+                bool exited;
+                try { exited = child.HasExited; }
+                catch { exited = true; }
+
+                if (exited)
+                    return KillOutcome.None;
+
+                // Try graceful close (best-effort)
+                try { child.CloseMainWindow(); } catch { }
+
+                if (child.WaitForExit(_o.GracefulKillTimeoutMs))
+                {
+                    Log("[kill] graceful success");
+                    return KillOutcome.GracefulSuccess;
+                }
+
+                Log("[kill] graceful timeout");
+
+                // Force kill
+                try { child.Kill(); } catch { }
+
+                if (child.WaitForExit(_o.ForceKillTimeoutMs))
+                {
+                    Log("[kill] force success");
+                    return KillOutcome.ForceSuccess;
+                }
+
+                Log("[kill] force timeout");
+                return KillOutcome.ForceTimeout;
+            }
+            catch (Exception ex)
+            {
+                Log("[kill] error " + ex.Message);
+                return KillOutcome.Error;
+            }
         }
 
         // ============================================================
@@ -189,6 +270,13 @@ namespace NekoLib.Runtime.Watchdog
                                 _shutdownRequested = true;
                                 _exiting = true;
                                 _lastExitReason = ExitReason.Stop;
+
+                                // Kill child on stop
+                                lock (_childLock)
+                                {
+                                    if (_child != null)
+                                        _lastKillOutcome = TryKill(_child);
+                                }
                                 break;
                         }
                     }
@@ -281,14 +369,34 @@ namespace NekoLib.Runtime.Watchdog
                     _lastRestartReason = RestartReason.PauseResume;
                     return "running";
 
+                case "restart":
+                    Log("[cmd] restart");
+                    _lastExitReason = ExitReason.Restart;
+                    _lastRestartReason = RestartReason.ManualStart;
+                    lock (_childLock)
+                    {
+                        if (_child != null)
+                            _lastKillOutcome = TryKill(_child);
+
+                        _child = null;
+                        _childUptime = null;
+                    }
+                    return "restarting";
+
                 case "stop":
                     Log("[cmd] stop");
                     _shutdownRequested = true;
                     _exiting = true;
+
                     lock (_childLock)
                     {
-                        try { if (_child != null && !_child.HasExited) _child.Kill(); } catch { }
+                        if (_child != null)
+                            _lastKillOutcome = TryKill(_child);
+
+                        _child = null;
+                        _childUptime = null;
                     }
+
                     _lastExitReason = ExitReason.Stop;
                     return "stopped";
 
@@ -318,18 +426,22 @@ namespace NekoLib.Runtime.Watchdog
         }
 
         // ============================================================
-        // Monitor loop (minimal, compile-safe)
+        // Monitor loop (restored features)
         // ============================================================
         private void MonitorLoop()
         {
+            Log("[monitor] started");
+
             while (!_exiting)
             {
+                // Hard stop requested
                 if (_shutdownRequested)
                 {
                     _lastExitReason = ExitReason.Stop;
                     break;
                 }
 
+                // Paused state: do not start/restart child
                 if (!_enabled)
                 {
                     _lastExitReason = ExitReason.Pause;
@@ -337,7 +449,13 @@ namespace NekoLib.Runtime.Watchdog
                     continue;
                 }
 
-                Thread.Sleep(Math.Max(50, _o.HeartbeatIntervalMs > 0 ? _o.HeartbeatIntervalMs : _o.MonitorPollMs));
+                // Start/restart child if needed
+                EnsureChildRunning();
+
+                // Heartbeat interval
+                Thread.Sleep(Math.Max(
+                    50,
+                    _o.HeartbeatIntervalMs > 0 ? _o.HeartbeatIntervalMs : _o.MonitorPollMs));
 
                 Process child;
                 Stopwatch cu;
@@ -347,37 +465,101 @@ namespace NekoLib.Runtime.Watchdog
                     cu = _childUptime;
                 }
 
-                if (child != null)
-                {
-                    bool exited = false;
-                    try { exited = child.HasExited; } catch { exited = true; }
-
-                    if (exited)
-                    {
-                        lock (_childLock)
-                        {
-                            try { _childUptime?.Stop(); } catch { }
-                            _childUptime = null;
-                            _child = null;
-                        }
-
-                        _lastExitReason = ExitReason.NaturalExit;
-                        _lastRestartReason = RestartReason.NaturalExit;
-                        Log("[child_exit] observed");
-                    }
-                    else
-                    {
-                        var ms = cu != null ? cu.ElapsedMilliseconds : 0;
-                        Log("[hb] child_alive pid=" + SafePid(child) + " childUptimeMs=" + ms + " restartCount=" + _restartCount);
-                    }
-                }
-                else
+                if (child == null)
                 {
                     Log("[hb] no_child");
+                    continue;
                 }
+
+                bool exited;
+                try { exited = child.HasExited; }
+                catch { exited = true; }
+
+                if (exited)
+                {
+                    HandleObservedExit(child);
+                    Thread.Sleep(Math.Max(250, _o.RestartDelayMs));
+                    continue;
+                }
+
+                var ms = cu != null ? cu.ElapsedMilliseconds : 0;
+                Log("[hb] child_alive pid=" + SafePid(child) + " childUptimeMs=" + ms + " restartCount=" + _restartCount);
             }
 
             Log("[monitor] exit");
+        }
+
+        private void EnsureChildRunning()
+        {
+            lock (_childLock)
+            {
+                if (_child != null)
+                    return;
+
+                try
+                {
+                    _child = StartChildProcess();
+                    _childUptime = Stopwatch.StartNew();
+                    _restartCount++;
+
+                    // Keep a sane reason
+                    if (_restartCount == 1 && _lastRestartReason == RestartReason.None)
+                        _lastRestartReason = RestartReason.InitialStart;
+
+                    Log("[child_start] pid=" + SafePid(_child) + " restartCount=" + _restartCount);
+                }
+                catch (Exception ex)
+                {
+                    Log("[child_start] failed: " + ex.Message);
+                    Thread.Sleep(Math.Max(250, _o.RestartDelayMs));
+                }
+            }
+        }
+
+        private void HandleObservedExit(Process child)
+        {
+            int exitCode = -1;
+            bool gotExitCode = false;
+
+            try
+            {
+                exitCode = child.ExitCode;
+                gotExitCode = true;
+            }
+            catch { }
+
+            lock (_childLock)
+            {
+                try { _childUptime?.Stop(); } catch { }
+                _childUptime = null;
+                _child = null;
+            }
+
+            if (_shutdownRequested || _exiting)
+            {
+                _lastExitReason = ExitReason.Stop;
+                Log("[child_exit] stop");
+                return;
+            }
+
+            if (_lastExitReason == ExitReason.Restart)
+            {
+                Log("[child_exit] restart");
+                return;
+            }
+
+            if (gotExitCode && exitCode == 0)
+            {
+                _lastExitReason = ExitReason.NaturalExit;
+                _lastRestartReason = RestartReason.NaturalExit;
+                Log("[child_exit] natural code=0");
+            }
+            else
+            {
+                _lastExitReason = ExitReason.Crash;
+                _lastRestartReason = RestartReason.Crash;
+                Log("[child_exit] crash code=" + exitCode);
+            }
         }
 
         private static int SafePid(Process p)
@@ -437,6 +619,21 @@ namespace NekoLib.Runtime.Watchdog
             _exiting = true;
             _hotkeysEnabled = false;
 
+            // Best-effort: stop child
+            try
+            {
+                lock (_childLock)
+                {
+                    if (_child != null)
+                    {
+                        _lastKillOutcome = TryKill(_child);
+                        _child = null;
+                        _childUptime = null;
+                    }
+                }
+            }
+            catch { }
+
             try { _monitorThread?.Join(1500); } catch { }
             try { _pipeThread?.Join(1500); } catch { }
 
@@ -470,9 +667,6 @@ namespace NekoLib.Runtime.Watchdog
 
         public const int SW_RESTORE = 9;
 
-        // -------------------------
-        // Hotkeys + message loop
-        // -------------------------
         public const int WM_HOTKEY = 0x0312;
         public const int WM_QUIT = 0x0012;
 

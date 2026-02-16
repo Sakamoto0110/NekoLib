@@ -27,16 +27,14 @@ namespace NekoLib.Navigation.Runtime.Core
         public NavigationContext(
             IPageHost host,
             ServiceLocator services,
-          //  TimeSpan timeout,
+
           IUserContext user = null,
           IDiagnostics diagnostics = null)
         {
             User = user ?? new DefaultUserContext();
             Host = host ?? throw new ArgumentNullException(nameof(host));
             Services = services ?? throw new ArgumentNullException(nameof(services));
-           // Timeout = timeout;
             Diagnostics = diagnostics;
-
             History = new NavigationHistory();
         }
     }

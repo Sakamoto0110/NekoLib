@@ -69,7 +69,7 @@ namespace NekoLib.Tests.Watchdog
             using (var watchdog = new WatchdogRuntime(options))
             {
                 watchdog.Start();
-                WatchdogLog.OnLog += str=>Debug.WriteLine(str);
+                 
                 watchdog.WaitForExit();
             }
         }
