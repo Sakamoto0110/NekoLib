@@ -62,14 +62,12 @@ namespace NekoLib.Navigation.Bootstrap
             => Cache(PageReusePolicy.Transient);
 
         public PageRule<T> WeakSingleton()
-            => Cache(PageReusePolicy.WeakSingleton);
+            => Cache(PageReusePolicy.Cached);
 
         public PageRule<T> StrongSingleton()
-            => Cache(PageReusePolicy.StrongSingleton);
+            => Cache(PageReusePolicy.Singleton);
 
-        public PageRule<T> Stackable()
-            => Cache(PageReusePolicy.Stackable);
-
+     
         public PageRule<T> Tag(string tag)
         {
             if(string.IsNullOrWhiteSpace(tag)) throw new ArgumentNullException(nameof(tag));

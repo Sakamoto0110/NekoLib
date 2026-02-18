@@ -1,8 +1,8 @@
-﻿using NekoLib.Navigation.Contracts.Plataform;
+﻿using NekoLib.Navigation.Contracts.Platform;
 using System;
 using System.Reflection;
 
-namespace NekoLib.Navigation.Adapters
+namespace NekoLib.Navigation.WinForms.Adapters
 {
     public sealed class WinFormsEventSubscriptionAdapter
      : IEventSubscriptionAdapter

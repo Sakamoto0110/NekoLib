@@ -34,9 +34,17 @@ namespace NekoLib.Navigation.Runtime.History
         // BACK / FORWARD
         // ------------------------------------------------------------
 
-        public PageHistoryEntry PopBack()
-            => _back.Pop();
+        public bool TryPopBack(out PageHistoryEntry entry)
+        {
+            if (_back.Count == 0)
+            {
+                entry = null;
+                return false;
+            }
 
+            entry = _back.Pop();
+            return true;
+        }
         public void PushForward(PageHistoryEntry entry)
         {
             if (entry != null)

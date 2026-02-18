@@ -1,6 +1,6 @@
 ﻿using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Diagnostics;
-using NekoLib.Navigation.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
@@ -9,6 +9,7 @@ using NekoLib.Navigation.Runtime.Services;
 using System;
 using System.Reflection;
 using NekoLib.Navigation.Diagnostics;
+using NekoLib.Navigation.Contracts.Runtime;
 
 namespace NekoLib.Navigation.Bootstrap
 {
@@ -156,80 +157,98 @@ namespace NekoLib.Navigation.Bootstrap
         public NavigationContext Start()
         {
             // ------------------------------------------------------------
-            // 1) Page registration (attributes + hybrid tweaks)
+            // 1) Page registration
             // ------------------------------------------------------------
             if (_pagesAssembly != null)
                 PageRegistry.RegisterFromAssembly(_pagesAssembly);
 
-            if (_pageConfig != null)
-                _pageConfig(new PageRegistryConfigurator());
+            _pageConfig?.Invoke(new PageRegistryConfigurator());
 
             // ------------------------------------------------------------
-            // 2) Service locator (OPEN phase)
+            // 2) Validate platform
+            // ------------------------------------------------------------
+            if (_platform == null)
+                throw new InvalidOperationException(
+                    "No platform adapter registered. Call Use<TPlatform>(nativeHost).");
+
+            if (!_platform.CanHandle(_nativeHost))
+                throw new InvalidOperationException(
+                    $"Platform adapter '{_platform.GetType().Name}' cannot handle host of type '{_nativeHost?.GetType().FullName}'.");
+
+            // ------------------------------------------------------------
+            // 3) Service locator (OPEN phase)
             // ------------------------------------------------------------
             var services = new ServiceLocator();
 
             // ------------------------------------------------------------
-            // 3) Core + platform services
+            // 4) Create IPageHost from native host
             // ------------------------------------------------------------
+            var host = _platform.CreateHost(_nativeHost)
+                ?? throw new InvalidOperationException(
+                    "Platform adapter returned null IPageHost.");
 
-            // Host (UI-owned, required)
-            var host = (IPageHost)_nativeHost;
-            services.Register(host);
+            services.Register(typeof(IPageHost), host);
 
-            // Platform-provided services
-            if (_platform != null)
-            {
-                services.Register(
-                    typeof(IEventDispatcherAdapter),
-                    _platform.CreateEventDispatcher(host));
+            // ------------------------------------------------------------
+            // 5) Register platform services (from native host)
+            // ------------------------------------------------------------
+            services.Register(typeof(IEventDispatcherAdapter),
+                _platform.CreateEventDispatcher(_nativeHost));
 
-                services.Register(
-                    typeof(IInteractionBlocker),
-                    _platform.CreateInteractionBlocker(host));
+            services.Register(typeof(IInteractionBlocker),
+                _platform.CreateInteractionBlocker(_nativeHost));
 
-                services.Register(
-                    typeof(ITimerAdapter),
-                    _platform.CreateTimerAdapter());
-            }
+            var observer = _platform.CreateInteractionObserverAdapter(_nativeHost);
+            if (observer != null)
+                services.Register(typeof(IInteractionObserverService), observer);
 
-            // Runtime services
+            var subscriber = _platform.CreateEventSubscriber(_nativeHost);
+            if (subscriber != null)
+                services.Register(typeof(IEventSubscriptionAdapter), subscriber);
+
+            var overlay = _platform.CreateOverlayService(_nativeHost);
+            if (overlay != null)
+                services.Register(typeof(IPageOverlay), overlay);
+
+            services.Register(typeof(ITimerAdapter),
+                _platform.CreateTimerAdapter());
+
+            // ------------------------------------------------------------
+            // 6) Runtime services
+            // ------------------------------------------------------------
             var pageFactory = new PageFactory();
-            services.Register(pageFactory);
+            services.Register(typeof(PageFactory), pageFactory);
 
             // ------------------------------------------------------------
-            // 4) Diagnostics bridge (legacy-safe, optional)
+            // 7) Diagnostics bridge (optional)
             // ------------------------------------------------------------
             if (_diagnostics != null)
                 NavigationDiagnostics.Context = _diagnostics;
 
             // ------------------------------------------------------------
-            // 5) Allow app-level service extensions (still OPEN)
+            // 8) Allow app-level service extensions
             // ------------------------------------------------------------
             _serviceConfig?.Invoke(services, _platform);
 
             // ------------------------------------------------------------
-            // 6) Create navigation context
+            // 9) Create NavigationContext
             // ------------------------------------------------------------
             var context = new NavigationContext(
                 host: host,
                 services: services,
-               // timeout: TimeSpan.FromSeconds(_timeoutSeconds),
                 diagnostics: _diagnostics
             );
 
-            // ------------------------------------------------------------
-            // 7) Self-register context (useful for overlays, extensions)
-            // ------------------------------------------------------------
             services.Register(context);
 
             // ------------------------------------------------------------
-            // 8) Lock services (NO MORE REGISTRATION)
+            // 10) Lock services
             // ------------------------------------------------------------
             services.Lock();
 
             return context;
         }
+
 
         //public NavigationContext Start()
         //{

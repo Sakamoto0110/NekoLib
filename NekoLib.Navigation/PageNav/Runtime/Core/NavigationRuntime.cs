@@ -1,5 +1,7 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Contracts.Plataform;
+﻿// FILE: NekoLib.Navigation.Runtime.Core/NavigationRuntime.cs
+
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
@@ -8,14 +10,13 @@ using NekoLib.Navigation.Runtime.Guards;
 using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
 {
     internal sealed class NavigationRuntime : IAsyncDisposable
     {
-        private bool _isNavigating;
         private readonly NavigationContext _ctx;
 
         private IEventDispatcherAdapter _dispatcher;
@@ -27,16 +28,20 @@ namespace NekoLib.Navigation.Runtime.Core
 
         public IPageView Current { get; private set; }
 
-
         // Runtime-owned caches (instance scoped)
         private readonly Dictionary<Type, IPageView> _strongCache = new();
         private readonly Dictionary<Type, WeakReference<IPageView>> _weakCache = new();
-        private readonly Dictionary<Type, Stack<IPageView>> _stackCache = new();
+
+        // Modal stack (presentation stack)
+        private readonly Stack<PageInstance> _modalStack = new();
+        private readonly Stack<TaskCompletionSource<ModalResult>> _modalTcs = new();
+
+        // Serialize ALL runtime mutations
+        private readonly SemaphoreSlim _navGate = new(1, 1);
 
         // ---------------------------------------------------------------------
         // EVENTS
         // ---------------------------------------------------------------------
-
         public event Action<IPageView, Type, NavigationArgs> Navigating;
         public event Action<IPageView, IPageView, NavigationArgs> Navigated;
         public event Action<IPageView, Type, Exception> NavigationFailed;
@@ -50,105 +55,282 @@ namespace NekoLib.Navigation.Runtime.Core
         // ---------------------------------------------------------------------
         // CTOR
         // ---------------------------------------------------------------------
-
         public NavigationRuntime(NavigationContext ctx)
         {
             _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
         }
 
         // ---------------------------------------------------------------------
-        // PUBLIC API
+        // EXECUTION CORE (UI marshaling + serialization)
         // ---------------------------------------------------------------------
 
-        public Task NavigateAsync(Type pageType, NavigationArgs args)
+        private void EnsureDispatcher()
         {
-            EnsureRuntimeServices();
-            return SwitchInternalAsync(pageType, args ?? NavigationArgs.Empty);
+            if (_dispatcher != null)
+                return;
+
+            var services = _ctx.Services
+                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
+
+            if (!services.CanResolve(typeof(IEventDispatcherAdapter)))
+                throw new InvalidOperationException("IEventDispatcherAdapter is required but not registered.");
+
+            _dispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
         }
 
-        public async Task GoBackAsync()
+        private void EnsureRuntimeServices()
         {
-            EnsureRuntimeServices();
+            EnsureDispatcher();
 
-            var entry = _ctx.History.PopBack();
-            if (entry == null)
-                return;
+            var services = _ctx.Services
+                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
+
+            if (_interactionObserver == null &&
+                services.CanResolve(typeof(IInteractionObserverService)))
+            {
+                _interactionObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
+                _interactionObserver.InteractionDetected += OnInteractionDetected;
+            }
+        }
+
+        private Task RunOnUiAsync(Func<Task> action)
+        {
+            EnsureDispatcher();
+
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _dispatcher.BeginInvoke(async () =>
+            {
+                try
+                {
+                    await action().ConfigureAwait(false);
+                    tcs.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            });
+
+            return tcs.Task;
+        }
+
+        private Task<T> RunOnUiAsync<T>(Func<Task<T>> action)
+        {
+            EnsureDispatcher();
+
+            var tcs = new TaskCompletionSource<T>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _dispatcher.BeginInvoke(async () =>
+            {
+                try
+                {
+                    var result = await action().ConfigureAwait(false);
+                    tcs.TrySetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            });
+
+            return tcs.Task;
+        }
+
+        private async Task SerializeAsync(Func<Task> action)
+        {
+            await _navGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await action().ConfigureAwait(false);
+            }
+            finally
+            {
+                _navGate.Release();
+            }
+        }
+
+        private async Task<T> SerializeAsync<T>(Func<Task<T>> action)
+        {
+            await _navGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                return await action().ConfigureAwait(false);
+            }
+            finally
+            {
+                _navGate.Release();
+            }
+        }
+
+        private Task ExecuteAsync(Func<Task> action)
+            => RunOnUiAsync(() => SerializeAsync(action));
+
+        private Task<T> ExecuteAsync<T>(Func<Task<T>> action)
+            => RunOnUiAsync(() => SerializeAsync(action));
+
+        // ---------------------------------------------------------------------
+        // PUBLIC API (all entry points are gated)
+        // ---------------------------------------------------------------------
+
+        public Task NavigateAsync(Type pageType, NavigationArgs args = null)
+        {
+            return ExecuteAsync(() =>
+            {
+                EnsureRuntimeServices();
+                return SwitchInternalAsync(pageType, args ?? NavigationArgs.Empty);
+            });
+        }
+
+        public Task<bool> GoBackAsync()
+        {
+            return ExecuteAsync(() =>
+            {
+                EnsureRuntimeServices();
+                return GoBackInternalAsync();
+            });
+        }
+
+        /// <summary>
+        /// Explicit modal API. Returns a result when the modal closes.
+        /// Requires the host to implement IModalHost.
+        /// </summary>
+        public Task<ModalResult> ShowModalAsync(Type pageType, NavigationArgs args = null)
+        {
+            return ExecuteAsync(async () =>
+            {
+                EnsureRuntimeServices();
+
+                if (pageType == null)
+                    throw new ArgumentNullException(nameof(pageType));
+
+                if (!PageRegistry.TryGetDescriptor(pageType, out var desc))
+                    throw new InvalidOperationException($"Type '{pageType.FullName}' is not a registered page.");
+
+                if (desc.Presentation != PagePresentation.Modal)
+                    throw new InvalidOperationException($"Page '{desc.PageType.FullName}' is not marked as Modal.");
+
+                return await ShowModalInternalAsync(desc, args ?? NavigationArgs.Empty).ConfigureAwait(false);
+            });
+        }
+
+        public Task<bool> CloseTopModalAsync(ModalResult result)
+        {
+            return ExecuteAsync(() =>
+            {
+                EnsureRuntimeServices();
+                return CloseTopModalInternalAsync(result);
+            });
+        }
+
+        public Task ResetAsync()
+        {
+            return ExecuteAsync(async () =>
+            {
+                EnsureRuntimeServices();
+
+                await CloseAllModalsInternalAsync(ModalResult.Cancel()).ConfigureAwait(false);
+
+                if (Current != null)
+                {
+                    _ctx.Host.Detach(Current);
+
+                    if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
+                        await CleanupAsync(Current, desc, forceDispose: true).ConfigureAwait(false);
+                    else
+                        DisposePage(Current);
+
+                    Current = null;
+                    CurrentChanged?.Invoke(null);
+                }
+
+                _attachedPages.Clear();
+                _visiblePages.Clear();
+
+                OnNoPageAttached?.Invoke();
+                OnNoPageVisible?.Invoke();
+
+                _ctx.History.Clear();
+                HistoryChanged?.Invoke();
+            });
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return new ValueTask(ExecuteAsync(async () =>
+            {
+                EnsureRuntimeServices();
+
+                await CloseAllModalsInternalAsync(ModalResult.Cancel()).ConfigureAwait(false);
+
+                if (Current != null)
+                {
+                    _ctx.Host.Detach(Current);
+
+                    if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
+                        await CleanupAsync(Current, desc, forceDispose: true).ConfigureAwait(false);
+                    else
+                        DisposePage(Current);
+
+                    Current = null;
+                }
+
+                if (_interactionObserver != null)
+                    _interactionObserver.InteractionDetected -= OnInteractionDetected;
+            }));
+        }
+
+        // ---------------------------------------------------------------------
+        // BACK (internal)
+        // ---------------------------------------------------------------------
+
+        private async Task<bool> GoBackInternalAsync()
+        {
+            // Modal takes priority
+            if (_modalStack.Count > 0)
+            {
+                await CloseTopModalInternalAsync(ModalResult.Cancel()).ConfigureAwait(false);
+                return true;
+            }
+
+            if (!_ctx.History.TryPopBack(out PageHistoryEntry entry))
+                return false;
+
+            PageHistoryEntry forwardEntry = null;
 
             if (Current != null)
             {
-                _ctx.History.PushForward(new PageHistoryEntry(
+                forwardEntry = new PageHistoryEntry(
                     Current.GetType(),
                     Current.Name,
                     (Current as IPageStateful)?.CaptureState()
-                ));
+                );
             }
 
             await SwitchInternalAsync(
                 entry.PageType,
-                NavigationArgs.Default(entry.State));
-        }
+                NavigationArgs.Default(entry.State)).ConfigureAwait(false);
 
-        public async Task ResetAsync()
-        {
-            if (Current != null)
-            {
-                _ctx.Host.Detach(Current);
+            if (forwardEntry != null)
+                _ctx.History.PushForward(forwardEntry);
 
-                if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
-                    await CleanupAsync(Current, desc, forceDispose: true);
-                else
-                    DisposePage(Current);
-
-                Current = null;
-                CurrentChanged?.Invoke(null);
-            }
-
-            _attachedPages.Clear();
-            _visiblePages.Clear();
-
-            OnNoPageAttached?.Invoke();
-            OnNoPageVisible?.Invoke();
-
-            _ctx.History.Clear();
-            HistoryChanged?.Invoke();
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            if (Current != null)
-            {
-                _ctx.Host.Detach(Current);
-
-                if (PageRegistry.TryGetDescriptor(Current.GetType(), out var desc))
-                    await CleanupAsync(Current, desc, forceDispose: true);
-                else
-                    DisposePage(Current);
-
-                Current = null;
-            }
-
-            if (_interactionObserver != null)
-                _interactionObserver.InteractionDetected -= OnInteractionDetected;
+            return true;
         }
 
         // ---------------------------------------------------------------------
-        // CORE NAVIGATION
+        // CORE NAVIGATION (ASSUMES already UI-thread + serialized)
         // ---------------------------------------------------------------------
 
         private async Task SwitchInternalAsync(
-      Type pageType,
-      NavigationArgs navArgs,
-      int redirectDepth = 0,
-      HashSet<Type> visited = null)
+            Type pageType,
+            NavigationArgs navArgs,
+            int redirectDepth = 0,
+            HashSet<Type> visited = null)
         {
             if (pageType == null)
                 throw new ArgumentNullException(nameof(pageType));
-
-            // Prevent re-entry except for internal redirects
-            if (_isNavigating && redirectDepth == 0)
-                return;
-
-            _isNavigating = true;
 
             IPageView from = Current;
             IPageView to = null;
@@ -161,9 +343,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 var canonicalPageType = toDesc.PageType;
 
-                visited = visited ?? new HashSet<Type>();
+                visited ??= new HashSet<Type>();
 
-                // Redirect cycle protection
                 if (!visited.Add(canonicalPageType))
                 {
                     NavigationDiagnostics.EmitGuardDenied(
@@ -174,7 +355,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     return;
                 }
 
-                if (redirectDepth > 4)
+                if (redirectDepth > 8)
                 {
                     NavigationDiagnostics.EmitGuardDenied(
                         from,
@@ -184,23 +365,18 @@ namespace NekoLib.Navigation.Runtime.Core
                     return;
                 }
 
-                // =============================
-                // GUARD PIPELINE
-                // =============================
-
+                // ---------------- GUARDS ----------------
                 var guard = toDesc.Guard;
 
                 if (guard != null)
                 {
-                    var guardCtx = new GuardContext(
-                        canonicalPageType,
-                         _ctx.User);
+                    var guardCtx = new GuardContext(canonicalPageType, _ctx.User);
 
                     GuardResult result;
 
                     try
                     {
-                        result = await guard.EvaluateAsync(guardCtx);
+                        result = await guard.EvaluateAsync(guardCtx).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -226,18 +402,26 @@ namespace NekoLib.Navigation.Runtime.Core
                                 result.RedirectPage,
                                 navArgs,
                                 redirectDepth + 1,
-                                visited);
-
-                            return;
+                                visited).ConfigureAwait(false);
                         }
 
                         return;
                     }
                 }
 
-                // =============================
-                // NORMAL NAVIGATION FLOW
-                // =============================
+                // ---------------- PRESENTATION ----------------
+
+                if (toDesc.Presentation == PagePresentation.Modal)
+                {
+                    // NavigateAsync can open modals, but doesn't return a result.
+                    _ = await ShowModalInternalAsync(toDesc, navArgs).ConfigureAwait(false);
+                    return;
+                }
+
+                // Normal navigation cancels modals (kiosk-friendly)
+                await CloseAllModalsInternalAsync(ModalResult.Cancel()).ConfigureAwait(false);
+
+                // ---------------- NORMAL NAVIGATION ----------------
 
                 if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
                     throw new InvalidOperationException(
@@ -247,14 +431,13 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
 
-                var factory = EnsurePageFactory();
                 to = ResolvePage(toDesc);
 
                 if (from is IPageVisibility fromVis)
                     fromVis.HidePage();
 
                 if (from is IPageLifecycle leave)
-                    await leave.OnNavigatedFromAsync();
+                    await leave.OnNavigatedFromAsync().ConfigureAwait(false);
 
                 if (from != null)
                 {
@@ -266,7 +449,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
                         OnNoPageAttached?.Invoke();
 
-                    await CleanupAsync(from, fromDesc, forceDispose: false);
+                    await CleanupAsync(from, fromDesc, forceDispose: false).ConfigureAwait(false);
                 }
 
                 bool firstAttach = _attachedPages.Count == 0;
@@ -286,10 +469,10 @@ namespace NekoLib.Navigation.Runtime.Core
                 Current = to;
                 CurrentChanged?.Invoke(Current);
 
-                await LoadAsync(to, navArgs.Payload);
+                await LoadAsync(to, navArgs.Payload).ConfigureAwait(false);
 
                 if (to is IPageLifecycle enter)
-                    await enter.OnNavigatedToAsync(navArgs);
+                    await enter.OnNavigatedToAsync(navArgs).ConfigureAwait(false);
 
                 if (!navArgs.Behavior.HasFlag(NavigationBehavior.NoHistory) && from != null)
                 {
@@ -311,23 +494,70 @@ namespace NekoLib.Navigation.Runtime.Core
                 NavigationDiagnostics.EmitFailure(from, to, navArgs);
                 throw;
             }
-            finally
-            {
-                _isNavigating = false;
-            }
         }
 
         private static async Task LoadAsync(IPageView page, object payload)
         {
             if (page is IBackgroundLoadable bg)
             {
-                await Task.Run(() => bg.LoadInBackgroundAsync(payload))
-                          .ConfigureAwait(true);
+                await Task.Run(async () => await bg.LoadInBackgroundAsync(payload).ConfigureAwait(false))
+                          .ConfigureAwait(false);
 
-                await bg.ApplyBackgroundResultAsync()
-                        .ConfigureAwait(true);
+                await bg.ApplyBackgroundResultAsync().ConfigureAwait(false);
             }
         }
+
+        // ---------------------------------------------------------------------
+        // MODALS (ASSUME already UI-thread + serialized)
+        // ---------------------------------------------------------------------
+
+        private async Task<ModalResult> ShowModalInternalAsync(PageDescriptor descriptor, NavigationArgs args)
+        {
+            if (!(_ctx.Host is IModalHost modalHost))
+                throw new InvalidOperationException("Current host does not support modal pages (IModalHost missing).");
+
+            var view = ResolvePage(descriptor);
+
+            var tcs = new TaskCompletionSource<ModalResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _modalTcs.Push(tcs);
+            _modalStack.Push(new PageInstance(view, descriptor));
+
+            await modalHost.ShowModalAsync(view).ConfigureAwait(false);
+
+            return await tcs.Task.ConfigureAwait(false);
+        }
+
+        private async Task<bool> CloseTopModalInternalAsync(ModalResult result)
+        {
+            if (_modalStack.Count == 0)
+                return false;
+
+            if (!(_ctx.Host is IModalHost modalHost))
+                throw new InvalidOperationException("Current host does not support modal pages (IModalHost missing).");
+
+            var instance = _modalStack.Pop();
+            var tcs = _modalTcs.Pop();
+
+            await modalHost.HideModalAsync(instance.View).ConfigureAwait(false);
+
+            if (instance.Descriptor.ReusePolicy == PageReusePolicy.Transient)
+                DisposePage(instance.View);
+
+            tcs.TrySetResult(result);
+            return true;
+        }
+
+        private async Task CloseAllModalsInternalAsync(ModalResult result)
+        {
+            while (_modalStack.Count > 0)
+                await CloseTopModalInternalAsync(result).ConfigureAwait(false);
+        }
+
+        // ---------------------------------------------------------------------
+        // PAGE RESOLUTION (lifecycle only)
+        // ---------------------------------------------------------------------
 
         private IPageView ResolvePage(PageDescriptor d)
         {
@@ -338,59 +568,41 @@ namespace NekoLib.Navigation.Runtime.Core
                 case PageReusePolicy.Transient:
                     return factory.Create(d.PageType);
 
-                case PageReusePolicy.StrongSingleton:
-                    if (_strongCache.TryGetValue(d.PageType, out var strong))
+                case PageReusePolicy.Singleton:
+                    if (_strongCache.TryGetValue(d.PageType, out var strong) &&
+                        strong != null &&
+                        !strong.IsDisposed)
                     {
-                        if (!strong.IsDisposed)
-                            return strong;
-
-                        _strongCache.Remove(d.PageType);
+                        return strong;
                     }
 
                     strong = factory.Create(d.PageType);
                     _strongCache[d.PageType] = strong;
                     return strong;
 
-                case PageReusePolicy.WeakSingleton:
+                case PageReusePolicy.Cached:
                     if (_weakCache.TryGetValue(d.PageType, out var weak) &&
                         weak.TryGetTarget(out var target) &&
+                        target != null &&
                         !target.IsDisposed)
                     {
                         return target;
                     }
 
                     var newPage = factory.Create(d.PageType);
-                    _weakCache[d.PageType] =
-                        new WeakReference<IPageView>(newPage);
+                    _weakCache[d.PageType] = new WeakReference<IPageView>(newPage);
                     return newPage;
-
-                case PageReusePolicy.Stackable:
-                    var page = factory.Create(d.PageType);
-
-                    if (!_stackCache.TryGetValue(d.PageType, out var stack))
-                    {
-                        stack = new Stack<IPageView>();
-                        _stackCache[d.PageType] = stack;
-                    }
-
-                    stack.Push(page);
-                    return page;
 
                 default:
                     return factory.Create(d.PageType);
             }
         }
 
-
-
         // ---------------------------------------------------------------------
-        // LIFECYCLE (MERGED)
+        // LIFECYCLE
         // ---------------------------------------------------------------------
 
-        private Task CleanupAsync(
-    IPageView page,
-    PageDescriptor descriptor,
-    bool forceDispose)
+        private Task CleanupAsync(IPageView page, PageDescriptor descriptor, bool forceDispose)
         {
             if (page == null || page.IsDisposed)
                 return Task.CompletedTask;
@@ -412,46 +624,16 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private void RemoveFromCaches(Type pageType, IPageView page)
         {
-            // ------------------------------------------------------------
-            // Strong cache
-            // ------------------------------------------------------------
             if (_strongCache.TryGetValue(pageType, out var strong))
             {
-                if (ReferenceEquals(strong, page))
+                if (strong == null || ReferenceEquals(strong, page))
                     _strongCache.Remove(pageType);
             }
 
-            // ------------------------------------------------------------
-            // Weak cache
-            // ------------------------------------------------------------
             if (_weakCache.TryGetValue(pageType, out var weak))
             {
-                if (weak.TryGetTarget(out var target))
-                {
-                    if (ReferenceEquals(target, page))
-                        _weakCache.Remove(pageType);
-                }
-                else
-                {
-                    // Weak reference already dead
+                if (!weak.TryGetTarget(out var target) || ReferenceEquals(target, page))
                     _weakCache.Remove(pageType);
-                }
-            }
-
-            // ------------------------------------------------------------
-            // Stack cache
-            // ------------------------------------------------------------
-            if (_stackCache.TryGetValue(pageType, out var stack) && stack.Count > 0)
-            {
-                var newStack = new Stack<IPageView>(
-                    stack.Where(p => !ReferenceEquals(p, page))
-                         .Reverse() // preserve original order
-                );
-
-                if (newStack.Count == 0)
-                    _stackCache.Remove(pageType);
-                else
-                    _stackCache[pageType] = newStack;
             }
         }
 
@@ -462,7 +644,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
             try
             {
-                _dispatcher?.Invoke(() =>
+                EnsureDispatcher();
+                _dispatcher.Invoke(() =>
                 {
                     try { page.Dispose(); }
                     catch { }
@@ -472,51 +655,58 @@ namespace NekoLib.Navigation.Runtime.Core
         }
 
         // ---------------------------------------------------------------------
-        // RUNTIME SERVICES
+        // FACTORIES / SERVICES
         // ---------------------------------------------------------------------
-
-        private void EnsureRuntimeServices()
-        {
-            var services = _ctx.Services
-                ?? throw new InvalidOperationException(
-                    "NavigationContext.Services is not initialized.");
-
-            if (_dispatcher == null)
-            {
-                if (!services.CanResolve(typeof(IEventDispatcherAdapter)))
-                    throw new InvalidOperationException(
-                        "IEventDispatcherAdapter is required but not registered.");
-
-                _dispatcher =
-                    (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
-            }
-
-            if (_interactionObserver == null &&
-                services.CanResolve(typeof(IInteractionObserverService)))
-            {
-                _interactionObserver =
-                    (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
-
-                _interactionObserver.InteractionDetected += OnInteractionDetected;
-            }
-        }
 
         private PageFactory EnsurePageFactory()
         {
             if (_pageFactory != null)
                 return _pageFactory;
 
-            if (!_ctx.Services.CanResolve(typeof(PageFactory)))
-                throw new InvalidOperationException(
-                    "PageFactory is required but not registered.");
+            var services = _ctx.Services
+                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
 
-            _pageFactory = (PageFactory)_ctx.Services.Get(typeof(PageFactory));
+            if (!services.CanResolve(typeof(PageFactory)))
+                throw new InvalidOperationException("PageFactory is required but not registered.");
+
+            _pageFactory = (PageFactory)services.Get(typeof(PageFactory));
             return _pageFactory;
         }
 
         private void OnInteractionDetected()
         {
             // intentionally empty (extension point)
+        }
+
+        // ---------------------------------------------------------------------
+        // INTERNAL SUPPORT TYPES
+        // ---------------------------------------------------------------------
+
+        public readonly struct ModalResult
+        {
+            public bool Confirmed { get; }
+            public object Value { get; }
+
+            public ModalResult(bool confirmed, object value = null)
+            {
+                Confirmed = confirmed;
+                Value = value;
+            }
+
+            public static ModalResult Ok(object value = null) => new ModalResult(true, value);
+            public static ModalResult Cancel() => new ModalResult(false, null);
+        }
+
+        private sealed class PageInstance
+        {
+            public IPageView View { get; }
+            public PageDescriptor Descriptor { get; }
+
+            public PageInstance(IPageView view, PageDescriptor descriptor)
+            {
+                View = view;
+                Descriptor = descriptor;
+            }
         }
     }
 }

@@ -37,20 +37,21 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>
         /// Single instance, released on navigation away.
         /// </summary>
-        WeakSingleton = 2,
+        Cached = 2,
 
         /// <summary>
         /// Single instance, kept alive for entire context lifetime.
         /// </summary>
-        StrongSingleton = 4,
+        Singleton = 4,
 
-        /// <summary>
-        /// Multiple instances stacked (push/pop behavior).
-        /// </summary>
-        Stackable = 8,
+       
          
     }
-
+    public enum PagePresentation
+    {
+        Normal,
+        Modal
+    }
     // ============================================================
     // TIMEOUT
     // ============================================================

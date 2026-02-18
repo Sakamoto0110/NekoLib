@@ -1,4 +1,6 @@
-﻿namespace NekoLib.Navigation.Contracts.Pages
+﻿using System.Threading.Tasks;
+
+namespace NekoLib.Navigation.Contracts.Pages
 {
 
     /// <summary>
@@ -9,6 +11,7 @@
         void Attach(IPageView page);
         void Detach(IPageView page);
         void BringToFront(IPageView page);
+         
     }
     /// <summary>
     /// Low-level view operations for platform-specific services (overlays, focus, z-order).
@@ -20,6 +23,10 @@
         void BringToFront(object view);
         void Focus(object view);
     }
+    public interface IModalHost
+    {
+        Task ShowModalAsync(IPageView page);
+        Task HideModalAsync(IPageView page);
+    }
 
-     
 }

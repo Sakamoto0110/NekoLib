@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace NekoLib.Navigation.Hosting
+namespace NekoLib.Navigation.WinForms.Hosting
 {
 
     public class PageView : UserControl, IPageView

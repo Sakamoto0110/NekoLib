@@ -3,7 +3,7 @@
 /// Describe responsibility, lifecycle expectations,
 /// threading guarantees, and ownership rules.
 /// </summary>
-namespace NekoLib.Navigation.Contracts.Plataform
+namespace NekoLib.Navigation.Contracts.Platform
 {
 
  

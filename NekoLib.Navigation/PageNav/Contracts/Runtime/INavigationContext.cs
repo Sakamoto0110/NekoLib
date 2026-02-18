@@ -4,7 +4,7 @@
 /// threading guarantees, and ownership rules.
 /// </summary>
 using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 
 namespace NekoLib.Navigation.Contracts.Runtime
 {

@@ -1,8 +1,11 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
+﻿// FILE: PageNav.WinForms/Hosting/WinFormsPageHostBase.cs
+
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Platform;
 using System;
 using System.Windows.Forms;
 
-namespace NekoLib.Navigation.Hosting
+namespace NekoLib.Navigation.WinForms.Hosting
 {
     /// <summary>
     /// Base class for WinForms page hosts.
@@ -17,77 +20,85 @@ namespace NekoLib.Navigation.Hosting
             Root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
-        // ---------------- IPageHost ----------------
+        // ---------------------------------------------------------------------
+        // IPageHost
+        // ---------------------------------------------------------------------
 
         public virtual void Attach(IPageView page)
         {
-            if(!(page?.NativeView is Control c))
+            if (!(page?.NativeView is Control control))
                 throw new InvalidOperationException(
-                    $"Page '{page?.Name}' NativeView must be a Control.");
+                    $"Page '{page?.Name}' NativeView must be a WinForms Control.");
 
-            if(!Root.Controls.Contains(c))
+            if (!Root.Controls.Contains(control))
             {
-                c.Dock = DockStyle.Fill;
-                Root.Controls.Add(c);
+                control.Dock = DockStyle.Fill;
+                Root.Controls.Add(control);
             }
 
-            c.Visible = true;
+            control.Visible = true;
 
-            if(page is IHostAttachable attachable)
+            if (page is IHostAttachable attachable)
                 attachable.OnAttach(this);
         }
 
         public virtual void Detach(IPageView page)
         {
-            if(page?.NativeView is Control c &&
-               Root.Controls.Contains(c))
+            if (page?.NativeView is Control control &&
+                Root.Controls.Contains(control))
             {
-                Root.Controls.Remove(c);
+                Root.Controls.Remove(control);
             }
 
-            if(page is IHostAttachable attachable)
+            if (page is IHostAttachable attachable)
                 attachable.OnDetach();
         }
 
         public virtual void BringToFront(IPageView page)
         {
-            if(page?.NativeView is Control c)
-                c.BringToFront();
+            if (page?.NativeView is Control control)
+                control.BringToFront();
         }
 
-        // ---------------- IViewHost (overlays) ----------------
+        // ---------------------------------------------------------------------
+        // IViewHost
+        // ---------------------------------------------------------------------
 
         public virtual void AddView(object view)
         {
-            if(!(view is Control c))
-                throw new InvalidOperationException("Overlay view must be a Control.");
+            if (!(view is Control control))
+                throw new InvalidOperationException(
+                    "Overlay view must be a WinForms Control.");
 
-            if(!Root.Controls.Contains(c))
+            if (!Root.Controls.Contains(control))
             {
-                c.Dock = DockStyle.Fill;
-                Root.Controls.Add(c);
+                control.Dock = DockStyle.Fill;
+                Root.Controls.Add(control);
             }
 
-            c.Visible = true;
-            c.BringToFront();
+            control.Visible = true;
+            control.BringToFront();
         }
 
         public virtual void RemoveView(object view)
         {
-            if(view is Control c && Root.Controls.Contains(c))
-                Root.Controls.Remove(c);
+            if (view is Control control &&
+                Root.Controls.Contains(control))
+            {
+                Root.Controls.Remove(control);
+            }
         }
 
         public virtual void BringToFront(object view)
         {
-            if(view is Control c)
-                c.BringToFront();
+            if (view is Control control)
+                control.BringToFront();
         }
 
         public virtual void Focus(object view)
         {
-            if(view is Control c && c.CanFocus)
-                c.Focus();
+            if (view is Control control && control.CanFocus)
+                control.Focus();
         }
     }
 }

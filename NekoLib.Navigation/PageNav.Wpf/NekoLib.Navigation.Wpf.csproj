@@ -1,54 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <!-- Multi-targeting -->
-    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
 
-     
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
 
-    <!-- Language / compiler behavior -->
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
+		<OutputType>Library</OutputType>
 
-    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <!-- Library -->
-    <OutputType>Library</OutputType>
+		<AssemblyName>NekoLib.Navigation.Wpf</AssemblyName>
+		<RootNamespace>NekoLib.Navigation.Wpf</RootNamespace>
 
-    <!-- Assembly info -->
-    <AssemblyName>NekoLib.Navigation</AssemblyName>
-    <RootNamespace>NekoLib.Navigation</RootNamespace>
-
-    <!-- Identity -->
-    <DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
-    <!-- WinForms -->
-    <UseWindowsForms>true</UseWindowsForms>
-
-
-  </PropertyGroup>
-
-  <!-- .NET Framework–specific tweaks -->
-  <PropertyGroup Condition="'$(TargetFramework)'=='net481'">
-    <DefineConstants>$(DefineConstants);NETFRAMEWORK;WINFORMS_NETFRAMEWORK</DefineConstants>
-    <NoWarn>$(NoWarn);1591</NoWarn>
-  </PropertyGroup>
-
-  <!-- .NET 9 Windows–specific tweaks -->
-  <PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
-    <DefineConstants>$(DefineConstants);NET_9;WINFORMS;WINFORMS_NET_9</DefineConstants>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Properties\**" />
-    <EmbeddedResource Remove="Properties\**" />
-    <None Remove="Properties\**" />
-  </ItemGroup>
-
-  <!-- References -->
-  <ItemGroup>
-    <ProjectReference Include="..\PageNav\NekoLib.Navigation.csproj" />
-  </ItemGroup>
-
+		<UseWPF>true</UseWPF>
+	</PropertyGroup>
 </Project>

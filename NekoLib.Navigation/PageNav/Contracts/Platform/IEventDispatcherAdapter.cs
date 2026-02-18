@@ -1,6 +1,6 @@
 using System;
 
-namespace NekoLib.Navigation.Contracts.Plataform
+namespace NekoLib.Navigation.Contracts.Platform
 {
      
     /// <summary>

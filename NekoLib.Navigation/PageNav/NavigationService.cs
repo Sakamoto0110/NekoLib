@@ -103,8 +103,8 @@ namespace NekoLib.Navigation
         }
 
         public static Task<bool> GoBackAsync()
-            => (Task<bool>)EnsureRuntime().GoBackAsync();
-         
+    => EnsureRuntime().GoBackAsync();
+
 
 #if DEBUG
         public static void AssertFrameworkIsDown()

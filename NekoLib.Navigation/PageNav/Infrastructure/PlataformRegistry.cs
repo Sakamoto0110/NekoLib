@@ -1,4 +1,4 @@
-using NekoLib.Navigation.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 using System;
 
 namespace NekoLib.Navigation.Infrastructure

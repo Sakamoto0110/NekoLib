@@ -1,8 +1,8 @@
-﻿using NekoLib.Navigation.Contracts.Plataform;
+﻿using NekoLib.Navigation.Contracts.Platform;
 using System;
 using System.Windows.Forms;
 
-namespace NekoLib.Navigation.Adapters
+namespace NekoLib.Navigation.WinForms.Adapters
 {
     /// <summary>Blocks user interaction by disabling controls under a root control./summary>
     public sealed class WinFormsInteractionBlocker : IInteractionBlocker

@@ -1,53 +1,67 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Contracts.Plataform;
-using NekoLib.Navigation.Contracts.Runtime;
- 
+﻿using NekoLib.Navigation.Contracts.Platform;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.WinForms.Hosting;
 using System;
 using System.Windows.Forms;
-namespace NekoLib.Navigation.Adapters
-{
+using NekoLib.Navigation.Contracts.Runtime;
 
+namespace NekoLib.Navigation.WinForms.Adapters
+{
     public sealed class WinFormsPlatformAdapter : IPlatformAdapter
     {
-        public bool CanHandle(object host)
-          => host is Control;
+        public bool CanHandle(object nativeHost)
+            => nativeHost is Control;
 
-        public IPageHost CreateHost(object host)
+        public IPageHost CreateHost(object nativeHost)
         {
-            // host is ALWAYS the native Control passed to UseContext
+            if (nativeHost is not Control control)
+                throw new ArgumentException(
+                    "WinFormsPlatformAdapter requires a System.Windows.Forms.Control as native host.",
+                    nameof(nativeHost));
 
-            if(host.GetType() == typeof(Panel)) return new Hosting.PanelPageHost((Panel)host);
-            throw new ArgumentException();
+            if (control is not Panel panel)
+                throw new InvalidOperationException(
+                    "WinFormsPlatformAdapter requires the host to be a Panel.");
+
+            return new PanelPageHost(panel);
         }
 
-        public IPageOverlay CreateOverlayService(object host)
+        public IEventDispatcherAdapter CreateEventDispatcher(object nativeHost)
         {
-            // host is STILL the native Control
+            if (nativeHost is not Control control)
+                throw new ArgumentException(nameof(nativeHost));
+
+            return new WinFormsEventDispatcherAdapter(control);
+        }
+
+        public IEventSubscriptionAdapter CreateEventSubscriber(object nativeHost)
+        {
+            return new WinFormsEventSubscriptionAdapter();
+        }
+
+        public IInteractionBlocker CreateInteractionBlocker(object nativeHost)
+        {
+            if (nativeHost is not Control control)
+                throw new ArgumentException(nameof(nativeHost));
+
+            return new WinFormsInteractionBlocker(control);
+        }
+
+        public ITimerAdapter CreateTimerAdapter()
+            => new WinFormsTimerAdapter();
+
+        public IPageOverlay CreateOverlayService(object nativeHost)
+        {
+            // Optional — return null if not used
             return null;
         }
 
-        public IInteractionBlocker CreateInteractionBlocker(object host) => new WinFormsInteractionBlocker((Control)host);
-        public IEventSubscriptionAdapter CreateEventSubscriber(object host) => new WinFormsEventSubscriptionAdapter();
-        public IEventDispatcherAdapter CreateEventDispatcher(object host) => new WinFormsEventDispatcherAdapter((Control)host);
-        public ITimerAdapter CreateTimerAdapter() => new WinFormsTimerAdapter();
-      
-        public IInteractionObserverService CreateInteractionObserverAdapter(object host) => new WinFormsInteractionObserver((Control)host);
-        public void InvokeOnUI(Action action)
+        public IInteractionObserverService CreateInteractionObserverAdapter(object nativeHost)
         {
-            if(Application.OpenForms.Count == 0)
-                return;
+            if (nativeHost is not Control control)
+                throw new ArgumentException(nameof(nativeHost));
 
-            var form = Application.OpenForms[0];
-
-            if(form.InvokeRequired)
-                form.Invoke(action);
-            else
-                action();
+            return new WinFormsInteractionObserver(control);
         }
     }
-
-    
-
-
-    
 }

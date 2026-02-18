@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
-namespace NekoLib.Navigation.Adapters
+namespace NekoLib.Navigation.WinForms.Adapters
 {
      public sealed class WinFormsInteractionObserver :
       IInteractionObserverService,
