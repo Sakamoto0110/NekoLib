@@ -1,3 +1,5 @@
+using NekoLib.Diagnostics.Contracts;
+
 namespace NekoLib.Diagnostics.Sinks
 {
     public sealed class NullTelemetrySink : ITelemetrySink

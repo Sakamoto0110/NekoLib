@@ -37,9 +37,4 @@
 	  <DefineConstants>$(DefineConstants);NET_9;WINFORMS</DefineConstants>
 	</PropertyGroup>
 
-
-	<ItemGroup>
-		<Compile Include="..\NekoLib.Diagnostics.Abstractions\**\*.cs" Link="Abstractions\%(RecursiveDir)%(Filename)%(Extension)" Exclude="&#xA;             ..\NekoLib.Diagnostics.Abstractions\bin\**;&#xA;             ..\NekoLib.Diagnostics.Abstractions\obj\**;&#xA;             ..\NekoLib.Diagnostics.Abstractions\**\AssemblyInfo.cs;&#xA;             ..\NekoLib.Diagnostics.Abstractions\**\*AssemblyInfo*.cs;&#xA;             ..\NekoLib.Diagnostics.Abstractions\Properties\AssemblyInfo.cs;&#xA;             ..\NekoLib.Diagnostics.Abstractions\**\SharedAssemblyInfo.cs&#xA;           " />
-	</ItemGroup>
-
 </Project>

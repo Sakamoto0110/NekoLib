@@ -1,4 +1,5 @@
- using System;
+using NekoLib.Diagnostics.Contracts;
+using System;
 using System.Collections.Generic;
 
 namespace NekoLib.Diagnostics
