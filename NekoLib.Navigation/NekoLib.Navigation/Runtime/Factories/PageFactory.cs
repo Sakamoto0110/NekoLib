@@ -18,6 +18,7 @@ namespace NekoLib.Navigation.Runtime.Factories
         /// This is intended for migration / demos. Prefer explicit registration.
         /// </summary>
         public bool AllowUnregisteredPages { get; set; } = true;
+        internal event Action<string> Warn;
 
         // ----------------------------
         // Manual registration
@@ -75,7 +76,11 @@ namespace NekoLib.Navigation.Runtime.Factories
 
             if (_factories.TryGetValue(pageType, out var factory))
             {
-                try { return factory(); }
+                try {  
+                    var f = factory();
+                    //f.Name = pageType.Name;
+                    return f;
+                }
                 catch (Exception ex)
                 {
                     throw new InvalidOperationException(
@@ -90,7 +95,7 @@ namespace NekoLib.Navigation.Runtime.Factories
             }
 
             // Fallback path (migration only)
-            NavigationDiagnostics.EmitWarn(
+             Warn?.Invoke(
                 $"[PageFactory] Page '{pageType.FullName}' was not registered; using default ctor fallback.");
 
             return CreateUsingDefaultCtor(pageType);

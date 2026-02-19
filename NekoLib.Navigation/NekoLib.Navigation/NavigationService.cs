@@ -1,4 +1,5 @@
 ﻿// FILE: PageNav.Core/Services/NavigationService.cs
+using NekoLib.Diagnostics;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
@@ -92,11 +93,11 @@ namespace NekoLib.Navigation
         public static Task SwitchTransient(Type type, object args = null)
             => EnsureRuntime().NavigateAsync(type, NavigationArgs.Transient(args));
 
-      
 
 
-        public static Task<bool> GoBackAsync()
-    => EnsureRuntime().GoBackAsync();
+        public async static Task GoHomeAsync() { await EnsureRuntime().GoHomeAsync(); }
+        public async static Task<bool> GoBackAsync()
+    => await EnsureRuntime().GoBackAsync();
 
 
 #if DEBUG
@@ -140,13 +141,11 @@ namespace NekoLib.Navigation
             _runtime.CurrentChanged += OnCurrentChanged;
             _runtime.HistoryChanged += OnHistoryChanged;
              
-            _runtime.TimeoutReached += OnTimeout;
-        }
+         }
 
         private static void UnwireRuntimeEvents()
         {
-            _runtime.TimeoutReached -= OnTimeout;
-
+ 
             _runtime.Navigating -= OnNavigating;
             _runtime.Navigated -= OnNavigated;
             _runtime.NavigationFailed -= OnNavigationFailed;
@@ -169,44 +168,5 @@ namespace NekoLib.Navigation
         private static void OnHistoryChanged()
             => HistoryChanged?.Invoke();
     
-    private static async void OnTimeout()
-        {
-            if (_context == null)
-                return;
-
-            var current = _runtime.Current;
-            PageDescriptor desc = null;
-
-            try
-            {
-                if (current != null)
-                {
-                    if (_context.Registry.TryGetDescriptor(current.GetType(), out desc))
-                        throw new InvalidOperationException(
-                            $"PageDescriptor of {current.GetType()} not found.");
-
-                    switch (desc.Timeout)
-                    {
-                        case PageTimeoutBehavior.IgnoreTimeout:
-                            return;
-
-                        case PageTimeoutBehavior.OverrideHome:
-                            break; // fallthrough to home resolution
-                    }
-                }
-
-                // Default behavior: resolve home page
-                var home = _context.Registry.ResolveTimeoutTarget();
-                if (home == null)
-                    return;
-                await _runtime.NavigateAsync(home.PageType, NavigationArgs.Default());
-
-            }
-            catch (Exception ex)
-            {
-                NavigationDiagnostics.EmitError(
-                    $"Timeout navigation failed", ex);
-            }
-        }
     }
 }

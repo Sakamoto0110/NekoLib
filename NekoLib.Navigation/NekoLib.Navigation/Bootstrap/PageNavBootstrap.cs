@@ -1,10 +1,9 @@
-﻿using NekoLib.Diagnostics;
+﻿
 using NekoLib.Diagnostics.Contracts;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
-
-using NekoLib.Navigation.Infrastructure;
+ using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
@@ -48,52 +47,7 @@ namespace NekoLib.Navigation.Bootstrap
         // --------------------------------------------------------------------
         // Entry points
         // --------------------------------------------------------------------
-
-        public static NavigationContext Initialize<TPlatform>(IPageHost host) where TPlatform : IPlatformAdapter, new() => Initialize(new TPlatform(), host);
-
-
-        public static NavigationContext Initialize(
-    IPlatformAdapter platform,
-    IPageHost host,
-    PageRegistry registry = null)
-        {
-            if (platform == null)
-                throw new ArgumentNullException(nameof(platform));
-
-            if (host == null)
-                throw new ArgumentNullException(nameof(host));
-
-            PlatformRegistry.Register(platform);
-
-            var services = new ServiceLocator();
-
-            services.Register(typeof(IEventDispatcherAdapter),
-                platform.CreateEventDispatcher(host));
-
-            services.Register(typeof(IInteractionBlocker),
-                platform.CreateInteractionBlocker(host));
-
-            services.Register(typeof(ITimerAdapter),
-                platform.CreateTimerAdapter());
-
-            // Create or use provided registry
-            registry ??= new PageRegistry();
-
-            // Wire factory from registry instance
-            var pageFactory = PageFactory.AutoWireFromRegistry(
-                registry.RegisteredPageTypes());
-
-            services.Register(typeof(PageFactory), pageFactory);
-
-            services.Lock();
-
-            return new NavigationContext(
-                host: host,
-                services: services,
-                registry: registry,
-                platform: platform
-            );
-        }
+ 
 
 
         /// <summary>
@@ -232,11 +186,7 @@ namespace NekoLib.Navigation.Bootstrap
             var pageFactory = new PageFactory();
             services.Register(typeof(PageFactory), pageFactory);
 
-            // ------------------------------------------------------------
-            // 7) Diagnostics bridge (optional)
-            // ------------------------------------------------------------
-            ;
-
+            
 
             // ------------------------------------------------------------     
             // 8) Allow app-level service extensions
@@ -250,18 +200,31 @@ namespace NekoLib.Navigation.Bootstrap
                 host: host,
                 services: services,
                 registry: registry,
-                diagnostics: _diagnostics,
+                diagnosticsContext: _diagnostics,
                 platform: _platform
             );
+            // ------------------------------------------------------------
+            // 7) Diagnostics bridge (optional)
+            // ------------------------------------------------------------
 
+            if (_diagnostics != null)
+            {
+                registry.Info += msg => context.Diagnostics.EmitInfo(msg);
+                registry.Warn += msg => context.Diagnostics.EmitWarn(msg);
+
+
+                pageFactory.Warn += msg => context.Diagnostics.EmitWarn(msg);
+            }
             services.Register(context);
 
             // ------------------------------------------------------------
             // 10) Lock services
             // ------------------------------------------------------------
             services.Lock();
-
             return context;
+
+
+
         }
 
 
@@ -297,13 +260,6 @@ namespace NekoLib.Navigation.Bootstrap
         //    return ctx;
         //}
 
-        // Convenience to keep legacy static facade alive if you still want it:
-        public NavigationContext StartAsDefault()
-        {
-            var ctx = Start();
-            // If you want to keep a global pointer for legacy, do it explicitly:
-            // PageNav.Core.Services.Svc.Current = ctx;
-            return ctx;
-        }
+       
     }
 }

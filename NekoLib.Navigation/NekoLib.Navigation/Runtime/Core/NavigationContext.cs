@@ -13,7 +13,7 @@ namespace NekoLib.Navigation.Runtime.Core
     /// <summary>
     /// Passive container for navigation-scoped state and services.
     /// </summary>
-    public sealed class NavigationContext
+    public  sealed class NavigationContext
     {
         public IPageHost Host { get; }
         public ServiceLocator Services { get; }
@@ -24,25 +24,37 @@ namespace NekoLib.Navigation.Runtime.Core
         /// <summary>
         /// Optional diagnostics context. (You can omit this if you want only static NavigationDiagnostics.)
         /// </summary>
-        public IDiagnosticsContext Diagnostics { get; }
-        public IPlatformAdapter Platform { get; }
-        
+         public IPlatformAdapter Platform { get; }
+        public NavigationDiagnostics Diagnostics { get; }
+        public IDiagnosticsContext? DiagnosticsContext { get; }
+
+        public NavigationEventHub Events => Diagnostics.Hub;
+
         public NavigationContext(
-    IPageHost host,
-    ServiceLocator services,
-    PageRegistry registry,
-    IPlatformAdapter platform,
-    IUserContext user = null,
-    IDiagnosticsContext diagnostics = null)
+        IPageHost host,
+        ServiceLocator services,
+            PageRegistry registry,
+
+        IPlatformAdapter platform,
+        IDiagnosticsContext? diagnosticsContext = null, 
+        IUserContext user = null)
         {
             Host = host ?? throw new ArgumentNullException(nameof(host));
             Services = services ?? throw new ArgumentNullException(nameof(services));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Platform = platform ?? throw new ArgumentNullException(nameof(platform));
-
+            DiagnosticsContext = diagnosticsContext;
             User = user ?? new DefaultUserContext();
-            Diagnostics = diagnostics;
             History = new NavigationHistory();
+            var hub = new NavigationEventHub();
+
+            INavigationDiagnosticsSink? sink =
+                diagnosticsContext != null
+                    ? new DiagnosticsNavigationSink(diagnosticsContext)
+                    : null;
+
+            Diagnostics = new NavigationDiagnostics(hub, sink);
         }
+      
     }
 }

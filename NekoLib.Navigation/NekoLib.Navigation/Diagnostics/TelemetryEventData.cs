@@ -1,13 +1,14 @@
-﻿using System;
+﻿using NekoLib.Diagnostics.Contracts;
+using System;
 using System.Collections.Generic;
 
-namespace NekoLib.Diagnostics.Contracts
+namespace NekoLib.Navigation.Diagnostics
 {
     /// <summary>
     /// Represents structured telemetry data.
     /// This is a pure data model used by telemetry implementations.
     /// </summary>
-    public sealed class TelemetryEventData
+    public   class TelemetryEventData : LogEntry
     {
         public DateTime TimestampUtc { get; }
         public string Name { get; }

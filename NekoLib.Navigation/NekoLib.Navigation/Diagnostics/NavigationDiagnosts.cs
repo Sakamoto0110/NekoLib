@@ -1,156 +1,117 @@
-﻿using NekoLib.Diagnostics.Contracts;
+﻿// FILE: NekoLib.Navigation/Diagnostics/NavigationDiagnostics.cs
+#nullable enable
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Metadata;
 using System;
-using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace NekoLib.Navigation.Diagnostics
 {
     /// <summary>
-    /// Hook surface for navigation diagnostics.
-    /// Consumers (or host) can attach a diagnostics context.
+    /// Emits navigation diagnostics into:
+    ///  - internal hub (NavigationEventHub)
+    ///  - optional external sink (INavigationDiagnosticsSink)
+    ///
+    /// No global state, no static Context.
     /// </summary>
-    public static class NavigationDiagnostics
+    public sealed class NavigationDiagnostics
     {
-        /// <summary>
-        /// Optional diagnostics context injected by bootstrap/host.
-        /// If null, diagnostics are ignored.
-        /// </summary>
-        public static IDiagnosticsContext Context { get; set; }
+        private readonly NavigationEventHub _hub;
+        private readonly INavigationDiagnosticsSink? _sink;
 
-        public static event Action<PageLogEntry> NavigationLogged;
-        public static event Action<GuardDeniedEvent> GuardDenied;
-
-        internal static void EmitNavigation(PageLogEntry entry)
+        public NavigationDiagnostics(NavigationEventHub hub, INavigationDiagnosticsSink? sink = null)
         {
-            try
-            {
-                var ctx = Context;
-
-                if (ctx != null)
-                {
-                    ctx.Logger?.Info(entry.ToString());
-
-                    var data = new Dictionary<string, object>
-                    {
-                        ["From"] = entry.FromPageName ?? "<null>",
-                        ["To"] = entry.ToPageName ?? "<null>",
-                        ["Success"] = entry.Success,
-                        ["Behavior"] = entry.Behavior.ToString(),
-                        ["LoadMode"] = entry.LoadMode.ToString(),
-                        ["Timeout"] = entry.IsTimeout,
-                        ["Back"] = entry.IsBackNavigation,
-                        ["FailureKind"] = entry.FailureKind.ToString(),
-                    };
-
-                    ctx.Telemetry?.Track(new TelemetryEventData(
-                        timestampUtc: entry.TimestampUtc,
-                        name: "Navigation.Page",
-                        duration: null,
-                        data: data
-                    ));
-                }
-
-                NavigationLogged?.Invoke(entry);
-            }
-            catch
-            {
-                // Diagnostics must never break navigation.
-            }
+            _hub = hub ?? throw new ArgumentNullException(nameof(hub));
+            _sink = sink;
         }
 
-        internal static void EmitSuccess(IPageView from, IPageView to, NavigationArgs args)
-            => EmitNavigation(new PageLogEntry(
-                from?.GetType(), from?.Name,
-                to?.GetType(), to?.Name,
-                args,
-                success: true));
+        public NavigationEventHub Hub => _hub;
 
-        internal static void EmitFailure(
-            IPageView from,
-            IPageView to,
+        public void EmitNavigation(PageLogEntry entry)
+        {
+            if (entry is null) return;
+
+            try { _sink?.OnNavigation(entry); }
+            catch { /* never break navigation */ }
+
+            _hub.Publish(entry);
+        }
+
+        public void EmitSuccess(IPageView? from, IPageView? to, NavigationArgs args, PageDescriptor? desc =null)
+            => EmitNavigation(new PageLogEntry(
+                from?.GetType(), string.IsNullOrEmpty(from?.Name)?from?.GetType().Name:from?.Name,
+                to?.GetType(), string.IsNullOrEmpty(to?.Name) ? to?.GetType().Name : to?.Name,
+                args,  true,
+              navigationBehavior:  desc.Kind  ,
+              navigationLoadMode:  desc.LoadMode,
+                reusePolicy: desc.ReusePolicy 
+                ));
+
+        public void EmitFailure(
+            IPageView? from,
+            IPageView? to,
             NavigationArgs args,
             NavigationFailureKind kind = NavigationFailureKind.None,
-            string error = null)
+            string? error = null, PageDescriptor? desc = null)
             => EmitNavigation(new PageLogEntry(
-                from?.GetType(), from?.Name,
-                to?.GetType(), to?.Name,
+               from?.GetType(), string.IsNullOrEmpty(from?.Name) ? from?.GetType().Name : from?.Name,
+                to?.GetType(), string.IsNullOrEmpty(to?.Name) ? to?.GetType().Name : to?.Name,
                 args,
                 success: false,
                 failureKind: kind,
-                error: error));
+                error: error,
+              navigationBehavior: desc.Kind,
+              navigationLoadMode: desc.LoadMode,
+                reusePolicy: desc.ReusePolicy));
 
-        internal static void EmitTimeout(IPageView from, IPageView to, NavigationArgs args)
+        public void EmitTimeout(IPageView? from, IPageView? to, NavigationArgs args, PageDescriptor? desc = null)
             => EmitNavigation(new PageLogEntry(
-                from?.GetType(), from?.Name,
-                to?.GetType(), to?.Name,
+              from?.GetType(), string.IsNullOrEmpty(from?.Name) ? from?.GetType().Name : from?.Name,
+                to?.GetType(), string.IsNullOrEmpty(to?.Name) ? to?.GetType().Name : to?.Name,
                 args,
                 success: true,
-                isTimeout: true));
+                isTimeout: true,
+              navigationBehavior: desc.Kind,
+              navigationLoadMode: desc.LoadMode,
+                reusePolicy: desc.ReusePolicy));
 
-        internal static void EmitBack(IPageView from, IPageView to, NavigationArgs args)
+        public void EmitBack(IPageView? from, IPageView? to, NavigationArgs args, PageDescriptor? desc = null)
             => EmitNavigation(new PageLogEntry(
-                from?.GetType(), from?.Name,
-                to?.GetType(), to?.Name,
+               from?.GetType(), string.IsNullOrEmpty(from?.Name) ? from?.GetType().Name : from?.Name,
+                to?.GetType(), string.IsNullOrEmpty(to?.Name) ? to?.GetType().Name : to?.Name,
                 args,
                 success: true,
-                isBackNavigation: true));
+                isBackNavigation: true,
+              navigationBehavior: desc.Kind,
+              navigationLoadMode: desc.LoadMode,
+                reusePolicy: desc.ReusePolicy));
 
-        internal static void EmitGuardDenied(
-            IPageView from,
-            Type target,
-            Type redirect,
-            string reason)
+        public void EmitGuardDenied(IPageView? from, Type? target, Type? redirect, string? reason)
         {
-            try
-            {
-                GuardDenied?.Invoke(
-                    new GuardDeniedEvent(
-                        from,
-                        target,
-                        redirect,
-                        reason));
-            }
-            catch
-            {
-                // Diagnostics must never break navigation.
-            }
+            var e = new GuardDeniedEvent(from, target, redirect, reason);
+
+            try { _sink?.OnGuardDenied(e); }
+            catch { /* never break navigation */ }
+
+            _hub.Publish(e);
         }
 
-        internal static void EmitError(string message, Exception ex)
+        public void EmitInfo(string message)
         {
-            try
-            {
-                Context?.Logger?.Error(message, ex);
-            }
-            catch { }
+            if (string.IsNullOrWhiteSpace(message)) return;
+            try { _sink?.OnInfo(message); } catch { }
         }
 
-        internal static void EmitInfo(string message)
+        public void EmitWarn(string message)
         {
-            try
-            {
-                Context?.Logger?.Info(message);
-            }
-            catch { }
+            if (string.IsNullOrWhiteSpace(message)) return;
+            try { _sink?.OnWarn(message); } catch { }
         }
 
-        internal static void EmitWarn(string message)
+        public void EmitError(string message, Exception? ex = null)
         {
-            try
-            {
-                Context?.Logger?.Warn(message);
-            }
-            catch { }
-        }
-
-        public static void EmitExternal(string message)
-        {
-            try
-            {
-                Context?.Logger?.Info("[External] " + message);
-            }
-            catch { }
+            if (string.IsNullOrWhiteSpace(message)) return;
+            try { _sink?.OnError(message, ex); } catch { }
         }
     }
 }

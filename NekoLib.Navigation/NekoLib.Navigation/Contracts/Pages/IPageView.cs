@@ -13,7 +13,7 @@ namespace NekoLib.Navigation.Contracts.Pages
     public interface IPageView : IDisposable
     {
         /// <summary>Logical name used for registration/navigation/debug.</summary>
-        string Name { get;   }
+        string Name { get;       }
 
         /// <summary>Native UI object (Control, UserControl, FrameworkElement...).</summary>
         object NativeView { get; }

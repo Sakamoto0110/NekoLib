@@ -3,9 +3,9 @@ using System.Collections.Generic;
 namespace NekoLib.Diagnostics.Contracts
 
 {
-    public sealed class TelemetryEvent
+    public sealed class TelemetryEvent : LogEntry
     {
-        public DateTime TimestampUtc { get; }
+        public new DateTime TimestampUtc { get; }
         public string Name { get; }
         public TimeSpan? Duration { get; }
         public IReadOnlyDictionary<string, object> Data { get; }

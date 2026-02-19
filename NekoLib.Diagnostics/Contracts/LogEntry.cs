@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 
 namespace NekoLib.Diagnostics.Contracts
 {
@@ -6,14 +7,15 @@ namespace NekoLib.Diagnostics.Contracts
     /// Represents a structured log entry.
     /// This is a pure data model used by logging implementations.
     /// </summary>
-    public sealed class LogEntry
+    public   class LogEntry
     {
         public DateTime TimestampUtc { get; }
         public LogLevel Level { get; }
         public string Category { get; }
         public string Message { get; }
         public Exception Exception { get; }
-
+        public   LogEntry() { }
+        public virtual new string ToString() => $"[{TimestampUtc:O}] {Level}: {Message} {(Exception != null ? $"| Exception: {Exception}" : "")}";
         public LogEntry(
             DateTime timestampUtc,
             LogLevel level,

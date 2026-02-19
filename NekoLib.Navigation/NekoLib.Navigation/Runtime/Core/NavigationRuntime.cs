@@ -1,5 +1,7 @@
 ﻿// FILE: NekoLib.Navigation.Runtime.Core/NavigationRuntime.cs
 
+using NekoLib.Diagnostics;
+using NekoLib.Diagnostics.Contracts;
 using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
@@ -12,7 +14,7 @@ using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
+ using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
@@ -27,7 +29,10 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private readonly HashSet<IPageView> _attachedPages = new();
         private readonly HashSet<IPageView> _visiblePages = new();
+         private readonly NavigationDiagnostics _diagnostics;
+        public NavigationEventHub Events => _diagnostics.Hub;
 
+        
         public IPageView Current { get; private set; }
 
         // Runtime-owned caches (instance scoped)
@@ -60,8 +65,18 @@ namespace NekoLib.Navigation.Runtime.Core
         public NavigationRuntime(NavigationContext ctx)
         {
             _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
+
+            var hub = new NavigationEventHub();
+
+            INavigationDiagnosticsSink? sink =
+                _ctx.DiagnosticsContext != null
+                    ? new DiagnosticsNavigationSink(_ctx.DiagnosticsContext)
+                    : null;
+            
+            _diagnostics = new NavigationDiagnostics(hub, sink);
         }
 
+ 
         // ---------------------------------------------------------------------
         // EXECUTION CORE (UI marshaling + serialization)
         // ---------------------------------------------------------------------
@@ -95,8 +110,8 @@ namespace NekoLib.Navigation.Runtime.Core
             if (desc == null)
                 return;
 
-            var runtime = _ctx.Services.Get(typeof(NavigationRuntime)) as NavigationRuntime;
-            await runtime.NavigateAsync(desc.PageType, NavigationArgs.Default(args));
+            
+            await  NavigateAsync(desc.PageType, NavigationArgs.Default(args));
         }
         private void EnsureRuntimeServices()
         {
@@ -357,10 +372,11 @@ namespace NekoLib.Navigation.Runtime.Core
 
             IPageView from = Current;
             IPageView to = null;
+            PageDescriptor toDesc = null;
 
             try
             {
-                if (!_ctx.Registry.TryGetDescriptor(pageType, out var toDesc))
+                if (!_ctx.Registry.TryGetDescriptor(pageType, out   toDesc))
                     throw new InvalidOperationException(
                         $"Type '{pageType.FullName}' is not a registered page.");
 
@@ -370,7 +386,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (!visited.Add(canonicalPageType))
                 {
-                    NavigationDiagnostics.EmitGuardDenied(
+                     
+                    _diagnostics.EmitGuardDenied(
                         from,
                         canonicalPageType,
                         null,
@@ -380,7 +397,7 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (redirectDepth > 8)
                 {
-                    NavigationDiagnostics.EmitGuardDenied(
+                    _diagnostics.EmitGuardDenied(
                         from,
                         canonicalPageType,
                         null,
@@ -403,7 +420,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     }
                     catch (Exception ex)
                     {
-                        NavigationDiagnostics.EmitGuardDenied(
+                        _diagnostics.EmitGuardDenied(
                             from,
                             canonicalPageType,
                             null,
@@ -413,7 +430,7 @@ namespace NekoLib.Navigation.Runtime.Core
 
                     if (!result.Allowed)
                     {
-                        NavigationDiagnostics.EmitGuardDenied(
+                        _diagnostics.EmitGuardDenied(
                             from,
                             canonicalPageType,
                             result.RedirectPage,
@@ -509,13 +526,52 @@ namespace NekoLib.Navigation.Runtime.Core
                 }
 
                 Navigated?.Invoke(from, to, navArgs);
-                NavigationDiagnostics.EmitSuccess(from, to, navArgs);
+                _diagnostics.EmitSuccess(from, to, navArgs, desc: toDesc);
             }
             catch (Exception ex)
             {
                 NavigationFailed?.Invoke(from, pageType, ex);
-                NavigationDiagnostics.EmitFailure(from, to, navArgs);
+                _diagnostics.EmitFailure(from, to, navArgs,desc: toDesc);
                 throw;
+            }
+        }
+        private   async void OnTimeout()
+        {
+            if (_ctx == null)
+                return;
+
+            var current =  Current;
+            PageDescriptor desc = null;
+
+            try
+            {
+                if (current != null)
+                {
+                    if (_ctx.Registry.TryGetDescriptor(current.GetType(), out desc))
+                        throw new InvalidOperationException(
+                            $"PageDescriptor of {current.GetType()} not found.");
+
+                    switch (desc.Timeout)
+                    {
+                        case PageTimeoutBehavior.IgnoreTimeout:
+                            return;
+
+                        case PageTimeoutBehavior.OverrideHome:
+                            break; // fallthrough to home resolution
+                    }
+                }
+
+                // Default behavior: resolve home page
+                var home = _ctx.Registry.ResolveTimeoutTarget();
+                if (home == null)
+                    return;
+                await  NavigateAsync(home.PageType, NavigationArgs.Default());
+
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.EmitError(
+                    $"Timeout navigation failed", ex);
             }
         }
 

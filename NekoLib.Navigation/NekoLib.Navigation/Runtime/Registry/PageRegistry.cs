@@ -23,7 +23,8 @@ namespace NekoLib.Navigation.Runtime.Registry
             new(StringComparer.OrdinalIgnoreCase);
 
         private readonly object _lock = new();
-
+        internal event Action<string>  Info;
+        internal event Action<string>  Warn;
         // --------------------------------------------------------------------
         // Registration
         // --------------------------------------------------------------------
@@ -91,12 +92,12 @@ namespace NekoLib.Navigation.Runtime.Registry
             // Emit outside lock
             if (alreadyRegistered)
             {
-                NavigationDiagnostics.EmitWarn(
+                Warn?.Invoke (
                     $"Page '{pageType.FullName}' already registered. Ignored.");
                 return;
             }
 
-            NavigationDiagnostics.EmitInfo(
+            Info?.Invoke(
                 $"Registered Page '{desc.Name}' (Type={pageType.Name}, Kind={desc.Kind}, Cache={desc.ReusePolicy})");
         }
 

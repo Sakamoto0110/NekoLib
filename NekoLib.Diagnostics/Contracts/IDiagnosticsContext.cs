@@ -1,6 +1,6 @@
 namespace NekoLib.Diagnostics.Contracts
 {
-    public interface IDiagnostics
+    public interface IDiagnosticsContext
     {
         ILogger Logger { get; }
         ITelemetrySink Telemetry { get; }

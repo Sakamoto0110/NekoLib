@@ -12,6 +12,7 @@ using System.Windows.Forms;
 namespace NekoLib.Navigation.WinForms {
     public abstract partial class BasePage : UserControl, IPageView
     {
+ 
         public object NativeView => this;
         public virtual bool AllowBackNavigation => true;
 

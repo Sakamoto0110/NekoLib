@@ -1,4 +1,5 @@
-﻿using NekoLib.Navigation.Metadata;
+﻿using NekoLib.Diagnostics.Contracts;
+using NekoLib.Navigation.Metadata;
 using System;
 
 namespace NekoLib.Navigation.Diagnostics
@@ -7,7 +8,7 @@ namespace NekoLib.Navigation.Diagnostics
     /// Immutable navigation log entry used for diagnostics and tracing.
     /// This is NOT a general-purpose logger entry.
     /// </summary>
-    public readonly struct PageLogEntry
+    public   class PageLogEntry : LogEntry
     {
         // --------------------------------------------------------------------
         // Identity
@@ -33,10 +34,11 @@ namespace NekoLib.Navigation.Diagnostics
         public DateTime TimestampUtc { get; }
 
         /// <summary>Navigation behavior flags.</summary>
-        public NavigationBehavior Behavior { get; }
+        public PageKind Behavior { get; }
 
         /// <summary>Load mode used for navigation.</summary>
         public NavigationLoadMode LoadMode { get; }
+        public PageReusePolicy ReusePolicy { get; }
 
         /// <summary>
         /// True if this navigation was triggered by timeout logic.
@@ -71,20 +73,27 @@ namespace NekoLib.Navigation.Diagnostics
             string toName,
             NavigationArgs args,
             bool success,
+            PageKind navigationBehavior,
+            NavigationLoadMode navigationLoadMode,
+            PageReusePolicy reusePolicy,
             NavigationFailureKind failureKind = NavigationFailureKind.None,
             bool isTimeout = false,
             bool isBackNavigation = false,
-            string error = null)
+            string error = null
+            
+            ) :
+            base(DateTime.UtcNow, success? LogLevel.Info:LogLevel.Error, "",null)
         {
             FromPageType = fromType;
             FromPageName = fromName;
             ToPageType = toType ?? throw new ArgumentNullException(nameof(toType));
             ToPageName = toName ?? toType.Name;
-
+             
             TimestampUtc = DateTime.UtcNow;
 
-            Behavior = args?.Behavior ?? NavigationBehavior.Default;
-            LoadMode = args?.LoadMode ?? NavigationLoadMode.ShowImmediately;
+            ReusePolicy = reusePolicy;
+            Behavior = navigationBehavior;
+            LoadMode = navigationLoadMode;
 
             FailureKind = failureKind;
 
@@ -104,7 +113,7 @@ namespace NekoLib.Navigation.Diagnostics
             var status = Success ? "OK" : "FAIL";
 
             return $"[{TimestampUtc:HH:mm:ss}] {dir} {FromPageName ?? "<null>"} -> {ToPageName} " +
-                   $"({status}, {Behavior}, {LoadMode})";
+                   $"({status}, {Behavior} |, {LoadMode} | {ReusePolicy})";
         }
     }
 }

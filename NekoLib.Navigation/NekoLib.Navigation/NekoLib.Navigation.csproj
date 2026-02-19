@@ -48,6 +48,14 @@
 	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Diagnostics\Contracts\" />
+	</ItemGroup>
+
 	 
  
 
