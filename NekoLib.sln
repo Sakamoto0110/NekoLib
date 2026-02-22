@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.3.11505.172 d18.3
+VisualStudioVersion = 18.3.11505.172
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Devices", "NekoLib.Devices\NekoLib.Devices.csproj", "{4AE3BCDA-3731-8967-0271-3229DD2F034D}"
 EndProject
@@ -43,6 +43,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Navigation.WinForms", "NekoLib.Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj", "{54F91D31-6AB3-83B6-311E-D7CED5831E9E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Navigation.Wpf", "NekoLib.Navigation\NekoLib.Navigation.Wpf\NekoLib.Navigation.Wpf.csproj", "{6346F277-71BE-2961-AE3A-420DB20C7D88}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NekoLib.Pipes", "NekoLib.Pipes", "{59000E9A-A859-40B5-90D7-68FAF636051D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Pipes", "NekoLib.Pipes\NekoLib.Pipes.csproj", "{50F7176E-09E4-4792-BA3F-B682FFEDD819}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -102,6 +106,10 @@ Global
 		{6346F277-71BE-2961-AE3A-420DB20C7D88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6346F277-71BE-2961-AE3A-420DB20C7D88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6346F277-71BE-2961-AE3A-420DB20C7D88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50F7176E-09E4-4792-BA3F-B682FFEDD819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50F7176E-09E4-4792-BA3F-B682FFEDD819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50F7176E-09E4-4792-BA3F-B682FFEDD819}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50F7176E-09E4-4792-BA3F-B682FFEDD819}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -120,6 +128,7 @@ Global
 		{9FDF64D0-2072-8EC3-6EA0-4C881C92F376} = {F3BB3910-8186-4204-BA94-221C617FAA58}
 		{54F91D31-6AB3-83B6-311E-D7CED5831E9E} = {F3BB3910-8186-4204-BA94-221C617FAA58}
 		{6346F277-71BE-2961-AE3A-420DB20C7D88} = {F3BB3910-8186-4204-BA94-221C617FAA58}
+		{50F7176E-09E4-4792-BA3F-B682FFEDD819} = {59000E9A-A859-40B5-90D7-68FAF636051D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A6736775-B135-4E14-B467-8F36148928D4}

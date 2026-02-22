@@ -1,19 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9-windows</TargetFrameworks>
+    <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
     <ProjectReference Include="..\..\..\NekoLib.Runtime.Watchdog\NekoLib.Runtime.Watchdog.csproj" />
   </ItemGroup>
-<PropertyGroup Condition="'$(TargetFramework)' == 'net481' 
-                        Or '$(TargetFramework)' == 'net9.0-windows'">
+<PropertyGroup Condition="'$(TargetFramework)' == 'net481' &#xD;&#xA;                        Or '$(TargetFramework)' == 'net9.0-windows'">
   <DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
 </PropertyGroup>
 

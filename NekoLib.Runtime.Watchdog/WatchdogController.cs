@@ -1,143 +1,103 @@
-﻿using System;
+﻿using NekoLib.Pipes;
+using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
+#if NET9
+using System.Text.Json;
+#else
+using Newtonsoft.Json.Linq;
+#endif
 
- 
 namespace NekoLib.Runtime.Watchdog
 {
     public static class WatchdogController
     {
         private const string PipeName = "NekoLib.Watchdog";
 
-        private const string LogPipeName = PipeName + ".logs";
+        private static PipeClient CreateClient()
+        {
+            return new PipeClient(new PipeClientOptions
+            {
+                PipeName = PipeName,
+                ConnectTimeout = TimeSpan.FromMilliseconds(1500),
+                RequestTimeout = TimeSpan.FromMilliseconds(3000)
+            });
+        }
 
         private static string Send(string cmd)
         {
             try
             {
-                using (var client = new NamedPipeClientStream(
-                    ".",
-                    PipeName,
-                    PipeDirection.InOut,
-                    PipeOptions.None))
+                using (var client = CreateClient())
                 {
-                    client.Connect(1500);
+                    var response = client
+                        .SendAsync(cmd)
+                        .GetAwaiter()
+                        .GetResult();
 
-                    using (var writer = new StreamWriter(client) { AutoFlush = true })
-                    {
-                        writer.WriteLine(cmd);
-                        var reader = new StreamReader(client);
-                        return reader.ReadLine();
-                    }
+                    if (!response.Ok)
+                        return "error=" + (response.Error != null ? response.Error.Code : "unknown");
 
-                     
+#if NET9
+                    if (response.Data.HasValue && response.Data.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                        return response.Data.Value.GetString();
+                    return response.Data.HasValue ? response.Data.Value.ToString() : "";
+#else
+                    return response.Data != null ? response.Data.ToString() : "";
+#endif
                 }
-            }
-            catch (ObjectDisposedException)
-            {
-                return "error=pipe_closed";
             }
             catch (TimeoutException)
             {
                 return "error=watchdog_not_running";
             }
-            catch (IOException)
+            catch
             {
                 return "error=pipe_io";
             }
         }
-
 
         public static void Start() => Send("start");
         public static void Pause() => Send("pause");
         public static void Stop() => Send("stop");
 
         public static bool Ping() => Send("ping") == "pong";
-        public static string Status() => Send("status");
 
-        /// <summary>
-        /// Subscribes to watchdog log streaming (watchdog -> this process) via a named pipe.
-        /// The returned subscription reconnects automatically if the watchdog restarts.
-        /// </summary>
+        public static string Status(){ 
+            var r = Send("status"); 
+            return r; }  
+
+        // -----------------------------------------------------------
+        // Event Subscription (new system)
+        // -----------------------------------------------------------
+
         public static IDisposable SubscribeLogs(Action<string> onLogLine)
         {
-            if (onLogLine == null) throw new ArgumentNullException(nameof(onLogLine));
-            return new WatchdogLogSubscription(LogPipeName, onLogLine);
+            if (onLogLine == null)
+                throw new ArgumentNullException(nameof(onLogLine));
+
+            var client = new PipeEventClient(PipeName);
+
+            client.OnEvent += msg =>
+            {
+#if NET9
+                if (msg.Data.HasValue &&
+    msg.Data.Value.ValueKind == JsonValueKind.Object &&
+    msg.Data.Value.TryGetProperty("line", out var line) &&
+    line.ValueKind == JsonValueKind.String)
+{
+    onLogLine(line.GetString());
+}
+#else
+                var token =   msg.Data;
+                if (token != null && token["line"] != null)
+                    onLogLine(token["line"].ToString());
+#endif
+            };
+
+            client.Start();
+            return client;
         }
-
-        private sealed class WatchdogLogSubscription : IDisposable
-        {
-            private readonly string _pipeName;
-            private readonly Action<string> _onLine;
-            private readonly Thread _thread;
-            private volatile bool _stop;
-
-            public WatchdogLogSubscription(string pipeName, Action<string> onLine)
-            {
-                _pipeName = pipeName;
-                _onLine = onLine;
-
-                _thread = new Thread(Run)
-                {
-                    IsBackground = true,
-                    Name = "WDG-LogPipe-Client"
-                };
-                _thread.Start();
-            }
-
-            private void Run()
-            {
-                while (!_stop)
-                {
-                    NamedPipeClientStream client = null;
-
-                    try
-                    {
-                        client = new NamedPipeClientStream(
-                            ".",
-                            _pipeName,
-                            PipeDirection.In,
-                            PipeOptions.None);
-
-                        // If watchdog isn't up, this throws TimeoutException.
-                        client.Connect(1500);
-
-                        using (var reader = new StreamReader(client))
-                        {
-                            client = null; // ownership transferred to reader scope
-
-                            while (!_stop)
-                            {
-                                var line = reader.ReadLine();
-                                if (line == null) break;
-
-                                try { _onLine(line); }
-                                catch { /* observers must not break listener */ }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // ignore and retry
-                    }
-                    finally
-                    {
-                        try { client?.Dispose(); } catch { }
-                    }
-
-                    // Small backoff before reconnecting.
-                    for (int i = 0; i < 10 && !_stop; i++)
-                        Thread.Sleep(50);
-                }
-            }
-
-            public void Dispose()
-            {
-                _stop = true;
-                try { _thread.Join(1000); } catch { }
-            }
-        }
-
     }
 }

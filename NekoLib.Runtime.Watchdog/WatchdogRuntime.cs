@@ -1,47 +1,14 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using NekoLib.Pipes;
+using NekoLib.Pipes.Internal;
 
 namespace NekoLib.Runtime.Watchdog
 {
-    internal enum KillOutcome
-    {
-        None,
-        GracefulSuccess,
-        GracefulTimeout,
-        ForceSuccess,
-        ForceTimeout,
-        Error
-    }
-
-    internal enum ExitReason
-    {
-        None,
-        NaturalExit,
-        Restart,
-        Pause,
-        Stop,
-        ForceKill,
-        Crash
-    }
-
-    internal enum RestartReason
-    {
-        None,
-        InitialStart,
-        NaturalExit,
-        Crash,
-        ForceKilled,
-        PauseResume,
-        ManualStart
-    }
-
     public sealed class WatchdogRuntime : IDisposable
     {
         private readonly object _childLock = new object();
@@ -50,27 +17,14 @@ namespace NekoLib.Runtime.Watchdog
 
         private Process _child;
         private Thread _monitorThread;
-        private Thread _pipeThread;
-        private WatchdogLogPipeServer _logPipe;
+        private Thread _hotkeyThread;
         private Mutex _instanceMutex;
 
-        // -------------------------
-        // Global hotkeys (WinAPI)
-        // -------------------------
-        private Thread _hotkeyThread;
+        private PipeServer _rpc;
+        private readonly IPipeMetrics _pipeMetrics;
+
         private IntPtr _hotkeyHwnd;
         private volatile bool _hotkeysEnabled = true;
-
-        // Hotkey IDs
-        private const int HK_PAUSE = 1;
-        private const int HK_RESUME = 2;
-        private const int HK_STOP = 3;
-
-        // Ctrl+Alt+P / R / Q
-        private const uint HK_MOD = Win32.MOD_CONTROL | Win32.MOD_ALT;
-        private const uint VK_P = 0x50;
-        private const uint VK_R = 0x52;
-        private const uint VK_Q = 0x51;
 
         private readonly Stopwatch _uptime = Stopwatch.StartNew();
         private Stopwatch _childUptime;
@@ -80,22 +34,16 @@ namespace NekoLib.Runtime.Watchdog
         private volatile bool _exiting;
         private volatile bool _shutdownRequested;
 
-        private volatile KillOutcome _lastKillOutcome = KillOutcome.None;
-        private volatile ExitReason _lastExitReason = ExitReason.None;
-        private volatile RestartReason _lastRestartReason = RestartReason.None;
-
-        private Action<string> _LogEmitted;
-        public event Action<string> LogEmitted
-        {
-            add { _LogEmitted += value; }
-            remove { _LogEmitted -= value; }
-        }
-
         public WatchdogRuntime(WatchdogOptions options)
         {
             _o = options ?? throw new ArgumentNullException(nameof(options));
             _o.Normalize();
+            _pipeMetrics = new SimplePipeMetrics();
         }
+
+        // ============================================================
+        // START
+        // ============================================================
 
         public void Start()
         {
@@ -107,13 +55,25 @@ namespace NekoLib.Runtime.Watchdog
             if (!created)
                 throw new InvalidOperationException("Watchdog already running.");
 
-            _lastRestartReason = RestartReason.InitialStart;
+            // --- RPC PIPE ---
+            
 
-            _logPipe = new WatchdogLogPipeServer(_o.PipeName + ".logs");
-            _logPipe.Start();
+            _rpc = new PipeServer(new PipeServerOptions
+            {
+                PipeName = _o.PipeName,
+                EnableEvents = true,
+                MaxClients = 8,
+                MaxEventSubscribers = 16,
+                Metrics = _pipeMetrics
+                
+            });
+
+            RegisterRpcHandlers();
+            _rpc.Start();
 
             Log("[watchdog_start]");
 
+            // --- MONITOR ---
             _monitorThread = new Thread(MonitorLoop)
             {
                 IsBackground = true,
@@ -121,13 +81,7 @@ namespace NekoLib.Runtime.Watchdog
             };
             _monitorThread.Start();
 
-            _pipeThread = new Thread(PipeLoop)
-            {
-                IsBackground = true,
-                Name = "WDG-Pipe"
-            };
-            _pipeThread.Start();
-
+            // --- HOTKEYS ---
             _hotkeyThread = new Thread(HotkeyLoop)
             {
                 IsBackground = true,
@@ -136,354 +90,148 @@ namespace NekoLib.Runtime.Watchdog
             _hotkeyThread.Start();
         }
 
-        public void WaitForExit()
-        {
-            var thread = _monitorThread;
-            if (thread == null)
-                return;
-
-            try
-            {
-                if (thread.IsAlive)
-                    thread.Join();
-            }
-            catch (ThreadStateException)
-            {
-                // Thread already stopped
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-
         // ============================================================
-        // Child start / kill
+        // RPC HANDLERS
         // ============================================================
-
-        private Process StartChildProcess()
+        private string GetState()=> (_exiting || _shutdownRequested) ? "stopped"
+                           : (!_enabled ? "paused" : "running");
+        private object BuildStatus()
         {
-            // MUST match WatchdogEntrypoint.ResolveMode
-            var psi = new ProcessStartInfo
+            var snap = _pipeMetrics.Snapshot();
+            var uptime = _uptime.ElapsedMilliseconds;
+            var ts = _uptime.Elapsed;
+
+            string uptimeStr =
+                ts.TotalHours >= 1
+                    ? $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s"
+                    : ts.TotalMinutes >= 1
+                        ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s"
+                        : ts.TotalSeconds >= 1
+                            ? $"{ts.TotalSeconds:F1}s"
+                            : $"{ts.TotalMilliseconds:F0}ms";
+
+
+            return new
             {
-                FileName = _o.TargetPath,
-                WorkingDirectory = _o.WorkingDirectory,
-                Arguments = "--under-watchdog",
-                UseShellExecute = true
+                state = GetState(),
+                uptimeMs = uptimeStr,
+                restartCount = _restartCount,
+                metrics = new
+                {
+                    server = snap.Server,
+                    events = snap.Events,
+                    errors = snap.Errors
+                }
             };
-
-            return Process.Start(psi);
         }
 
-        private KillOutcome TryKill(Process child)
+        private void RegisterRpcHandlers()
         {
-            if (child == null)
-                return KillOutcome.None;
+            _rpc.Map("ping", async (req, ct) =>
+                PipeOk("pong"));
 
-            try
+            _rpc.Map("status", async (req, ct) =>
             {
-                bool exited;
-                try { exited = child.HasExited; }
-                catch { exited = true; }
+                return PipeOk(BuildStatus());
+            });
 
-                if (exited)
-                    return KillOutcome.None;
+            _rpc.Map("pause", async (req, ct) =>
+            {
+                Log("[cmd] pause");
+                _enabled = false;
+                return PipeOk("paused");
+            });
 
-                // Try graceful close (best-effort)
-                try { child.CloseMainWindow(); } catch { }
+            _rpc.Map("resume", async (req, ct) =>
+            {
+                Log("[cmd] resume");
+                _enabled = true;
+                _shutdownRequested = false;
+                return PipeOk("running");
+            });
 
-                if (child.WaitForExit(_o.GracefulKillTimeoutMs))
+            _rpc.Map("restart", async (req, ct) =>
+            {
+                Log("[cmd] restart");
+
+                lock (_childLock)
                 {
-                    Log("[kill] graceful success");
-                    return KillOutcome.GracefulSuccess;
+                    if (_child != null)
+                        TryKill(_child);
+
+                    _child = null;
+                    _childUptime = null;
                 }
 
-                Log("[kill] graceful timeout");
+                return PipeOk("restarting");
+            });
 
-                // Force kill
-                try { child.Kill(); } catch { }
+            _rpc.Map("stop", async (req, ct) =>
+            {
+                Log("[cmd] stop");
 
-                if (child.WaitForExit(_o.ForceKillTimeoutMs))
+                _shutdownRequested = true;
+                _exiting = true;
+
+                lock (_childLock)
                 {
-                    Log("[kill] force success");
-                    return KillOutcome.ForceSuccess;
+                    if (_child != null)
+                        TryKill(_child);
                 }
 
-                Log("[kill] force timeout");
-                return KillOutcome.ForceTimeout;
-            }
-            catch (Exception ex)
-            {
-                Log("[kill] error " + ex.Message);
-                return KillOutcome.Error;
-            }
+                return PipeOk("stopped");
+            });
         }
 
-        // ============================================================
-        // Global Hotkeys (WinAPI RegisterHotKey)
-        // ============================================================
-        private void HotkeyLoop()
+        private PipeMessage PipeOk(object payload)
         {
-            try
+#if NET9
+            return new PipeMessage
             {
-                _hotkeyHwnd = Win32.CreateMessageOnlyWindow();
-                if (_hotkeyHwnd == IntPtr.Zero)
-                {
-                    Log("[hotkey] failed to create message-only window");
-                    return;
-                }
-
-                bool ok1 = Win32.RegisterHotKey(_hotkeyHwnd, HK_PAUSE, HK_MOD, VK_P);
-                bool ok2 = Win32.RegisterHotKey(_hotkeyHwnd, HK_RESUME, HK_MOD, VK_R);
-                bool ok3 = Win32.RegisterHotKey(_hotkeyHwnd, HK_STOP, HK_MOD, VK_Q);
-
-                Log("[hotkey] register Ctrl+Alt+P=" + ok1 + " Ctrl+Alt+R=" + ok2 + " Ctrl+Alt+Q=" + ok3);
-
-                while (!_exiting && _hotkeysEnabled)
-                {
-                    Win32.MSG msg;
-                    if (!Win32.GetMessage(out msg, IntPtr.Zero, 0, 0))
-                        break; // WM_QUIT
-
-                    if (msg.message == Win32.WM_HOTKEY)
-                    {
-                        int id = (int)msg.wParam;
-
-                        switch (id)
-                        {
-                            case HK_PAUSE:
-                                Log("[hotkey] pause");
-                                _enabled = false;
-                                _lastExitReason = ExitReason.Pause;
-                                _lastRestartReason = RestartReason.PauseResume;
-                                break;
-
-                            case HK_RESUME:
-                                Log("[hotkey] resume");
-                                _enabled = true;
-                                _shutdownRequested = false;
-                                _lastRestartReason = RestartReason.PauseResume;
-                                break;
-
-                            case HK_STOP:
-                                Log("[hotkey] stop");
-                                _shutdownRequested = true;
-                                _exiting = true;
-                                _lastExitReason = ExitReason.Stop;
-
-                                // Kill child on stop
-                                lock (_childLock)
-                                {
-                                    if (_child != null)
-                                        _lastKillOutcome = TryKill(_child);
-                                }
-                                break;
-                        }
-                    }
-
-                    Win32.TranslateMessage(ref msg);
-                    Win32.DispatchMessage(ref msg);
-                }
-            }
-            catch (Exception ex)
+                Ok = true,
+                Data = System.Text.Json.JsonSerializer.SerializeToElement(payload)
+            };
+#else
+            return new PipeMessage
             {
-                Log("[hotkey] error " + ex.Message);
-            }
-            finally
-            {
-                try { if (_hotkeyHwnd != IntPtr.Zero) Win32.UnregisterHotKey(_hotkeyHwnd, HK_PAUSE); } catch { }
-                try { if (_hotkeyHwnd != IntPtr.Zero) Win32.UnregisterHotKey(_hotkeyHwnd, HK_RESUME); } catch { }
-                try { if (_hotkeyHwnd != IntPtr.Zero) Win32.UnregisterHotKey(_hotkeyHwnd, HK_STOP); } catch { }
-
-                try
-                {
-                    if (_hotkeyHwnd != IntPtr.Zero)
-                        Win32.DestroyWindow(_hotkeyHwnd);
-                }
-                catch { }
-
-                _hotkeyHwnd = IntPtr.Zero;
-            }
+                Ok = true,
+                Data = Newtonsoft.Json.Linq.JToken.FromObject(payload)
+            };
+#endif
         }
 
         // ============================================================
-        // Pipe control
+        // MONITOR LOOP
         // ============================================================
-        private void PipeLoop()
-        {
-            while (!_exiting)
-            {
-                try
-                {
-                    using (var server = new NamedPipeServerStream(
-                        _o.PipeName,
-                        PipeDirection.InOut,
-                        1,
-                        PipeTransmissionMode.Message))
-                    {
-                        server.WaitForConnection();
 
-                        using (var reader = new StreamReader(server, Encoding.UTF8, true, 1024, leaveOpen: true))
-                        using (var writer = new StreamWriter(server, new UTF8Encoding(false), 1024, leaveOpen: true) { AutoFlush = true })
-                        {
-                            var cmd = reader.ReadLine();
-                            var resp = HandleCommand(cmd);
-                            writer.WriteLine(resp ?? "");
-                        }
-                    }
-                }
-                catch
-                {
-                    Thread.Sleep(100);
-                }
-            }
-        }
-
-        private string HandleCommand(string cmd)
-        {
-            if (string.IsNullOrWhiteSpace(cmd))
-                return "empty";
-
-            cmd = cmd.Trim().ToLowerInvariant();
-
-            switch (cmd)
-            {
-                case "ping":
-                    return "pong";
-
-                case "status":
-                    return GetStatus();
-
-                case "pause":
-                    Log("[cmd] pause");
-                    _enabled = false;
-                    _lastExitReason = ExitReason.Pause;
-                    _lastRestartReason = RestartReason.PauseResume;
-                    return "paused";
-
-                case "resume":
-                case "start":
-                    Log("[cmd] resume");
-                    _enabled = true;
-                    _shutdownRequested = false;
-                    _lastRestartReason = RestartReason.PauseResume;
-                    return "running";
-
-                case "restart":
-                    Log("[cmd] restart");
-                    _lastExitReason = ExitReason.Restart;
-                    _lastRestartReason = RestartReason.ManualStart;
-                    lock (_childLock)
-                    {
-                        if (_child != null)
-                            _lastKillOutcome = TryKill(_child);
-
-                        _child = null;
-                        _childUptime = null;
-                    }
-                    return "restarting";
-
-                case "stop":
-                    Log("[cmd] stop");
-                    _shutdownRequested = true;
-                    _exiting = true;
-
-                    lock (_childLock)
-                    {
-                        if (_child != null)
-                            _lastKillOutcome = TryKill(_child);
-
-                        _child = null;
-                        _childUptime = null;
-                    }
-
-                    _lastExitReason = ExitReason.Stop;
-                    return "stopped";
-
-                default:
-                    return "unknown";
-            }
-        }
-
-        private string GetStatus()
-        {
-            var state =
-                _exiting || _shutdownRequested ? "stopped" :
-                !_enabled ? "paused" :
-                "running";
-
-            var childUptimeMs =
-                _childUptime != null ? _childUptime.ElapsedMilliseconds : 0;
-
-            return
-                "state=" + state +
-                ";uptimeMs=" + _uptime.ElapsedMilliseconds +
-                ";childUptimeMs=" + childUptimeMs +
-                ";restartCount=" + _restartCount +
-                ";exitReason=" + _lastExitReason +
-                ";restartReason=" + _lastRestartReason +
-                ";killOutcome=" + _lastKillOutcome;
-        }
-
-        // ============================================================
-        // Monitor loop (restored features)
-        // ============================================================
         private void MonitorLoop()
         {
             Log("[monitor] started");
 
             while (!_exiting)
             {
-                // Hard stop requested
                 if (_shutdownRequested)
-                {
-                    _lastExitReason = ExitReason.Stop;
                     break;
-                }
 
-                // Paused state: do not start/restart child
                 if (!_enabled)
                 {
-                    _lastExitReason = ExitReason.Pause;
-                    Thread.Sleep(Math.Max(50, _o.MonitorPollMs));
+                    Thread.Sleep(250);
                     continue;
                 }
 
-                // Start/restart child if needed
                 EnsureChildRunning();
+                Thread.Sleep(500);
 
-                // Heartbeat interval
-                Thread.Sleep(Math.Max(
-                    50,
-                    _o.HeartbeatIntervalMs > 0 ? _o.HeartbeatIntervalMs : _o.MonitorPollMs));
-
-                Process child;
-                Stopwatch cu;
                 lock (_childLock)
                 {
-                    child = _child;
-                    cu = _childUptime;
+                    if (_child != null && _child.HasExited)
+                    {
+                        Log("[child_exit]");
+                        _child = null;
+                        _childUptime = null;
+                        Thread.Sleep(_o.RestartDelayMs);
+                    }
                 }
-
-                if (child == null)
-                {
-                    Log("[hb] no_child");
-                    continue;
-                }
-
-                bool exited;
-                try { exited = child.HasExited; }
-                catch { exited = true; }
-
-                if (exited)
-                {
-                    HandleObservedExit(child);
-                    Thread.Sleep(Math.Max(250, _o.RestartDelayMs));
-                    continue;
-                }
-
-                var ms = cu != null ? cu.ElapsedMilliseconds : 0;
-                Log("[hb] child_alive pid=" + SafePid(child) + " childUptimeMs=" + ms + " restartCount=" + _restartCount);
             }
 
             Log("[monitor] exit");
@@ -498,87 +246,104 @@ namespace NekoLib.Runtime.Watchdog
 
                 try
                 {
-                    _child = StartChildProcess();
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = _o.TargetPath,
+                        WorkingDirectory = _o.WorkingDirectory,
+                        Arguments = "--under-watchdog",
+                        UseShellExecute = true
+                    };
+
+                    _child = Process.Start(psi);
                     _childUptime = Stopwatch.StartNew();
                     _restartCount++;
 
-                    // Keep a sane reason
-                    if (_restartCount == 1 && _lastRestartReason == RestartReason.None)
-                        _lastRestartReason = RestartReason.InitialStart;
-
-                    Log("[child_start] pid=" + SafePid(_child) + " restartCount=" + _restartCount);
+                    Log("[child_start] pid=" + _child.Id);
                 }
                 catch (Exception ex)
                 {
                     Log("[child_start] failed: " + ex.Message);
-                    Thread.Sleep(Math.Max(250, _o.RestartDelayMs));
                 }
             }
         }
 
-        private void HandleObservedExit(Process child)
+        private void TryKill(Process p)
         {
-            int exitCode = -1;
-            bool gotExitCode = false;
-
             try
             {
-                exitCode = child.ExitCode;
-                gotExitCode = true;
+                if (!p.HasExited)
+                {
+                    p.CloseMainWindow();
+                    if (!p.WaitForExit(_o.GracefulKillTimeoutMs))
+                        p.Kill();
+                }
             }
             catch { }
-
-            lock (_childLock)
-            {
-                try { _childUptime?.Stop(); } catch { }
-                _childUptime = null;
-                _child = null;
-            }
-
-            if (_shutdownRequested || _exiting)
-            {
-                _lastExitReason = ExitReason.Stop;
-                Log("[child_exit] stop");
-                return;
-            }
-
-            if (_lastExitReason == ExitReason.Restart)
-            {
-                Log("[child_exit] restart");
-                return;
-            }
-
-            if (gotExitCode && exitCode == 0)
-            {
-                _lastExitReason = ExitReason.NaturalExit;
-                _lastRestartReason = RestartReason.NaturalExit;
-                Log("[child_exit] natural code=0");
-            }
-            else
-            {
-                _lastExitReason = ExitReason.Crash;
-                _lastRestartReason = RestartReason.Crash;
-                Log("[child_exit] crash code=" + exitCode);
-            }
         }
 
-        private static int SafePid(Process p)
+        // ============================================================
+        // HOTKEYS
+        // ============================================================
+
+        private const int HK_PAUSE = 1;
+        private const int HK_RESUME = 2;
+        private const int HK_STOP = 3;
+
+        private const uint HK_MOD = Win32.MOD_CONTROL | Win32.MOD_ALT;
+        private const uint VK_P = 0x50;
+        private const uint VK_R = 0x52;
+        private const uint VK_Q = 0x51;
+
+        private void HotkeyLoop()
         {
-            try { return p != null ? p.Id : -1; } catch { return -1; }
+            _hotkeyHwnd = Win32.CreateMessageOnlyWindow();
+
+            Win32.RegisterHotKey(_hotkeyHwnd, HK_PAUSE, HK_MOD, VK_P);
+            Win32.RegisterHotKey(_hotkeyHwnd, HK_RESUME, HK_MOD, VK_R);
+            Win32.RegisterHotKey(_hotkeyHwnd, HK_STOP, HK_MOD, VK_Q);
+
+            while (!_exiting)
+            {
+                Win32.MSG msg;
+                if (!Win32.GetMessage(out msg, IntPtr.Zero, 0, 0))
+                    break;
+
+                if (msg.message == Win32.WM_HOTKEY)
+                {
+                    int id = (int)msg.wParam;
+
+                    if (id == HK_PAUSE)
+                        _enabled = false;
+                    else if (id == HK_RESUME)
+                        _enabled = true;
+                    else if (id == HK_STOP)
+                    {
+                        _shutdownRequested = true;
+                        _exiting = true;
+                    }
+                }
+
+                Win32.TranslateMessage(ref msg);
+                Win32.DispatchMessage(ref msg);
+            }
         }
 
         // ============================================================
-        // Logging
+        // LOGGING
         // ============================================================
+
         private void Log(string msg)
         {
             var line =
-                "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " +
-                msg;
+                "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " + msg;
 
-            try { _LogEmitted?.Invoke(line); } catch { }
-            WatchdogLog.Emit(line);
-            try { _logPipe?.Enqueue(line); } catch { }
+            
+
+            try
+            {
+                _rpc?.Events?.PublishAsync("log", new { line = line });
+            }
+            catch { }
 
             if (!_o.EnableFileLogging)
                 return;
@@ -587,68 +352,29 @@ namespace NekoLib.Runtime.Watchdog
             {
                 lock (_logLock)
                 {
-                    RotateLogIfNeeded();
                     File.AppendAllText(_o.LogPath, line + Environment.NewLine);
                 }
             }
             catch { }
         }
-
-        private void RotateLogIfNeeded()
+        public void WaitForExit()
         {
-            try
-            {
-                var fi = new FileInfo(_o.LogPath);
-                if (!fi.Exists || fi.Length < _o.MaxLogBytes)
-                    return;
-
-                var rotated = _o.LogPath + ".1";
-
-                try { if (File.Exists(rotated)) File.Delete(rotated); } catch { }
-                try { File.Move(_o.LogPath, rotated); } catch { }
-            }
-            catch { }
+            try { _monitorThread?.Join(); } catch { }
+            try { _hotkeyThread?.Join(); } catch { }
         }
 
         // ============================================================
-        // Cleanup
+        // DISPOSE
         // ============================================================
+
         public void Dispose()
         {
             _shutdownRequested = true;
             _exiting = true;
-            _hotkeysEnabled = false;
 
-            // Best-effort: stop child
-            try
-            {
-                lock (_childLock)
-                {
-                    if (_child != null)
-                    {
-                        _lastKillOutcome = TryKill(_child);
-                        _child = null;
-                        _childUptime = null;
-                    }
-                }
-            }
-            catch { }
+            try { _rpc?.Dispose(); } catch { }
 
             try { _monitorThread?.Join(1500); } catch { }
-            try { _pipeThread?.Join(1500); } catch { }
-
-            // Stop hotkey loop (send WM_QUIT)
-            try
-            {
-                if (_hotkeyThread != null && _hotkeyThread.IsAlive)
-                {
-                    Win32.PostThreadMessage((uint)_hotkeyThread.ManagedThreadId, Win32.WM_QUIT, UIntPtr.Zero, IntPtr.Zero);
-                    _hotkeyThread.Join(1500);
-                }
-            }
-            catch { }
-
-            try { _logPipe?.Dispose(); } catch { }
 
             try
             {
@@ -657,248 +383,138 @@ namespace NekoLib.Runtime.Watchdog
             }
             catch { }
         }
-    }
-
-    internal static class Win32
-    {
-        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-        [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
-
-        public const int SW_RESTORE = 9;
-
-        public const int WM_HOTKEY = 0x0312;
-        public const int WM_QUIT = 0x0012;
-
-        public const uint MOD_ALT = 0x0001;
-        public const uint MOD_CONTROL = 0x0002;
-        public const uint MOD_SHIFT = 0x0004;
-        public const uint MOD_WIN = 0x0008;
-
-        private const int HWND_MESSAGE = -3;
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
-
-        [DllImport("user32.dll")]
-        public static extern bool TranslateMessage(ref MSG lpMsg);
-
-        [DllImport("user32.dll")]
-        public static extern IntPtr DispatchMessage(ref MSG lpMsg);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr CreateWindowExW(
-            int dwExStyle,
-            [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
-            [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
-            int dwStyle,
-            int x, int y, int nWidth, int nHeight,
-            IntPtr hWndParent,
-            IntPtr hMenu,
-            IntPtr hInstance,
-            IntPtr lpParam);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool DestroyWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        public static extern bool PostThreadMessage(uint idThread, uint Msg, UIntPtr wParam, IntPtr lParam);
-
-        public static IntPtr CreateMessageOnlyWindow()
+        internal static class Win32
         {
-            // Use a built-in class name that exists ("STATIC") to avoid class registration.
-            return CreateWindowExW(
-                0,
-                "STATIC",
-                "",
-                0,
-                0, 0, 0, 0,
-                new IntPtr(HWND_MESSAGE),
-                IntPtr.Zero,
-                IntPtr.Zero,
-                IntPtr.Zero);
-        }
+            // ============================================================
+            // Window constants
+            // ============================================================
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
-        {
-            public int x;
-            public int y;
-        }
+            public const int SW_RESTORE = 9;
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct MSG
-        {
-            public IntPtr hwnd;
-            public uint message;
-            public UIntPtr wParam;
-            public IntPtr lParam;
-            public uint time;
-            public POINT pt;
-        }
-    }
+            public const int WM_HOTKEY = 0x0312;
+            public const int WM_QUIT = 0x0012;
 
-    internal sealed class WatchdogLogPipeServer : IDisposable
-    {
-        private sealed class Client
-        {
-            public NamedPipeServerStream Pipe;
-            public StreamWriter Writer;
-        }
+            public const uint MOD_ALT = 0x0001;
+            public const uint MOD_CONTROL = 0x0002;
+            public const uint MOD_SHIFT = 0x0004;
+            public const uint MOD_WIN = 0x0008;
 
-        private readonly string _pipeName;
-        private readonly object _lock = new object();
-        private readonly List<Client> _clients = new List<Client>();
+            private const int HWND_MESSAGE = -3;
 
-        private readonly BlockingCollection<string> _queue =
-            new BlockingCollection<string>(2048);
+            // ============================================================
+            // Foreground helpers (optional use)
+            // ============================================================
 
-        private volatile bool _exiting;
-        private Thread _acceptThread;
-        private Thread _dispatchThread;
+            [DllImport("user32.dll")]
+            public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        public WatchdogLogPipeServer(string pipeName)
-        {
-            if (string.IsNullOrWhiteSpace(pipeName))
-                throw new ArgumentException(nameof(pipeName));
+            [DllImport("user32.dll")]
+            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-            _pipeName = pipeName.Trim();
-        }
+            [DllImport("user32.dll")]
+            public static extern bool IsIconic(IntPtr hWnd);
 
-        public void Start()
-        {
-            if (_acceptThread != null) return;
+            // ============================================================
+            // Hotkey API
+            // ============================================================
 
-            _acceptThread = new Thread(AcceptLoop)
-            { IsBackground = true, Name = "WDG-LogPipe-Accept" };
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool RegisterHotKey(
+                IntPtr hWnd,
+                int id,
+                uint fsModifiers,
+                uint vk);
 
-            _dispatchThread = new Thread(DispatchLoop)
-            { IsBackground = true, Name = "WDG-LogPipe-Dispatch" };
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool UnregisterHotKey(
+                IntPtr hWnd,
+                int id);
 
-            _acceptThread.Start();
-            _dispatchThread.Start();
-        }
+            // ============================================================
+            // Message loop
+            // ============================================================
 
-        public void Enqueue(string line)
-        {
-            if (_exiting || string.IsNullOrEmpty(line))
-                return;
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool GetMessage(
+                out MSG lpMsg,
+                IntPtr hWnd,
+                uint wMsgFilterMin,
+                uint wMsgFilterMax);
 
-            // never block watchdog: drop if full
-            try { _queue.TryAdd(line); } catch { }
-        }
+            [DllImport("user32.dll")]
+            public static extern bool TranslateMessage(ref MSG lpMsg);
 
-        private void AcceptLoop()
-        {
-            while (!_exiting)
+            [DllImport("user32.dll")]
+            public static extern IntPtr DispatchMessage(ref MSG lpMsg);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool PostThreadMessage(
+                uint idThread,
+                uint Msg,
+                UIntPtr wParam,
+                IntPtr lParam);
+
+            // ============================================================
+            // Message-only window
+            // ============================================================
+
+            [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+            private static extern IntPtr CreateWindowExW(
+                int dwExStyle,
+                string lpClassName,
+                string lpWindowName,
+                int dwStyle,
+                int x,
+                int y,
+                int nWidth,
+                int nHeight,
+                IntPtr hWndParent,
+                IntPtr hMenu,
+                IntPtr hInstance,
+                IntPtr lpParam);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern bool DestroyWindow(IntPtr hWnd);
+
+            /// <summary>
+            /// Creates a message-only window to receive WM_HOTKEY.
+            /// Uses built-in "STATIC" class to avoid registration.
+            /// </summary>
+            public static IntPtr CreateMessageOnlyWindow()
             {
-                NamedPipeServerStream pipe = null;
-
-                try
-                {
-                    pipe = new NamedPipeServerStream(
-                        _pipeName,
-                        PipeDirection.Out,
-                        NamedPipeServerStream.MaxAllowedServerInstances,
-                        PipeTransmissionMode.Message,
-                        PipeOptions.Asynchronous);
-
-                    pipe.WaitForConnection();
-
-                    var writer = new StreamWriter(pipe, new UTF8Encoding(false))
-                    { AutoFlush = true };
-
-                    lock (_lock)
-                        _clients.Add(new Client { Pipe = pipe, Writer = writer });
-
-                    pipe = null; // ownership transferred
-                }
-                catch
-                {
-                    try { pipe?.Dispose(); } catch { }
-                    Thread.Sleep(100);
-                }
-            }
-        }
-
-        private void DispatchLoop()
-        {
-            while (!_exiting)
-            {
-                string line;
-
-                try { line = _queue.Take(); }
-                catch
-                {
-                    if (_exiting) break;
-                    Thread.Sleep(25);
-                    continue;
-                }
-
-                List<Client> snapshot;
-                lock (_lock)
-                    snapshot = new List<Client>(_clients);
-
-                for (int i = 0; i < snapshot.Count; i++)
-                {
-                    var c = snapshot[i];
-                    try
-                    {
-                        if (c?.Pipe == null || !c.Pipe.IsConnected)
-                            throw new IOException("disconnected");
-
-                        c.Writer.WriteLine(line);
-                    }
-                    catch
-                    {
-                        lock (_lock)
-                            _clients.Remove(c);
-
-                        try { c.Writer?.Dispose(); } catch { }
-                        try { c.Pipe?.Dispose(); } catch { }
-                    }
-                }
-            }
-        }
-
-        public void Dispose()
-        {
-            _exiting = true;
-
-            try { _queue.CompleteAdding(); } catch { }
-
-            try { _acceptThread?.Join(800); } catch { }
-            try { _dispatchThread?.Join(800); } catch { }
-
-            lock (_lock)
-            {
-                for (int i = 0; i < _clients.Count; i++)
-                {
-                    var c = _clients[i];
-                    try { c.Writer?.Dispose(); } catch { }
-                    try { c.Pipe?.Dispose(); } catch { }
-                }
-                _clients.Clear();
+                return CreateWindowExW(
+                    0,
+                    "STATIC",
+                    "",
+                    0,
+                    0, 0, 0, 0,
+                    new IntPtr(HWND_MESSAGE),
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    IntPtr.Zero);
             }
 
-            try { _queue.Dispose(); } catch { }
-        }
-    }
+            // ============================================================
+            // Structs
+            // ============================================================
 
-    public static class WatchdogLog
-    {
-        public static event Action<string> OnLog;
+            [StructLayout(LayoutKind.Sequential)]
+            public struct POINT
+            {
+                public int x;
+                public int y;
+            }
 
-        internal static void Emit(string msg)
-        {
-            try { OnLog?.Invoke(msg); }
-            catch { }
+            [StructLayout(LayoutKind.Sequential)]
+            public struct MSG
+            {
+                public IntPtr hwnd;
+                public uint message;
+                public UIntPtr wParam;
+                public IntPtr lParam;
+                public uint time;
+                public POINT pt;
+            }
         }
     }
 }

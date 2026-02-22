@@ -69,7 +69,8 @@ namespace NekoLib.Tests.Watchdog
             using (var watchdog = new WatchdogRuntime(options))
             {
                 watchdog.Start();
-                 
+                Console.WriteLine("Watchdog started. Pipe ready.");
+
                 watchdog.WaitForExit();
             }
         }

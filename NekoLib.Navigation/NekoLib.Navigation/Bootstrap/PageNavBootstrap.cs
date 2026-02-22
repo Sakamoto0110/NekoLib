@@ -228,37 +228,7 @@ namespace NekoLib.Navigation.Bootstrap
         }
 
 
-        //public NavigationContext Start()
-        //{
-        //    // 1) Register pages by attribute scan (optional but typical)
-        //    if(_pagesAssembly != null)
-        //        PageRegistry.RegisterFromAssembly(_pagesAssembly);
-
-        //    // 2) Apply manual tweaks (hybrid)
-        //    if(_pageConfig != null)
-        //        _pageConfig(new PageRegistryConfigurator());
-
-        //    // 3) Build navigation context via builder (composition root)
-        //    var ctx = new NavigationContextBuilder()
-        //        .UseHost((IPageHost)_nativeHost)
-        //        .UseTimeout(_timeoutSeconds)
-        //        .UseDiagnostics(_diagnostics)
-
-        //        .Build();
-
-
-        //    // 4) Allow app to add extra services before lock
-        //    if(_serviceConfig != null)
-        //        _serviceConfig(ctx.Services,_platform);
-
-        //    // 5) Register context itself (handy for overlays / dialogs / DM extensions)
-        //    ctx.Services.Register(ctx);
-
-        //    // 6) Lock locator
-        //    ctx.Services.Lock();
-
-        //    return ctx;
-        //}
+        
 
        
     }
