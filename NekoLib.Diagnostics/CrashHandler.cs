@@ -10,23 +10,24 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 #endif
 
+ 
 namespace NekoLib.Runtime.Diagnostics
 {
     public sealed class CrashHandlerOptions
     {
-        public string CrashRootDirectory { get; set; } // e.g. BaseDir\crash\pending
+        public string CrashRootDirectory { get; set; }
         public CrashDumpLevel DumpLevel { get; set; } = CrashDumpLevel.MiniDumpNormal;
 
-        /// <summary>Optional: tail these files into crash folder (app logs, etc.).</summary>
         public List<string> TailFiles { get; set; } = new List<string>();
-
         public int TailLines { get; set; } = 400;
 
-        /// <summary>Write a bundle folder for each crash (timestamped).</summary>
         public bool WriteCrashFolder { get; set; } = true;
 
-        /// <summary>Optional extra lines in crash.txt.</summary>
         public Func<IEnumerable<string>> ExtraLines { get; set; }
+
+        // NEW
+        public bool NotifyWatchdog { get; set; } = true;
+        public Action<CrashDetectedEventArgs> ExternalNotifier { get; set; }
     }
 
     public sealed class CrashDetectedEventArgs : EventArgs
@@ -59,26 +60,27 @@ namespace NekoLib.Runtime.Diagnostics
         }
     }
 
-    /// <summary>
-    /// Installs global exception handlers and writes crash artifacts into a crash folder.
-    /// Best-effort, synchronous, defensive.
-    /// </summary>
     public sealed class CrashHandler : IDisposable
     {
         private readonly CrashHandlerOptions _o;
         private readonly Stopwatch _uptime = Stopwatch.StartNew();
+
         private int _installed;
         private int _crashing;
 
         public event EventHandler<CrashDetectedEventArgs> CrashDetected;
         public event EventHandler<CrashBundleWrittenEventArgs> CrashBundleWritten;
-
-        public CrashHandler(CrashHandlerOptions options)
+         public CrashHandler(CrashHandlerOptions options)
         {
             _o = options ?? throw new ArgumentNullException(nameof(options));
+
             if (string.IsNullOrWhiteSpace(_o.CrashRootDirectory))
                 throw new ArgumentException("CrashRootDirectory is required.", nameof(options));
         }
+
+        // ============================================================
+        // INSTALL
+        // ============================================================
 
         public void Install()
         {
@@ -89,36 +91,60 @@ namespace NekoLib.Runtime.Diagnostics
             try
             {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+
                 Application.ThreadException += (s, e) =>
                 {
                     HandleCrash("Application.ThreadException", e.Exception, false);
                 };
             }
             catch { }
-
-            #endif
+#endif
 
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                HandleCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception, e.IsTerminating);
+                HandleCrash("AppDomain.UnhandledException",
+                    e.ExceptionObject as Exception,
+                    e.IsTerminating);
             };
 
             TaskScheduler.UnobservedTaskException += (s, e) =>
             {
-                HandleCrash("TaskScheduler.UnobservedTaskException", e.Exception, false);
+                HandleCrash("TaskScheduler.UnobservedTaskException",
+                    e.Exception,
+                    false);
+
                 try { e.SetObserved(); } catch { }
             };
         }
 
+        // ============================================================
+        // CRASH CORE
+        // ============================================================
+
         private void HandleCrash(string source, Exception ex, bool terminating)
         {
-            // prevent multi-handler storms
             if (Interlocked.Exchange(ref _crashing, 1) == 1)
                 return;
 
             try
             {
-                try { CrashDetected?.Invoke(this, new CrashDetectedEventArgs(source, ex, terminating)); } catch { }
+                CrashDetected?.Invoke(this,
+                    new CrashDetectedEventArgs(source, ex, terminating));
+
+                // NEW: auto watchdog notify
+                if (_o.NotifyWatchdog && IsUnderWatchdog())
+                {
+                    CrashDetected?.Invoke(this,
+    new CrashDetectedEventArgs(source, ex, terminating));
+
+                    // External integration hook (no dependency)
+                    try
+                    {
+                        _o.ExternalNotifier?.Invoke(
+                            new CrashDetectedEventArgs(source, ex, terminating));
+                    }
+                    catch { }
+                }
 
                 if (_o.WriteCrashFolder)
                 {
@@ -131,14 +157,36 @@ namespace NekoLib.Runtime.Diagnostics
 
                     TailConfiguredFiles(bundleDir);
 
-                    try { CrashBundleWritten?.Invoke(this, new CrashBundleWrittenEventArgs(bundleDir, crashTxt, dumpPath, dumpOk)); } catch { }
+                    CrashBundleWritten?.Invoke(this,
+                        new CrashBundleWrittenEventArgs(bundleDir, crashTxt, dumpPath, dumpOk));
                 }
             }
             catch
             {
-                // swallow everything
+                // never throw inside crash path
+            }
+            finally
+            {
+                // allow multiple non-terminating reports (WinForms)
+                if (!terminating)
+                    Interlocked.Exchange(ref _crashing, 0);
             }
         }
+
+        // ============================================================
+        // WATCHDOG AUTO-DETECTION
+        // ============================================================
+
+        private static bool IsUnderWatchdog()
+        {
+            return Environment.GetEnvironmentVariable("NEKO_UNDER_WATCHDOG") != null;
+        }
+
+       
+
+        // ============================================================
+        // FILE / DUMP
+        // ============================================================
 
         private string CreateCrashFolder()
         {
@@ -155,6 +203,7 @@ namespace NekoLib.Runtime.Diagnostics
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
 
                 var sb = new StringBuilder(32 * 1024);
+
                 sb.AppendLine("==== CRASH REPORT ====");
                 sb.AppendLine("TimestampUtc: " + DateTime.UtcNow.ToString("O"));
                 sb.AppendLine("Source: " + source);
@@ -180,12 +229,11 @@ namespace NekoLib.Runtime.Diagnostics
                     {
                         var lines = _o.ExtraLines();
                         if (lines != null)
-                        {
                             foreach (var line in lines)
                                 sb.AppendLine(line);
-                        }
                     }
                     catch { sb.AppendLine("(ExtraLines failed)"); }
+
                     sb.AppendLine();
                 }
 
@@ -200,18 +248,16 @@ namespace NekoLib.Runtime.Diagnostics
         {
             try
             {
-                if (_o.TailFiles == null || _o.TailFiles.Count == 0) return;
+                if (_o.TailFiles == null || _o.TailFiles.Count == 0)
+                    return;
 
                 foreach (var f in _o.TailFiles)
                 {
-                    try
-                    {
-                        if (string.IsNullOrWhiteSpace(f) || !File.Exists(f)) continue;
+                    if (string.IsNullOrWhiteSpace(f) || !File.Exists(f))
+                        continue;
 
-                        var dst = Path.Combine(bundleDir, Path.GetFileName(f));
-                        TailFileLines(f, dst, _o.TailLines);
-                    }
-                    catch { }
+                    var dst = Path.Combine(bundleDir, Path.GetFileName(f));
+                    TailFileLines(f, dst, _o.TailLines);
                 }
             }
             catch { }
@@ -239,7 +285,7 @@ namespace NekoLib.Runtime.Diagnostics
 
         public void Dispose()
         {
-            // We intentionally do not uninstall handlers (process lifetime).
+            // intentionally do not uninstall handlers
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using NekoLib.Runtime.Diagnostics;
 using NekoLib.Runtime.Watchdog;
@@ -14,89 +15,90 @@ namespace NekoLib.Tests.Watchdog
     {
         private static Mutex _appMutex;
 
-        private static bool TryAcquireAppSingleInstance()
-        {
-            bool created;
-            _appMutex = new Mutex(true, @"Global\DummyForm.SingleInstance", out created);
-            return created;
-        }
-
         [STAThread]
-        static void Main(string[] args)
-        {
-            var mode = WatchdogEntrypoint.ResolveMode(args);
-
-            WatchdogEntrypoint.BootstrapIfNeeded(
-                mode,
-                Process.GetCurrentProcess().MainModule.FileName,
-                AppDomain.CurrentDomain.BaseDirectory);
-
-            if (mode == WatchdogMode.WatchdogHost)
-            {
-                LaunchWatchdog();
-                return;
-            }
-
-            if (mode == WatchdogMode.UnderWatchdog)
-            {
-                if (!TryAcquireAppSingleInstance())
-                    return;
-
-                LaunchProgram();
-            }
-        }
-
-        private static void LaunchWatchdog()
-        {
-            string exePath = Process.GetCurrentProcess().MainModule.FileName;
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-            var options = new WatchdogOptions
-            {
-                TargetPath = exePath,
-                WorkingDirectory = baseDir,
-                PipeName = "NekoLib.Watchdog",
-
-                EnableFileLogging = true,
-                LogPath = baseDir + "watchdog.log",
-
-                GracefulKillTimeoutMs = 3000,
-                ForceKillTimeoutMs = 2000,
-                RestartDelayMs = 1000,
-                MonitorPollMs = 250
-            };
-
-            using (var watchdog = new WatchdogRuntime(options))
-            {
-                watchdog.Start();
-                Console.WriteLine("Watchdog started. Pipe ready.");
-
-                watchdog.WaitForExit();
-            }
-        }
-
-       
-
-        private static void LaunchProgram()
+        static void Main()
         {
             CrashSuppressor.Enable();
 
             var crash = new CrashHandler(new CrashHandlerOptions
             {
-                CrashRootDirectory =
-                    AppDomain.CurrentDomain.BaseDirectory + @"crash\pending",
-                DumpLevel = CrashDumpLevel.MiniDumpNormal
+                CrashRootDirectory = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "crash",
+                    "pending"),
+                DumpLevel = CrashDumpLevel.MiniDumpNormal,
+                ExternalNotifier = e =>
+                {
+                    if (Environment.GetEnvironmentVariable("NEKO_UNDER_WATCHDOG") != null)
+                    {
+                        try
+                        {
+                            WatchdogController.NotifyException(
+                                e.Exception?.GetType().Name,
+                                e.Exception?.Message,
+                                e.Source);
+                        }
+                        catch { }
+                    }
+                }
             });
 
+             
+
             crash.Install();
+
+            EnsureSupervised();
+
+            if (!TryAcquireAppSingleInstance())
+                return;
 
 #if WINFORMS
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // IMPORTANT: ensure WinForms exceptions are routed
+
             Application.Run(new DummyForm());
 #else
             Thread.Sleep(Timeout.Infinite);
 #endif
         }
+
+        private static bool TryAcquireAppSingleInstance()
+        {
+            _appMutex = new Mutex(true, @"Global\DummyForm.SingleInstance", out bool created);
+            return created;
+        }
+
+        private static void EnsureSupervised()
+        {
+            if (Environment.GetEnvironmentVariable("NEKO_UNDER_WATCHDOG") != null)
+                return;
+
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var currentExe = Process.GetCurrentProcess().MainModule.FileName;
+            var hostPath = Path.Combine(baseDir, "WatchdogHost.exe");
+
+            if (!File.Exists(hostPath))
+                return;
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = hostPath,
+                Arguments = $"--target \"{currentExe}\"",
+                WorkingDirectory = baseDir,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+
+            Environment.Exit(0);
+        }
+
+        private static void LaunchProgram()
+        {
+
+        }
+
+      
     }
 }

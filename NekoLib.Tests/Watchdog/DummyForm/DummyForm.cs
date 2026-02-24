@@ -12,14 +12,15 @@ namespace NekoLib.Tests.Watchdog{
 
     public partial class DummyForm : Form
     {
-        public DummyForm()
+         public DummyForm()
         {
             InitializeComponent();
+ 
             Text = "Watchdog Dummy App";
             var diagnostics = new Diagnostics.Diagnostics(new Logger(LogLevel.Info, new DebugLogSink(), new WatchdogPipeLogSink())
                  , new MemoryTelemetrySink());
 
-            WatchdogController.SubscribeLogs(msg => outputBottom.AppendText($"[Watchdog Log] {msg}\n"));
+            WatchdogController.SubscribeLogs(msg => outputBottom.AppendText($"[Watchdog Log] {msg.Msg}\n"));
 
         }
 
@@ -49,6 +50,7 @@ namespace NekoLib.Tests.Watchdog{
         private void btnPause_Click(object sender, EventArgs e)
         {
             WatchdogController.Pause();
+            
 
         }
 

@@ -21,8 +21,8 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
-	  <ProjectReference Include="..\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+	  <ProjectReference Include="..\..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+	  <ProjectReference Include="..\..\NekoLib.Pipes\NekoLib.Pipes.csproj" />
 	</ItemGroup>
 
 </Project>

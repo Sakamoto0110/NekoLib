@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <UseWindowsForms>false</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>false</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+    <ProjectReference Include="..\..\NekoLib.Runtime.Watchdog.Core\NekoLib.Runtime.Watchdog.Core.csproj" />
+  </ItemGroup>
+
+</Project>  

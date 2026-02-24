@@ -24,6 +24,7 @@ namespace NekoLib.Runtime.Watchdog
 
         public string TargetPath { get; set; }
         public string WorkingDirectory { get; set; }
+        public string TargetArguments { get; set; } = "";
 
         /// <summary>
         /// Named pipe identity for RPC + events.
@@ -104,18 +105,41 @@ namespace NekoLib.Runtime.Watchdog
             if (string.IsNullOrWhiteSpace(TargetPath))
                 throw new InvalidOperationException("TargetPath is required.");
 
+            var full = Path.GetFullPath(TargetPath);
+            TargetPath = full;
+
+            var targetId = ComputeTargetId(full);
+
+            PipeName = $"NekoLib.Watchdog.{targetId}";
             if (!File.Exists(TargetPath))
                 throw new FileNotFoundException("Target executable not found.", TargetPath);
 
             if (string.IsNullOrWhiteSpace(WorkingDirectory))
-                WorkingDirectory = Path.GetDirectoryName(TargetPath);
+                WorkingDirectory = Path.GetDirectoryName(TargetPath)
+                    ?? AppDomain.CurrentDomain.BaseDirectory;
+
+            WorkingDirectory = Path.GetFullPath(WorkingDirectory);
 
             if (string.IsNullOrWhiteSpace(PipeName))
-                PipeName = "NekoLib.Watchdog";
+            {
+                var exeName = Path.GetFileNameWithoutExtension(TargetPath);
+                PipeName = $"NekoLib.Watchdog.{exeName}";
+            }
+
+            if (RestartDelayMs < 200)
+                RestartDelayMs = 200;
 
             // Logging
             if (EnableFileLogging && string.IsNullOrWhiteSpace(LogPath))
                 LogPath = Path.Combine(WorkingDirectory, "watchdog.log");
+
+            if (!string.IsNullOrWhiteSpace(LogPath))
+            {
+                LogPath = Path.GetFullPath(LogPath);
+                var logDir = Path.GetDirectoryName(LogPath);
+                if (!string.IsNullOrWhiteSpace(logDir))
+                    TryCreateDirectory(logDir);
+            }
 
             // Crash bundling defaults
             if (string.IsNullOrWhiteSpace(PendingCrashRoot))
@@ -124,17 +148,30 @@ namespace NekoLib.Runtime.Watchdog
             if (string.IsNullOrWhiteSpace(BundleRoot))
                 BundleRoot = Path.Combine(WorkingDirectory, "crash", "bundles");
 
-            // Update defaults
             if (string.IsNullOrWhiteSpace(UpdateStagingRoot))
                 UpdateStagingRoot = Path.Combine(WorkingDirectory, "updates");
 
-            // Ensure directories exist (safe)
-            TryCreateDirectory(Path.GetDirectoryName(LogPath));
+            PendingCrashRoot = Path.GetFullPath(PendingCrashRoot);
+            BundleRoot = Path.GetFullPath(BundleRoot);
+            UpdateStagingRoot = Path.GetFullPath(UpdateStagingRoot);
+
             TryCreateDirectory(PendingCrashRoot);
             TryCreateDirectory(BundleRoot);
             TryCreateDirectory(UpdateStagingRoot);
         }
+        private static string ComputeTargetId(string fullPath)
+        {
+            using (var sha1 = System.Security.Cryptography.SHA1.Create())
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(fullPath.ToLowerInvariant());
+                var hash = sha1.ComputeHash(bytes);
 
+                return BitConverter.ToString(hash)
+                    .Replace("-", "")
+                    .Substring(0, 16); // shorter but still safe}
+                ;
+            }
+        }
         private static void TryCreateDirectory(string path)
         {
             try
