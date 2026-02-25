@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+
+		<OutputType>Library</OutputType>
+
+		<AssemblyName>NekoLib.Navigation.Wpf</AssemblyName>
+		<RootNamespace>NekoLib.Navigation.Wpf</RootNamespace>
+
+		<UseWPF>true</UseWPF>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\NekoLib.Navigation\NekoLib.Navigation.csproj" />
+	</ItemGroup>
+</Project>

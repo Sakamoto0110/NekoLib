@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <ImplicitUsings>false</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
+
+  </PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
+		<DefineConstants>$(DefineConstants);NET_9;NET9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+	  <ProjectReference Include="..\..\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+	</ItemGroup>
+
+</Project>

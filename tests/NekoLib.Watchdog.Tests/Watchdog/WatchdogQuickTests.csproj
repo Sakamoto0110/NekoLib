@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9-windows</TargetFrameworks>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+<PropertyGroup Condition="'$(TargetFramework)' == 'net481' &#xD;&#xA;                        Or '$(TargetFramework)' == 'net9.0-windows'">
+  <DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
+</PropertyGroup>
+<ItemGroup>
+  <ProjectReference Include="..\..\..\src\Watchdog\NekoLib.Watchdog.Host\NekoLib.Watchdog.Host.csproj" />
+</ItemGroup>
+
+</Project>
