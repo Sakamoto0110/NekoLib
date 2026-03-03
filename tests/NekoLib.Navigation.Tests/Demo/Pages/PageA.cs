@@ -8,11 +8,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using NekoLib.Navigation.Attributes;
+ 
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.WinForms;
-namespace Demo.Pages {
-    [PageBehavior( reusePolicy: PageReusePolicy.Singleton )]
+namespace NavigationDemo.Pages {
+     
     public partial class PageA : BasePage
     {
         public PageA()

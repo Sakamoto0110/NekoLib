@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 using System.Windows.Forms;
-namespace Demo.Pages {
+namespace NavigationDemo.Pages {
     partial class PageA
     {
         /// <summary> 

@@ -14,7 +14,7 @@ using NekoLib.Navigation.Runtime.Registry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
- using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Core
@@ -26,25 +26,31 @@ namespace NekoLib.Navigation.Runtime.Core
         private IEventDispatcherAdapter _dispatcher;
         private IInteractionObserverService _interactionObserver;
         private PageFactory _pageFactory;
+        private IInteractionBlocker _interactionBlocker; // optional; used for ModalOverlay if available
 
-        private readonly HashSet<IPageView> _attachedPages = new();
-        private readonly HashSet<IPageView> _visiblePages = new();
-         private readonly NavigationDiagnostics _diagnostics;
+        private readonly HashSet<IPageView> _attachedPages = new HashSet<IPageView>();
+        private readonly HashSet<IPageView> _visiblePages = new HashSet<IPageView>();
+        private readonly NavigationDiagnostics _diagnostics;
+
         public NavigationEventHub Events => _diagnostics.Hub;
 
-        
+        /// <summary>
+        /// Base (Replace) page. Overlays do not change this.
+        /// </summary>
         public IPageView Current { get; private set; }
 
         // Runtime-owned caches (instance scoped)
-        private readonly Dictionary<Type, IPageView> _strongCache = new();
-        private readonly Dictionary<Type, WeakReference<IPageView>> _weakCache = new();
+        private readonly Dictionary<Type, IPageView> _strongCache = new Dictionary<Type, IPageView>();
+        private readonly Dictionary<Type, WeakReference<IPageView>> _weakCache = new Dictionary<Type, WeakReference<IPageView>>();
 
-        // Modal stack (presentation stack)
-        private readonly Stack<PageInstance> _modalStack = new();
-        private readonly Stack<TaskCompletionSource<ModalResult>> _modalTcs = new();
+        /// <summary>
+        /// Unified presentation stack: base Replace pages + Overlay + ModalOverlay.
+        /// Top = currently top-most presented layer.
+        /// </summary>
+        private readonly Stack<PresentationEntry> _stack = new Stack<PresentationEntry>();
 
         // Serialize ALL runtime mutations
-        private readonly SemaphoreSlim _navGate = new(1, 1);
+        private readonly SemaphoreSlim _navGate = new SemaphoreSlim(1, 1);
 
         // ---------------------------------------------------------------------
         // EVENTS
@@ -72,11 +78,10 @@ namespace NekoLib.Navigation.Runtime.Core
                 _ctx.DiagnosticsContext != null
                     ? new DiagnosticsNavigationSink(_ctx.DiagnosticsContext)
                     : null;
-            
+
             _diagnostics = new NavigationDiagnostics(hub, sink);
         }
 
- 
         // ---------------------------------------------------------------------
         // EXECUTION CORE (UI marshaling + serialization)
         // ---------------------------------------------------------------------
@@ -94,25 +99,24 @@ namespace NekoLib.Navigation.Runtime.Core
 
             _dispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
         }
+
         private PageDescriptor ResolveHomeDescriptor()
         {
             return _ctx.Registry.AllDescriptors()
-                .FirstOrDefault(x => x.Kind == PageKind.Home)
+                .FirstOrDefault(x => x.Role == PageRole.Home)
                 ?? _ctx.Registry.AllDescriptors()
                     .FirstOrDefault(x => x.Tags.Contains("home", StringComparer.OrdinalIgnoreCase));
         }
-        public async Task GoHomeAsync(   object args = null)
-        {
-            if (_ctx == null)
-                throw new ArgumentNullException(nameof(_ctx));
 
-            var desc = _ctx.Registry.ResolveTimeoutTarget();
+        public async Task GoHomeAsync(object args = null)
+        {
+            var desc = ResolveHomeDescriptor();
             if (desc == null)
                 return;
 
-            
-            await  NavigateAsync(desc.PageType, NavigationArgs.Default(args));
+            await NavigateAsync(desc.PageType, NavigationArgs.Default(args));
         }
+
         private void EnsureRuntimeServices()
         {
             EnsureDispatcher();
@@ -125,6 +129,19 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 _interactionObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
                 _interactionObserver.InteractionDetected += OnInteractionDetected;
+            }
+
+            if (_pageFactory == null)
+            {
+                if (!services.CanResolve(typeof(PageFactory)))
+                    throw new InvalidOperationException("PageFactory is required but not registered.");
+
+                _pageFactory = (PageFactory)services.Get(typeof(PageFactory));
+            }
+
+            if (_interactionBlocker == null && services.CanResolve(typeof(IInteractionBlocker)))
+            {
+                _interactionBlocker = (IInteractionBlocker)services.Get(typeof(IInteractionBlocker));
             }
         }
 
@@ -140,7 +157,6 @@ namespace NekoLib.Navigation.Runtime.Core
                 try
                 {
                     // IMPORTANT: do not ConfigureAwait(false) here.
-                    // We want continuations to remain on the UI thread.
                     await action();
                     tcs.TrySetResult(null);
                 }
@@ -164,7 +180,6 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 try
                 {
-                    // IMPORTANT: do not ConfigureAwait(false) here.
                     var result = await action();
                     tcs.TrySetResult(result);
                 }
@@ -233,7 +248,6 @@ namespace NekoLib.Navigation.Runtime.Core
 
         /// <summary>
         /// Explicit modal API. Returns a result when the modal closes.
-        /// Requires the host to implement IModalHost.
         /// </summary>
         public Task<ModalResult> ShowModalAsync(Type pageType, NavigationArgs args = null)
         {
@@ -247,8 +261,8 @@ namespace NekoLib.Navigation.Runtime.Core
                 if (!_ctx.Registry.TryGetDescriptor(pageType, out var desc))
                     throw new InvalidOperationException($"Type '{pageType.FullName}' is not a registered page.");
 
-                if (desc.Presentation != PagePresentation.Modal)
-                    throw new InvalidOperationException($"Page '{desc.PageType.FullName}' is not marked as Modal.");
+                if (desc.Presentation != PagePresentationMode.ModalOverlay)
+                    throw new InvalidOperationException($"Page '{desc.PageType.FullName}' is not marked as ModalOverlay.");
 
                 return await ShowModalInternalAsync(desc, args ?? NavigationArgs.Empty);
             });
@@ -269,10 +283,12 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 EnsureRuntimeServices();
 
-                await CloseAllModalsInternalAsync(ModalResult.Cancel());
+                // Close all overlays (Overlay + ModalOverlay), then dispose base page
+                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
 
                 if (Current != null)
                 {
+                    // detach base
                     _ctx.Host.Detach(Current);
 
                     if (_ctx.Registry.TryGetDescriptor(Current.GetType(), out var desc))
@@ -292,6 +308,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 _ctx.History.Clear();
                 HistoryChanged?.Invoke();
+
+                _stack.Clear();
             });
         }
 
@@ -301,7 +319,7 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 EnsureRuntimeServices();
 
-                await CloseAllModalsInternalAsync(ModalResult.Cancel());
+                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
 
                 if (Current != null)
                 {
@@ -317,6 +335,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (_interactionObserver != null)
                     _interactionObserver.InteractionDetected -= OnInteractionDetected;
+
+                _stack.Clear();
             }));
         }
 
@@ -326,10 +346,16 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private async Task<bool> GoBackInternalAsync()
         {
-            // Modal takes priority
-            if (_modalStack.Count > 0)
+            // If any overlay is on top, close it first
+            if (_stack.Count > 0 && _stack.Peek().IsOverlay)
             {
-                await CloseTopModalInternalAsync(ModalResult.Cancel());
+                if (_stack.Peek().IsModalOverlay)
+                {
+                    await CloseTopModalInternalAsync(ModalResult.Cancel());
+                    return true;
+                }
+
+                await CloseTopOverlayInternalAsync(); // non-modal overlay
                 return true;
             }
 
@@ -373,10 +399,11 @@ namespace NekoLib.Navigation.Runtime.Core
             IPageView from = Current;
             IPageView to = null;
             PageDescriptor toDesc = null;
+            PageDescriptor fromDesc = null;
 
             try
             {
-                if (!_ctx.Registry.TryGetDescriptor(pageType, out   toDesc))
+                if (!_ctx.Registry.TryGetDescriptor(pageType, out toDesc))
                     throw new InvalidOperationException(
                         $"Type '{pageType.FullName}' is not a registered page.");
 
@@ -386,7 +413,6 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (!visited.Add(canonicalPageType))
                 {
-                     
                     _diagnostics.EmitGuardDenied(
                         from,
                         canonicalPageType,
@@ -449,47 +475,81 @@ namespace NekoLib.Navigation.Runtime.Core
                     }
                 }
 
-                // ---------------- PRESENTATION ----------------
-
-                if (toDesc.Presentation == PagePresentation.Modal)
+                // ---------------- PRESENTATION (UNIFIED) ----------------
+                switch (toDesc.Presentation)
                 {
-                    // NavigateAsync can open modals, but doesn't return a result.
-                    _ = await ShowModalInternalAsync(toDesc, navArgs);
-                    return;
+                    case PagePresentationMode.Overlay:
+                        await ShowOverlayInternalAsync(toDesc, navArgs);
+                        return;
+
+                    case PagePresentationMode.ModalOverlay:
+                        // NavigateAsync can open modals, but doesn't return a result.
+                        _ = await ShowModalInternalAsync(toDesc, navArgs);
+                        return;
+
+                    case PagePresentationMode.Replace:
+                    default:
+                        break;
                 }
 
-                // Normal navigation cancels modals (kiosk-friendly)
-                await CloseAllModalsInternalAsync(ModalResult.Cancel());
+                // Replace cancels overlays (kiosk-friendly, matches your previous behavior)
+                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
 
-                // ---------------- NORMAL NAVIGATION ----------------
+                // ---------------- NORMAL NAVIGATION (Replace) ----------------
 
                 if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
                     throw new InvalidOperationException(
                         $"Navigation target '{canonicalPageType.FullName}' is not a page.");
 
-                _ctx.Registry.TryGetDescriptor(from?.GetType(), out var fromDesc);
+                
+                if (from != null)
+                {
+                    _ctx.Registry.TryGetDescriptor(from.GetType(),   out fromDesc);
+                }
+                // Capture history state EARLY
+                object fromState = null;
+                if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
+                     fromState = (from as IPageStateful)?.CaptureState();
 
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
 
                 to = ResolvePage(toDesc);
 
+                // Hide base page
                 if (from is IPageVisibility fromVis)
                     fromVis.HidePage();
 
                 if (from is IPageLifecycle leave)
                     await leave.OnNavigatedFromAsync();
 
+                // Detach or keep attached depending on descriptor
                 if (from != null)
                 {
-                    _ctx.Host.Detach(from);
+                    bool keepAttached =
+                        fromDesc != null &&
+                        fromDesc.KeepAttachedWhenHidden &&
+                        fromDesc.ReusePolicy != PageReusePolicy.Transient &&
+                        !from.IsDisposed;
 
-                    if (_visiblePages.Remove(from) && _visiblePages.Count == 0)
-                        OnNoPageVisible?.Invoke();
+                    if (!keepAttached)
+                    {
+                        _ctx.Host.Detach(from);
 
-                    if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
-                        OnNoPageAttached?.Invoke();
+                        if (_visiblePages.Remove(from) && _visiblePages.Count == 0)
+                            OnNoPageVisible?.Invoke();
 
-                    await CleanupAsync(from, fromDesc, forceDispose: false);
+                        if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
+                            OnNoPageAttached?.Invoke();
+
+                        await CleanupAsync(from, fromDesc, forceDispose: false);
+                    }
+                    else
+                    {
+                        // still attached but not visible
+                        _visiblePages.Remove(from);
+                        if (_visiblePages.Count == 0)
+                            OnNoPageVisible?.Invoke();
+                    }
                 }
 
                 bool firstAttach = _attachedPages.Count == 0;
@@ -509,21 +569,28 @@ namespace NekoLib.Navigation.Runtime.Core
                 Current = to;
                 CurrentChanged?.Invoke(Current);
 
+                // Update unified stack base pointer:
+                // Remove any existing base entries, keep overlays already closed above.
+                PushOrReplaceBaseEntry(to, toDesc);
+
                 await LoadAsync(to, navArgs.Payload);
 
                 if (to is IPageLifecycle enter)
                     await enter.OnNavigatedToAsync(navArgs);
 
-                if (!navArgs.Behavior.HasFlag(NavigationBehavior.NoHistory) && from != null)
+                 
+
+                if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
                 {
                     _ctx.History.Record(new PageHistoryEntry(
                         from.GetType(),
                         from.Name,
-                        (from as IPageStateful)?.CaptureState()
+                        fromState
                     ));
 
                     HistoryChanged?.Invoke();
                 }
+                
 
                 Navigated?.Invoke(from, to, navArgs);
                 _diagnostics.EmitSuccess(from, to, navArgs, desc: toDesc);
@@ -531,117 +598,229 @@ namespace NekoLib.Navigation.Runtime.Core
             catch (Exception ex)
             {
                 NavigationFailed?.Invoke(from, pageType, ex);
-                _diagnostics.EmitFailure(from, to, navArgs,desc: toDesc);
+                _diagnostics.EmitFailure(from, to, navArgs, desc: toDesc);
                 throw;
             }
         }
-        private   async void OnTimeout()
+
+        // Keep a sync signature if something calls it, but route to safe async path.
+        private void OnTimeout()
         {
-            if (_ctx == null)
-                return;
+            _ = OnTimeoutAsync();
+        }
 
-            var current =  Current;
-            PageDescriptor desc = null;
-
-            try
+        private Task OnTimeoutAsync()
+        {
+            return ExecuteAsync(async () =>
             {
-                if (current != null)
-                {
-                    if (_ctx.Registry.TryGetDescriptor(current.GetType(), out desc))
-                        throw new InvalidOperationException(
-                            $"PageDescriptor of {current.GetType()} not found.");
+                TimeoutReached?.Invoke();
 
-                    switch (desc.Timeout)
+                var current = Current;
+
+                if (current != null &&
+                    _ctx.Registry.TryGetDescriptor(current.GetType(), out var desc))
+                {
+                    switch (desc.TimeoutPolicy)
                     {
-                        case PageTimeoutBehavior.IgnoreTimeout:
+                        case PageTimeoutPolicy.Disabled:
                             return;
 
-                        case PageTimeoutBehavior.OverrideHome:
-                            break; // fallthrough to home resolution
+                        case PageTimeoutPolicy.IsTimeoutTarget:
+                            return; // already at timeout page
+
+                        case PageTimeoutPolicy.ResetOnEnter:
+                        case PageTimeoutPolicy.Inherit:
+                        default:
+                            break;
                     }
                 }
 
-                // Default behavior: resolve home page
-                var home = _ctx.Registry.ResolveTimeoutTarget();
-                if (home == null)
-                    return;
-                await  NavigateAsync(home.PageType, NavigationArgs.Default());
+                var timeoutTarget = _ctx.Registry.AllDescriptors()
+                    .FirstOrDefault(x => x.TimeoutPolicy == PageTimeoutPolicy.IsTimeoutTarget);
 
-            }
-            catch (Exception ex)
-            {
-                _diagnostics.EmitError(
-                    $"Timeout navigation failed", ex);
-            }
+                if (timeoutTarget == null)
+                    timeoutTarget = ResolveHomeDescriptor();
+
+                if (timeoutTarget == null)
+                    return;
+
+                await SwitchInternalAsync(timeoutTarget.PageType, NavigationArgs.Default());
+            });
         }
 
         private static async Task LoadAsync(IPageView page, object payload)
         {
             if (page is IBackgroundLoadable bg)
             {
-                // Heavy work off-thread (no nested async delegate)
-                await Task.Run(() => bg.LoadInBackgroundAsync(payload));
+                await Task.Run(async () =>
+                {
+                    await bg.LoadInBackgroundAsync(payload).ConfigureAwait(false);
+                });
 
-                // Apply should run back on UI (runtime already dispatches to UI)
                 await bg.ApplyBackgroundResultAsync();
             }
         }
 
         // ---------------------------------------------------------------------
-        // MODALS (ASSUME already UI-thread + serialized)
+        // OVERLAYS (UNIFIED STACK)
         // ---------------------------------------------------------------------
+
+        private IModalHost EnsureModalHost()
+        {
+            // Prefer host implementing it (your current setup)
+            if (_ctx.Host is IModalHost mh)
+                return mh;
+
+            // Fallback: allow resolving via services
+            var services = _ctx.Services;
+            if (services != null && services.CanResolve(typeof(IModalHost)))
+                return (IModalHost)services.Get(typeof(IModalHost));
+
+            throw new InvalidOperationException("Modal host missing: IModalHost not available.");
+        }
+
+        private async Task ShowOverlayInternalAsync(PageDescriptor descriptor, NavigationArgs args)
+        {
+            var modalHost = EnsureModalHost();
+
+            var view = ResolvePage(descriptor);
+
+            // Push overlay entry (no TCS)
+            _stack.Push(PresentationEntry.ForOverlay(view, descriptor));
+
+            await modalHost.ShowModalAsync(view);
+
+            // Overlay lifecycle if implemented
+            if (view is IPageOverlay overlay)
+                await overlay.OnOverlayOpenedAsync(args?.Payload);
+
+            // No blocking for Overlay mode
+        }
 
         private async Task<ModalResult> ShowModalInternalAsync(PageDescriptor descriptor, NavigationArgs args)
         {
-            if (!(_ctx.Host is IModalHost modalHost))
-                throw new InvalidOperationException("Current host does not support modal pages (IModalHost missing).");
+            var modalHost = EnsureModalHost();
 
             var view = ResolvePage(descriptor);
 
             var tcs = new TaskCompletionSource<ModalResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            _modalTcs.Push(tcs);
-            _modalStack.Push(new PageInstance(view, descriptor));
+            _stack.Push(PresentationEntry.ForModal(view, descriptor, tcs));
+
+            // Block interaction if available (host overlay panel may also block physically)
+            _interactionBlocker?.Block();
 
             await modalHost.ShowModalAsync(view);
+
+            if (view is IPageOverlay overlay)
+                await overlay.OnOverlayOpenedAsync(args?.Payload);
 
             return await tcs.Task;
         }
 
+        private async Task CloseTopOverlayInternalAsync()
+        {
+            if (_stack.Count == 0)
+                return;
+
+            var top = _stack.Peek();
+            if (!top.IsOverlay)
+                return;
+
+            var modalHost = EnsureModalHost();
+
+            // overlay lifecycle
+            if (top.View is IPageOverlay overlay)
+                await overlay.OnOverlayClosingAsync();
+
+            await modalHost.HideModalAsync(top.View);
+
+            _stack.Pop();
+
+            // cleanup overlay instance depending on reuse policy
+            if (top.Descriptor.ReusePolicy == PageReusePolicy.Transient)
+                DisposePage(top.View);
+        }
+
         private async Task<bool> CloseTopModalInternalAsync(ModalResult result)
         {
-            if (_modalStack.Count == 0)
+            if (_stack.Count == 0)
                 return false;
 
-            if (!(_ctx.Host is IModalHost modalHost))
-                throw new InvalidOperationException("Current host does not support modal pages (IModalHost missing).");
+            var top = _stack.Peek();
+            if (!top.IsModalOverlay)
+                return false;
 
-            var instance = _modalStack.Pop();
-            var tcs = _modalTcs.Pop();
+            var modalHost = EnsureModalHost();
 
-            await modalHost.HideModalAsync(instance.View);
+            if (top.View is IPageOverlay overlay)
+                await overlay.OnOverlayClosingAsync();
 
-            if (instance.Descriptor.ReusePolicy == PageReusePolicy.Transient)
-                DisposePage(instance.View);
+            await modalHost.HideModalAsync(top.View);
 
-            tcs.TrySetResult(result);
+            _stack.Pop();
+
+            // Unblock if no modal overlays remain
+            if (!_stack.Any(x => x.IsModalOverlay))
+                _interactionBlocker?.Unblock();
+
+            if (top.Descriptor.ReusePolicy == PageReusePolicy.Transient)
+                DisposePage(top.View);
+
+            top.ModalTcs.TrySetResult(result);
             return true;
         }
 
-        private async Task CloseAllModalsInternalAsync(ModalResult result)
+        private async Task CloseAllOverlaysInternalAsync(ModalResult cancelResult)
         {
-            while (_modalStack.Count > 0)
-                await CloseTopModalInternalAsync(result);
+            // Close overlays until top is base (Replace) or stack empty
+            while (_stack.Count > 0 && _stack.Peek().IsOverlay)
+            {
+                if (_stack.Peek().IsModalOverlay)
+                    await CloseTopModalInternalAsync(cancelResult);
+                else
+                    await CloseTopOverlayInternalAsync();
+            }
+
+            _interactionBlocker?.Unblock();
+        }
+
+        private void PushOrReplaceBaseEntry(IPageView baseView, PageDescriptor baseDesc)
+        {
+            // Remove any existing base entries from stack.
+            // In this runtime, we only keep overlays above base, and base as single entry.
+            // Since Replace closes overlays before navigation, the stack should be empty or already contain only base.
+            // We'll ensure the top base entry matches current.
+            if (_stack.Count == 0)
+            {
+                _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
+                return;
+            }
+
+            // If the stack currently has base on top (no overlays), replace it.
+            if (_stack.Count == 1 && !_stack.Peek().IsOverlay)
+            {
+                _stack.Pop();
+                _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
+                return;
+            }
+
+            // If something unexpected remains, rebuild base-only.
+            var overlays = _stack.Where(e => e.IsOverlay).Reverse().ToList();
+            _stack.Clear();
+            _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
+            foreach (var ov in overlays)
+                _stack.Push(ov);
         }
 
         // ---------------------------------------------------------------------
-        // PAGE RESOLUTION (lifecycle only)
+        // PAGE RESOLUTION (reuse policy caches)
         // ---------------------------------------------------------------------
 
         private IPageView ResolvePage(PageDescriptor d)
         {
-            var factory = EnsurePageFactory();
+            var factory = _pageFactory;
 
             switch (d.ReusePolicy)
             {
@@ -679,7 +858,7 @@ namespace NekoLib.Navigation.Runtime.Core
         }
 
         // ---------------------------------------------------------------------
-        // LIFECYCLE
+        // LIFECYCLE + CLEANUP
         // ---------------------------------------------------------------------
 
         private Task CleanupAsync(IPageView page, PageDescriptor descriptor, bool forceDispose)
@@ -724,35 +903,8 @@ namespace NekoLib.Navigation.Runtime.Core
             if (page == null || page.IsDisposed)
                 return;
 
-            try
-            {
-                EnsureDispatcher();
-                _dispatcher.Invoke(() =>
-                {
-                    try { page.Dispose(); }
-                    catch { }
-                });
-            }
+            try { page.Dispose(); }
             catch { }
-        }
-
-        // ---------------------------------------------------------------------
-        // FACTORIES / SERVICES
-        // ---------------------------------------------------------------------
-
-        private PageFactory EnsurePageFactory()
-        {
-            if (_pageFactory != null)
-                return _pageFactory;
-
-            var services = _ctx.Services
-                ?? throw new InvalidOperationException("NavigationContext.Services is not initialized.");
-
-            if (!services.CanResolve(typeof(PageFactory)))
-                throw new InvalidOperationException("PageFactory is required but not registered.");
-
-            _pageFactory = (PageFactory)services.Get(typeof(PageFactory));
-            return _pageFactory;
         }
 
         private void OnInteractionDetected()
@@ -779,16 +931,30 @@ namespace NekoLib.Navigation.Runtime.Core
             public static ModalResult Cancel() => new ModalResult(false, null);
         }
 
-        private sealed class PageInstance
+        private sealed class PresentationEntry
         {
             public IPageView View { get; }
             public PageDescriptor Descriptor { get; }
+            public TaskCompletionSource<ModalResult> ModalTcs { get; }
 
-            public PageInstance(IPageView view, PageDescriptor descriptor)
+            private PresentationEntry(IPageView view, PageDescriptor descriptor, TaskCompletionSource<ModalResult> modalTcs)
             {
                 View = view;
                 Descriptor = descriptor;
+                ModalTcs = modalTcs;
             }
+
+            public bool IsOverlay => Descriptor.Presentation != PagePresentationMode.Replace;
+            public bool IsModalOverlay => Descriptor.Presentation == PagePresentationMode.ModalOverlay;
+
+            public static PresentationEntry ForBase(IPageView view, PageDescriptor desc)
+                => new PresentationEntry(view, desc, null);
+
+            public static PresentationEntry ForOverlay(IPageView view, PageDescriptor desc)
+                => new PresentationEntry(view, desc, null);
+
+            public static PresentationEntry ForModal(IPageView view, PageDescriptor desc, TaskCompletionSource<ModalResult> tcs)
+                => new PresentationEntry(view, desc, tcs);
         }
     }
 }

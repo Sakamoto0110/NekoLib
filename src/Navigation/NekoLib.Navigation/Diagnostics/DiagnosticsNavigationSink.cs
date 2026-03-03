@@ -36,7 +36,7 @@ namespace NekoLib.Navigation.Diagnostics
                     ["From"] = entry.FromPageName ?? "<null>",
                     ["To"] = entry.ToPageName ?? "<null>",
                     ["Success"] = entry.Success,
-                    ["Behavior"] = entry.Behavior.ToString(),
+                    ["Behavior"] = entry.Presentation.ToString(),
                     ["LoadMode"] = entry.LoadMode.ToString(),
                     ["Timeout"] = entry.IsTimeout,
                     ["Back"] = entry.IsBackNavigation,

@@ -12,4 +12,10 @@
     <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="WindowsFormsIntegration">
+      <HintPath>..\..\..\..\..\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\AppLocalWPF\WindowsFormsIntegration.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

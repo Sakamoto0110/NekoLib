@@ -13,20 +13,5 @@ namespace NekoLib.Navigation.Contracts.Pages
         void BringToFront(IPageView page);
          
     }
-    /// <summary>
-    /// Low-level view operations for platform-specific services (overlays, focus, z-order).
-    /// </summary>
-    public interface IViewHost
-    {
-        void AddView(object view);
-        void RemoveView(object view);
-        void BringToFront(object view);
-        void Focus(object view);
-    }
-    public interface IModalHost
-    {
-        Task ShowModalAsync(IPageView page);
-        Task HideModalAsync(IPageView page);
-    }
 
 }

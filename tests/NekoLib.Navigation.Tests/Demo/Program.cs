@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace Demo{
+namespace NavigationDemo{
     internal static class Program
     {
         /// <summary>

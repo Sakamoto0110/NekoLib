@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms {
-    public abstract partial class BasePage : UserControl, IPageView
+    public    partial class BasePage : UserControl, IPageView
     {
  
         public object NativeView => this;
@@ -19,7 +19,7 @@ namespace NekoLib.Navigation.WinForms {
         protected BasePage()
         {
             InitializeComponent();
-            Dock = DockStyle.Fill;
+            
         }
     }
 }

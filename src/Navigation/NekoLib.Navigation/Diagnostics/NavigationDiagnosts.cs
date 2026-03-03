@@ -2,6 +2,7 @@
 #nullable enable
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime;
 using System;
 using System.Security.Cryptography;
 
@@ -42,7 +43,7 @@ namespace NekoLib.Navigation.Diagnostics
                 from?.GetType(), string.IsNullOrEmpty(from?.Name)?from?.GetType().Name:from?.Name,
                 to?.GetType(), string.IsNullOrEmpty(to?.Name) ? to?.GetType().Name : to?.Name,
                 args,  true,
-              navigationBehavior:  desc.Kind  ,
+              navigationBehavior:  desc.Presentation  ,
               navigationLoadMode:  desc.LoadMode,
                 reusePolicy: desc.ReusePolicy 
                 ));
@@ -60,7 +61,7 @@ namespace NekoLib.Navigation.Diagnostics
                 success: false,
                 failureKind: kind,
                 error: error,
-              navigationBehavior: desc.Kind,
+              navigationBehavior: desc.Presentation,
               navigationLoadMode: desc.LoadMode,
                 reusePolicy: desc.ReusePolicy));
 
@@ -71,7 +72,7 @@ namespace NekoLib.Navigation.Diagnostics
                 args,
                 success: true,
                 isTimeout: true,
-              navigationBehavior: desc.Kind,
+              navigationBehavior: desc.Presentation,
               navigationLoadMode: desc.LoadMode,
                 reusePolicy: desc.ReusePolicy));
 
@@ -82,7 +83,7 @@ namespace NekoLib.Navigation.Diagnostics
                 args,
                 success: true,
                 isBackNavigation: true,
-              navigationBehavior: desc.Kind,
+              navigationBehavior: desc.Presentation,
               navigationLoadMode: desc.LoadMode,
                 reusePolicy: desc.ReusePolicy));
 

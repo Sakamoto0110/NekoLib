@@ -23,7 +23,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
                 throw new InvalidOperationException(
                     "WinFormsPlatformAdapter requires the host to be a Panel.");
 
-            return new PanelPageHost(panel);
+            return new WinFormsLayeredPageHostBase(panel);
         }
 
         public IEventDispatcherAdapter CreateEventDispatcher(object nativeHost)

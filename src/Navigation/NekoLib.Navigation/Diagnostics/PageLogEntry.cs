@@ -1,5 +1,6 @@
 ﻿using NekoLib.Diagnostics.Contracts;
 using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime;
 using System;
 
 namespace NekoLib.Navigation.Diagnostics
@@ -34,8 +35,7 @@ namespace NekoLib.Navigation.Diagnostics
         public DateTime TimestampUtc { get; }
 
         /// <summary>Navigation behavior flags.</summary>
-        public PageKind Behavior { get; }
-
+        public PagePresentationMode Presentation { get; }
         /// <summary>Load mode used for navigation.</summary>
         public NavigationLoadMode LoadMode { get; }
         public PageReusePolicy ReusePolicy { get; }
@@ -73,7 +73,7 @@ namespace NekoLib.Navigation.Diagnostics
             string toName,
             NavigationArgs args,
             bool success,
-            PageKind navigationBehavior,
+            PagePresentationMode navigationBehavior,
             NavigationLoadMode navigationLoadMode,
             PageReusePolicy reusePolicy,
             NavigationFailureKind failureKind = NavigationFailureKind.None,
@@ -92,7 +92,7 @@ namespace NekoLib.Navigation.Diagnostics
             TimestampUtc = DateTime.UtcNow;
 
             ReusePolicy = reusePolicy;
-            Behavior = navigationBehavior;
+            Presentation = navigationBehavior;
             LoadMode = navigationLoadMode;
 
             FailureKind = failureKind;
@@ -113,7 +113,7 @@ namespace NekoLib.Navigation.Diagnostics
             var status = Success ? "OK" : "FAIL";
 
             return $"[{TimestampUtc:HH:mm:ss}] {dir} {FromPageName ?? "<null>"} -> {ToPageName} " +
-                   $"({status}, {Behavior} |, {LoadMode} | {ReusePolicy})";
+                   $"({status}, {Presentation} |, {LoadMode} | {ReusePolicy})";
         }
     }
 }

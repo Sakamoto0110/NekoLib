@@ -22,3 +22,5 @@ Thumbs.db
 *.log
 /Demo
 *zip
+/NekoLib_compressed
+/ProjectCompressor.exe

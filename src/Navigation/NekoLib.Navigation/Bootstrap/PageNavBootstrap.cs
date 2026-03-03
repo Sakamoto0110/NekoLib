@@ -9,6 +9,7 @@ using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace NekoLib.Navigation.Bootstrap
@@ -24,7 +25,8 @@ namespace NekoLib.Navigation.Bootstrap
         private readonly object _nativeHost;
         private readonly IPlatformAdapter _platform;
         private Assembly _pagesAssembly;
-        private Action<PageRegistryConfigurator> _pageConfig;
+        private PageRegistry _registry;
+        private Action<PageMetadataBuilder>? _pageConfig;
         private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
 
         private int _timeoutSeconds = 10;
@@ -92,18 +94,10 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         public PageNavBootstrap RegisterPagesFromAssembly(Assembly asm)
         {
-            _pagesAssembly = asm ?? throw new ArgumentNullException(nameof(asm));
+            _assemblies.Add(asm);
             return this;
         }
-
-        /// <summary>
-        /// Manual tweaks after attribute defaults. (Hybrid mode)
-        /// </summary>
-        public PageNavBootstrap ConfigurePages(Action<PageRegistryConfigurator> configure)
-        {
-            _pageConfig = configure;
-            return this;
-        }
+ 
 
         /// <summary>
         /// Optional: add/override services before ServiceLocator gets locked.
@@ -113,24 +107,61 @@ namespace NekoLib.Navigation.Bootstrap
             _serviceConfig = configure;
             return this;
         }
+        // 
+        /// <summary>
+        /// Manual tweaks after attribute defaults. (Hybrid mode) 🔹 Lambda API
+        /// </summary>
+        public PageNavBootstrap ConfigurePages(Action<PageMetadataBuilder> configure)
+        {
+            _pageConfig += configure;
+            return this;
+        }
+        // 
+        /// <summary>
+        /// Manual tweaks after attribute defaults. (Hybrid mode) 🔹 Fluent DSL API
+        /// </summary>
+        // 
+        public PageNavBootstrap ConfigurePages(Action<PageBuilderConfigurator> configureDsl)
+        {
+            _pageConfig += builder =>
+            {
+                var dsl = new PageBuilderConfigurator(builder);
+                configureDsl(dsl);
+            };
 
+            return this;
+        }
         // --------------------------------------------------------------------
         // Build
         // --------------------------------------------------------------------
-        private PageRegistry _registry;
+        private readonly List<Assembly> _assemblies = new();
+         
         public NavigationContext Start()
         {
             // ------------------------------------------------------------
             // 1) Page registration
             // ------------------------------------------------------------
             // 1) Registry (instance-scoped)
-            var registry = _registry ?? new PageRegistry();
+             
+            PageRegistry registry;
+            if (_registry != null)
+            {
+                if (_assemblies.Count > 0 || _pageConfig != null)
+                    throw new InvalidOperationException(
+                        "Cannot configure pages when external registry is supplied.");
 
-            if (_pagesAssembly != null)
-                registry.RegisterFromAssembly(_pagesAssembly);
+                registry = _registry;
+            }
+            else
+            {
+                registry = PageRegistry.Create(builder =>
+                {
+                    foreach (var asm in _assemblies)
+                        builder.RegisterFromAssembly(asm);
 
-            _pageConfig?.Invoke(new PageRegistryConfigurator(registry));
-
+                    _pageConfig?.Invoke(builder);
+                });
+            }
             // ------------------------------------------------------------
             // 2) Validate platform
             // ------------------------------------------------------------
@@ -207,14 +238,7 @@ namespace NekoLib.Navigation.Bootstrap
             // 7) Diagnostics bridge (optional)
             // ------------------------------------------------------------
 
-            if (_diagnostics != null)
-            {
-                registry.Info += msg => context.Diagnostics.EmitInfo(msg);
-                registry.Warn += msg => context.Diagnostics.EmitWarn(msg);
-
-
-                pageFactory.Warn += msg => context.Diagnostics.EmitWarn(msg);
-            }
+        
             services.Register(context);
 
             // ------------------------------------------------------------

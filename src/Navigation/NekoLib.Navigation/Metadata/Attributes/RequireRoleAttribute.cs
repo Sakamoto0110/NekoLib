@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NekoLib.Navigation.Attributes
+namespace NekoLib.Navigation.Metadata.Attributes
 {
     public sealed class RequireRoleAttribute : GuardAttribute
     {

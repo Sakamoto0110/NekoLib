@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms {
 
-    public abstract partial class BasePage : UserControl, IPageView
+    public   partial class BasePage : UserControl, IPageView
     {
         /// <summary> 
         /// Required designer variable.

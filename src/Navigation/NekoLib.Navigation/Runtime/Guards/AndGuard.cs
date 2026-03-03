@@ -12,19 +12,22 @@ namespace NekoLib.Navigation.Runtime.Guards {
 
         public AndGuard(params IGuard[] guards)
         {
-            _guards = guards ?? Array.Empty<IGuard>();
+            _guards = guards?
+            .Where(g => g != null)
+            .ToArray()
+            ?? Array.Empty<IGuard>();
         }
 
         public async Task<GuardResult> EvaluateAsync(GuardContext context)
         {
             foreach (var g in _guards)
             {
-                var result = await g.EvaluateAsync(context);
+                var result = await g.EvaluateAsync(context).ConfigureAwait(false);
 
                 if (!result.Allowed)
                     return result;
             }
-
+            
             return GuardResult.Allow();
         }
     }

@@ -19,6 +19,9 @@ namespace NekoLib.Navigation.Runtime.Guards {
 
         public Task<GuardResult> EvaluateAsync(GuardContext context)
         {
+            if (context?.User?.Roles == null)
+                return Task.FromResult(
+                    GuardResult.Deny("User context not available."));
             if (context.User.Roles.Contains(_role))
                 return Task.FromResult(GuardResult.Allow());
 

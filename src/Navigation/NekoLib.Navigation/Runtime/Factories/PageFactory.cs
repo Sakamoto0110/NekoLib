@@ -52,7 +52,7 @@ namespace NekoLib.Navigation.Runtime.Factories
 
     var factory = new PageFactory();
 
-    defaultFactory ??= CreateUsingDefaultCtor;
+    defaultFactory = defaultFactory?? CreateUsingDefaultCtor;
 
     foreach (var pageType in registeredPageTypes)
     {

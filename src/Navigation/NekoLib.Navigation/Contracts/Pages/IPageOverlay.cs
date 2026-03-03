@@ -24,9 +24,8 @@ namespace NekoLib.Navigation.Contracts.Pages
     /// </summary>
     public interface IPageOverlay<TResult> : IPageOverlay
     {
-        /// <summary>
-        /// Sets the result that will be returned when the overlay closes.
-        /// </summary>
+        TResult Result { get; }          
+        bool HasResult { get; }          
         void SetResult(TResult result);
     }
 

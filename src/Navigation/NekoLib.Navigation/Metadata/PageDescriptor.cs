@@ -1,74 +1,68 @@
 ﻿using NekoLib.Navigation.Contracts.Guards;
-using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Runtime.Guards;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace NekoLib.Navigation.Metadata
 {
-    // ============================================================
-    // DESCRIPTOR
-    // ============================================================
-
     /// <summary>
-    /// Contains all runtime metadata about a registered page,
-    /// including type, name, cache state, tags, and stack instances.
+    /// Immutable metadata describing a registered page.
+    /// Built during bootstrap by merging defaults,
+    /// attributes, and manual configuration.
     /// </summary>
-      public  sealed class PageDescriptor
+    public sealed class PageDescriptor
     {
-        /// <summary>CLR type that implements IPageView.</summary>
-        public Type PageType { get; set; }
+        public Type PageType { get; }
 
-        /// <summary>Unique page name used as dictionary key.</summary>
-        public string Name { get; set; }
+        public string Name { get; }
 
-        /// <summary>General category of the page.</summary>
-        public PageKind Kind { get; set; }
+        public PageRole Role { get; }
 
-        /// <summary>Caching rules for resolving pages.</summary>
-        public PageReusePolicy ReusePolicy { get; set; }
+        public PagePresentationMode Presentation { get; }
 
-        /// <summary>Instance used when page is a singleton.</summary>
-        
-         public NavigationLoadMode LoadMode { get; set; }
+        public PageReusePolicy ReusePolicy { get; }
 
-        /// <summary>Additional classification tags.</summary>
-        public HashSet<string> Tags { get; set; }
-        public PageTimeoutBehavior Timeout { get; set; } = PageTimeoutBehavior.Default;
-        public IGuard  Guard { get; set; }
-        public PagePresentation Presentation { get; set; } = PagePresentation.Normal;
+        public PageTimeoutPolicy TimeoutPolicy { get; }
+
+        public NavigationLoadMode LoadMode { get; }
+
+        public bool AllowAnonymous { get; }
+
         /// <summary>
-        /// Initializes the descriptor with empty stack and tag set.
+        /// Classification tags used for querying and grouping.
         /// </summary>
+        public IReadOnlyList<string> Tags { get; }
 
-
-        public void Guards(params IGuard[] guards)
+        /// <summary>
+        /// Navigation guard pipeline.
+        /// Null means no restrictions.
+        /// </summary>
+        public IGuard? Guard { get; }
+        public bool KeepAttachedWhenHidden { get; }  
+        internal PageDescriptor(
+            Type pageType,
+            string name,
+            PageRole role,
+            PagePresentationMode presentation,
+            PageReusePolicy reusePolicy,
+            PageTimeoutPolicy timeoutPolicy,
+            NavigationLoadMode loadMode,
+            bool allowAnonymous,
+            IReadOnlyList<string> tags,
+            IGuard? guard,
+            bool keepAttachedWhenHidden)
         {
-            Guard = guards == null || !guards.Any()
-    ? null
-    : guards.Length == 1
-        ? guards[0]
-        : new AndGuard(guards);
-        }
-
-        public PageDescriptor()
-        {
-             Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-        public PageDescriptor(
-       Type pageType,
-       params IGuard[] guards)
-        {
-            PageType = pageType
-                ?? throw new ArgumentNullException(nameof(pageType));
-
-            Guard = guards == null || !guards.Any()
-    ? null
-    : guards.Length == 1
-        ? guards[0]
-        : new AndGuard(guards);
-        }
+            PageType = pageType;
+            Name = name;
+            Role = role;
+            Presentation = presentation;
+            ReusePolicy = reusePolicy;
+            TimeoutPolicy = timeoutPolicy;
+            LoadMode = loadMode;
+            AllowAnonymous = allowAnonymous;
+            Tags = tags;
+            Guard = guard;
+            KeepAttachedWhenHidden = keepAttachedWhenHidden;
+         }
     }
-
 }

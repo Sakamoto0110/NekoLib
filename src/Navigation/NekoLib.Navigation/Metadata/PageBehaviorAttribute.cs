@@ -17,7 +17,7 @@ public sealed class PageBehaviorAttribute : Attribute
     /// Logical category of the page (Home, Modal, Popup, etc).
     /// Default: PageKind.Default
     /// </summary>
-    public PageKind Kind { get; }
+    public PagePresentationMode Kind { get; }
 
     // --------------------------------------------------------------------
     // Caching
@@ -43,7 +43,7 @@ public sealed class PageBehaviorAttribute : Attribute
     /// Optional timeout behavior override.
     /// If null, PageRegistry / framework default applies.
     /// </summary>
-    public PageTimeoutBehavior? Timeout { get; set; }
+    public PageTimeoutPolicy? Timeout { get; set; }
 
     /// <summary>
     /// Optional load mode preference.
@@ -62,7 +62,7 @@ public sealed class PageBehaviorAttribute : Attribute
     // --------------------------------------------------------------------
 
     public PageBehaviorAttribute(
-        PageKind kind = PageKind.Default,
+        PagePresentationMode kind = PagePresentationMode.Replace,
         PageReusePolicy reusePolicy = PageReusePolicy.Transient)
     {
         Kind = kind;

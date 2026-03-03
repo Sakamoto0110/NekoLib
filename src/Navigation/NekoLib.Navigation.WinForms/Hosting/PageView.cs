@@ -6,22 +6,36 @@ using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms.Hosting
 {
-
-    public class PageView : UserControl, IPageView
+    /// <summary>
+    /// Unified base class for all WinForms pages. 
+    /// Merges legacy BasePage and PageView for a single, designer-safe entry point.
+    /// </summary>
+    public class PageView : UserControl, IPageView, IPageLifecycle
     {
-         
         public object NativeView => this;
         public new bool IsDisposed { get; private set; }
-        public new  bool DesignMode =>
+
+        /// <summary>
+        /// Critical for visual inheritance. Prevents the designer from 
+        /// executing framework code during design-time.
+        /// </summary>
+        public new bool DesignMode =>
             base.DesignMode ||
             LicenseManager.UsageMode == LicenseUsageMode.Designtime;
 
+        /// <summary>
+        /// Concept moved from legacy BasePage. Allows individual pages to 
+        /// opt-out of the back-stack.
+        /// </summary>
+        public virtual bool AllowBackNavigation => true;
+
         protected PageView()
         {
+            // Keep the constructor empty or designer-safe.
             Name = GetType().FullName!;
-            // absolutely nothing non-designer-safe here
         }
 
+        // Lifecycle hooks for your logic (e.g., loading Excel data)
         public virtual Task OnNavigatedToAsync(NavigationArgs args)
             => Task.CompletedTask;
 
@@ -30,13 +44,11 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         protected override void Dispose(bool disposing)
         {
-            IsDisposed = true;
+            if (disposing)
+            {
+                IsDisposed = true;
+            }
             base.Dispose(disposing);
         }
     }
-
-
-  
-
-
 }
