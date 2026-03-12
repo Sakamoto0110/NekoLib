@@ -24,3 +24,7 @@ Thumbs.db
 *zip
 /NekoLib_compressed
 /ProjectCompressor.exe
+
+# Framework Logo
+NekoLib_Logo.png
+*.bundleignore

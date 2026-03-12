@@ -17,7 +17,6 @@ namespace BundlerTool
             {
                 _defaultPath = value;
                 txtWorkingDir.Text = DefaultPath;
-                // Bonus: Automatically enable the button if the path is valid
                 btnCreateBundle.Enabled = !string.IsNullOrWhiteSpace(DefaultPath) && Directory.Exists(DefaultPath);
             }
         }
@@ -136,6 +135,12 @@ namespace BundlerTool
             {
                 MessageBox.Show("Bundles folder does not exist yet.");
             }
+        }
+
+        private void btnBundleIgnore_Click(object sender, EventArgs e)
+        {
+            using (var config = new ConfigForm(DefaultPath))
+                config.ShowDialog();
         }
     }
 }

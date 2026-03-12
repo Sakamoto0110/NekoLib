@@ -54,6 +54,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Watchdog", "src\Wat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Watchdog.Host", "src\Watchdog\NekoLib.Watchdog.Host\NekoLib.Watchdog.Host.csproj", "{1476A163-6DE0-AB75-1D2D-76BA62834860}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BundlerTool", "src\Tools\BundlerTool\BundlerTool.csproj", "{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -104,6 +106,10 @@ Global
 		{1476A163-6DE0-AB75-1D2D-76BA62834860}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1476A163-6DE0-AB75-1D2D-76BA62834860}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1476A163-6DE0-AB75-1D2D-76BA62834860}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -131,6 +137,7 @@ Global
 		{9DAF8F0D-3AC0-FE9E-E158-9EBFD441CCBF} = {4A65A73B-E8BB-46DE-B16C-27EF18E7BB2B}
 		{C27A4DC7-B7BE-ABF9-CDC6-7E2297CD8B53} = {B67FD3C9-902C-4864-98B7-ECAEC027C563}
 		{1476A163-6DE0-AB75-1D2D-76BA62834860} = {B67FD3C9-902C-4864-98B7-ECAEC027C563}
+		{FEB6449E-8C98-01E7-1F36-FBB0F5B7CE56} = {5A164556-3D46-45A4-99B8-81A935526399}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A6736775-B135-4E14-B467-8F36148928D4}
