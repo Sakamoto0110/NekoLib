@@ -17,6 +17,7 @@ namespace BundlerTool
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.btnSelectDir = new System.Windows.Forms.Button();
             this.txtWorkingDir = new System.Windows.Forms.TextBox();
             this.btnCreateBundle = new System.Windows.Forms.Button();
@@ -30,7 +31,7 @@ namespace BundlerTool
             // btnSelectDir
             // 
             this.btnSelectDir.Location = new System.Drawing.Point(16, 15);
-            this.btnSelectDir.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnSelectDir.Margin = new System.Windows.Forms.Padding(4);
             this.btnSelectDir.Name = "btnSelectDir";
             this.btnSelectDir.Size = new System.Drawing.Size(160, 37);
             this.btnSelectDir.TabIndex = 0;
@@ -41,7 +42,7 @@ namespace BundlerTool
             // txtWorkingDir
             // 
             this.txtWorkingDir.Location = new System.Drawing.Point(197, 22);
-            this.txtWorkingDir.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtWorkingDir.Margin = new System.Windows.Forms.Padding(4);
             this.txtWorkingDir.Name = "txtWorkingDir";
             this.txtWorkingDir.ReadOnly = true;
             this.txtWorkingDir.Size = new System.Drawing.Size(408, 22);
@@ -51,7 +52,7 @@ namespace BundlerTool
             // 
             this.btnCreateBundle.Enabled = false;
             this.btnCreateBundle.Location = new System.Drawing.Point(16, 74);
-            this.btnCreateBundle.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnCreateBundle.Margin = new System.Windows.Forms.Padding(4);
             this.btnCreateBundle.Name = "btnCreateBundle";
             this.btnCreateBundle.Size = new System.Drawing.Size(160, 37);
             this.btnCreateBundle.TabIndex = 2;
@@ -62,7 +63,7 @@ namespace BundlerTool
             // btnOpenFolder
             // 
             this.btnOpenFolder.Location = new System.Drawing.Point(197, 74);
-            this.btnOpenFolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnOpenFolder.Margin = new System.Windows.Forms.Padding(4);
             this.btnOpenFolder.Name = "btnOpenFolder";
             this.btnOpenFolder.Size = new System.Drawing.Size(200, 37);
             this.btnOpenFolder.TabIndex = 3;
@@ -110,7 +111,8 @@ namespace BundlerTool
             this.Controls.Add(this.btnCreateBundle);
             this.Controls.Add(this.txtWorkingDir);
             this.Controls.Add(this.btnSelectDir);
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MainForm";
             this.Text = "Source Code Bundler";
             this.statusStrip1.ResumeLayout(false);

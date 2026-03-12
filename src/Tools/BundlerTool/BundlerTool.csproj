@@ -4,5 +4,9 @@
     <TargetFramework>net481</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ApplicationIcon>NekoLibPurpleIco.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="NekoLibPurpleIco.ico" />
+  </ItemGroup>
 </Project>

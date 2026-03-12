@@ -28,3 +28,6 @@ Thumbs.db
 # Framework Logo
 NekoLib_Logo.png
 *.bundleignore
+*.pubxml
+/.resources
+/tools
