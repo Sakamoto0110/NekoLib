@@ -79,25 +79,67 @@ namespace NekoLib.Navigation
         // PUBLIC API (forwarders)
         // -------------------------------------------------------------------------
 
-        public static Task SwitchPage<T>(object args = null)
-            where T : IPageView
-            => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Default(args));
+        public static Task SwitchPage<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Default(args));
 
-        public static Task SwitchPage(Type type, object args = null)
-            => EnsureRuntime().NavigateAsync(type, NavigationArgs.Default(args));
+        public static Task SwitchPage(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Default(args));
 
-        public static Task SwitchTransient<T>(object args = null)
-            where T : IPageView
-            => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Transient(args));
+        public static Task SwitchTransient<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Transient(args));
 
-        public static Task SwitchTransient(Type type, object args = null)
-            => EnsureRuntime().NavigateAsync(type, NavigationArgs.Transient(args));
+        public static Task SwitchTransient(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Transient(args));
 
 
 
-        public async static Task GoHomeAsync() { await EnsureRuntime().GoHomeAsync(); }
-        public async static Task<bool> GoBackAsync()
-    => await EnsureRuntime().GoBackAsync();
+        public async static Task GoHomeAsync() => await EnsureRuntime().GoHomeAsync();  
+        public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
+
+        // ------------------------------------------------------------
+        // Fire-and-Forget Overlays (Popups, Toasts)
+        // ------------------------------------------------------------
+
+        public static void ShowOverlay<TOverlay>() where TOverlay : class, IPageOverlay
+        {
+            EnsureRuntime().ShowOverlay<TOverlay>();
+        }
+
+        public static void ShowOverlay<TOverlay>(object payload) where TOverlay : class, IPageOverlay
+        {
+            EnsureRuntime().ShowOverlay<TOverlay>(payload);
+        }
+
+        public static void ShowOverlay(Type overlayType, object payload = null)
+        {
+            EnsureRuntime().ShowOverlay(overlayType, payload);
+        }
+
+        // ------------------------------------------------------------
+        // Awaitable Dialogs (Modals returning a result)
+        // ------------------------------------------------------------
+
+        public static Task<TResult> ShowDialogAsync<TOverlay, TResult>()
+            where TOverlay : class, IPageOverlay<TResult>
+        {
+            return EnsureRuntime().ShowDialogAsync<TOverlay, TResult>();
+        }
+
+        public static Task<TResult> ShowDialogAsync<TOverlay, TResult>(object payload)
+            where TOverlay : class, IPageOverlay<TResult>
+        {
+            return EnsureRuntime().ShowDialogAsync<TOverlay, TResult>(payload);
+        }
+
+        // ------------------------------------------------------------
+        // Overlay Stack Management
+        // ------------------------------------------------------------
+
+        public static void CloseTopOverlay()
+        {
+            EnsureRuntime().CloseTopOverlay();
+        }
+
+        public static void CloseAllOverlays()
+        {
+            EnsureRuntime().CloseAllOverlays();
+        }
 
 
 #if DEBUG

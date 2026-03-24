@@ -23,11 +23,11 @@ namespace NekoLib.Navigation.Metadata.Attributes
         /// <summary>
         /// Optional explicit name override.
         /// </summary>
-        public string? Name { get; set; }
+        public string  Name { get; set; }
 
         /// <summary>
         /// Optional classification tags.
         /// </summary>
-        public string[]? Tags { get; set; }
+        public string[]  Tags { get; set; }
     }
 }

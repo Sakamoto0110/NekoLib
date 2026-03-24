@@ -2,7 +2,7 @@
 
 namespace NavigationDemo.Pages
 {
-    partial class HomePage : BasePage   
+    partial class HomePage  
     {
         /// <summary> 
         /// Required designer variable.

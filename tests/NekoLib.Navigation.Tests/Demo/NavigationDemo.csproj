@@ -18,4 +18,8 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Pages\ConfirmDialog.cs" />
+  </ItemGroup>
+
 </Project>

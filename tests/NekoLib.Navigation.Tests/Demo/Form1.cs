@@ -13,70 +13,86 @@ using System;
 using System.Diagnostics;
 using System.Windows.Forms;
 using NavigationDemo.Pages;
- 
+using Demo.Pages;
+using NekoLib.Navigation.Runtime.Registry;
+using NekoLib.Navigation.WinForms.Pages;
+
 
 namespace NavigationDemo 
 {
     public partial class Form1 : Form
     {
-        PanelPageHost _host;
-        Diagnostics diagnostics;
-        MemoryTelemetrySink memory= new MemoryTelemetrySink();
+        WinFormsLayeredPageHostBase _host;
+
         public Form1()
         {
             InitializeComponent();
             Load += Form1_Load;
-            diagnostics = new Diagnostics(new Logger(LogLevel.Debug,new DebugLogSink()), memory);
-             
 
-             
-             
-            
-
+            Logger logger = new Logger(LogLevel.Debug, new DebugLogSink());
+            MemoryTelemetrySink memory = new MemoryTelemetrySink();
+            Diagnostics diagnostics = new Diagnostics(logger, memory);
 
             var ctx = PageNavBootstrap.Use<WinFormsPlatformAdapter>(panel1)
-               .RegisterPagesFromAssembly(typeof(Form1).Assembly)
-                .UseDiagnostics(diagnostics)
-               .ConfigurePages(cfg => cfg.Page<HomePage>().AsHome())
-               .Start();
 
+              .RegisterPagesFromAssembly(typeof(Form1).Assembly)
+              .ConfigurePages(cfg => cfg.Register<ConfirmDialog>())
+              .UseDiagnostics(diagnostics)
+              .ConfigurePages(cfg => { cfg.Page<HomePage>().AsHome(); cfg.Page<ConfirmDialog>().AsModal(); })
+              .Start();
 
-
-
+            foreach(var des in ctx.Registry.AllDescriptors())
+            {
+                Console.WriteLine($"Registered page: {des.PageType.FullName}");
+            }
             NavigationService.UseContext(ctx);
 
-          
+
+
+
+
+
+
+
+
+
+
+
+
 
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
-            NavigationService.GoHomeAsync();
+            await NavigationService.GoHomeAsync();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void button1_Click(object sender, EventArgs e)
         {
+           await NavigationService.SwitchPage<PageA>();
+        }
+
+        private async void button2_Click(object sender, EventArgs e)
+        {
+           await NavigationService.SwitchPage<PageB>();
+
 
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private async void button3_Click(object sender, EventArgs e)
         {
-             
 
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-             
+           await NavigationService.SwitchPage<HeavyPage>();
 
         }
 
         private async void button4_Click(object sender, EventArgs e)
         {
-             
+           await NavigationService.SwitchPage<HomePage>();
+
         }
 
-        
+
     }
 }
 

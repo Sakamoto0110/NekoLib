@@ -1,29 +1,55 @@
+using NekoLib.Diagnostics;
+using NekoLib.Navigation;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Metadata.Attributes;
+using NekoLib.Navigation.WinForms;
+using NekoLib.Navigation.WinForms.Hosting;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using NekoLib.Navigation;
-using NekoLib.Diagnostics;
-using NekoLib.Navigation.WinForms;
 
 namespace Demo.Pages
 {
-    public sealed class HeavyPage : BasePage
+    [PageLoad(NekoLib.Navigation.Metadata.NavigationLoadMode.LoadBeforeShow)]
+    public sealed class HeavyPage : PageView, IBackgroundLoadable
     {
-         
+        Label label;
         public HeavyPage()
         {
-            var label = new Label { Text = "Loading...", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
-            var back = new Button { Text = "Back", Dock = DockStyle.Bottom };
- 
-            Controls.Add(back);
+               label = new Label { Text = "Loading...", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
+
+            InitializeComponent();
             Controls.Add(label);
 
-            LoadAsync(label);
+             
         }
 
-        private async void LoadAsync(Label label)
+        private async void LoadAsync()
         {
-             await Task.Delay(700);
-            label.Text = "Heavy page loaded";
+            
+            
          }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // HeavyPage
+            // 
+            this.BackColor = System.Drawing.Color.Firebrick;
+            this.Name = "HeavyPage";
+            this.ResumeLayout(false);
+
+        }
+
+        public async Task LoadInBackgroundAsync(object args)
+        {
+            await Task.Delay(2000);
+        }
+
+        public Task ApplyBackgroundResultAsync()
+        {
+            label.Text = "Heavy page loaded";
+            return Task.CompletedTask;
+        }
     }
 }

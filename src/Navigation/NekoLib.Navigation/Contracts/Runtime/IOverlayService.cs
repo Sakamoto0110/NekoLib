@@ -1,4 +1,5 @@
 ﻿using NekoLib.Navigation.Contracts.Pages;
+using System;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Contracts.Runtime
@@ -22,7 +23,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         // ------------------------------------------------------------
         // Show (fire-and-forget)
         // ------------------------------------------------------------
-
+        public void Show(Type overlayType, object payload = null);
         /// <summary>
         /// Shows an overlay without expecting a result.
         /// </summary>

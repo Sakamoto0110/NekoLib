@@ -50,6 +50,10 @@ namespace NekoLib.Navigation.Runtime.Registry
 
             return CreateInternal(descriptors);
         }
+        internal static void InjectPage(PageDescriptor descriptor)
+        {
+            CreateInternal(new[] { descriptor });
+        }
 
         public static PageRegistry CreateFromAssembly(Assembly assembly)
         {

@@ -27,6 +27,8 @@ namespace NekoLib.Navigation.Runtime.Core
         private IInteractionObserverService _interactionObserver;
         private PageFactory _pageFactory;
         private IInteractionBlocker _interactionBlocker; // optional; used for ModalOverlay if available
+        private IOverlayService _overlays;
+
 
         private readonly HashSet<IPageView> _attachedPages = new HashSet<IPageView>();
         private readonly HashSet<IPageView> _visiblePages = new HashSet<IPageView>();
@@ -143,6 +145,10 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 _interactionBlocker = (IInteractionBlocker)services.Get(typeof(IInteractionBlocker));
             }
+            if (_overlays == null && services.CanResolve(typeof(IOverlayService)))
+            {
+                _overlays = (IOverlayService)services.Get(typeof(IOverlayService));
+            }
         }
 
         private Task RunOnUiAsync(Func<Task> action)
@@ -237,7 +243,7 @@ namespace NekoLib.Navigation.Runtime.Core
             });
         }
 
-        public Task<bool> GoBackAsync()
+        internal Task<bool> GoBackAsync()
         {
             return ExecuteAsync(() =>
             {
@@ -245,6 +251,70 @@ namespace NekoLib.Navigation.Runtime.Core
                 return GoBackInternalAsync();
             });
         }
+        internal   void ShowOverlay<TOverlay>() where TOverlay : class, IPageOverlay
+        {
+            _overlays.Show<TOverlay>();
+        }
+
+        internal   void ShowOverlay<TOverlay>(object payload) where TOverlay : class, IPageOverlay
+        {
+            _overlays.Show<TOverlay>(payload);
+        }
+
+        internal   void ShowOverlay(Type overlayType, object payload = null)
+        {
+            _overlays.Show(overlayType, payload);
+        }
+
+        // ------------------------------------------------------------
+        // Awaitable Dialogs (Modals returning a result)
+        // ------------------------------------------------------------
+
+        internal   Task<TResult> ShowDialogAsync<TOverlay, TResult>() where TOverlay : class, IPageOverlay<TResult>
+        {
+            return _overlays.ShowAsync<TOverlay, TResult>();
+        }
+
+        internal   Task<TResult> ShowDialogAsync<TOverlay, TResult>(object payload) where TOverlay : class, IPageOverlay<TResult>
+        {
+            return _overlays.ShowAsync<TOverlay, TResult>(payload);
+        }
+
+        internal void CloseTopOverlay()
+        {
+            _overlays.CloseTop();
+        }
+
+        internal void CloseAllOverlays()
+        {
+            _overlays.CloseAll();
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         /// <summary>
         /// Explicit modal API. Returns a result when the modal closes.
@@ -387,11 +457,7 @@ namespace NekoLib.Navigation.Runtime.Core
         // CORE NAVIGATION (ASSUMES already UI-thread + serialized)
         // ---------------------------------------------------------------------
 
-        private async Task SwitchInternalAsync(
-            Type pageType,
-            NavigationArgs navArgs,
-            int redirectDepth = 0,
-            HashSet<Type> visited = null)
+        private async Task SwitchInternalAsync(Type pageType,NavigationArgs navArgs,int redirectDepth = 0,HashSet<Type> visited = null)
         {
             if (pageType == null)
                 throw new ArgumentNullException(nameof(pageType));
@@ -488,6 +554,7 @@ namespace NekoLib.Navigation.Runtime.Core
                         return;
 
                     case PagePresentationMode.Replace:
+
                     default:
                         break;
                 }
@@ -501,19 +568,24 @@ namespace NekoLib.Navigation.Runtime.Core
                     throw new InvalidOperationException(
                         $"Navigation target '{canonicalPageType.FullName}' is not a page.");
 
-                
+
                 if (from != null)
                 {
-                    _ctx.Registry.TryGetDescriptor(from.GetType(),   out fromDesc);
+                    _ctx.Registry.TryGetDescriptor(from.GetType(), out fromDesc);
                 }
                 // Capture history state EARLY
                 object fromState = null;
                 if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
-                     fromState = (from as IPageStateful)?.CaptureState();
+                    fromState = (from as IPageStateful)?.CaptureState();
 
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
 
                 to = ResolvePage(toDesc);
+
+                if (toDesc.LoadMode == NavigationLoadMode.LoadBeforeShow)
+                {
+                    await LoadAsync(to, navArgs.Payload);
+                }
 
                 // Hide base page
                 if (from is IPageVisibility fromVis)
@@ -573,12 +645,19 @@ namespace NekoLib.Navigation.Runtime.Core
                 // Remove any existing base entries, keep overlays already closed above.
                 PushOrReplaceBaseEntry(to, toDesc);
 
-                await LoadAsync(to, navArgs.Payload);
+                if (toDesc.LoadMode == NavigationLoadMode.ShowImmediately)
+                {
+                    await LoadAsync(to, navArgs.Payload);
+                }
+                else if (toDesc.LoadMode == NavigationLoadMode.LoadInBackground)
+                {
+                    _ = LoadAsync(to, navArgs.Payload);
+                }
 
                 if (to is IPageLifecycle enter)
                     await enter.OnNavigatedToAsync(navArgs);
 
-                 
+
 
                 if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
                 {
@@ -590,7 +669,7 @@ namespace NekoLib.Navigation.Runtime.Core
 
                     HistoryChanged?.Invoke();
                 }
-                
+
 
                 Navigated?.Invoke(from, to, navArgs);
                 _diagnostics.EmitSuccess(from, to, navArgs, desc: toDesc);
@@ -648,14 +727,28 @@ namespace NekoLib.Navigation.Runtime.Core
             });
         }
 
-        private static async Task LoadAsync(IPageView page, object payload)
+        private async Task LoadAsync(IPageView page, object payload)
         {
             if (page is IBackgroundLoadable bg)
             {
-                await Task.Run(async () =>
-                {
-                    await bg.LoadInBackgroundAsync(payload).ConfigureAwait(false);
-                });
+                // 1. Resolve the mask from the registry
+                var maskDesc = _ctx.Registry.AllDescriptors()
+                    .FirstOrDefault(d => typeof(IGlobalLoadingMask).IsAssignableFrom(d.PageType));
+
+                var overlays = _ctx.Services.CanResolve(typeof(IOverlayService))
+                    ? _ctx.Services.Get(typeof(IOverlayService)) as IOverlayService
+                    : null;
+
+                // 2. SHOW THE MASK
+                if (overlays != null && maskDesc != null)
+                    overlays.Show(maskDesc.PageType, "Loading...");
+
+                // 3. DO THE HEAVY EXCEL WORK
+                await Task.Run(async () => await bg.LoadInBackgroundAsync(payload).ConfigureAwait(false));
+
+                // 4. HIDE THE MASK
+                if (overlays != null && maskDesc != null)
+                    overlays.CloseTop();
 
                 await bg.ApplyBackgroundResultAsync();
             }

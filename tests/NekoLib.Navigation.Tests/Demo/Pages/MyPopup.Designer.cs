@@ -1,9 +1,6 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
-using System.Windows.Forms;
-
-namespace NekoLib.Navigation.WinForms {
-
-    public   partial class BasePage : UserControl, IPageView
+﻿namespace NavigationDemo.Pages
+{
+    partial class MyPopup
     {
         /// <summary> 
         /// Required designer variable.
@@ -38,5 +35,3 @@ namespace NekoLib.Navigation.WinForms {
         #endregion
     }
 }
-
-

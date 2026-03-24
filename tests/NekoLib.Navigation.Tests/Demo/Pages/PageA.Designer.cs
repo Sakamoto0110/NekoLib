@@ -29,32 +29,106 @@ namespace NavigationDemo.Pages {
         /// </summary>
         private void InitializeComponent()
         {
-            button1 = new Button();
-            SuspendLayout();
+            this.btnHome = new System.Windows.Forms.Button();
+            this.btnDialog = new System.Windows.Forms.Button();
+            this.btnPopup = new System.Windows.Forms.Button();
+            this.rtbDialogResult = new System.Windows.Forms.RichTextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.btnClear = new System.Windows.Forms.Button();
+            this.SuspendLayout();
             // 
-            // button1
+            // btnHome
             // 
-            button1.Location = new Point(41, 35);
-            button1.Name = "button1";
-            button1.Size = new Size(94, 29);
-            button1.TabIndex = 0;
-            button1.Text = "button1";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
+            this.btnHome.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnHome.Location = new System.Drawing.Point(23, 242);
+            this.btnHome.Margin = new System.Windows.Forms.Padding(2);
+            this.btnHome.Name = "btnHome";
+            this.btnHome.Size = new System.Drawing.Size(130, 24);
+            this.btnHome.TabIndex = 0;
+            this.btnHome.Text = "Return home";
+            this.btnHome.UseVisualStyleBackColor = true;
+            this.btnHome.Click += new System.EventHandler(this.btnHome_Click);
+            // 
+            // btnDialog
+            // 
+            this.btnDialog.Location = new System.Drawing.Point(23, 36);
+            this.btnDialog.Margin = new System.Windows.Forms.Padding(2);
+            this.btnDialog.Name = "btnDialog";
+            this.btnDialog.Size = new System.Drawing.Size(130, 24);
+            this.btnDialog.TabIndex = 0;
+            this.btnDialog.Text = "SpawnDialog";
+            this.btnDialog.UseVisualStyleBackColor = true;
+            this.btnDialog.Click += new System.EventHandler(this.btnDialog_Click);
+            // 
+            // btnPopup
+            // 
+            this.btnPopup.Location = new System.Drawing.Point(23, 8);
+            this.btnPopup.Margin = new System.Windows.Forms.Padding(2);
+            this.btnPopup.Name = "btnPopup";
+            this.btnPopup.Size = new System.Drawing.Size(130, 24);
+            this.btnPopup.TabIndex = 0;
+            this.btnPopup.Text = "SpawnPopup";
+            this.btnPopup.UseVisualStyleBackColor = true;
+            this.btnPopup.Click += new System.EventHandler(this.btnPopup_Click);
+            // 
+            // rtbDialogResult
+            // 
+            this.rtbDialogResult.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
+            this.rtbDialogResult.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.rtbDialogResult.Location = new System.Drawing.Point(23, 80);
+            this.rtbDialogResult.Name = "rtbDialogResult";
+            this.rtbDialogResult.ReadOnly = true;
+            this.rtbDialogResult.Size = new System.Drawing.Size(130, 129);
+            this.rtbDialogResult.TabIndex = 1;
+            this.rtbDialogResult.Text = "";
+            // 
+            // label1
+            // 
+            this.label1.Location = new System.Drawing.Point(20, 62);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(133, 15);
+            this.label1.TabIndex = 2;
+            this.label1.Text = "Dialog result:";
+            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // btnClear
+            // 
+            this.btnClear.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnClear.Location = new System.Drawing.Point(23, 214);
+            this.btnClear.Margin = new System.Windows.Forms.Padding(2);
+            this.btnClear.Name = "btnClear";
+            this.btnClear.Size = new System.Drawing.Size(130, 24);
+            this.btnClear.TabIndex = 0;
+            this.btnClear.Text = "Clear";
+            this.btnClear.UseVisualStyleBackColor = true;
+            this.btnClear.Click += new System.EventHandler(this.btnClear_Click);
             // 
             // PageA
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
-            AutoScaleMode = AutoScaleMode.Font;
-            Controls.Add(button1);
-            Name = "PageA";
-            Size = new Size(1407, 393);
-            ResumeLayout(false);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.rtbDialogResult);
+            this.Controls.Add(this.btnPopup);
+            this.Controls.Add(this.btnDialog);
+            this.Controls.Add(this.btnClear);
+            this.Controls.Add(this.btnHome);
+            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Name = "PageA";
+            this.Size = new System.Drawing.Size(1055, 277);
+            this.ResumeLayout(false);
+
         }
 
         #endregion
 
-        private Button button1;
+        private Button btnHome;
+        private Button btnDialog;
+        private Button btnPopup;
+        private RichTextBox rtbDialogResult;
+        private Label label1;
+        private Button btnClear;
     }
 }
 

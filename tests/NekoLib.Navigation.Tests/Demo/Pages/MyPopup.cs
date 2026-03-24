@@ -1,5 +1,4 @@
-﻿using NekoLib.Navigation.WinForms;
-using NekoLib.Navigation.WinForms.Hosting;
+﻿using NekoLib.Navigation.WinForms.Hosting;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -12,9 +11,9 @@ using System.Windows.Forms;
 
 namespace NavigationDemo.Pages
 {
-    public partial class HomePage : PageView
+    public partial class MyPopup : PopupView
     {
-        public HomePage()
+        public MyPopup()
         {
             InitializeComponent();
         }

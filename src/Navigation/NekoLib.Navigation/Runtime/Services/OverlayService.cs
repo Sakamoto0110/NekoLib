@@ -1,207 +1,207 @@
-﻿//using NekoLib.Navigation.Contracts.Pages;
-//using NekoLib.Navigation.Contracts.Platform;
-//using NekoLib.Navigation.Contracts.Runtime;
-//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Threading;
-//using System.Threading.Tasks;
+﻿using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Platform;
+using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime.Factories;
+using NekoLib.Navigation.Runtime.Registry;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
-//namespace NekoLib.Navigation.Runtime.Services
-//{
-//    public sealed class OverlayService : IOverlayService
-//    {
-//        private readonly IServiceProvider _services;
-//        private readonly IModalHost _modalHost;
-//        private readonly IInteractionBlocker _blocker;
+namespace NekoLib.Navigation.Runtime.Services
+{
+    public sealed class OverlayService : IOverlayService
+    {
+        private readonly IViewHost _host;
+        private readonly PageFactory _factory;
+        private readonly PageRegistry _registry;
+        private readonly Stack<OverlayEntry> _stack = new();
+        private readonly SemaphoreSlim _gate = new(1, 1);
 
-//        private readonly Stack<OverlayEntry> _stack = new();
-//        private readonly SemaphoreSlim _gate = new(1, 1);
+        public bool HasOverlay => _stack.Count > 0;
+        public int OverlayCount => _stack.Count;
 
-//        public bool HasOverlay => _stack.Count > 0;
-//        public int OverlayCount => _stack.Count;
+        public OverlayService(IViewHost host, PageFactory factory, PageRegistry registry)
+        {
+            _host = host ?? throw new ArgumentNullException(nameof(host));
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        }
 
-//        public OverlayService(
-//            IServiceProvider services,
-//            IModalHost modalHost,
-//            IInteractionBlocker blocker)
-//        {
-//            _services = services ?? throw new ArgumentNullException(nameof(services));
-//            _modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
-//            _blocker = blocker ?? throw new ArgumentNullException(nameof(blocker));
-//        }
+        // ------------------------------------------------------------
+        // Show (fire-and-forget generic)
+        // ------------------------------------------------------------
 
-//        // ------------------------------------------------------------
-//        // Non-modal overlay
-//        // ------------------------------------------------------------
+        public void Show<TOverlay>() where TOverlay : class, IPageOverlay
+        {
+            _ = ShowInternalAsync<TOverlay, object>(null, false);
+        }
 
-//        public void Show<TOverlay>()
-//            where TOverlay : class, IPageOverlay
-//            => Show<TOverlay>(null);
+        public void Show<TOverlay>(object payload) where TOverlay : class, IPageOverlay
+        {
+            _ = ShowInternalAsync<TOverlay, object>(payload, false);
+        }
 
-//        public void Show<TOverlay>(object payload)
-//            where TOverlay : class, IPageOverlay
-//        {
-//            _ = ShowInternalAsync<TOverlay>(payload, modal: false);
-//        }
+        // ------------------------------------------------------------
+        // Show (fire-and-forget runtime type - NEW!)
+        // ------------------------------------------------------------
 
-//        // ------------------------------------------------------------
-//        // Modal overlay (awaitable)
-//        // ------------------------------------------------------------
+        public void Show(Type overlayType, object payload = null)
+        {
+            if (overlayType == null) throw new ArgumentNullException(nameof(overlayType));
 
-//        public Task<TResult> ShowAsync<TOverlay, TResult>()
-//            where TOverlay : class, IPageOverlay<TResult>
-//            => ShowAsync<TOverlay, TResult>(null);
+            _ = ShowTypeInternalAsync(overlayType, payload);
+        }
 
-//        public Task<TResult> ShowAsync<TOverlay, TResult>(object payload)
-//            where TOverlay : class, IPageOverlay<TResult>
-//        {
-//            return ShowInternalAsync<TOverlay, TResult>(payload);
-//        }
+        // ------------------------------------------------------------
+        // Show (awaitable result)
+        // ------------------------------------------------------------
 
-//        // ------------------------------------------------------------
-//        // Close
-//        // ------------------------------------------------------------
+        public Task<TResult> ShowAsync<TOverlay, TResult>() where TOverlay : class, IPageOverlay<TResult>
+        {
+            return ShowInternalAsync<TOverlay, TResult>(null, true);
+        }
 
-//        public void CloseTop()
-//        {
-//            _ = CloseTopInternalAsync();
-//        }
+        public Task<TResult> ShowAsync<TOverlay, TResult>(object payload) where TOverlay : class, IPageOverlay<TResult>
+        {
+            return ShowInternalAsync<TOverlay, TResult>(payload, true);
+        }
 
-//        public void CloseAll()
-//        {
-//            _ = CloseAllInternalAsync();
-//        }
+        // ------------------------------------------------------------
+        // Core Logic (Generic)
+        // ------------------------------------------------------------
 
-//        // ------------------------------------------------------------
-//        // Internals
-//        // ------------------------------------------------------------
+        private async Task<TResult> ShowInternalAsync<TOverlay, TResult>(object payload, bool expectResult)
+            where TOverlay : class, IPageOverlay
+        {
+            await _gate.WaitAsync();
+            try
+            {
+                var descriptor = _registry.GetDescriptor(typeof(TOverlay));
+                var view = _factory.Create<TOverlay>();
 
-//        private async Task ShowInternalAsync<TOverlay>(object payload, bool modal)
-//            where TOverlay : class, IPageOverlay
-//        {
-//            await _gate.WaitAsync();
-//            try
-//            {
-//                var overlay = CreateOverlay<TOverlay>();
+                var tcs = expectResult ? new TaskCompletionSource<TResult>() : null;
+                var entry = new OverlayEntry(view, descriptor, tcs);
 
-//                var entry = new OverlayEntry(overlay, modal, null);
-//                _stack.Push(entry);
+                _stack.Push(entry);
 
-//                if (modal)
-//                    _blocker.Block();
+                // Flattened Z-order injection
+                _host.AddView(view.NativeView);
+                _host.BringToFront(view.NativeView);
+                _host.Focus(view.NativeView);
 
-//                await _modalHost.ShowModalAsync(overlay);
-//                await overlay.OnOverlayOpenedAsync(payload);
-//            }
-//            finally
-//            {
-//                _gate.Release();
-//            }
-//        }
+                await view.OnOverlayOpenedAsync(payload);
 
-//        private async Task<TResult> ShowInternalAsync<TOverlay, TResult>(object payload)
-//            where TOverlay : class, IPageOverlay<TResult>
-//        {
-//            await _gate.WaitAsync();
-//            try
-//            {
-//                var overlay = CreateOverlay<TOverlay>();
+                if (expectResult && tcs != null)
+                {
+                    return await tcs.Task;
+                }
 
-//                var tcs = new TaskCompletionSource<TResult>(
-//                    TaskCreationOptions.RunContinuationsAsynchronously);
+                return default;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
 
-//                var entry = new OverlayEntry(overlay, modal: true, tcs);
-//                _stack.Push(entry);
+        // ------------------------------------------------------------
+        // Core Logic (Runtime Type - NEW!)
+        // ------------------------------------------------------------
 
-//                _blocker.Block();
+        private async Task ShowTypeInternalAsync(Type overlayType, object payload)
+        {
+            await _gate.WaitAsync();
+            try
+            {
+                var descriptor = _registry.GetDescriptor(overlayType);
 
-//                await _modalHost.ShowModalAsync(overlay);
-//                await overlay.OnOverlayOpenedAsync(payload);
+                // Uses the non-generic Create method on your factory
+                var view = (IPageOverlay)_factory.Create(overlayType);
 
-//                return await tcs.Task;
-//            }
-//            finally
-//            {
-//                _gate.Release();
-//            }
-//        }
+                var entry = new OverlayEntry(view, descriptor, null);
 
-//        private async Task CloseTopInternalAsync()
-//        {
-//            await _gate.WaitAsync();
-//            try
-//            {
-//                if (_stack.Count == 0)
-//                    return;
+                _stack.Push(entry);
 
-//                var entry = _stack.Peek();
+                _host.AddView(view.NativeView);
+                _host.BringToFront(view.NativeView);
+                _host.Focus(view.NativeView);
 
-//                await entry.Overlay.OnOverlayClosingAsync();
-//                await _modalHost.HideModalAsync(entry.Overlay);
+                await view.OnOverlayOpenedAsync(payload);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
 
-//                _stack.Pop();
+        // ------------------------------------------------------------
+        // Close Logic
+        // ------------------------------------------------------------
 
-//                if (entry.IsModal && !_stack.Any(x => x.IsModal))
-//                    _blocker.Unblock();
+        public void CloseTop()
+        {
+            _gate.Wait();
+            try
+            {
+                if (_stack.Count == 0) return;
 
-//                entry.TryComplete();
-//            }
-//            finally
-//            {
-//                _gate.Release();
-//            }
-//        }
+                var entry = _stack.Pop();
 
-//        private async Task CloseAllInternalAsync()
-//        {
-//            while (_stack.Count > 0)
-//                await CloseTopInternalAsync();
-//        }
+                // Allow the view to perform cleanup
+                _ = entry.View.OnOverlayClosingAsync();
 
-//        private TOverlay CreateOverlay<TOverlay>()
-//            where TOverlay : class
-//        {
-//            var overlay = (TOverlay)_services.GetService(typeof(TOverlay));
+                _host.RemoveView(entry.View.NativeView);
 
-//            if (overlay == null)
-//                throw new InvalidOperationException(
-//                    $"Overlay type '{typeof(TOverlay).FullName}' not registered.");
+                if (entry.ResultTcs != null)
+                {
+                    var result = GetResultFromView(entry.View);
+                    entry.Complete(result);
+                }
 
-//            return overlay;
-//        }
+                if (entry.View is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
 
-//        // ------------------------------------------------------------
-//        // Entry
-//        // ------------------------------------------------------------
+        public void CloseAll()
+        {
+            while (HasOverlay) CloseTop();
+        }
 
-//        private sealed class OverlayEntry
-//        {
-//            public IPageOverlay Overlay { get; }
-//            public bool IsModal { get; }
+        private object GetResultFromView(IPageOverlay view)
+        {
+            // Specifically looks for the Result property on IPageOverlay<TResult>
+            var property = view.GetType().GetProperty("Result");
+            return property?.GetValue(view);
+        }
 
-//            private readonly object _tcs;
+        private sealed class OverlayEntry
+        {
+            public IPageOverlay View { get; }
+            public PageDescriptor Descriptor { get; }
+            public object ResultTcs { get; }
 
-//            public OverlayEntry(IPageOverlay overlay, bool modal, object tcs)
-//            {
-//                Overlay = overlay;
-//                IsModal = modal;
-//                _tcs = tcs;
-//            }
+            public OverlayEntry(IPageOverlay view, PageDescriptor descriptor, object tcs)
+            {
+                View = view;
+                Descriptor = descriptor;
+                ResultTcs = tcs;
+            }
 
-//            public void TryComplete()
-//            {
-//                if (_tcs == null)
-//                    return;
-
-//                var overlayType = Overlay.GetType();
-
-//                var resultProp = overlayType.GetProperty("Result");
-//                var result = resultProp?.GetValue(Overlay);
-
-//                dynamic dynTcs = _tcs;
-//                dynTcs.TrySetResult((dynamic)result);
-//            }
-//        }
-//    }
-//}
+            public void Complete(object result)
+            {
+                if (ResultTcs == null) return;
+                var method = ResultTcs.GetType().GetMethod("TrySetResult");
+                method?.Invoke(ResultTcs, new[] { result });
+            }
+        }
+    }
+}

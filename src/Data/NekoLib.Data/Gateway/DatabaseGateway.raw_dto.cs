@@ -250,6 +250,24 @@ namespace NekoLib.Data.Internal.Gateway
         #endregion
 
         #region DTO API (strong typed, no IL fallback)
+        /*
+         *  var qb = new QueryBuilder()
+         *               .Select("User_id")
+         *               .From("Users")
+         *               .where("something").build();
+         *               
+         *              var list =  new DatabaseWrapper(ctx).GetDto<User>(qb);
+         *               
+         *               
+         *      
+         * 
+         * 
+         * 
+         * 
+         * 
+         */
+
+
 
         public async Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER

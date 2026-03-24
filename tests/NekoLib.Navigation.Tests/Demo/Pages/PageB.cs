@@ -1,5 +1,6 @@
 ﻿using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.WinForms;
+using NekoLib.Navigation.WinForms.Hosting;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Demo.Pages{
-    public partial class PageB : BasePage
+    public partial class PageB : PageView
     {
         public PageB()
         {

@@ -4,12 +4,14 @@ using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Infrastructure;
+using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace NekoLib.Navigation.Bootstrap
@@ -144,6 +146,9 @@ namespace NekoLib.Navigation.Bootstrap
             // 1) Registry (instance-scoped)
              
             PageRegistry registry;
+            bool hasCustomMask = _assemblies
+    .SelectMany(a => a.GetTypes())
+    .Any(t => typeof(IGlobalLoadingMask).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
             if (_registry != null)
             {
                 if (_assemblies.Count > 0 || _pageConfig != null)
@@ -158,9 +163,15 @@ namespace NekoLib.Navigation.Bootstrap
                 {
                     foreach (var asm in _assemblies)
                         builder.RegisterFromAssembly(asm);
-
+                    
                     _pageConfig?.Invoke(builder);
+                    var defaultMaskType = _platform.GetDefaultLoadingMaskType();
+                    if (!hasCustomMask && defaultMaskType != null)
+                    {
+                        builder.RegisterType(defaultMaskType); // Clean, no reflection!
+                    }
                 });
+                
             }
             // ------------------------------------------------------------
             // 2) Validate platform
@@ -204,9 +215,8 @@ namespace NekoLib.Navigation.Bootstrap
             if (subscriber != null)
                 services.Register(typeof(IEventSubscriptionAdapter), subscriber);
 
-            var overlay = _platform.CreateOverlayService(_nativeHost);
-            if (overlay != null)
-                services.Register(typeof(IPageOverlay), overlay);
+           
+             
 
             services.Register(typeof(ITimerAdapter),
                 _platform.CreateTimerAdapter());
@@ -217,8 +227,12 @@ namespace NekoLib.Navigation.Bootstrap
             var pageFactory = new PageFactory();
             services.Register(typeof(PageFactory), pageFactory);
 
-            
+            var overlayService = new OverlayService(host as IViewHost, pageFactory, registry);
+            services.Register(typeof(IOverlayService), overlayService);
+            // --- SAFE FALLBACK INJECTION ---
+           
 
+           
             // ------------------------------------------------------------     
             // 8) Allow app-level service extensions
             // ------------------------------------------------------------
