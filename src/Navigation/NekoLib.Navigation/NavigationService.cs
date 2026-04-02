@@ -1,14 +1,12 @@
 ﻿// FILE: PageNav.Core/Services/NavigationService.cs
-using NekoLib.Diagnostics;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
-using NekoLib.Navigation.Runtime.Registry;
 
 using System;
 using System.Linq;
- using System.Threading.Tasks;
+using System.Threading.Tasks;
 
 namespace NekoLib.Navigation 
 {

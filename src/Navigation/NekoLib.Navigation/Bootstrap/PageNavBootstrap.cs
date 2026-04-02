@@ -4,7 +4,6 @@ using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Infrastructure;
-using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;

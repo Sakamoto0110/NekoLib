@@ -1,5 +1,4 @@
-﻿using NekoLib.Navigation.Metadata;
-using System;
+﻿using System;
 
 
 namespace NekoLib.Navigation.Contracts.Pages

@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-namespace NekoLib.Navigation.Contracts.Pages
+﻿namespace NekoLib.Navigation.Contracts.Pages
 {
 
     /// <summary>
