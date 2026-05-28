@@ -1,44 +1,44 @@
-using NekoLib.Diagnostics;
-using NekoLib.Navigation;
-using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Metadata.Attributes;
-using NekoLib.Navigation.WinForms;
-using NekoLib.Navigation.WinForms.Hosting;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Metadata.Attributes;
+using NekoLib.Navigation.WinForms.Hosting;
 
-namespace Demo.Pages
+namespace NavigationDemo.Pages.HeavyPage
 {
     [PageLoad(NekoLib.Navigation.Metadata.NavigationLoadMode.LoadBeforeShow)]
     public sealed class HeavyPage : PageView, IBackgroundLoadable
     {
-        Label label;
+        private readonly HeavyPageViewModel _viewModel;
+        private Label label;
+
         public HeavyPage()
         {
-               label = new Label { Text = "Loading...", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
+            _viewModel = new HeavyPageViewModel();
+
+            label = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+            };
 
             InitializeComponent();
             Controls.Add(label);
 
-             
+            label.DataBindings.Add(
+                nameof(Label.Text),
+                _viewModel,
+                nameof(HeavyPageViewModel.StatusText),
+                false,
+                DataSourceUpdateMode.OnPropertyChanged);
         }
-
-        private async void LoadAsync()
-        {
-            
-            
-         }
 
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            // 
-            // HeavyPage
-            // 
             this.BackColor = System.Drawing.Color.Firebrick;
             this.Name = "HeavyPage";
             this.ResumeLayout(false);
-
         }
 
         public async Task LoadInBackgroundAsync(object args)
@@ -48,7 +48,7 @@ namespace Demo.Pages
 
         public Task ApplyBackgroundResultAsync()
         {
-            label.Text = "Heavy page loaded";
+            _viewModel.StatusText = "Heavy page loaded";
             return Task.CompletedTask;
         }
     }

@@ -13,13 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="WindowsFormsIntegration">
-      <HintPath>..\..\..\..\..\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\AppLocalWPF\WindowsFormsIntegration.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Pages\ConfirmDialog.cs" />
+    <Compile Update="Pages\ConfirmDialog\ConfirmDialog.cs" />
   </ItemGroup>
 
 </Project>

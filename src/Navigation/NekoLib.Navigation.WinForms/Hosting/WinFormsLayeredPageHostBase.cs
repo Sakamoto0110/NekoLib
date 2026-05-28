@@ -107,6 +107,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
                         Bounds = Root.RectangleToScreen(Root.ClientRectangle),
                         ShowInTaskbar = false,
                         Dock = DockStyle.Fill,
+                        TopLevel = false
                     };
                     mask.Show(parentForm);
                 }
@@ -124,6 +125,8 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 };
 
                 //overlayControl.Dock = DockStyle.Fill;
+                Root.Controls.Add(mask);
+
                 Root.Controls.Add(overlayControl);
 
                 // Center it relative to the Root panel
