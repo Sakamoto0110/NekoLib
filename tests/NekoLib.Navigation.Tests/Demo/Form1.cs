@@ -16,11 +16,16 @@ namespace NavigationDemo
     public partial class Form1 : Form
     {
         private readonly Form1ViewModel _viewModel;
+        private readonly ShellForm _shell;
         WinFormsLayeredPageHostBase _host;
 
         public Form1()
         {
             InitializeComponent();
+
+            _shell = new ShellForm();
+            _shell.FormClosed += (s, e) => this.Close();
+            _shell.Show();
 
             _viewModel = new Form1ViewModel();
 
@@ -30,7 +35,7 @@ namespace NavigationDemo
             MemoryTelemetrySink memory = new MemoryTelemetrySink();
             Diagnostics diagnostics = new Diagnostics(logger, memory);
 
-            var ctx = PageNavBootstrap.Use<WinFormsPlatformAdapter>(panel1)
+            var ctx = PageNavBootstrap.Use<WinFormsPlatformAdapter>(_shell.HostPanel)
               .RegisterPagesFromAssembly(typeof(Form1).Assembly)
               .ConfigurePages(cfg => cfg.Register<ConfirmDialogView>())
               .UseDiagnostics(diagnostics)
