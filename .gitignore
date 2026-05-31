@@ -28,6 +28,12 @@ Thumbs.db
 # Framework Logo
 NekoLib_Logo.png
 *.bundleignore
+
+# Audit files
+audit.md
 *.pubxml
 /.resources
 /tools
+/tests/NekoLib.Data.Tests
+/tests/NekoLib.Navigation.Tests/Unit
+/apagar
