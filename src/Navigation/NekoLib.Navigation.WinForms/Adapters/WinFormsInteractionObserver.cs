@@ -1,13 +1,13 @@
-﻿using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Contracts.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms.Adapters
 {
-     public sealed class WinFormsInteractionObserver :
-      IInteractionObserverService,
-      IDisposable
+    public sealed class WinFormsInteractionObserver :
+     IInteractionObserverService,
+     IDisposable
     {
         private readonly Control _root;
 
@@ -20,11 +20,10 @@ namespace NekoLib.Navigation.WinForms.Adapters
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
 
-            // Hook existing controls
+            // Hook the existing subtree. HookSingle also subscribes to each
+            // container's ControlAdded/ControlRemoved, so future controls added
+            // anywhere beneath root (not just direct children) get hooked too.
             Hook(_root);
-
-            // Observe future controls
-            _root.ControlAdded += OnRootControlAdded;
         }
 
         // ------------------------------------------------------------
@@ -35,24 +34,27 @@ namespace NekoLib.Navigation.WinForms.Adapters
         {
             HookSingle(control);
 
-            foreach(Control child in control.Controls)
+            foreach (Control child in control.Controls)
                 Hook(child);
         }
 
         private void HookSingle(Control control)
         {
-            // 1️⃣ If we already hooked this control, STOP
-            if(!_hooked.Add(control))
+            // If we already hooked this control, stop.
+            if (!_hooked.Add(control))
                 return;
 
-            // 2️⃣ Attach OUR handlers (only now we add to cache)
+            // Observe structural changes so deep/late controls are tracked too.
+            control.ControlAdded += OnControlAdded;
+            control.ControlRemoved += OnControlRemoved;
+
             control.MouseDown += OnInteraction;
             control.KeyDown += OnInteraction;
 
-            if(control is ButtonBase btn)
+            if (control is ButtonBase btn)
                 btn.Click += OnInteraction;
 
-            if(control is TextBoxBase tb)
+            if (control is TextBoxBase tb)
                 tb.TextChanged += OnInteraction;
         }
 
@@ -60,10 +62,18 @@ namespace NekoLib.Navigation.WinForms.Adapters
         // Dynamic controls
         // ------------------------------------------------------------
 
-        private void OnRootControlAdded(object sender, ControlEventArgs e)
+        private void OnControlAdded(object sender, ControlEventArgs e)
         {
-            // New control added anywhere under root
+            // A control (and its current subtree) was added beneath a hooked
+            // container. Hook it recursively.
             Hook(e.Control);
+        }
+
+        private void OnControlRemoved(object sender, ControlEventArgs e)
+        {
+            // A control (and its subtree) was removed; release our handlers so
+            // we do not leak references to detached controls.
+            UnhookTree(e.Control);
         }
 
         // ------------------------------------------------------------
@@ -81,8 +91,6 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
         public void Dispose()
         {
-            _root.ControlAdded -= OnRootControlAdded;
-
             UnhookTree(_root);
             _hooked.Clear();
         }
@@ -91,26 +99,27 @@ namespace NekoLib.Navigation.WinForms.Adapters
         {
             UnhookSingle(control);
 
-            foreach(Control child in control.Controls)
+            foreach (Control child in control.Controls)
                 UnhookTree(child);
         }
 
         private void UnhookSingle(Control control)
         {
-            // 1️⃣ Only detach if WE hooked it
-            if(!_hooked.Remove(control))
+            // Only detach if WE hooked it.
+            if (!_hooked.Remove(control))
                 return;
+
+            control.ControlAdded -= OnControlAdded;
+            control.ControlRemoved -= OnControlRemoved;
 
             control.MouseDown -= OnInteraction;
             control.KeyDown -= OnInteraction;
 
-            if(control is ButtonBase btn)
+            if (control is ButtonBase btn)
                 btn.Click -= OnInteraction;
 
-            if(control is TextBoxBase tb)
+            if (control is TextBoxBase tb)
                 tb.TextChanged -= OnInteraction;
         }
     }
-
-
 }

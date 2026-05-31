@@ -1,9 +1,11 @@
-﻿using NekoLib.Navigation.Contracts.Platform;
-using NekoLib.Navigation.Contracts.Pages;
+﻿using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Platform;
+using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.WinForms.Defaults;
 using NekoLib.Navigation.WinForms.Hosting;
 using System;
+using System.Data;
 using System.Windows.Forms;
-using NekoLib.Navigation.Contracts.Runtime;
 
 namespace NekoLib.Navigation.WinForms.Adapters
 {
@@ -19,13 +21,11 @@ namespace NekoLib.Navigation.WinForms.Adapters
                     "WinFormsPlatformAdapter requires a System.Windows.Forms.Control as native host.",
                     nameof(nativeHost));
 
-            if (control is not Panel panel)
-                throw new InvalidOperationException(
-                    "WinFormsPlatformAdapter requires the host to be a Panel.");
+        
 
-            return new WinFormsLayeredPageHostBase(panel);
+            return new WinFormsLayeredPageHostBase(control);
         }
-
+     
         public IEventDispatcherAdapter CreateEventDispatcher(object nativeHost)
         {
             if (nativeHost is not Control control)
@@ -49,12 +49,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
         public ITimerAdapter CreateTimerAdapter()
             => new WinFormsTimerAdapter();
-
-        public IPageOverlay CreateOverlayService(object nativeHost)
-        {
-            // Optional — return null if not used
-            return null;
-        }
+        public Type GetDefaultLoadingMaskType() =>  typeof(DefaultLoadingMask);
 
         public IInteractionObserverService CreateInteractionObserverAdapter(object nativeHost)
         {

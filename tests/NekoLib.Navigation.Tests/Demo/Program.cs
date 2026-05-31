@@ -1,7 +1,8 @@
 using System;
 using System.Windows.Forms;
 
-namespace NavigationDemo{
+namespace NavigationDemo
+{
     internal static class Program
     {
         /// <summary>
@@ -13,8 +14,7 @@ namespace NavigationDemo{
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
             Application.EnableVisualStyles();
-            Application.Run(new Form1());
+            Application.Run(new TestForm());
         }
     }
 }
-

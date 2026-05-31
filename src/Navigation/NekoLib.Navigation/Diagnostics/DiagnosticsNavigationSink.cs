@@ -1,6 +1,5 @@
 ﻿// FILE: NekoLib.Navigation/Diagnostics/DiagnosticsNavigationSink.cs
 #nullable enable
-using NekoLib.Diagnostics;
 using NekoLib.Diagnostics.Contracts;
 using System;
 using System.Collections.Generic;

@@ -1,87 +1,45 @@
-﻿using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Contracts.Platform;
+using NekoLib.Navigation.Contracts.Pages;
 using System;
-using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms.Hosting
 {
-
-
-  
-
+    /// <summary>
+    /// Managed host that layers content pages and transient surfaces (toasts, dialogs,
+    /// prompts, the loading mask) inside a single Panel. Pages live at the bottom of the
+    /// z-order; every other control is kept above them so surfaces remain visible.
+    /// Nested host Forms are intentionally avoided to dodge WinForms transparency bugs.
+    /// </summary>
     public class WinFormsLayeredPageHostBase : IPageHost, IViewHost
     {
         protected Control Root { get; }
 
-        protected Panel ContentLayer { get; }
-        protected Panel ModalLayer { get; }
-        protected Panel OverlayLayer { get; }
-
-        public   WinFormsLayeredPageHostBase(Control root)
+        public WinFormsLayeredPageHostBase(Control root)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
-
-            // Create layers once
-            ContentLayer = CreateLayer("ContentLayer");
-             
-            ModalLayer = new Panel
-            {
-                Name = "ModalLayer",
-                Dock = DockStyle.Fill,
-                Visible = false
-            };
-
-            OverlayLayer = new Panel
-            {
-                Name = "OverlayLayer",
-                Dock = DockStyle.Fill,
-                Visible = false
-            };
-            // Add in correct order (bottom -> top)
-            Root.Controls.Add(ContentLayer);
-            Root.Controls.Add(ModalLayer);
-            Root.Controls.Add(OverlayLayer);
-
-            ContentLayer.BringToFront(); // not strictly needed, but keeps intent clear
-            ModalLayer.BringToFront();
-            OverlayLayer.BringToFront();
         }
 
-        private static Panel CreateLayer(string name)
-            => new Panel
-            {
-                Name = name,
-                 
-                Visible = true,
-                BackColor = Color.Transparent // optional, helps visually
-            };
-
         // ---------------------------------------------------------------------
-        // IPageHost
+        // IPageHost (content pages)
         // ---------------------------------------------------------------------
 
         public virtual void Attach(IPageView page)
         {
             if (!(page?.NativeView is Control control))
-                throw new InvalidOperationException(
-                    $"Page '{page?.Name}' NativeView must be a WinForms Control.");
+                throw new InvalidOperationException("Page NativeView must be a WinForms Control.");
 
-            var layer = (page is IModalView) ? ModalLayer : ContentLayer;
-
-            if (!layer.Controls.Contains(control))
+            if (!Root.Controls.Contains(control))
             {
                 control.Dock = DockStyle.Fill;
-                layer.Controls.Add(control);
+                Root.Controls.Add(control);
             }
 
             control.Visible = true;
-            control.BringToFront();
 
-            // Ensure top layers remain on top
-          //  OverlayLayer.BringToFront();
-          //  ModalLayer.BringToFront();
+            // Content pages are always the bottom layer; pushing them to the back keeps
+            // any live surfaces (toasts/dialogs/prompts/mask) above them.
+            control.SendToBack();
 
             if (page is IHostAttachable attachable)
                 attachable.OnAttach(this);
@@ -89,15 +47,8 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         public virtual void Detach(IPageView page)
         {
-            if (page?.NativeView is Control control)
-            {
-                // Remove from whichever layer contains it
-                if (ContentLayer.Controls.Contains(control))
-                    ContentLayer.Controls.Remove(control);
-
-                if (ModalLayer.Controls.Contains(control))
-                    ModalLayer.Controls.Remove(control);
-            }
+            if (page?.NativeView is Control control && Root.Controls.Contains(control))
+                Root.Controls.Remove(control);
 
             if (page is IHostAttachable attachable)
                 attachable.OnDetach();
@@ -107,44 +58,39 @@ namespace NekoLib.Navigation.WinForms.Hosting
         {
             if (page?.NativeView is Control control)
             {
+                // Promote the page, then re-assert surfaces so they stay on top.
                 control.BringToFront();
-                OverlayLayer.BringToFront();
+                RestackOverlays();
             }
         }
 
         // ---------------------------------------------------------------------
-        // IViewHost (Overlays, HUD, blockers...)
+        // IViewHost (transient surfaces: toasts, dialogs, prompts, mask)
         // ---------------------------------------------------------------------
 
         public virtual void AddView(object view)
         {
-            if (!(view is Control control))
-                throw new InvalidOperationException("Overlay view must be a WinForms Control.");
-
-            if (!OverlayLayer.Controls.Contains(control))
+            if (view is Control control)
             {
-                control.Dock = DockStyle.Fill;
-                //OverlayLayer.Controls.Add(control);
-            }
+                if (!Root.Controls.Contains(control))
+                    Root.Controls.Add(control);
 
-            control.Visible = true;
-            control.BringToFront();
-           // OverlayLayer.BringToFront();
+                control.Dock = DockStyle.Fill;
+                control.Visible = true;
+                control.BringToFront();
+            }
         }
 
         public virtual void RemoveView(object view)
         {
-            if (view is Control control && OverlayLayer.Controls.Contains(control))
-                OverlayLayer.Controls.Remove(control);
+            if (view is Control control && Root.Controls.Contains(control))
+                Root.Controls.Remove(control);
         }
 
         public virtual void BringToFront(object view)
         {
             if (view is Control control)
-            {
                 control.BringToFront();
-               // OverlayLayer.BringToFront();
-            }
         }
 
         public virtual void Focus(object view)
@@ -153,14 +99,19 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 control.Focus();
         }
 
-        // ---------------------------------------------------------------------
-        // Debug helpers (makes testing easy)
-        // ---------------------------------------------------------------------
+        /// <summary>
+        /// Re-asserts that every non-page surface stays above the content pages, even
+        /// after a page has been brought to front.
+        /// </summary>
+        private void RestackOverlays()
+        {
+            // WinForms z-order: BringToFront moves a control to the visual top.
+            var surfaces = Root.Controls.Cast<Control>()
+                .Where(c => c is not PageView)
+                .ToList();
 
-        public (int content, int modals, int overlays) GetLayerCounts()
-            => (ContentLayer.Controls.Count, ModalLayer.Controls.Count, OverlayLayer.Controls.Count);
-
-        public Control[] GetModalStackTopFirst()
-            => ModalLayer.Controls.Cast<Control>().Reverse().ToArray();
+            foreach (var surface in surfaces)
+                surface.BringToFront();
+        }
     }
 }

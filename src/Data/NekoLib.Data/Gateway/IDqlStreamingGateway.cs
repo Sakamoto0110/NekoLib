@@ -1,9 +1,13 @@
-﻿ using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
+using NekoLib.Data.Dynamic;
+using NekoLib.Data.Query;
 
 namespace NekoLib.Data.Gateway
 {
+#if !NET6_0_OR_GREATER
+    [System.Obsolete("Streaming gateway members are implemented only on net6.0 or greater targets.", true)]
+#endif
     public interface IDqlStreamingGateway
     {
         IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
@@ -11,21 +15,48 @@ namespace NekoLib.Data.Gateway
             Dictionary<string, object?>? parameters = null,
             CancellationToken ct = default);
 
-        IAsyncEnumerable<T> StreamDto<T>(
+        IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
             string sql,
-            Dictionary<string, object?>? parameters = null,
-            CancellationToken ct = default)
-            where T : new();
-
-        IAsyncEnumerable<dynamic> StreamDynamic(
-            string sql,
-            Dictionary<string, object?>? parameters = null,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
             CancellationToken ct = default);
 
-        IAsyncEnumerable<T> StreamUniversal<T>(
-            string sql,
-            Dictionary<string, object?>? parameters = null,
+        IAsyncEnumerable<T> StreamDto<T>(
+            QueryBuilder builder,
             CancellationToken ct = default)
             where T : new();
+
+        IAsyncEnumerable<T> StreamDto<T>(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default)
+            where T : new();
+
+        IAsyncEnumerable<DynamicRow> StreamDynamic(
+            QueryBuilder builder,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<DynamicRow> StreamDynamic(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<dynamic> StreamData(
+            QueryBuilder builder,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<dynamic> StreamData(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<T> StreamData<T>(
+            QueryBuilder builder,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<T> StreamData<T>(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
     }
 }

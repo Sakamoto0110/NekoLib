@@ -1,5 +1,6 @@
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Runtime;
+using System;
 
 /// <summary>
 /// TODO: Document this type.
@@ -19,7 +20,7 @@ namespace NekoLib.Navigation.Contracts.Platform
         IInteractionBlocker CreateInteractionBlocker(object host);
         ITimerAdapter CreateTimerAdapter();
 
-        IPageOverlay CreateOverlayService(object host);
+        Type GetDefaultLoadingMaskType( );
         
 
           IInteractionObserverService CreateInteractionObserverAdapter(object host);

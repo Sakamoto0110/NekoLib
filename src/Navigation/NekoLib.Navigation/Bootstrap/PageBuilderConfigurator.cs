@@ -1,10 +1,5 @@
 ﻿using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Metadata;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Bootstrap
 {
@@ -44,13 +39,6 @@ namespace NekoLib.Navigation.Bootstrap
         public PageRuleBuilder<T> Cache(PageReusePolicy policy)
         {
             _builder.Register<T>(d => d.ReusePolicy = policy);
-            return this;
-        }
-
-        public PageRuleBuilder<T> AsModal()
-        {
-            _builder.Register<T>(d =>
-                d.Presentation = PagePresentationMode.ModalOverlay);
             return this;
         }
 

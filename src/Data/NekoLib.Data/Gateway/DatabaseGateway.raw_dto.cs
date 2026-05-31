@@ -23,7 +23,17 @@ namespace NekoLib.Data.Internal.Gateway
     {
         #region Raw API (RecordItem)
 
-        public async Task<bool> ContainsData(string Sql,CancellationToken Ct = default)
+        public Task<bool> ContainsData(string Sql, CancellationToken Ct = default)
+        {
+            return ContainsDataCore(Sql, null, Ct);
+        }
+
+        public Task<bool> ContainsData(string Sql, DbSession session, CancellationToken Ct = default)
+        {
+            return ContainsDataCore(Sql, session, Ct);
+        }
+
+        private async Task<bool> ContainsDataCore(string Sql, DbSession? session, CancellationToken Ct)
         {
             bool has = await WithCommandAsync(Sql, async delegate (DbCommand cmd)
             {
@@ -32,17 +42,27 @@ namespace NekoLib.Data.Internal.Gateway
                     bool any = await ReadSafeAsync(reader, Ct).ConfigureAwait(false);
                     return any;
                 }
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
 
             return has;
         }
 
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql,CancellationToken Ct = default)
         {
-            return GetRaw(Sql,null, Ct);
+            return GetRawCore(Sql, null, null, Ct);
         }
 
-        public async Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
+        {
+            return GetRawCore(Sql, Parameters, null, Ct);
+        }
+
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters, DbSession session, CancellationToken Ct = default)
+        {
+            return GetRawCore(Sql, Parameters, session, Ct);
+        }
+
+        private async Task<List<Dictionary<string, RecordItem>>> GetRawCore(string Sql, Dictionary<string, object?>? Parameters, DbSession? session, CancellationToken Ct)
         {
             List<Dictionary<string, RecordItem>> result = await WithCommandAsync(Sql,Parameters, async delegate (DbCommand cmd)
             {
@@ -55,36 +75,32 @@ namespace NekoLib.Data.Internal.Gateway
                     while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
                     {
                         Ct.ThrowIfCancellationRequested();
-                        Dictionary<string, RecordItem> row = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);
-                        foreach(string col in schema.Columns)
-                        {
-                            object raw = reader[col];
-                            string strValue = Convert.ToString(raw, CultureInfo.InvariantCulture) ?? string.Empty;
-
-                            RecordItem item = new RecordItem
-                            {
-                                Name = col,
-                                Type = schema.ColumnTypes[col].FullName ?? typeof(string).FullName!,
-                                Value = strValue
-                            };
-                            row[col] = item;
-                        }
-                        list.Add(row);
+                        list.Add(ReadRecordRow(reader, schema));
                     }
                 }
 
                 return list;
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
 
             return result;
         }
 
         public Task ReadRaw(string Sql,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
         {
-            return ReadRaw(Sql, null, Callback, Ct);
+            return ReadRawCore(Sql, null, Callback, null, Ct);
         }
 
-        public async Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        {
+            return ReadRawCore(Sql, Parameters, Callback, null, Ct);
+        }
+
+        public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
+        {
+            return ReadRawCore(Sql, Parameters, Callback, session, Ct);
+        }
+
+        private async Task ReadRawCore(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct)
         {
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -98,31 +114,12 @@ namespace NekoLib.Data.Internal.Gateway
                     while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
                     {
                         Ct.ThrowIfCancellationRequested();
-                        Dictionary<string, RecordItem> row = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);
-
-                        foreach(string col in schema.Columns)
-                        {
-                            object raw = reader[col];
-                            string strValue = Convert.ToString(raw, CultureInfo.InvariantCulture) ?? string.Empty;
-
-                            RecordItem item = new RecordItem
-                            {
-                                Name = col,
-                                Type = schema.ColumnTypes[col].FullName ?? typeof(string).FullName!,
-                                Value = strValue
-                            };
-                            row[col] = item;
-                        }
-                        try
-                        {
-                            Callback(row);
-                        }
-                        catch(Exception ex) { ctx.RaiseError(Sql, ex); }
+                        Callback(ReadRecordRow(reader, schema));
                     }
                 }
 
                 return 0;
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
         }
 
         protected async Task<int> Upsert(string Sql,Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
@@ -131,16 +128,7 @@ namespace NekoLib.Data.Internal.Gateway
                 throw new ArgumentNullException(nameof(Sql));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
-            int affected = await WithCommandAsync(Sql,Parameters, delegate (DbCommand cmd)
-            {
-                try
-                {
-                    return ExecuteNonQuerySafeAsync(cmd, Ct);
-                }
-                catch(Exception ex) { ctx.RaiseError(Sql, ex); return Task.FromResult(-1); }
-                
-                
-            }, Ct).ConfigureAwait(false);
+            int affected = await WithCommandAsync(Sql,Parameters, cmd => ExecuteNonQuerySafeAsync(cmd, Ct), Ct).ConfigureAwait(false);
 
             return affected;
         }
@@ -165,7 +153,17 @@ namespace NekoLib.Data.Internal.Gateway
             return Upsert(Sql,Parameters, Ct);
         }
 
-        public async Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)
+        {
+            return GetRawFromBuilder(Builder, null, Ct);
+        }
+
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder, DbSession session, CancellationToken Ct = default)
+        {
+            return GetRawFromBuilder(Builder, session, Ct);
+        }
+
+        private async Task<List<Dictionary<string, RecordItem>>> GetRawFromBuilder(QueryBuilder Builder, DbSession? session, CancellationToken Ct)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
 
@@ -173,19 +171,20 @@ namespace NekoLib.Data.Internal.Gateway
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
-            List<Dictionary<string, RecordItem>> result = null;
-            try 
-            {
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                result = await GetRaw(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
-                ctx.RaiseSuccess(dbq.Sql);
-            }
-            catch(Exception ex) { ctx.RaiseError(dbq.Sql, ex);  }
-            
-            return result;
+            return await GetRawCore(dbq.Sql, dbq.Parameters, session, Ct).ConfigureAwait(false);
         }
 
-        public async Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        {
+            return ReadRawFromBuilder(Builder, Callback, null, Ct);
+        }
+
+        public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
+        {
+            return ReadRawFromBuilder(Builder, Callback, session, Ct);
+        }
+
+        private async Task ReadRawFromBuilder(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
@@ -195,14 +194,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            
-            try
-            {
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                await ReadRaw(dbq.Sql, dbq.Parameters, Callback, Ct).ConfigureAwait(false);
-                ctx.RaiseSuccess(dbq.Sql);
-            }
-            catch(Exception ex) { ctx.RaiseError(dbq.Sql,ex); }
+            await ReadRawCore(dbq.Sql, dbq.Parameters, Callback, session, Ct).ConfigureAwait(false);
 
         }
 
@@ -215,16 +207,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            int affected = 0;
-            try
-            {
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                 affected = await Insert(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
-                ctx.RaiseSuccess(dbq.Sql);
-            }
-            catch(Exception ex) { ctx.RaiseError(dbq.Sql, ex); affected = -1; }
-            
-            return affected;
+            return await Insert(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
         }
 
         public async Task<int> Update(QueryBuilder Builder , CancellationToken Ct = default)
@@ -236,122 +219,146 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            int affected = 0;
-            try
-            {
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                affected = await Update(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
-                ctx.RaiseSuccess(dbq.Sql);
-            }
-            catch(Exception ex) { ctx.RaiseError(dbq.Sql, ex); affected = -1; }
-            return affected;
+            return await Update(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
         }
 
         #endregion
 
         #region DTO API (strong typed, no IL fallback)
+        /*
+         *  var qb = new QueryBuilder()
+         *               .Select("User_id")
+         *               .From("Users")
+         *               .where("something").build();
+         *               
+         *              var list =  new DatabaseWrapper(ctx).GetDto<User>(qb);
+         *               
+         *               
+         *      
+         * 
+         * 
+         * 
+         * 
+         * 
+         */
 
-        public async Task<List<T>> GetDto<
+
+
+        public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
             T>(QueryBuilder Builder , CancellationToken Ct = default) where T : new()
         {
+            return GetDtoFromBuilder<T>(Builder, null, Ct);
+        }
+
+        public Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder , DbSession session, CancellationToken Ct = default) where T : new()
+        {
+            return GetDtoFromBuilder<T>(Builder, session, Ct);
+        }
+
+        private async Task<List<T>> GetDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder , DbSession? session, CancellationToken Ct) where T : new()
+        {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
-            
+
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
+            return await GetDtoFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session).ConfigureAwait(false);
+        }
+
+        private async Task<List<T>> GetDtoFromSql<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
+        {
             List<T> list = new List<T>();
 
-            await WithCommandAsync(dbq.Sql,dbq.Parameters, async delegate (DbCommand cmd)
+            await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
-                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, Ct).ConfigureAwait(false))
+                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
-                    Type type = typeof(T);
-                    PropertyInfo[] props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                    List<PropertyColumnBinding> bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
 
-                    while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
+                    while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
-                        Ct.ThrowIfCancellationRequested();
-                        T inst = new T();
-                        for(int i = 0; i < props.Length; i++)
-                        {
-                            PropertyInfo p = props[i];
-                            if(!reader.HasColumn(p.Name))
-                                continue;
-
-                            object val = reader[p.Name];
-                            if(val is DBNull) continue;
-
-                            try
-                            {
-                                object converted = Convert.ChangeType(val, p.PropertyType, CultureInfo.InvariantCulture);
-                                p.SetValue(inst, converted, null);
-                            }
-                            catch
-                            {
-                            }
-                        }
-                        list.Add(inst);
+                        ct.ThrowIfCancellationRequested();
+                        list.Add(CreateDtoFromReader<T>(reader, bindings));
                     }
                 }
 
                 return 0;
-            }, Ct).ConfigureAwait(false);
+            }, ct, session).ConfigureAwait(false);
 
             return list;
         }
 
-        public async Task ReadDto<
+        public Task ReadDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
             T>( QueryBuilder Builder , Action<T> Callback,CancellationToken Ct = default)where T : new()
         {
+            return ReadDtoFromBuilder<T>(Builder, Callback, null, Ct);
+        }
+
+        public Task ReadDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>( QueryBuilder Builder , Action<T> Callback, DbSession session, CancellationToken Ct = default)where T : new()
+        {
+            return ReadDtoFromBuilder<T>(Builder, Callback, session, Ct);
+        }
+
+        private async Task ReadDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>( QueryBuilder Builder , Action<T> Callback, DbSession? session, CancellationToken Ct)where T : new()
+        {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
-           
+
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
+            ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await WithCommandAsync(dbq.Sql, dbq.Parameters, async delegate (DbCommand cmd)
+            await ReadDtoFromSql<T>(dbq.Sql, dbq.Parameters, Callback, Ct, session).ConfigureAwait(false);
+        }
+
+        private async Task ReadDtoFromSql<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default, DbSession? session = null) where T : new()
+        {
+            await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
-                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, Ct).ConfigureAwait(false))
+                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
-                    Type type = typeof(T);
-                    PropertyInfo[] props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                    List<PropertyColumnBinding> bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
 
-                    while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
+                    while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
-                        Ct.ThrowIfCancellationRequested();
-                        T inst = new T();
-                        for(int i = 0; i < props.Length; i++)
-                        {
-                            PropertyInfo p = props[i];
-                            if(!reader.HasColumn(p.Name))
-                                continue;
-
-                            object val = reader[p.Name];
-                            if(val is DBNull) continue;
-
-                            try
-                            {
-                                object converted = Convert.ChangeType(val, p.PropertyType, CultureInfo.InvariantCulture);
-                                p.SetValue(inst, converted, null);
-                            }
-                            catch
-                            {
-                            }
-                        }
-
-                        Callback(inst);
+                        ct.ThrowIfCancellationRequested();
+                        callback(CreateDtoFromReader<T>(reader, bindings));
                     }
                 }
 
                 return 0;
-            }, Ct).ConfigureAwait(false);
+            }, ct, session).ConfigureAwait(false);
         }
 
         #endregion
@@ -369,6 +376,30 @@ namespace NekoLib.Data.Internal.Gateway
 #endif
             T>(QueryBuilder builder, CancellationToken ct = default) where T : new()
         {
+            return StreamDtoFromBuilder<T>(builder, null, ct);
+        }
+
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<T> StreamDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession session, CancellationToken ct = default) where T : new()
+        {
+            return StreamDtoFromBuilder<T>(builder, session, ct);
+        }
+
+        private IAsyncEnumerable<T> StreamDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession? session, CancellationToken ct) where T : new()
+        {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -376,54 +407,65 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            try
-            {
-                return StreamDtoCore<T>(dbq, ct);
-            }
-            catch(Exception ex)
-            {
-                ctx.RaiseError(dbq.Sql, ex);
-                throw;
-            }
+            return StreamDtoCore<T>(dbq, session, ct);
         }
 
-        private async IAsyncEnumerable<T> StreamDtoCore<T>(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) where T : new()
+        private async IAsyncEnumerable<T> StreamDtoCore<T>(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) where T : new()
         {
-            DbConnection conn = null;
-            DbCommand cmd = null;
-            DbDataReader reader = null;
+            DbConnection? conn = null;
+            bool ownsConnection = false;
+            DbCommand? cmd = null;
+            DbDataReader? reader = null;
+            List<PropertyColumnBinding>? bindings = null;
 
             try
             {
-                conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
-                try { await conn.OpenAsync(ct).ConfigureAwait(false); }
-                catch(NotSupportedException) { conn.Open(); }
-
-                cmd = conn.CreateCommand();
-                cmd.CommandText = dbq.Sql;
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                ApplyParameters(cmd, dbq.Parameters);
-
-                reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
-                var schema = ExtractSchema(reader);
-
-                while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-
-                    var record = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);
-
-                    foreach(string col in schema.Columns)
+                    if(session != null)
                     {
-                        record[col] = new RecordItem
-                        {
-                            Name = col,
-                            Type = (schema.ColumnTypes[col]?.FullName) ?? typeof(string).FullName!,
-                            Value = reader[col] is DBNull ? string.Empty : (Convert.ToString(reader[col], CultureInfo.InvariantCulture) ?? string.Empty)
-                        };
+                        conn = session.Connection;
+                    }
+                    else
+                    {
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
                     }
 
-                    yield return DataMapper.Map<T>(record);
+                    cmd = conn.CreateCommand();
+                    cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
+                    ctx.RaiseSqlDispatch(dbq.Sql);
+                    ApplyParameters(cmd, dbq.Parameters);
+
+                    reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
+                    bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
+                }
+                catch(Exception ex) when(!(ex is OperationCanceledException))
+                {
+                    ctx.RaiseError(dbq.Sql, ex);
+                    throw;
+                }
+
+                while(true)
+                {
+                    T item;
+                    try
+                    {
+                        if(!await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                            break;
+
+                        ct.ThrowIfCancellationRequested();
+                        item = CreateDtoFromReader<T>(reader, bindings!);
+                    }
+                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    {
+                        ctx.RaiseError(dbq.Sql, ex);
+                        throw;
+                    }
+
+                    yield return item;
                 }
 
                 ctx.RaiseSuccess(dbq.Sql);
@@ -432,7 +474,75 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
-                if(conn != null) conn.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
+            }
+        }
+
+        private async IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRawCore(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        {
+            DbConnection? conn = null;
+            bool ownsConnection = false;
+            DbCommand? cmd = null;
+            DbDataReader? reader = null;
+            SchemaInfo? schema = null;
+
+            try
+            {
+                try
+                {
+                    if(session != null)
+                    {
+                        conn = session.Connection;
+                    }
+                    else
+                    {
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
+                    }
+
+                    cmd = conn.CreateCommand();
+                    cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
+                    ctx.RaiseSqlDispatch(dbq.Sql);
+                    ApplyParameters(cmd, dbq.Parameters);
+
+                    reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
+                    schema = ExtractSchema(reader);
+                }
+                catch(Exception ex) when(!(ex is OperationCanceledException))
+                {
+                    ctx.RaiseError(dbq.Sql, ex);
+                    throw;
+                }
+
+                while(true)
+                {
+                    Dictionary<string, RecordItem> row;
+                    try
+                    {
+                        if(!await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                            break;
+
+                        ct.ThrowIfCancellationRequested();
+                        row = ReadRecordRow(reader, schema!);
+                    }
+                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    {
+                        ctx.RaiseError(dbq.Sql, ex);
+                        throw;
+                    }
+
+                    yield return row;
+                }
+
+                ctx.RaiseSuccess(dbq.Sql);
+            }
+            finally
+            {
+                if(reader != null) reader.Dispose();
+                if(cmd != null) cmd.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
             }
         }
 

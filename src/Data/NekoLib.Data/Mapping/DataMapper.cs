@@ -31,12 +31,10 @@ namespace NekoLib.Data.Mapping
 
             foreach(PropertyInfo prop in props)
             {
-                KeyValuePair<string, RecordItem> kv = Row.FirstOrDefault(r =>string.Equals(r.Key, prop.Name, StringComparison.OrdinalIgnoreCase));
-
-                if(kv.Key == null)
+                RecordItem record;
+                if(!TryGetRecord(Row, prop.Name, out record))
                     continue;
 
-                RecordItem record = kv.Value;
                 object? converted = ConvertValue(record, prop.PropertyType);
 
                 try
@@ -56,7 +54,7 @@ namespace NekoLib.Data.Mapping
             if(targetType == null)
                 throw new ArgumentNullException(nameof(targetType));
 
-            ConstructorInfo ctor = targetType.GetConstructor(Type.EmptyTypes);
+            ConstructorInfo? ctor = targetType.GetConstructor(Type.EmptyTypes);
             if(ctor == null)
                 throw new InvalidOperationException($"Type '{targetType.FullName}' must have a parameterless constructor.");
 
@@ -67,21 +65,20 @@ namespace NekoLib.Data.Mapping
         private static void MapInto(object instance,Dictionary<string, RecordItem> row)
         {
             Type type = instance.GetType();
-            PropertyInfo[] props = type
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanWrite)
-                .ToArray();
+            PropertyInfo[] props = _cache.GetOrAdd(type, static t =>
+            {
+                return t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Where(p => p.CanWrite)
+                        .ToArray();
+            });
 
             for(int i = 0; i < props.Length; i++)
             {
                 PropertyInfo prop = props[i];
 
-                KeyValuePair<string, RecordItem> kv = row.FirstOrDefault(r =>string.Equals(r.Key, prop.Name,StringComparison.OrdinalIgnoreCase));
-
-                if(kv.Key == null)
+                RecordItem record;
+                if(!TryGetRecord(row, prop.Name, out record))
                     continue;
-
-                RecordItem record = kv.Value;
 
                 try
                 {
@@ -92,8 +89,32 @@ namespace NekoLib.Data.Mapping
             }
         }
 
+        private static bool TryGetRecord(Dictionary<string, RecordItem> row, string name, out RecordItem record)
+        {
+            RecordItem? found;
+            if(row.TryGetValue(name, out found) && found != null)
+            {
+                record = found;
+                return true;
+            }
+
+            foreach(KeyValuePair<string, RecordItem> kv in row)
+            {
+                if(string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    record = kv.Value;
+                    return true;
+                }
+            }
+
+            record = null!;
+            return false;
+        }
+
         private static object? ConvertValue(RecordItem Record, Type Target)
         {
+            Type effectiveTarget = Nullable.GetUnderlyingType(Target) ?? Target;
+
             if(Target == typeof(string)) return Record.As<string>();
 
             if(Target == typeof(int) || Target == typeof(int?))
@@ -121,7 +142,10 @@ namespace NekoLib.Data.Mapping
 
             try
             {
-                return Convert.ChangeType(Record.Value, Target, CultureInfo.InvariantCulture);
+                if(effectiveTarget.IsEnum)
+                    return Enum.Parse(effectiveTarget, Record.Value);
+
+                return Convert.ChangeType(Record.Value, effectiveTarget, CultureInfo.InvariantCulture);
             }
             catch { return null; }
              

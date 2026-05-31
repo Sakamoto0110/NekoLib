@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace NekoLib.Navigation.Metadata
 {
-    internal sealed class PageDescriptorBuilder
+    public sealed class PageDescriptorBuilder
     {
         public Type PageType { get; }
 

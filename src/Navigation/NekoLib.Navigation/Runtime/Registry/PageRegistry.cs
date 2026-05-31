@@ -1,9 +1,5 @@
 ﻿using NekoLib.Navigation.Bootstrap;
-using NekoLib.Navigation.Contracts.Guards;
-using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
-using NekoLib.Navigation.Metadata.Attributes;
 using System;
 using System.Collections.Generic;
 #if NET9_0_OR_GREATER
@@ -11,7 +7,6 @@ using System.Collections.Frozen;
 #endif
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Registry
 {
@@ -49,6 +44,10 @@ namespace NekoLib.Navigation.Runtime.Registry
             var descriptors = builder.Build();
 
             return CreateInternal(descriptors);
+        }
+        internal static void InjectPage(PageDescriptor descriptor)
+        {
+            CreateInternal(new[] { descriptor });
         }
 
         public static PageRegistry CreateFromAssembly(Assembly assembly)
@@ -112,9 +111,5 @@ namespace NekoLib.Navigation.Runtime.Registry
 
         public IEnumerable<PageDescriptor> AllDescriptors()
             => _byType.Values;
-
-        public PageDescriptor? ResolveTimeoutTarget()
-            => _byType.Values
-                      .FirstOrDefault(x => x.Role == PageRole.Home);
     }
 }

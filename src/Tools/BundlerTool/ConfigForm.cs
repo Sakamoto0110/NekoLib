@@ -29,10 +29,11 @@ namespace BundlerTool
 
         private void ApplyDarkTheme()
         {
-            this.BackColor = Color.FromArgb(30, 30, 30); // #1E1E1E
+            this.BackColor = Color.FromArgb(35, 31, 40);
             this.ForeColor = Color.White;
-            
-            treeView1.BackColor = Color.FromArgb(45, 45, 48);
+
+            // Purple drift for the TreeView background
+            treeView1.BackColor = Color.FromArgb(45, 40, 52);
             treeView1.ForeColor = Color.White;
             treeView1.BorderStyle = BorderStyle.FixedSingle;
 
@@ -46,11 +47,13 @@ namespace BundlerTool
         {
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 0;
-            btn.BackColor = Color.FromArgb(45, 45, 48);
+            btn.BackColor = Color.FromArgb(50, 45, 60);
             btn.ForeColor = Color.White;
-            btn.MouseEnter += delegate { btn.BackColor = Color.FromArgb(62, 62, 66); };
-            btn.MouseLeave += delegate { btn.BackColor = Color.FromArgb(45, 45, 48); };
+            btn.MouseEnter += delegate { btn.BackColor = Color.FromArgb(70, 60, 85); };
+            btn.MouseLeave += delegate { btn.BackColor = Color.FromArgb(50, 45, 60); };
         }
+
+     
 
         private void ConfigForm_Load(object sender, EventArgs e)
         {

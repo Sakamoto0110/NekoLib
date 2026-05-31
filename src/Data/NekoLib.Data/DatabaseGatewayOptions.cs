@@ -53,6 +53,16 @@ namespace NekoLib.Data
         /// </summary>
         public bool ClearEventsOnContextDispose { get; set; } = true;
 
+        /// <summary>
+        /// Se true, eventos recebem o SQL original. O padrão evita vazamento de literais em logs.
+        /// </summary>
+        public bool EmitRawSqlInEvents { get; set; } = false;
+
+        /// <summary>
+        /// Se true, eventos de sucesso podem carregar o objeto de resultado completo.
+        /// </summary>
+        public bool IncludeCommandResultInSuccessEvents { get; set; } = false;
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;

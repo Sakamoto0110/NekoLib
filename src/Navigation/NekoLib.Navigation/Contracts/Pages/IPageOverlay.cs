@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Contracts.Pages
 {
@@ -16,43 +16,5 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// Called when the overlay is about to be closed.
         /// </summary>
         Task OnOverlayClosingAsync();
-    }
-
-
-    /// <summary>
-    /// Represents an overlay that completes with a result.
-    /// </summary>
-    public interface IPageOverlay<TResult> : IPageOverlay
-    {
-        TResult Result { get; }          
-        bool HasResult { get; }          
-        void SetResult(TResult result);
-    }
-
-
-
-    public sealed class OverlayOptions
-    {
-        /// <summary>True = modal semantics (blocks navigation/UI per implementation).</summary>
-        public bool Modal { get; }
-        /// <summary>If true, OverlayService should block interaction while visible.</summary>
-
-        public bool BlockInteraction { get; }
-        /// <summary>If true, overlay should appear above current page (z-order hint).</summary>
-
-        public bool BringToFront { get; }
-
-        private OverlayOptions(bool modal, bool blockInteraction, bool bringToFront)
-        {
-            Modal = modal;
-            BlockInteraction = blockInteraction;
-            BringToFront = bringToFront;
-        }
-
-        public static OverlayOptions NonModal() => new OverlayOptions(false, false, true); 
-        public static OverlayOptions ModalOverlay() => new OverlayOptions(true, true, true);
-       
-       
-       
     }
 }

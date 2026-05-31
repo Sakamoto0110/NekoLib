@@ -27,38 +27,58 @@ namespace NekoLib.Data.Internal.Gateway
     {
         #region Universal GET (DTO → fallback Dynamic)
 
-        public async Task<List<T>> Get<TTranslator,
+        public Task<List<T>> Get<TTranslator,
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
             T>(QueryBuilder Builder, CancellationToken Ct = default) where TTranslator : IDbQueryTranslator, new() where T : new()
         {
+            return GetUniversalFromBuilder<TTranslator, T>(Builder, null, Ct);
+        }
+
+        public Task<List<T>> Get<TTranslator,
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder, DbSession session, CancellationToken Ct = default) where TTranslator : IDbQueryTranslator, new() where T : new()
+        {
+            return GetUniversalFromBuilder<TTranslator, T>(Builder, session, Ct);
+        }
+
+        private async Task<List<T>> GetUniversalFromBuilder<TTranslator,
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder, DbSession? session, CancellationToken Ct) where TTranslator : IDbQueryTranslator, new() where T : new()
+        {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
 
-            Type targetType = typeof(T);
+            QueryModel model = Builder.Build();
+            DatabaseQuery dbq = new TTranslator().Translate(model);
+            ctx.RaiseSqlGenerated(dbq.Sql);
 
+            return await GetUniversalFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session).ConfigureAwait(false);
+        }
+
+        private async Task<List<T>> GetUniversalFromSql<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
+        {
+            Type targetType = typeof(T);
             if(targetType == typeof(DynamicRow) || targetType == typeof(object))
             {
-                List<DynamicRow> dynRows = await GetDynamic(Builder, Ct).ConfigureAwait(false);
-                List<T> castResult = dynRows.Cast<T>().ToList();
-                return castResult;
+                List<DynamicRow> dynRows = await GetDynamicFromSql(sql, parameters, ct, session).ConfigureAwait(false);
+                List<T> result = new List<T>(dynRows.Count);
+                for(int i = 0; i < dynRows.Count; i++)
+                {
+                    result.Add((T)(object)dynRows[i]);
+                }
+                return result;
             }
 
-            if(targetType.GetConstructor(Type.EmptyTypes) != null)
-            {
-                try
-                {
-                    List<T> dtoResult = await GetDto<T>(Builder, Ct).ConfigureAwait(false);
-                    return dtoResult;
-                }
-                catch
-                {
-                }
-            }
-
-            List<DynamicRow> dynFallback = await GetDynamic(Builder, Ct).ConfigureAwait(false);
-            List<T> fallbackCast = dynFallback.Cast<T>().ToList();
-            return fallbackCast;
+            return await GetDtoFromSql<T>(sql, parameters, ct, session).ConfigureAwait(false);
         }
 
         #endregion
@@ -75,7 +95,15 @@ namespace NekoLib.Data.Internal.Gateway
             if(builder == null) throw new ArgumentNullException(nameof(builder));
             if(handler == null) throw new ArgumentNullException(nameof(handler));
 
-            return ReadUniversalDispatch(builder, handler, ct);
+            return ReadUniversalDispatch(builder, handler, null, ct);
+        }
+
+        public Task Read(QueryBuilder builder,Delegate handler, DbSession session, CancellationToken ct = default)
+        {
+            if(builder == null) throw new ArgumentNullException(nameof(builder));
+            if(handler == null) throw new ArgumentNullException(nameof(handler));
+
+            return ReadUniversalDispatch(builder, handler, session, ct);
         }
 
 
@@ -93,7 +121,18 @@ namespace NekoLib.Data.Internal.Gateway
             return Read(builder, (Delegate)callback, ct);
         }
 
-        private async Task ReadUniversalDispatch(QueryBuilder builder,Delegate handler,CancellationToken ct)
+        public Task Read<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder,Action<T> callback, DbSession session, CancellationToken ct = default)
+        {
+            if(callback == null) throw new ArgumentNullException(nameof(callback));
+
+            return Read(builder, (Delegate)callback, session, ct);
+        }
+
+        private async Task ReadUniversalDispatch(QueryBuilder builder,Delegate handler, DbSession? session, CancellationToken ct)
         {
             ParameterInfo[] pars = handler.Method.GetParameters();
             if(pars.Length != 1)
@@ -105,9 +144,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            try
-            {
-                await WithCommandAsync(dbq.Sql, dbq.Parameters, async cmd => {
+            await WithCommandAsync(dbq.Sql, dbq.Parameters, async cmd => {
                     using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct))
                     {
                         SchemaInfo schema = ExtractSchema(reader);
@@ -115,30 +152,13 @@ namespace NekoLib.Data.Internal.Gateway
                         bool wantsDynamic = targetType == typeof(DynamicRow) || targetType == typeof(object);
                         bool wantsDto = !wantsDynamic && targetType.GetConstructor(Type.EmptyTypes) != null;
 
-                        Type ilType = null; // resolved lazily by CreateDynamicRow when needed
-
                         while(await ReadSafeAsync(reader, ct))
                         {
                             ct.ThrowIfCancellationRequested();
 
                             if(wantsDto)
                             {
-                                // DTO path (SAFE)
-                                // var record = ReadRecordRow(reader, schema);
-                                var record = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);                               
-                                foreach(var col in schema.Columns)
-                                
-
-                                    record[col] = new RecordItem
-                                    {
-                                        Name = col,
-                                        Type = schema.ColumnTypes[col].FullName,
-                                        Value = reader[col] is DBNull ? string.Empty : (Convert.ToString(reader[col], CultureInfo.InvariantCulture) ?? string.Empty)
-                                    };
-
-
-                                
-                                object dto = DataMapper.Map(record, targetType);
+                                object dto = DataMapper.Map(ReadRecordRow(reader, schema), targetType);
                                 handler.DynamicInvoke(dto);
                                 continue;
                             }
@@ -148,15 +168,7 @@ namespace NekoLib.Data.Internal.Gateway
                     }
 
                     return 0;
-                }, ct);
-
-
-            }
-            catch(Exception ex)
-            {
-                ctx.RaiseError(dbq.Sql, ex);
-                throw;
-            }
+                }, ct, session).ConfigureAwait(false);
         }
 
 
@@ -166,6 +178,22 @@ namespace NekoLib.Data.Internal.Gateway
         #region DataStreaming
         public IAsyncEnumerable<dynamic> StreamData(QueryBuilder builder, CancellationToken ct = default)
         {
+            return StreamDataFromBuilder(builder, null, ct);
+        }
+
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<dynamic> StreamData(QueryBuilder builder, DbSession session, CancellationToken ct = default)
+        {
+            return StreamDataFromBuilder(builder, session, ct);
+        }
+
+        private IAsyncEnumerable<dynamic> StreamDataFromBuilder(QueryBuilder builder, DbSession? session, CancellationToken ct)
+        {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -173,15 +201,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            try
-            {
-                return StreamDataCore<dynamic>(dbq, ct);
-            }
-            catch(Exception ex)
-            {
-                ctx.RaiseError(dbq.Sql, ex);
-                throw;
-            }
+            return StreamDynamicAsDynamic(dbq, session, ct);
         }
 
         public IAsyncEnumerable<T> StreamData<
@@ -190,6 +210,30 @@ namespace NekoLib.Data.Internal.Gateway
 #endif
             T>(QueryBuilder builder, CancellationToken ct = default)
         {
+            return StreamDataFromBuilder<T>(builder, null, ct);
+        }
+
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<T> StreamData<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession session, CancellationToken ct = default)
+        {
+            return StreamDataFromBuilder<T>(builder, session, ct);
+        }
+
+        private IAsyncEnumerable<T> StreamDataFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession? session, CancellationToken ct)
+        {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -197,73 +241,78 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            try
-            {
-                return StreamDataCore<T>(dbq, ct);
-            }
-            catch(Exception ex)
-            {
-                ctx.RaiseError(dbq.Sql, ex);
-                throw;
-            }
+            return StreamDataCore<T>(dbq, session, ct);
         }
 
-        private async IAsyncEnumerable<T> StreamDataCore<T>(DatabaseQuery dbq,[EnumeratorCancellation] CancellationToken ct)
+        private async IAsyncEnumerable<T> StreamDataCore<T>(DatabaseQuery dbq, DbSession? session, [EnumeratorCancellation] CancellationToken ct)
         {
-            DbConnection conn = null;
-            DbCommand cmd = null;
-            DbDataReader reader = null;
+            DbConnection? conn = null;
+            bool ownsConnection = false;
+            DbCommand? cmd = null;
+            DbDataReader? reader = null;
+            SchemaInfo? schema = null;
+            bool wantsDto = false;
 
             try
             {
-                conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
-                try { await conn.OpenAsync(ct).ConfigureAwait(false); }
-                catch(NotSupportedException) { conn.Open(); }
-
-                cmd = conn.CreateCommand();
-                cmd.CommandText = dbq.Sql;
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                ApplyParameters(cmd, dbq.Parameters);
-
-                reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
-                var schema = ExtractSchema(reader);
-
-                bool wantsDynamic =
-                    typeof(T) == typeof(object) ||
-                    typeof(T) == typeof(DynamicRow);
-
-                bool wantsDto =
-                    !wantsDynamic &&
-                    typeof(T).GetConstructor(Type.EmptyTypes) != null;
-
-                Type ilType = null;
-                if(wantsDynamic || !wantsDto)
-                    ilType = RuntimeTypeFactory.GetOrCreate(schema);
-
-                while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-
-                    if(wantsDto)
+                    if(session != null)
                     {
-                        var record = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);
-
-                        foreach(string col in schema.Columns)
-                        {
-                            record[col] = new RecordItem
-                            {
-                                Name = col,
-                                Type = schema.ColumnTypes[col]?.FullName,
-                                Value = reader[col] is DBNull ? string.Empty : (Convert.ToString(reader[col], CultureInfo.InvariantCulture) ?? string.Empty)
-                            };
-                        }
-
-                        yield return (T)DataMapper.Map(record, typeof(T));
+                        conn = session.Connection;
                     }
                     else
                     {
-                        yield return (T)(object)CreateDynamicRow(schema, reader);
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
                     }
+
+                    cmd = conn.CreateCommand();
+                    cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
+                    ctx.RaiseSqlDispatch(dbq.Sql);
+                    ApplyParameters(cmd, dbq.Parameters);
+
+                    reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
+                    schema = ExtractSchema(reader);
+
+                    bool wantsDynamic =
+                        typeof(T) == typeof(object) ||
+                        typeof(T) == typeof(DynamicRow);
+
+                    wantsDto =
+                        !wantsDynamic &&
+                        typeof(T).GetConstructor(Type.EmptyTypes) != null;
+                }
+                catch(Exception ex) when(!(ex is OperationCanceledException))
+                {
+                    ctx.RaiseError(dbq.Sql, ex);
+                    throw;
+                }
+
+                while(true)
+                {
+                    T item;
+                    try
+                    {
+                        if(!await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                            break;
+
+                        ct.ThrowIfCancellationRequested();
+
+                        if(wantsDto)
+                            item = (T)DataMapper.Map(ReadRecordRow(reader!, schema!), typeof(T));
+                        else
+                            item = (T)(object)CreateDynamicRow(schema!, reader!);
+                    }
+                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    {
+                        ctx.RaiseError(dbq.Sql, ex);
+                        throw;
+                    }
+
+                    yield return item;
                 }
 
                 ctx.RaiseSuccess(dbq.Sql);
@@ -272,7 +321,7 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
-                if(conn != null) conn.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
             }
         }
 

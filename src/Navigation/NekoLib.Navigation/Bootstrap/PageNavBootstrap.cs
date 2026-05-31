@@ -10,6 +10,7 @@ using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace NekoLib.Navigation.Bootstrap
@@ -144,6 +145,9 @@ namespace NekoLib.Navigation.Bootstrap
             // 1) Registry (instance-scoped)
              
             PageRegistry registry;
+            bool hasCustomMask = _assemblies
+    .SelectMany(a => a.GetTypes())
+    .Any(t => typeof(IGlobalLoadingMask).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
             if (_registry != null)
             {
                 if (_assemblies.Count > 0 || _pageConfig != null)
@@ -158,9 +162,15 @@ namespace NekoLib.Navigation.Bootstrap
                 {
                     foreach (var asm in _assemblies)
                         builder.RegisterFromAssembly(asm);
-
+                    
                     _pageConfig?.Invoke(builder);
+                    var defaultMaskType = _platform.GetDefaultLoadingMaskType();
+                    if (!hasCustomMask && defaultMaskType != null)
+                    {
+                        builder.RegisterType(defaultMaskType); // Clean, no reflection!
+                    }
                 });
+                
             }
             // ------------------------------------------------------------
             // 2) Validate platform
@@ -204,9 +214,8 @@ namespace NekoLib.Navigation.Bootstrap
             if (subscriber != null)
                 services.Register(typeof(IEventSubscriptionAdapter), subscriber);
 
-            var overlay = _platform.CreateOverlayService(_nativeHost);
-            if (overlay != null)
-                services.Register(typeof(IPageOverlay), overlay);
+           
+             
 
             services.Register(typeof(ITimerAdapter),
                 _platform.CreateTimerAdapter());
@@ -217,8 +226,29 @@ namespace NekoLib.Navigation.Bootstrap
             var pageFactory = new PageFactory();
             services.Register(typeof(PageFactory), pageFactory);
 
-            
+            // Replaces the legacy OverlayService with three ISP-friendly services.
+            var viewHost = host as IViewHost;
 
+            IInteractionBlocker modalBlocker = null;
+            if (services.CanResolve(typeof(IInteractionBlocker)))
+                modalBlocker = (IInteractionBlocker)services.Get(typeof(IInteractionBlocker));
+
+            IEventDispatcherAdapter uiDispatcher = null;
+            if (services.CanResolve(typeof(IEventDispatcherAdapter)))
+                uiDispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
+
+            var toastService = new ToastService(viewHost, pageFactory, uiDispatcher);
+            services.Register(typeof(IToastService), toastService);
+
+            var dialogService = new DialogService(viewHost, pageFactory, modalBlocker);
+            services.Register(typeof(IDialogService), dialogService);
+
+            var promptService = new PromptService(viewHost, pageFactory, modalBlocker);
+            services.Register(typeof(IPromptService), promptService);
+            // --- SAFE FALLBACK INJECTION ---
+           
+
+           
             // ------------------------------------------------------------     
             // 8) Allow app-level service extensions
             // ------------------------------------------------------------

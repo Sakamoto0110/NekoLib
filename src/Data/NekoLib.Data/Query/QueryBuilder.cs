@@ -53,6 +53,12 @@ namespace NekoLib.Data.Query
             return "@p" + _paramIndex;
         }
 
+        private static string NewParamName(ref int paramIndex)
+        {
+            paramIndex++;
+            return "@p" + paramIndex;
+        }
+
         #region TOP
 
         /// <summary>
@@ -231,12 +237,7 @@ namespace NekoLib.Data.Query
         {
             if (SubQuery == null) return this;
 
-            QueryModel model = SubQuery.Build();
-            _conditions.Add("EXISTS (" + model.Sql + ")");
-
-            foreach (KeyValuePair<string, object> kv in model.Parameters)
-                _parameters[kv.Key] = kv.Value;
-
+            AddSubQueryCondition("EXISTS", SubQuery);
             return this;
         }
 
@@ -244,13 +245,28 @@ namespace NekoLib.Data.Query
         {
             if (SubQuery == null) return this;
 
-            QueryModel model = SubQuery.Build();
-            _conditions.Add("NOT EXISTS (" + model.Sql + ")");
-
-            foreach (KeyValuePair<string, object> kv in model.Parameters)
-                _parameters[kv.Key] = kv.Value;
-
+            AddSubQueryCondition("NOT EXISTS", SubQuery);
             return this;
+        }
+
+        private void AddSubQueryCondition(string keyword, QueryBuilder subQuery)
+        {
+            QueryModel model = subQuery.Build();
+            string sql = model.Sql;
+
+            foreach (KeyValuePair<string, object?> kv in model.Parameters)
+            {
+                string newName = NewParamName();
+                sql = ReplaceParameterName(sql, kv.Key, newName);
+                _parameters[newName] = kv.Value;
+            }
+
+            _conditions.Add(keyword + " (" + sql + ")");
+        }
+
+        private static string ReplaceParameterName(string sql, string oldName, string newName)
+        {
+            return Regex.Replace(sql, Regex.Escape(oldName) + @"\b", newName);
         }
 
         #endregion
@@ -283,7 +299,7 @@ namespace NekoLib.Data.Query
 
             if (Values != null)
             {
-                foreach (KeyValuePair<string, object> kv in Values)
+                foreach (KeyValuePair<string, object?> kv in Values)
                     _insertValues[kv.Key] = kv.Value;
             }
 
@@ -298,7 +314,7 @@ namespace NekoLib.Data.Query
 
             if (Values != null)
             {
-                foreach (KeyValuePair<string, object> kv in Values)
+                foreach (KeyValuePair<string, object?> kv in Values)
                     _updateValues[kv.Key] = kv.Value;
             }
 
@@ -312,6 +328,8 @@ namespace NekoLib.Data.Query
         public QueryModel Build()
         {
             string sql;
+            Dictionary<string, object?> parameters = new Dictionary<string, object?>(_parameters);
+            int buildParamIndex = _paramIndex;
 
             switch (_queryType)
             {
@@ -320,18 +338,18 @@ namespace NekoLib.Data.Query
                     break;
 
                 case QueryType.Insert:
-                    sql = BuildInsert();
+                    sql = BuildInsert(parameters, ref buildParamIndex);
                     break;
 
                 case QueryType.Update:
-                    sql = BuildUpdate();
+                    sql = BuildUpdate(parameters, ref buildParamIndex);
                     break;
 
                 default:
                     throw new InvalidOperationException("Query type was not defined. Call Select/Insert/Update first.");
             }
 
-            return new QueryModel(sql, new Dictionary<string, object?>(_parameters), _top);
+            return new QueryModel(sql, parameters, _top);
         }
 
         private string BuildSelect()
@@ -382,7 +400,7 @@ namespace NekoLib.Data.Query
             return sb.ToString();
         }
 
-        private string BuildInsert()
+        private string BuildInsert(Dictionary<string, object?> parameters, ref int buildParamIndex)
         {
             if (string.IsNullOrEmpty(_table))
                 throw new InvalidOperationException("INSERT table not specified.");
@@ -396,9 +414,9 @@ namespace NekoLib.Data.Query
             for (int i = 0; i < cols.Count; i++)
             {
                 string column = cols[i];
-                string paramName = NewParamName();
+                string paramName = NewParamName(ref buildParamIndex);
                 paramNames.Add(paramName);
-                _parameters[paramName] = _insertValues[column];
+                parameters[paramName] = _insertValues[column];
             }
 
             string sql = "INSERT INTO " + _table +
@@ -408,7 +426,7 @@ namespace NekoLib.Data.Query
             return sql;
         }
 
-        private string BuildUpdate()
+        private string BuildUpdate(Dictionary<string, object?> parameters, ref int buildParamIndex)
         {
             if (string.IsNullOrEmpty(_table))
                 throw new InvalidOperationException("UPDATE table not specified.");
@@ -418,11 +436,11 @@ namespace NekoLib.Data.Query
 
             List<string> sets = new List<string>();
 
-            foreach (KeyValuePair<string, object> kv in _updateValues)
+            foreach (KeyValuePair<string, object?> kv in _updateValues)
             {
-                string paramName = NewParamName();
+                string paramName = NewParamName(ref buildParamIndex);
                 sets.Add(kv.Key + " = " + paramName);
-                _parameters[paramName] = kv.Value;
+                parameters[paramName] = kv.Value;
             }
 
             StringBuilder sb = new StringBuilder();
