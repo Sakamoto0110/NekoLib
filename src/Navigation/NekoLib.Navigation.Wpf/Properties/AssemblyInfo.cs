@@ -2,9 +2,9 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-// As informações gerais sobre um assembly são controladas por
-// conjunto de atributos. Altere estes valores de atributo para modificar as informações
-// associada a um assembly.
+// General information about an assembly is controlled through the following
+// set of attributes. Change these attribute values to modify the information
+// associated with an assembly.
 [assembly: AssemblyTitle("PageNav.Wpf")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
@@ -14,20 +14,20 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-// Definir ComVisible como false torna os tipos neste assembly invisíveis
-// para componentes COM. Caso precise acessar um tipo neste assembly de
-// COM, defina o atributo ComVisible como true nesse tipo.
+// Setting ComVisible to false makes the types in this assembly invisible
+// to COM components. If you need to access a type in this assembly from
+// COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
-// O GUID a seguir será destinado à ID de typelib se este projeto for exposto para COM
+// The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("50185016-c32c-4fc0-9c92-a77dc334586c")]
 
-// As informações da versão de um assembly consistem nos quatro valores a seguir:
+// Version information for an assembly consists of the following four values:
 //
-//      Versão Principal
-//      Versão Secundária 
-//      Número da Versão
-//      Revisão
+//      Major Version
+//      Minor Version
+//      Build Number
+//      Revision
 //
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

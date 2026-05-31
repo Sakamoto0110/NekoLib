@@ -8,6 +8,8 @@ namespace NekoLib.Data
     /// <summary>
     /// Representa um item de registro (coluna) retornado do banco.
     /// Armazena tipo, nome e valor textual (cultura invariável).
+    /// Este formato é voltado a exibição/transporte simples e não preserva
+    /// todos os detalhes do valor original, como null, binários e precisão de provedor.
     /// </summary>
     public class RecordItem
     {
@@ -19,23 +21,23 @@ namespace NekoLib.Data
 
         public RecordItem(int V)
         {
-            Type = typeof(int).FullName;
+            Type = typeof(int).FullName ?? string.Empty;
             Value = V.ToString(CultureInfo.InvariantCulture);
         }
 
         public RecordItem(string V)
         {
-            Type = typeof(string).FullName;
+            Type = typeof(string).FullName ?? string.Empty;
             Value = V;
         }
 
         public RecordItem(double V)
         {
-            Type = typeof(double).FullName;
+            Type = typeof(double).FullName ?? string.Empty;
             Value = V.ToString(CultureInfo.InvariantCulture);
         }
 
-        public T As<T>(T DefaultValue = default)
+        public T As<T>(T DefaultValue = default!)
         {
             if (string.IsNullOrWhiteSpace(Value))
                 return DefaultValue;

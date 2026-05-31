@@ -3,6 +3,7 @@ using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Metadata.Attributes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace NekoLib.Navigation.Bootstrap
@@ -50,8 +51,18 @@ namespace NekoLib.Navigation.Bootstrap
 
                 foreach (var an in asm.GetReferencedAssemblies())
                 {
-                    try { queue.Enqueue(Assembly.Load(an)); }
-                    catch { /* ignore load failures */ }
+                    try
+                    {
+                        queue.Enqueue(Assembly.Load(an));
+                    }
+                    catch (Exception ex)
+                    {
+                        // Missing dependencies are common when scanning references
+                        // (plugin scenarios); surface them in Debug so a silently
+                        // skipped assembly is at least diagnosable (D-9).
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[Navigation] Failed to load referenced assembly '{an.FullName}': {ex.Message}");
+                    }
                 }
             }
         }
@@ -80,7 +91,7 @@ namespace NekoLib.Navigation.Bootstrap
 
             foreach (var asm in _assemblies)
             {
-                foreach (var type in asm.GetTypes())
+                foreach (var type in GetLoadableTypes(asm))
                 {
                     if (!IsPageType(type))
                         continue;
@@ -116,6 +127,23 @@ namespace NekoLib.Navigation.Bootstrap
 
         private static bool IsPageType(Type t)
             => typeof(IPageView).IsAssignableFrom(t) && !t.IsAbstract;
+
+        // Assembly.GetTypes() throws if any type fails to load (e.g. a missing
+        // dependency). Recover the types that DID load instead of aborting the
+        // whole scan (NEW-5).
+        private static IEnumerable<Type> GetLoadableTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[Navigation] Failed to load some types from '{assembly.FullName}': {ex.Message}");
+                return ex.Types.OfType<Type>();
+            }
+        }
 
         private static void ApplyAttributes(Type type, PageDescriptorBuilder builder)
         {

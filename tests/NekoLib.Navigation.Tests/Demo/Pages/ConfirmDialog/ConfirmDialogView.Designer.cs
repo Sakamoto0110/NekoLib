@@ -1,16 +1,9 @@
 namespace NavigationDemo.Pages.ConfirmDialog
 {
-    partial class ConfirmDialog
+    partial class ConfirmDialogView
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,10 +15,6 @@ namespace NavigationDemo.Pages.ConfirmDialog
 
         #region Component Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             System.Windows.Forms.Label label1;
@@ -64,20 +53,20 @@ namespace NavigationDemo.Pages.ConfirmDialog
             this.btnAccept.Name = "btnAccept";
             this.btnAccept.Size = new System.Drawing.Size(113, 47);
             this.btnAccept.TabIndex = 0;
-            this.btnAccept.Text = "Accept";
+            this.btnAccept.Text = "Confirm";
             this.btnAccept.UseVisualStyleBackColor = true;
             //
-            // ConfirmDialog
+            // ConfirmDialogView
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.Control;
             this.Controls.Add(label1);
             this.Controls.Add(this.btnAccept);
             this.Controls.Add(this.btnCancel);
-            this.Name = "ConfirmDialog";
+            this.Name = "ConfirmDialogView";
             this.Size = new System.Drawing.Size(309, 124);
             this.ResumeLayout(false);
-
         }
 
         #endregion

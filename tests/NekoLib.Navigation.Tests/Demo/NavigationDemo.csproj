@@ -13,7 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Pages\ConfirmDialog\ConfirmDialog.cs" />
+    <Compile Update="Pages\ConfirmDialog\ConfirmDialogView.cs" />
+    <Compile Update="Pages\PageF\PageF.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
   </ItemGroup>
 
 </Project>

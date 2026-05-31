@@ -1,36 +1,28 @@
 using System.Windows.Input;
 using NavigationDemo.Core;
 using NekoLib.Navigation;
-using ConfirmDialogView = NavigationDemo.Pages.ConfirmDialog.ConfirmDialog;
-using MyToastView = NavigationDemo.Pages.MyToast.MyToast;
+using PageBView = NavigationDemo.Pages.PageB.PageB;
+using PageCView = NavigationDemo.Pages.PageC.PageC;
+using PageDView = NavigationDemo.Pages.PageD.PageD;
+using PageEView = NavigationDemo.Pages.PageE.PageE;
 
 namespace NavigationDemo.Pages.PageA
 {
     public sealed class PageAViewModel : ViewModelBase
     {
-        private string _dialogResult = string.Empty;
-
-        public string DialogResult
-        {
-            get { return _dialogResult; }
-            set { SetProperty(ref _dialogResult, value); }
-        }
-
-        public ICommand GoHomeCommand { get; }
-        public ICommand SpawnToastCommand { get; }
-        public ICommand ShowDialogCommand { get; }
-        public ICommand ClearCommand { get; }
+        public ICommand GoBackCommand { get; }
+        public ICommand GoToBCommand { get; }
+        public ICommand GoToCCommand { get; }
+        public ICommand GoToDCommand { get; }
+        public ICommand GoToECommand { get; }
 
         public PageAViewModel()
         {
-            GoHomeCommand = new RelayCommand(async _ => await NavigationService.GoHomeAsync());
-            SpawnToastCommand = new RelayCommand(_ => NavigationService.ShowOverlay<MyToastView>());
-            ShowDialogCommand = new RelayCommand(async _ =>
-            {
-                var result = await NavigationService.ShowDialogAsync<ConfirmDialogView, string>();
-                DialogResult = DialogResult + result + "\n";
-            });
-            ClearCommand = new RelayCommand(_ => DialogResult = string.Empty);
+            GoBackCommand = new RelayCommand(async _ => await NavigationService.GoBackAsync());
+            GoToBCommand  = new RelayCommand(async _ => await NavigationService.SwitchPage<PageBView>());
+            GoToCCommand  = new RelayCommand(async _ => await NavigationService.SwitchPage<PageCView>());
+            GoToDCommand  = new RelayCommand(async _ => await NavigationService.SwitchPage<PageDView>());
+            GoToECommand  = new RelayCommand(async _ => await NavigationService.SwitchPage<PageEView>());
         }
     }
 }

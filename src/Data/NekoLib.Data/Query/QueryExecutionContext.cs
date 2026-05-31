@@ -6,6 +6,7 @@ namespace NekoLib.Data.Query
 {
     public class QueryExecutionContext : IDisposable
     {
+        private const string RedactedSql = "[SQL redacted]";
         private bool disposedValue;
 
         public event Action<DbQueryEventArgs>? OnSqlGenerated;
@@ -26,11 +27,20 @@ namespace NekoLib.Data.Query
 
         internal void RaiseSqlGenerated(string sql)
         {
-            OnSqlGenerated?.Invoke(new DbQueryEventArgs(sql, DbQueryEventType.SqlGenerated));
+            OnSqlGenerated?.Invoke(new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlGenerated));
         }
-        internal void RaiseSqlDispatch(string sql)=> OnSqlDispatch?.Invoke(new DbQueryEventArgs(sql, DbQueryEventType.SqlDispatched));
-        internal void RaiseSuccess(string sql, object? result = null) => OnSuccess?.Invoke(new DbQuerySuccessEventArgs(sql, result));
-        internal void RaiseError(string sql, Exception ex)=> OnError?.Invoke(new DbQueryFailureEventArgs(sql, ex));
+        internal void RaiseSqlDispatch(string sql)=> OnSqlDispatch?.Invoke(new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlDispatched));
+        internal void RaiseSuccess(string sql, object? result = null)
+        {
+            object? eventResult = Options.IncludeCommandResultInSuccessEvents ? result : null;
+            OnSuccess?.Invoke(new DbQuerySuccessEventArgs(GetEventSql(sql), eventResult));
+        }
+        internal void RaiseError(string sql, Exception ex)=> OnError?.Invoke(new DbQueryFailureEventArgs(GetEventSql(sql), ex));
+
+        private string GetEventSql(string sql)
+        {
+            return Options.EmitRawSqlInEvents ? sql : RedactedSql;
+        }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -40,10 +50,13 @@ namespace NekoLib.Data.Query
                 {
                     ConnectionFactory?.Dispose();
                     // Quebra cadeias de referência (evita leaks por subscribers long-lived)
-                    OnSqlGenerated = null;
-                    OnSqlDispatch = null;
-                    OnSuccess = null;
-                    OnError = null;
+                    if(Options.ClearEventsOnContextDispose)
+                    {
+                        OnSqlGenerated = null;
+                        OnSqlDispatch = null;
+                        OnSuccess = null;
+                        OnError = null;
+                    }
                 }              
                 disposedValue = true;
             }

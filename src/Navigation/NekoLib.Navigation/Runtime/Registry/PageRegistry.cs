@@ -111,9 +111,5 @@ namespace NekoLib.Navigation.Runtime.Registry
 
         public IEnumerable<PageDescriptor> AllDescriptors()
             => _byType.Values;
-
-        public PageDescriptor? ResolveTimeoutTarget()
-            => _byType.Values
-                      .FirstOrDefault(x => x.Role == PageRole.Home);
     }
 }

@@ -1,5 +1,6 @@
-﻿namespace NekoLib.Data.Gateway
+namespace NekoLib.Data.Gateway
 {
+#if NET6_0_OR_GREATER
     public interface IDatabaseGateway :
         IDqlGateway,
         IDqlStreamingGateway,
@@ -7,4 +8,12 @@
         ITclGateway
     {
     }
+#else
+    public interface IDatabaseGateway :
+        IDqlGateway,
+        IDmlGateway,
+        ITclGateway
+    {
+    }
+#endif
 }

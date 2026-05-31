@@ -226,8 +226,25 @@ namespace NekoLib.Navigation.Bootstrap
             var pageFactory = new PageFactory();
             services.Register(typeof(PageFactory), pageFactory);
 
-            var overlayService = new OverlayService(host as IViewHost, pageFactory, registry);
-            services.Register(typeof(IOverlayService), overlayService);
+            // Replaces the legacy OverlayService with three ISP-friendly services.
+            var viewHost = host as IViewHost;
+
+            IInteractionBlocker modalBlocker = null;
+            if (services.CanResolve(typeof(IInteractionBlocker)))
+                modalBlocker = (IInteractionBlocker)services.Get(typeof(IInteractionBlocker));
+
+            IEventDispatcherAdapter uiDispatcher = null;
+            if (services.CanResolve(typeof(IEventDispatcherAdapter)))
+                uiDispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
+
+            var toastService = new ToastService(viewHost, pageFactory, uiDispatcher);
+            services.Register(typeof(IToastService), toastService);
+
+            var dialogService = new DialogService(viewHost, pageFactory, modalBlocker);
+            services.Register(typeof(IDialogService), dialogService);
+
+            var promptService = new PromptService(viewHost, pageFactory, modalBlocker);
+            services.Register(typeof(IPromptService), promptService);
             // --- SAFE FALLBACK INJECTION ---
            
 

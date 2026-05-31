@@ -6,18 +6,16 @@ namespace NavigationDemo.Pages.ConfirmDialog
 {
     public sealed class ConfirmDialogViewModel : ViewModelBase
     {
-        private readonly Action<string> _closeWithResult;
-
-        public ICommand AcceptCommand { get; }
+        public ICommand ConfirmCommand { get; }
         public ICommand CancelCommand { get; }
 
-        public ConfirmDialogViewModel(Action<string> closeWithResult)
+        public ConfirmDialogViewModel(Action onConfirm, Action onCancel)
         {
-            if (closeWithResult == null) throw new ArgumentNullException("closeWithResult");
-            _closeWithResult = closeWithResult;
+            if (onConfirm == null) throw new ArgumentNullException("onConfirm");
+            if (onCancel == null) throw new ArgumentNullException("onCancel");
 
-            AcceptCommand = new RelayCommand(_ => _closeWithResult("Confirmed"));
-            CancelCommand = new RelayCommand(_ => _closeWithResult("Cancelled"));
+            ConfirmCommand = new RelayCommand(_ => onConfirm());
+            CancelCommand = new RelayCommand(_ => onCancel());
         }
     }
 }

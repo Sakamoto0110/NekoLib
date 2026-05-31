@@ -14,6 +14,7 @@ namespace NekoLib.Data
 
         private int _transactionDepth;
         private bool _rolledBack;
+        private bool _disposed;
 
         public DbSession(DbConnection connection)
         {
@@ -22,6 +23,8 @@ namespace NekoLib.Data
 
         public void BeginTransaction()
         {
+            ThrowIfDisposed();
+
             if (_rolledBack)
                 throw new InvalidOperationException("Transaction already rolled back.");
 
@@ -33,6 +36,8 @@ namespace NekoLib.Data
 
         public void Commit()
         {
+            ThrowIfDisposed();
+
             if (_transactionDepth == 0)
                 throw new InvalidOperationException("No active transaction.");
 
@@ -43,31 +48,71 @@ namespace NekoLib.Data
 
             if (_transactionDepth == 0)
             {
-                Transaction!.Commit();
-                Transaction.Dispose();
-                Transaction = null;
+                try
+                {
+                    Transaction!.Commit();
+                }
+                finally
+                {
+                    try
+                    {
+                        Transaction?.Dispose();
+                    }
+                    finally
+                    {
+                        Transaction = null;
+                    }
+                }
             }
         }
 
         public void Rollback()
         {
+            ThrowIfDisposed();
+
             if (Transaction == null)
                 return;
 
-            Transaction.Rollback();
-            Transaction.Dispose();
-            Transaction = null;
-
-            _transactionDepth = 0;
-            _rolledBack = true;
+            try
+            {
+                Transaction.Rollback();
+            }
+            finally
+            {
+                try
+                {
+                    Transaction.Dispose();
+                }
+                finally
+                {
+                    Transaction = null;
+                    _transactionDepth = 0;
+                    _rolledBack = true;
+                }
+            }
         }
 
         public void Dispose()
         {
-            if (Transaction != null && !_rolledBack)
-                Rollback();
+            if (_disposed)
+                return;
 
-            Connection.Dispose();
+            try
+            {
+                if (Transaction != null && !_rolledBack)
+                    Rollback();
+            }
+            finally
+            {
+                Connection.Dispose();
+                _disposed = true;
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(DbSession));
         }
     }
 

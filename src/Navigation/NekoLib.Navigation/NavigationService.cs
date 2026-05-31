@@ -1,11 +1,10 @@
 ﻿// FILE: PageNav.Core/Services/NavigationService.cs
 using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Diagnostics;
+using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation 
@@ -27,6 +26,13 @@ namespace NekoLib.Navigation
         // -------------------------------------------------------------------------
         // PUBLIC EVENTS (forwarded from context)
         // -------------------------------------------------------------------------
+        // These are static events, which means every subscriber is a GC root for
+        // the AppDomain lifetime unless it unsubscribes explicitly (L-4).
+        // Shutdown() nulls all of them so that a login/logout cycle (UseContext →
+        // Shutdown → UseContext) releases all subscribers without requiring callers
+        // to unsubscribe manually. Callers that span multiple sessions SHOULD still
+        // unsubscribe when they no longer need the events, but a missed unsubscribe
+        // will not leak past the next Shutdown() call.
 
         public static event Action<IPageView, Type, NavigationArgs> Navigating;
         public static event Action<IPageView, IPageView, NavigationArgs> Navigated;
@@ -36,29 +42,26 @@ namespace NekoLib.Navigation
         public static event Action<IPageView> OnFirstPageAttached;
         public static event Action OnNoPageAttached;
         public static event Action OnNoPageVisible;
- 
-        private static int _attachedPages;
-        private static int _visiblePages;
 
-         
         // -------------------------------------------------------------------------
         // INIT / SHUTDOWN
         // -------------------------------------------------------------------------
 
         public static void UseContext(NavigationContext context)
         {
-#if DEBUG
-            if(context == null)
+            // Release-safe guards (S-2). Initializing twice without Shutdown() would
+            // leak the previous runtime's event subscriptions and services, so this
+            // must throw in Release as well as Debug.
+            if (context == null)
                 throw new ArgumentNullException(nameof(context));
             if (_context != null)
                 throw new InvalidOperationException(
-                    "NavigationService.Initialize called twice without Shutdown().");
-#endif
+                    "NavigationService.UseContext called twice without Shutdown().");
+
             _context = context;
             _runtime = new NavigationRuntime(context);
 
             WireRuntimeEvents();
-
         }
      
         public static async Task Shutdown()
@@ -71,6 +74,20 @@ namespace NekoLib.Navigation
             }
 
             _context = null;
+
+            // Allow a new adapter to be registered in the next session (S-1).
+            PlatformRegistry.Reset();
+
+            // Release all external subscribers so they are not kept alive past this
+            // session. A subsequent UseContext() starts with a clean slate (L-4).
+            Navigating = null;
+            Navigated = null;
+            NavigationFailed = null;
+            CurrentChanged = null;
+            HistoryChanged = null;
+            OnFirstPageAttached = null;
+            OnNoPageAttached = null;
+            OnNoPageVisible = null;
         }
 
         // -------------------------------------------------------------------------
@@ -91,52 +108,38 @@ namespace NekoLib.Navigation
         public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
 
         // ------------------------------------------------------------
-        // Fire-and-Forget Overlays (Popups, Toasts)
+        // Toast (fire-and-forget, ephemeral)
         // ------------------------------------------------------------
 
-        public static void ShowOverlay<TOverlay>() where TOverlay : class, IPageOverlay
+        public static void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+            where TToast : class, IToastView
         {
-            EnsureRuntime().ShowOverlay<TOverlay>();
+            EnsureRuntime().ShowToast<TToast>(payload, durationMs);
         }
 
-        public static void ShowOverlay<TOverlay>(object payload) where TOverlay : class, IPageOverlay
+        public static void DismissCurrentToast()
         {
-            EnsureRuntime().ShowOverlay<TOverlay>(payload);
-        }
-
-        public static void ShowOverlay(Type overlayType, object payload = null)
-        {
-            EnsureRuntime().ShowOverlay(overlayType, payload);
+            EnsureRuntime().DismissCurrentToast();
         }
 
         // ------------------------------------------------------------
-        // Awaitable Dialogs (Modals returning a result)
+        // Dialog (modal, binary outcome -> bool)
         // ------------------------------------------------------------
 
-        public static Task<TResult> ShowDialogAsync<TOverlay, TResult>()
-            where TOverlay : class, IPageOverlay<TResult>
+        public static Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+            where TDialog : class, IDialogView
         {
-            return EnsureRuntime().ShowDialogAsync<TOverlay, TResult>();
-        }
-
-        public static Task<TResult> ShowDialogAsync<TOverlay, TResult>(object payload)
-            where TOverlay : class, IPageOverlay<TResult>
-        {
-            return EnsureRuntime().ShowDialogAsync<TOverlay, TResult>(payload);
+            return EnsureRuntime().ShowDialogAsync<TDialog>(payload);
         }
 
         // ------------------------------------------------------------
-        // Overlay Stack Management
+        // Prompt (modal, typed user input)
         // ------------------------------------------------------------
 
-        public static void CloseTopOverlay()
+        public static Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+            where TPrompt : class, IPromptView<TResult>
         {
-            EnsureRuntime().CloseTopOverlay();
-        }
-
-        public static void CloseAllOverlays()
-        {
-            EnsureRuntime().CloseAllOverlays();
+            return EnsureRuntime().ShowPromptAsync<TPrompt, TResult>(payload);
         }
 
 
@@ -145,18 +148,6 @@ namespace NekoLib.Navigation
         {
             if (_context != null)
                 throw new InvalidOperationException("NavigationContext is still alive.");
-
-            var leaks = PageLifecycleTracker
-                .SuspectedLeaks(TimeSpan.FromSeconds(1))
-                .ToList();
-
-            if (leaks.Count > 0)
-            {
-                throw new InvalidOperationException(
-                    "Leaked pages detected:\n" +
-                    string.Join("\n", leaks.Select(l =>
-                        $"{l.Name} ({l.State}, policy={l.CachePolicy})")));
-            }
         }
 #endif
 
@@ -180,19 +171,23 @@ namespace NekoLib.Navigation
             _runtime.NavigationFailed += OnNavigationFailed;
             _runtime.CurrentChanged += OnCurrentChanged;
             _runtime.HistoryChanged += OnHistoryChanged;
-             
-         }
+            _runtime.OnFirstPageAttached += OnFirstPageAttachedInternal;
+            _runtime.OnNoPageAttached += OnNoPageAttachedInternal;
+            _runtime.OnNoPageVisible += OnNoPageVisibleInternal;
+        }
 
         private static void UnwireRuntimeEvents()
         {
- 
             _runtime.Navigating -= OnNavigating;
             _runtime.Navigated -= OnNavigated;
             _runtime.NavigationFailed -= OnNavigationFailed;
             _runtime.CurrentChanged -= OnCurrentChanged;
             _runtime.HistoryChanged -= OnHistoryChanged;
+            _runtime.OnFirstPageAttached -= OnFirstPageAttachedInternal;
+            _runtime.OnNoPageAttached -= OnNoPageAttachedInternal;
+            _runtime.OnNoPageVisible -= OnNoPageVisibleInternal;
         }
-        
+
         private static void OnNavigating(IPageView from, Type to, NavigationArgs args)
             => Navigating?.Invoke(from, to, args);
 
@@ -207,6 +202,15 @@ namespace NekoLib.Navigation
 
         private static void OnHistoryChanged()
             => HistoryChanged?.Invoke();
+
+        private static void OnFirstPageAttachedInternal(IPageView page)
+            => OnFirstPageAttached?.Invoke(page);
+
+        private static void OnNoPageAttachedInternal()
+            => OnNoPageAttached?.Invoke();
+
+        private static void OnNoPageVisibleInternal()
+            => OnNoPageVisible?.Invoke();
     
     }
 }

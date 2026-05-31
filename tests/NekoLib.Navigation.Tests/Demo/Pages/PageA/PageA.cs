@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Windows.Forms;
 using NekoLib.Navigation.WinForms.Hosting;
 
@@ -11,21 +12,47 @@ namespace NavigationDemo.Pages.PageA
         {
             InitializeComponent();
 
-            this.BackColor = System.Drawing.Color.LightBlue;
-
             _viewModel = new PageAViewModel();
 
-            rtbDialogResult.DataBindings.Add(
-                nameof(RichTextBox.Text),
-                _viewModel,
-                nameof(PageAViewModel.DialogResult),
-                false,
-                DataSourceUpdateMode.OnPropertyChanged);
+            BackColor = Color.LightBlue;
 
-            btnHome.Click   += (s, e) => _viewModel.GoHomeCommand.Execute(null);
-            btnToast.Click  += (s, e) => _viewModel.SpawnToastCommand.Execute(null);
-            btnDialog.Click += (s, e) => _viewModel.ShowDialogCommand.Execute(null);
-            btnClear.Click  += (s, e) => _viewModel.ClearCommand.Execute(null);
+            var label = new Label
+            {
+                Text = "PAGE A  (hub)",
+                Font = new Font("Microsoft Sans Serif", 24F, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(40, 40)
+            };
+
+            var btnBack = MakeNavButton("← Back", new Point(40, 100),
+                () => _viewModel.GoBackCommand.Execute(null));
+            var btnToB = MakeNavButton("→ PAGE B", new Point(40, 154),
+                () => _viewModel.GoToBCommand.Execute(null));
+            var btnToC = MakeNavButton("→ PAGE C", new Point(40, 198),
+                () => _viewModel.GoToCCommand.Execute(null));
+            var btnToD = MakeNavButton("→ PAGE D", new Point(40, 242),
+                () => _viewModel.GoToDCommand.Execute(null));
+            var btnToE = MakeNavButton("→ PAGE E", new Point(40, 286),
+                () => _viewModel.GoToECommand.Execute(null));
+
+            Controls.Add(label);
+            Controls.Add(btnBack);
+            Controls.Add(btnToB);
+            Controls.Add(btnToC);
+            Controls.Add(btnToD);
+            Controls.Add(btnToE);
+        }
+
+        private static Button MakeNavButton(string text, Point location, System.Action onClick)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Size = new Size(160, 34),
+                Location = location
+            };
+            b.Click += (s, e) => onClick();
+            return b;
         }
     }
 }

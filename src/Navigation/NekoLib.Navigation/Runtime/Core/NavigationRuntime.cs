@@ -22,9 +22,9 @@ namespace NekoLib.Navigation.Runtime.Core
         private IEventDispatcherAdapter _dispatcher;
         private IInteractionObserverService _interactionObserver;
         private PageFactory _pageFactory;
-        private IInteractionBlocker _interactionBlocker; // optional; used for ModalOverlay if available
-        private IOverlayService _overlays;
-
+        private IToastService _toastService;
+        private IDialogService _dialogService;
+        private IPromptService _promptService;
 
         private readonly HashSet<IPageView> _attachedPages = new HashSet<IPageView>();
         private readonly HashSet<IPageView> _visiblePages = new HashSet<IPageView>();
@@ -33,7 +33,7 @@ namespace NekoLib.Navigation.Runtime.Core
         public NavigationEventHub Events => _diagnostics.Hub;
 
         /// <summary>
-        /// Base (Replace) page. Overlays do not change this.
+        /// The current visible page.
         /// </summary>
         public IPageView Current { get; private set; }
 
@@ -41,14 +41,13 @@ namespace NekoLib.Navigation.Runtime.Core
         private readonly Dictionary<Type, IPageView> _strongCache = new Dictionary<Type, IPageView>();
         private readonly Dictionary<Type, WeakReference<IPageView>> _weakCache = new Dictionary<Type, WeakReference<IPageView>>();
 
-        /// <summary>
-        /// Unified presentation stack: base Replace pages + Overlay + ModalOverlay.
-        /// Top = currently top-most presented layer.
-        /// </summary>
-        private readonly Stack<PresentationEntry> _stack = new Stack<PresentationEntry>();
-
         // Serialize ALL runtime mutations
         private readonly SemaphoreSlim _navGate = new SemaphoreSlim(1, 1);
+
+        // Upper bound on guard evaluation. Guards run inside the serialized section
+        // (holding _navGate), so a hung guard would otherwise deadlock all navigation
+        // (N-1). On timeout the navigation is denied and the gate is released.
+        private const int GuardEvaluationTimeoutMs = 30_000;
 
         // ---------------------------------------------------------------------
         // EVENTS
@@ -70,14 +69,11 @@ namespace NekoLib.Navigation.Runtime.Core
         {
             _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
 
-            var hub = new NavigationEventHub();
-
-            INavigationDiagnosticsSink? sink =
-                _ctx.DiagnosticsContext != null
-                    ? new DiagnosticsNavigationSink(_ctx.DiagnosticsContext)
-                    : null;
-
-            _diagnostics = new NavigationDiagnostics(hub, sink);
+            // Share the context's diagnostics channel rather than building a second,
+            // orphaned hub. Previously the runtime published to its own hub while
+            // NavigationContext.Events / .Diagnostics exposed a different, silent one,
+            // so consumers reading context.Events never saw any navigation activity (D-3).
+            _diagnostics = _ctx.Diagnostics;
         }
 
         // ---------------------------------------------------------------------
@@ -137,14 +133,26 @@ namespace NekoLib.Navigation.Runtime.Core
                 _pageFactory = (PageFactory)services.Get(typeof(PageFactory));
             }
 
-            if (_interactionBlocker == null && services.CanResolve(typeof(IInteractionBlocker)))
+            if (_toastService == null && services.CanResolve(typeof(IToastService)))
             {
-                _interactionBlocker = (IInteractionBlocker)services.Get(typeof(IInteractionBlocker));
+                _toastService = (IToastService)services.Get(typeof(IToastService));
             }
-            if (_overlays == null && services.CanResolve(typeof(IOverlayService)))
+
+            if (_dialogService == null && services.CanResolve(typeof(IDialogService)))
             {
-                _overlays = (IOverlayService)services.Get(typeof(IOverlayService));
+                _dialogService = (IDialogService)services.Get(typeof(IDialogService));
             }
+
+            if (_promptService == null && services.CanResolve(typeof(IPromptService)))
+            {
+                _promptService = (IPromptService)services.Get(typeof(IPromptService));
+            }
+        }
+
+        private void RunOnUi(Action action)
+        {
+            EnsureDispatcher();
+            _dispatcher.BeginInvoke(action);
         }
 
         private Task RunOnUiAsync(Func<Task> action)
@@ -226,6 +234,46 @@ namespace NekoLib.Navigation.Runtime.Core
         private Task<T> ExecuteAsync<T>(Func<Task<T>> action)
             => RunOnUiAsync(() => SerializeAsync(action));
 
+        /// <summary>
+        /// Like <see cref="ExecuteAsync(Func{Task})"/>, but tolerant of a dead message
+        /// pump. During app shutdown the host handle may already be destroyed, so
+        /// <c>BeginInvoke</c> would throw (or never run) and the awaiter would hang.
+        /// On failure we run the teardown inline so dispose always completes.
+        /// </summary>
+        private Task ExecuteSafeOnUiAsync(Func<Task> action)
+        {
+            EnsureDispatcher();
+
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async void Run()
+            {
+                try
+                {
+                    await SerializeAsync(action);
+                    tcs.TrySetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            }
+
+            try
+            {
+                _dispatcher.BeginInvoke(Run);
+            }
+            catch
+            {
+                // Message pump is gone (handle destroyed during shutdown). Run inline
+                // so DisposeAsync still completes instead of hanging forever.
+                Run();
+            }
+
+            return tcs.Task;
+        }
+
         // ---------------------------------------------------------------------
         // PUBLIC API (all entry points are gated)
         // ---------------------------------------------------------------------
@@ -247,100 +295,51 @@ namespace NekoLib.Navigation.Runtime.Core
                 return GoBackInternalAsync();
             });
         }
-        internal   void ShowOverlay<TOverlay>() where TOverlay : class, IPageOverlay
-        {
-            _overlays.Show<TOverlay>();
-        }
-
-        internal   void ShowOverlay<TOverlay>(object payload) where TOverlay : class, IPageOverlay
-        {
-            _overlays.Show<TOverlay>(payload);
-        }
-
-        internal   void ShowOverlay(Type overlayType, object payload = null)
-        {
-            _overlays.Show(overlayType, payload);
-        }
-
         // ------------------------------------------------------------
-        // Awaitable Dialogs (Modals returning a result)
+        // ISP-segregated surface: Toast / Dialog / Prompt
         // ------------------------------------------------------------
 
-        internal   Task<TResult> ShowDialogAsync<TOverlay, TResult>() where TOverlay : class, IPageOverlay<TResult>
+        internal void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+            where TToast : class, IToastView
         {
-            return _overlays.ShowAsync<TOverlay, TResult>();
+            EnsureRuntimeServices();
+
+            if (_toastService == null)
+                throw new InvalidOperationException("IToastService is not registered.");
+
+            RunOnUi(() => _toastService.ShowToast<TToast>(payload, durationMs));
         }
 
-        internal   Task<TResult> ShowDialogAsync<TOverlay, TResult>(object payload) where TOverlay : class, IPageOverlay<TResult>
+        internal void DismissCurrentToast()
         {
-            return _overlays.ShowAsync<TOverlay, TResult>(payload);
+            EnsureRuntimeServices();
+
+            if (_toastService != null)
+                RunOnUi(_toastService.DismissCurrentToast);
         }
 
-        internal void CloseTopOverlay()
+        internal Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+            where TDialog : class, IDialogView
         {
-            _overlays.CloseTop();
+            EnsureRuntimeServices();
+
+            if (_dialogService == null)
+                throw new InvalidOperationException("IDialogService is not registered.");
+
+            // Marshal to the UI thread but do NOT take the nav gate: a modal dialog
+            // awaits user input, and holding _navGate would block all navigation.
+            return RunOnUiAsync(() => _dialogService.ShowDialogAsync<TDialog>(payload));
         }
 
-        internal void CloseAllOverlays()
+        internal Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+            where TPrompt : class, IPromptView<TResult>
         {
-            _overlays.CloseAll();
-        }
+            EnsureRuntimeServices();
 
+            if (_promptService == null)
+                throw new InvalidOperationException("IPromptService is not registered.");
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /// <summary>
-        /// Explicit modal API. Returns a result when the modal closes.
-        /// </summary>
-        public Task<ModalResult> ShowModalAsync(Type pageType, NavigationArgs args = null)
-        {
-            return ExecuteAsync(async () =>
-            {
-                EnsureRuntimeServices();
-
-                if (pageType == null)
-                    throw new ArgumentNullException(nameof(pageType));
-
-                if (!_ctx.Registry.TryGetDescriptor(pageType, out var desc))
-                    throw new InvalidOperationException($"Type '{pageType.FullName}' is not a registered page.");
-
-                if (desc.Presentation != PagePresentationMode.ModalOverlay)
-                    throw new InvalidOperationException($"Page '{desc.PageType.FullName}' is not marked as ModalOverlay.");
-
-                return await ShowModalInternalAsync(desc, args ?? NavigationArgs.Empty);
-            });
-        }
-
-        public Task<bool> CloseTopModalAsync(ModalResult result)
-        {
-            return ExecuteAsync(() =>
-            {
-                EnsureRuntimeServices();
-                return CloseTopModalInternalAsync(result);
-            });
+            return RunOnUiAsync(() => _promptService.ShowPromptAsync<TPrompt, TResult>(payload));
         }
 
         public Task ResetAsync()
@@ -349,22 +348,24 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 EnsureRuntimeServices();
 
-                // Close all overlays (Overlay + ModalOverlay), then dispose base page
-                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
+                // Tear down any live toast/dialog/prompt surfaces first so their
+                // awaiters complete and the interaction blocker is released.
+                TeardownOverlayServices();
 
                 if (Current != null)
                 {
-                    // detach base
                     _ctx.Host.Detach(Current);
 
                     if (_ctx.Registry.TryGetDescriptor(Current.GetType(), out var desc))
-                        await CleanupAsync(Current, desc, forceDispose: true);
+                        Cleanup(Current, desc, forceDispose: true);
                     else
                         DisposePage(Current);
 
                     Current = null;
                     CurrentChanged?.Invoke(null);
                 }
+
+                DisposeCachedPages();
 
                 _attachedPages.Clear();
                 _visiblePages.Clear();
@@ -374,36 +375,41 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 _ctx.History.Clear();
                 HistoryChanged?.Invoke();
-
-                _stack.Clear();
             });
         }
 
         public ValueTask DisposeAsync()
         {
-            return new ValueTask(ExecuteAsync(async () =>
+            return new ValueTask(ExecuteSafeOnUiAsync(async () =>
             {
                 EnsureRuntimeServices();
 
-                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
+                TeardownOverlayServices();
 
                 if (Current != null)
                 {
                     _ctx.Host.Detach(Current);
 
                     if (_ctx.Registry.TryGetDescriptor(Current.GetType(), out var desc))
-                        await CleanupAsync(Current, desc, forceDispose: true);
+                        Cleanup(Current, desc, forceDispose: true);
                     else
                         DisposePage(Current);
 
                     Current = null;
                 }
 
+                DisposeCachedPages();
+
                 if (_interactionObserver != null)
                     _interactionObserver.InteractionDetected -= OnInteractionDetected;
-
-                _stack.Clear();
             }));
+        }
+
+        private void TeardownOverlayServices()
+        {
+            _toastService?.DismissCurrentToast();
+            _dialogService?.CloseAll();
+            _promptService?.CloseAll();
         }
 
         // ---------------------------------------------------------------------
@@ -412,19 +418,6 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private async Task<bool> GoBackInternalAsync()
         {
-            // If any overlay is on top, close it first
-            if (_stack.Count > 0 && _stack.Peek().IsOverlay)
-            {
-                if (_stack.Peek().IsModalOverlay)
-                {
-                    await CloseTopModalInternalAsync(ModalResult.Cancel());
-                    return true;
-                }
-
-                await CloseTopOverlayInternalAsync(); // non-modal overlay
-                return true;
-            }
-
             if (!_ctx.History.TryPopBack(out PageHistoryEntry entry))
                 return false;
 
@@ -441,10 +434,15 @@ namespace NekoLib.Navigation.Runtime.Core
 
             await SwitchInternalAsync(
                 entry.PageType,
-                NavigationArgs.Default(entry.State));
+                NavigationArgs.Back(entry.State));
 
             if (forwardEntry != null)
                 _ctx.History.PushForward(forwardEntry);
+
+            // SwitchInternalAsync intentionally skips its Record/HistoryChanged on
+            // back-navigation (see fix there); the back-path manages history itself,
+            // so fire the notification once from here.
+            HistoryChanged?.Invoke();
 
             return true;
         }
@@ -504,7 +502,25 @@ namespace NekoLib.Navigation.Runtime.Core
 
                     try
                     {
-                        result = await guard.EvaluateAsync(guardCtx);
+                        // Bound guard evaluation so a hung guard can't hold _navGate
+                        // forever (N-1). The abandoned task is left to complete on its
+                        // own; we simply deny the navigation and release the gate.
+                        var evalTask = guard.EvaluateAsync(guardCtx);
+                        var finished = await Task.WhenAny(
+                            evalTask,
+                            Task.Delay(GuardEvaluationTimeoutMs));
+
+                        if (!ReferenceEquals(finished, evalTask))
+                        {
+                            _diagnostics.EmitGuardDenied(
+                                from,
+                                canonicalPageType,
+                                null,
+                                "Guard evaluation timed out.");
+                            return;
+                        }
+
+                        result = await evalTask;
                     }
                     catch (Exception ex)
                     {
@@ -537,33 +553,11 @@ namespace NekoLib.Navigation.Runtime.Core
                     }
                 }
 
-                // ---------------- PRESENTATION (UNIFIED) ----------------
-                switch (toDesc.Presentation)
-                {
-                    case PagePresentationMode.Overlay:
-                        await ShowOverlayInternalAsync(toDesc, navArgs);
-                        return;
-
-                    case PagePresentationMode.ModalOverlay:
-                        // NavigateAsync can open modals, but doesn't return a result.
-                        _ = await ShowModalInternalAsync(toDesc, navArgs);
-                        return;
-
-                    case PagePresentationMode.Replace:
-
-                    default:
-                        break;
-                }
-
-                // Replace cancels overlays (kiosk-friendly, matches your previous behavior)
-                await CloseAllOverlaysInternalAsync(ModalResult.Cancel());
-
-                // ---------------- NORMAL NAVIGATION (Replace) ----------------
+                // ---------------- NAVIGATION ----------------
 
                 if (!typeof(IPageView).IsAssignableFrom(canonicalPageType))
                     throw new InvalidOperationException(
                         $"Navigation target '{canonicalPageType.FullName}' is not a page.");
-
 
                 if (from != null)
                 {
@@ -571,7 +565,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 }
                 // Capture history state EARLY
                 object fromState = null;
-                if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
+                if (from != null)
                     fromState = (from as IPageStateful)?.CaptureState();
 
                 Navigating?.Invoke(Current, canonicalPageType, navArgs);
@@ -609,7 +603,7 @@ namespace NekoLib.Navigation.Runtime.Core
                         if (_attachedPages.Remove(from) && _attachedPages.Count == 0)
                             OnNoPageAttached?.Invoke();
 
-                        await CleanupAsync(from, fromDesc, forceDispose: false);
+                        Cleanup(from, fromDesc, forceDispose: false);
                     }
                     else
                     {
@@ -637,25 +631,31 @@ namespace NekoLib.Navigation.Runtime.Core
                 Current = to;
                 CurrentChanged?.Invoke(Current);
 
-                // Update unified stack base pointer:
-                // Remove any existing base entries, keep overlays already closed above.
-                PushOrReplaceBaseEntry(to, toDesc);
-
                 if (toDesc.LoadMode == NavigationLoadMode.ShowImmediately)
                 {
                     await LoadAsync(to, navArgs.Payload);
                 }
                 else if (toDesc.LoadMode == NavigationLoadMode.LoadInBackground)
                 {
-                    _ = LoadAsync(to, navArgs.Payload);
+                    _ = LoadInBackgroundSafeAsync(to, navArgs.Payload);
                 }
+
+                // On back-navigation, restore the captured state through the explicit
+                // IPageStateful channel before the page's enter hook runs, so the page
+                // is fully rehydrated when OnNavigatedToAsync executes (N-2).
+                if (navArgs.IsBackNavigation && to is IPageStateful stateful)
+                    stateful.RestoreState(navArgs.Payload);
 
                 if (to is IPageLifecycle enter)
                     await enter.OnNavigatedToAsync(navArgs);
 
-
-
-                if (toDesc.Presentation == PagePresentationMode.Replace && from != null)
+                // Forward navigation pushes `from` onto the back-stack so the user can
+                // return to it. Back-navigation must NOT do this: GoBackInternalAsync
+                // already manages the back/forward stacks itself, and recording `from`
+                // here would re-push the page we are leaving (e.g. E) onto the back-
+                // stack, causing the next Back to land back on E instead of stepping
+                // further back to A. See history-double-push fix.
+                if (from != null && !navArgs.IsBackNavigation)
                 {
                     _ctx.History.Record(new PageHistoryEntry(
                         from.GetType(),
@@ -665,7 +665,6 @@ namespace NekoLib.Navigation.Runtime.Core
 
                     HistoryChanged?.Invoke();
                 }
-
 
                 Navigated?.Invoke(from, to, navArgs);
                 _diagnostics.EmitSuccess(from, to, navArgs, desc: toDesc);
@@ -681,7 +680,12 @@ namespace NekoLib.Navigation.Runtime.Core
         // Keep a sync signature if something calls it, but route to safe async path.
         private void OnTimeout()
         {
-            _ = OnTimeoutAsync();
+            // Observe faults so a poisoned gate or guard failure doesn't vanish via the
+            // discarded task (A-7).
+            _ = OnTimeoutAsync().ContinueWith(
+                t => System.Diagnostics.Debug.WriteLine(
+                    $"[NavigationRuntime] Timeout navigation failed: {t.Exception}"),
+                TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private Task OnTimeoutAsync()
@@ -723,184 +727,68 @@ namespace NekoLib.Navigation.Runtime.Core
             });
         }
 
-        private async Task LoadAsync(IPageView page, object payload)
+        // Fire-and-forget wrapper for LoadInBackground. Never lets a background-load
+        // failure surface as an unobserved task exception, and only applies the result
+        // when the page is still the live one (A-5).
+        private async Task LoadInBackgroundSafeAsync(IPageView page, object payload)
+        {
+            try
+            {
+                await LoadAsync(page, payload, guardApply: true);
+            }
+            catch (Exception ex)
+            {
+                _diagnostics.EmitFailure(page, page, NavigationArgs.Empty, desc: null);
+                System.Diagnostics.Debug.WriteLine(
+                    $"[NavigationRuntime] Background load failed for '{page?.GetType().FullName}': {ex}");
+            }
+        }
+
+        private async Task LoadAsync(IPageView page, object payload, bool guardApply = false)
         {
             if (page is IBackgroundLoadable bg)
             {
-                // 1. Resolve the mask from the registry
+                // The loading mask is system infrastructure, not a user toast/dialog.
+                // Drive it through IViewHost directly to avoid coupling to the user-facing services.
                 var maskDesc = _ctx.Registry.AllDescriptors()
                     .FirstOrDefault(d => typeof(IGlobalLoadingMask).IsAssignableFrom(d.PageType));
 
-                var overlays = _ctx.Services.CanResolve(typeof(IOverlayService))
-                    ? _ctx.Services.Get(typeof(IOverlayService)) as IOverlayService
-                    : null;
+                var viewHost = _ctx.Host as IViewHost;
+                IPageView mask = null;
 
-                // 2. SHOW THE MASK
-                if (overlays != null && maskDesc != null)
-                    overlays.Show(maskDesc.PageType, "Loading...");
+                if (maskDesc != null && viewHost != null && _pageFactory != null)
+                {
+                    mask = _pageFactory.Create(maskDesc.PageType);
+                    viewHost.AddView(mask.NativeView);
+                    viewHost.BringToFront(mask.NativeView);
 
-                // 3. DO THE HEAVY EXCEL WORK
+                    if (mask is IPageOverlay overlay)
+                        await overlay.OnOverlayOpenedAsync("Loading...");
+                }
+
                 await Task.Run(async () => await bg.LoadInBackgroundAsync(payload).ConfigureAwait(false));
 
-                // 4. HIDE THE MASK
-                if (overlays != null && maskDesc != null)
-                    overlays.CloseTop();
+                if (mask != null && viewHost != null)
+                {
+                    if (mask is IPageOverlay overlay)
+                        await overlay.OnOverlayClosingAsync();
+
+                    viewHost.RemoveView(mask.NativeView);
+
+                    if (!mask.IsDisposed)
+                    {
+                        try { mask.Dispose(); } catch { }
+                    }
+                }
+
+                // For background loads the user may have navigated away (or the page may
+                // have been disposed) while we were loading. Only apply the result when
+                // this page is still the live, attached one (A-5).
+                if (guardApply && (page.IsDisposed || !ReferenceEquals(Current, page)))
+                    return;
 
                 await bg.ApplyBackgroundResultAsync();
             }
-        }
-
-        // ---------------------------------------------------------------------
-        // OVERLAYS (UNIFIED STACK)
-        // ---------------------------------------------------------------------
-
-        private IModalHost EnsureModalHost()
-        {
-            // Prefer host implementing it (your current setup)
-            if (_ctx.Host is IModalHost mh)
-                return mh;
-
-            // Fallback: allow resolving via services
-            var services = _ctx.Services;
-            if (services != null && services.CanResolve(typeof(IModalHost)))
-                return (IModalHost)services.Get(typeof(IModalHost));
-
-            throw new InvalidOperationException("Modal host missing: IModalHost not available.");
-        }
-
-        private async Task ShowOverlayInternalAsync(PageDescriptor descriptor, NavigationArgs args)
-        {
-            var modalHost = EnsureModalHost();
-
-            var view = ResolvePage(descriptor);
-
-            // Push overlay entry (no TCS)
-            _stack.Push(PresentationEntry.ForOverlay(view, descriptor));
-
-            await modalHost.ShowModalAsync(view);
-
-            // Overlay lifecycle if implemented
-            if (view is IPageOverlay overlay)
-                await overlay.OnOverlayOpenedAsync(args?.Payload);
-
-            // No blocking for Overlay mode
-        }
-
-        private async Task<ModalResult> ShowModalInternalAsync(PageDescriptor descriptor, NavigationArgs args)
-        {
-            var modalHost = EnsureModalHost();
-
-            var view = ResolvePage(descriptor);
-
-            var tcs = new TaskCompletionSource<ModalResult>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            _stack.Push(PresentationEntry.ForModal(view, descriptor, tcs));
-
-            // Block interaction if available (host overlay panel may also block physically)
-            _interactionBlocker?.Block();
-
-            await modalHost.ShowModalAsync(view);
-
-            if (view is IPageOverlay overlay)
-                await overlay.OnOverlayOpenedAsync(args?.Payload);
-
-            return await tcs.Task;
-        }
-
-        private async Task CloseTopOverlayInternalAsync()
-        {
-            if (_stack.Count == 0)
-                return;
-
-            var top = _stack.Peek();
-            if (!top.IsOverlay)
-                return;
-
-            var modalHost = EnsureModalHost();
-
-            // overlay lifecycle
-            if (top.View is IPageOverlay overlay)
-                await overlay.OnOverlayClosingAsync();
-
-            await modalHost.HideModalAsync(top.View);
-
-            _stack.Pop();
-
-            // cleanup overlay instance depending on reuse policy
-            if (top.Descriptor.ReusePolicy == PageReusePolicy.Transient)
-                DisposePage(top.View);
-        }
-
-        private async Task<bool> CloseTopModalInternalAsync(ModalResult result)
-        {
-            if (_stack.Count == 0)
-                return false;
-
-            var top = _stack.Peek();
-            if (!top.IsModalOverlay)
-                return false;
-
-            var modalHost = EnsureModalHost();
-
-            if (top.View is IPageOverlay overlay)
-                await overlay.OnOverlayClosingAsync();
-
-            await modalHost.HideModalAsync(top.View);
-
-            _stack.Pop();
-
-            // Unblock if no modal overlays remain
-            if (!_stack.Any(x => x.IsModalOverlay))
-                _interactionBlocker?.Unblock();
-
-            if (top.Descriptor.ReusePolicy == PageReusePolicy.Transient)
-                DisposePage(top.View);
-
-            top.ModalTcs.TrySetResult(result);
-            return true;
-        }
-
-        private async Task CloseAllOverlaysInternalAsync(ModalResult cancelResult)
-        {
-            // Close overlays until top is base (Replace) or stack empty
-            while (_stack.Count > 0 && _stack.Peek().IsOverlay)
-            {
-                if (_stack.Peek().IsModalOverlay)
-                    await CloseTopModalInternalAsync(cancelResult);
-                else
-                    await CloseTopOverlayInternalAsync();
-            }
-
-            _interactionBlocker?.Unblock();
-        }
-
-        private void PushOrReplaceBaseEntry(IPageView baseView, PageDescriptor baseDesc)
-        {
-            // Remove any existing base entries from stack.
-            // In this runtime, we only keep overlays above base, and base as single entry.
-            // Since Replace closes overlays before navigation, the stack should be empty or already contain only base.
-            // We'll ensure the top base entry matches current.
-            if (_stack.Count == 0)
-            {
-                _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
-                return;
-            }
-
-            // If the stack currently has base on top (no overlays), replace it.
-            if (_stack.Count == 1 && !_stack.Peek().IsOverlay)
-            {
-                _stack.Pop();
-                _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
-                return;
-            }
-
-            // If something unexpected remains, rebuild base-only.
-            var overlays = _stack.Where(e => e.IsOverlay).Reverse().ToList();
-            _stack.Clear();
-            _stack.Push(PresentationEntry.ForBase(baseView, baseDesc));
-            foreach (var ov in overlays)
-                _stack.Push(ov);
         }
 
         // ---------------------------------------------------------------------
@@ -937,6 +825,10 @@ namespace NekoLib.Navigation.Runtime.Core
                         return target;
                     }
 
+                    // Drop weak entries whose page was collected/disposed so dead
+                    // slots don't accumulate over the app's lifetime (L-5).
+                    CompactWeakCache();
+
                     var newPage = factory.Create(d.PageType);
                     _weakCache[d.PageType] = new WeakReference<IPageView>(newPage);
                     return newPage;
@@ -950,10 +842,12 @@ namespace NekoLib.Navigation.Runtime.Core
         // LIFECYCLE + CLEANUP
         // ---------------------------------------------------------------------
 
-        private Task CleanupAsync(IPageView page, PageDescriptor descriptor, bool forceDispose)
+        // Synchronous on purpose: there is no async teardown work here, so a Task-returning
+        // signature would only mislead callers (A-8).
+        private void Cleanup(IPageView page, PageDescriptor descriptor, bool forceDispose)
         {
             if (page == null || page.IsDisposed)
-                return Task.CompletedTask;
+                return;
 
             if (forceDispose)
             {
@@ -961,15 +855,13 @@ namespace NekoLib.Navigation.Runtime.Core
                     RemoveFromCaches(descriptor.PageType, page);
 
                 DisposePage(page);
-                return Task.CompletedTask;
+                return;
             }
 
             if (descriptor != null && descriptor.ReusePolicy == PageReusePolicy.Transient)
             {
                 DisposePage(page);
             }
-
-            return Task.CompletedTask;
         }
 
         private void RemoveFromCaches(Type pageType, IPageView page)
@@ -996,54 +888,45 @@ namespace NekoLib.Navigation.Runtime.Core
             catch { }
         }
 
+        // Remove weak-cache entries whose target has been collected or disposed,
+        // so the dictionary doesn't grow stale slots indefinitely (L-5).
+        private void CompactWeakCache()
+        {
+            List<Type> dead = null;
+
+            foreach (var kvp in _weakCache)
+            {
+                if (!kvp.Value.TryGetTarget(out var page) || page == null || page.IsDisposed)
+                    (dead ??= new List<Type>()).Add(kvp.Key);
+            }
+
+            if (dead != null)
+            {
+                foreach (var key in dead)
+                    _weakCache.Remove(key);
+            }
+        }
+
         private void OnInteractionDetected()
         {
             // intentionally empty (extension point)
         }
 
-        // ---------------------------------------------------------------------
-        // INTERNAL SUPPORT TYPES
-        // ---------------------------------------------------------------------
-
-        public readonly struct ModalResult
+        // Dispose every cached page instance (singleton + live weak targets) and
+        // clear the caches. Called on Reset/Dispose so cached pages holding
+        // unmanaged resources don't outlive the runtime.
+        private void DisposeCachedPages()
         {
-            public bool Confirmed { get; }
-            public object Value { get; }
+            foreach (var page in _strongCache.Values)
+                DisposePage(page);
+            _strongCache.Clear();
 
-            public ModalResult(bool confirmed, object value = null)
+            foreach (var weak in _weakCache.Values)
             {
-                Confirmed = confirmed;
-                Value = value;
+                if (weak.TryGetTarget(out var page))
+                    DisposePage(page);
             }
-
-            public static ModalResult Ok(object value = null) => new ModalResult(true, value);
-            public static ModalResult Cancel() => new ModalResult(false, null);
-        }
-
-        private sealed class PresentationEntry
-        {
-            public IPageView View { get; }
-            public PageDescriptor Descriptor { get; }
-            public TaskCompletionSource<ModalResult> ModalTcs { get; }
-
-            private PresentationEntry(IPageView view, PageDescriptor descriptor, TaskCompletionSource<ModalResult> modalTcs)
-            {
-                View = view;
-                Descriptor = descriptor;
-                ModalTcs = modalTcs;
-            }
-
-            public bool IsOverlay => Descriptor.Presentation != PagePresentationMode.Replace;
-            public bool IsModalOverlay => Descriptor.Presentation == PagePresentationMode.ModalOverlay;
-
-            public static PresentationEntry ForBase(IPageView view, PageDescriptor desc)
-                => new PresentationEntry(view, desc, null);
-
-            public static PresentationEntry ForOverlay(IPageView view, PageDescriptor desc)
-                => new PresentationEntry(view, desc, null);
-
-            public static PresentationEntry ForModal(IPageView view, PageDescriptor desc, TaskCompletionSource<ModalResult> tcs)
-                => new PresentationEntry(view, desc, tcs);
+            _weakCache.Clear();
         }
     }
 }

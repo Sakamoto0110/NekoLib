@@ -1,11 +1,14 @@
 #nullable enable
 
  using NekoLib.Data.Query;
+using NekoLib.Data.Gateway;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+#if NETFRAMEWORK
 using System.Data.OleDb;
+#endif
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -24,7 +27,7 @@ namespace NekoLib.Data.Internal.Gateway
     ///   <item><b>Universal</b>: Get/Read com fallback DTO → Dynamic.</item>
     /// </list>
     /// </summary>
-    public partial class DatabaseGateway  
+    public partial class DatabaseGateway : IDatabaseGateway
     {
 
         QueryExecutionContext ctx;
@@ -45,21 +48,35 @@ namespace NekoLib.Data.Internal.Gateway
 
         private async Task<DbConnection> OpenConnectionAsync(CancellationToken Ct)
         {
-            var conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
-
-
+            DbConnection? conn = null;
             try
             {
+                conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
                 await conn.OpenAsync(Ct).ConfigureAwait(false);
+                return conn;
             }
             catch(NotSupportedException)
             {
-                conn.Open();
+                if(conn == null)
+                    throw;
+
+                try
+                {
+                    conn.Open();
+                    return conn;
+                }
+                catch
+                {
+                    conn.Dispose();
+                    throw;
+                }
             }
-
-            return conn;
-
-            
+            catch
+            {
+                if(conn != null)
+                    conn.Dispose();
+                throw;
+            }
         }
         public async Task<DbSession> OpenSessionAsync(CancellationToken ct = default)
         {
@@ -78,18 +95,16 @@ namespace NekoLib.Data.Internal.Gateway
                     cmd.CommandType = CommandType.Text;
 
                     ApplyParameters(cmd, Parameters);
-                    T result = default;
                     try
                     {
                         
                         ctx.RaiseSqlDispatch(Sql);
-                        result = await work(cmd).ConfigureAwait(false);
+                        T result = await work(cmd).ConfigureAwait(false);
                         ctx.RaiseSuccess(Sql, result);
+                        return result;
                     }
                     catch(OperationCanceledException) { throw; }
                     catch(Exception ex) { ctx.RaiseError(Sql, ex); throw; }
-                    return result;
-                    
                 }
             }
         }
@@ -132,6 +147,10 @@ namespace NekoLib.Data.Internal.Gateway
 
                     return result;
                 }
+            }
+            catch(OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -194,10 +213,10 @@ namespace NekoLib.Data.Internal.Gateway
 {
     if(parameters == null || parameters.Count == 0)
         return;
-#if NET481
+#if NETFRAMEWORK
             bool isAccess = cmd is OleDbCommand;
 #else
-            bool isAccess = false;
+            bool isAccess = string.Equals(cmd.GetType().FullName, "System.Data.OleDb.OleDbCommand", StringComparison.Ordinal);
 #endif
 
 

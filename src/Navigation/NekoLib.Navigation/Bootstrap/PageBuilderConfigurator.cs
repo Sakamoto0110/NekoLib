@@ -42,13 +42,6 @@ namespace NekoLib.Navigation.Bootstrap
             return this;
         }
 
-        public PageRuleBuilder<T> AsModal()
-        {
-            _builder.Register<T>(d =>
-                d.Presentation = PagePresentationMode.ModalOverlay);
-            return this;
-        }
-
         public PageRuleBuilder<T> Tag(string tag)
         {
             _builder.Register<T>(d => d.AddTag(tag));

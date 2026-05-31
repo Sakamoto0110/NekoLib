@@ -1,30 +1,32 @@
-﻿// FILE: NekoLib.Navigation.WinForms/Defaults/DefaultLoadingMask.cs
+// FILE: NekoLib.Navigation.WinForms/Defaults/DefaultLoadingMask.cs
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Metadata.Attributes;
-using NekoLib.Navigation.WinForms.Hosting;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms.Defaults
 {
-    [PageMetadata(Name = "DefaultLoadingMask", Presentation = PagePresentationMode.ModalOverlay)]
-    public class DefaultLoadingMask : Form, IGlobalLoadingMask
+    /// <summary>
+    /// Default loading mask. Renders as a borderless, dimmed UserControl so it can be
+    /// safely parented to any host Panel (top-level Forms cannot be embedded that way).
+    /// </summary>
+    [PageMetadata(Name = "DefaultLoadingMask")]
+    public class DefaultLoadingMask : UserControl, IGlobalLoadingMask
     {
-        // Fulfill the IPageView contract manually since we aren't using the PageView base
+        // Fulfill the IPageView contract manually.
         public object NativeView => this;
         public new bool IsDisposed => base.IsDisposed;
 
-        private Label _lblMessage;
+        private readonly Label _lblMessage;
 
         public DefaultLoadingMask()
         {
-            // WinForms Magic for true transparency
-            FormBorderStyle = FormBorderStyle.None;
-            ShowInTaskbar = false;
-            BackColor = Color.Black;
-            Opacity = 0.7; // This dims the page behind it!
+            // Dimmed solid color; UserControl does not honor true transparency the
+            // way Form.Opacity does, so we approximate the "scrim" with a dark tone.
+            BackColor = Color.FromArgb(40, 40, 40);
+            Dock = DockStyle.Fill;
 
             _lblMessage = new Label
             {
@@ -39,7 +41,7 @@ namespace NekoLib.Navigation.WinForms.Defaults
 
         public Task OnOverlayOpenedAsync(object payload)
         {
-            _lblMessage.Text = payload?.ToString() ?? "Carregando...";
+            _lblMessage.Text = payload?.ToString() ?? "Loading...";
             return Task.CompletedTask;
         }
 

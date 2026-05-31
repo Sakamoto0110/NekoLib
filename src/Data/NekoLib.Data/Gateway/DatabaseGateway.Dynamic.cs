@@ -74,8 +74,8 @@ namespace NekoLib.Data.Internal.Gateway
 
                 lock(_sync)
                 {
-                    Type t;
-                    if(_cache.TryGetValue(signature, out t))
+                    Type? t;
+                    if(_cache.TryGetValue(signature, out t) && t != null)
                     {
                         MoveToTail(signature);
                         return t;
@@ -99,7 +99,7 @@ namespace NekoLib.Data.Internal.Gateway
                 for(int i = 0; i < ordered.Count; i++)
                 {
                     string col = ordered[i];
-                    Type t;
+                    Type? t;
                     if(!Schema.ColumnTypes.TryGetValue(col, out t) || t == null)
                         t = typeof(string);
 
@@ -120,7 +120,7 @@ namespace NekoLib.Data.Internal.Gateway
                 for(int i = 0; i < Schema.Columns.Count; i++)
                 {
                     string propName = Schema.Columns[i];
-                    Type propType;
+                    Type? propType;
                     if(!Schema.ColumnTypes.TryGetValue(propName, out propType) || propType == null)
                         propType = typeof(string);
 
@@ -158,13 +158,13 @@ namespace NekoLib.Data.Internal.Gateway
                     prop.SetSetMethod(setter);
                 }
 
-                Type createdType = tb.CreateType();
+                Type createdType = tb.CreateType() ?? throw new InvalidOperationException("Failed to create dynamic row type.");
                 return createdType;
             }
 
             private static void MoveToTail(string Key)
             {
-                LinkedListNode<string> node = _lru.Find(Key);
+                LinkedListNode<string>? node = _lru.Find(Key);
                 if(node != null)
                 {
                     _lru.Remove(node);
@@ -176,7 +176,7 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 while(_lru.Count > _maxTypes)
                 {
-                    LinkedListNode<string> first = _lru.First;
+                    LinkedListNode<string>? first = _lru.First;
                     if(first == null) break;
 
                     string key = first.Value;
@@ -191,10 +191,10 @@ namespace NekoLib.Data.Internal.Gateway
             for(int i = 0; i < Schema.Columns.Count; i++)
             {
                 string col = Schema.Columns[i];
-                PropertyInfo pi = RuntimeType.GetProperty(col);
+                PropertyInfo? pi = RuntimeType.GetProperty(col);
                 if(pi == null || !pi.CanWrite) continue;
 
-                object raw = Reader[col];
+                object raw = Reader.GetValue(Schema.Ordinals[col]);
                 if(raw is DBNull) continue;
 
                 try
@@ -203,10 +203,10 @@ namespace NekoLib.Data.Internal.Gateway
                     if(targetType.IsGenericType &&
                         targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
                     {
-                        targetType = Nullable.GetUnderlyingType(targetType);
+                        targetType = Nullable.GetUnderlyingType(targetType) ?? targetType;
                     }
 
-                    object converted = Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
+                    object? converted = Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
                     pi.SetValue(Instance, converted, null);
                 }
                 catch
@@ -259,7 +259,7 @@ namespace NekoLib.Data.Internal.Gateway
                 for(int i = 0; i < schema.Columns.Count; i++)
                 {
                     string col = schema.Columns[i];
-                    object raw = reader[col];
+                    object raw = reader.GetValue(schema.Ordinals[col]);
                     exp[col] = raw is DBNull ? null : raw;
                 }
                 return new DynamicRow(exp);
@@ -281,7 +281,7 @@ namespace NekoLib.Data.Internal.Gateway
                     for(int i = 0; i < schema.Columns.Count; i++)
                     {
                         string col = schema.Columns[i];
-                        object raw = reader[col];
+                        object raw = reader.GetValue(schema.Ordinals[col]);
                         exp[col] = raw is DBNull ? null : raw;
                     }
                     return new DynamicRow(exp);
@@ -319,33 +319,42 @@ namespace NekoLib.Data.Internal.Gateway
 
             var translator = ctx.Translator;
             QueryModel model = Builder.Build();
-            ctx.RaiseSqlGenerated(model.Sql);
             DatabaseQuery dbq = translator.Translate(model);
+            ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await WithCommandAsync(dbq.Sql,  dbq.Parameters, async delegate (DbCommand cmd)
+            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct).ConfigureAwait(false);
+        }
+
+        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default)
+        {
+            List<DynamicRow> list = new List<DynamicRow>();
+            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct).ConfigureAwait(false);
+            return list;
+        }
+
+        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default)
+        {
+            await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
-                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, Ct).ConfigureAwait(false))
+                using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
                     SchemaInfo schema = ExtractSchema(reader);
 
                     if(schema.Columns.Count == 0)
                         return 0;
 
-                    while(await ReadSafeAsync(reader, Ct).ConfigureAwait(false))
+                    while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
+                        ct.ThrowIfCancellationRequested();
                         DynamicRow row = CreateDynamicRow(schema, reader);
-                        try
-                        {
-                            Callback(row);
-                        }
-                        catch(Exception ex) { ctx.RaiseError(dbq.Sql,ex); }
+                        callback(row);
                         
                     }
                     
                 }
 
                 return 0;
-            }, Ct).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
 
 
@@ -369,43 +378,56 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            try
-            {
-                return StreamDynamicInternal(dbq, ct);
-            }
-            catch(Exception ex)
-            {
-                ctx.RaiseError(dbq.Sql, ex);
-                throw;
-            }
+            return StreamDynamicInternal(dbq, ct);
         }
         private async IAsyncEnumerable<DynamicRow> StreamDynamicInternal(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
-            DbConnection conn = null;
-            DbCommand cmd = null;
-            DbDataReader reader = null;
+            DbConnection? conn = null;
+            DbCommand? cmd = null;
+            DbDataReader? reader = null;
+            SchemaInfo? schema = null;
 
             try
             {
-                conn = await ctx.ConnectionFactory.Create().ConfigureAwait(false);
-                try { await conn.OpenAsync(ct).ConfigureAwait(false); }
-                catch(NotSupportedException) { conn.Open(); }
+                try
+                {
+                    conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
 
-                cmd = conn.CreateCommand();
-                cmd.CommandText = dbq.Sql;
-                ctx.RaiseSqlDispatch(dbq.Sql);
-                ApplyParameters(cmd, dbq.Parameters);
+                    cmd = conn.CreateCommand();
+                    cmd.CommandText = dbq.Sql;
+                    ctx.RaiseSqlDispatch(dbq.Sql);
+                    ApplyParameters(cmd, dbq.Parameters);
 
-                reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
-                var schema = ExtractSchema(reader);
+                    reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
+                    schema = ExtractSchema(reader);
+                }
+                catch(Exception ex) when(!(ex is OperationCanceledException))
+                {
+                    ctx.RaiseError(dbq.Sql, ex);
+                    throw;
+                }
 
-                if(schema.Columns.Count == 0)
+                if(schema!.Columns.Count == 0)
                     yield break;
 
-                while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                while(true)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    yield return CreateDynamicRow(schema, reader);
+                    DynamicRow row;
+                    try
+                    {
+                        if(!await ReadSafeAsync(reader, ct).ConfigureAwait(false))
+                            break;
+
+                        ct.ThrowIfCancellationRequested();
+                        row = CreateDynamicRow(schema, reader!);
+                    }
+                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    {
+                        ctx.RaiseError(dbq.Sql, ex);
+                        throw;
+                    }
+
+                    yield return row;
                 }
 
                 ctx.RaiseSuccess(dbq.Sql);
@@ -415,6 +437,14 @@ namespace NekoLib.Data.Internal.Gateway
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
                 if(conn != null) conn.Dispose();
+            }
+        }
+
+        internal async IAsyncEnumerable<dynamic> StreamDynamicAsDynamic(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        {
+            await foreach(DynamicRow row in StreamDynamicInternal(dbq, ct))
+            {
+                yield return row;
             }
         }
         
