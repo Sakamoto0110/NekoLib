@@ -15,8 +15,20 @@ namespace NekoLib.Data.Gateway
             Dictionary<string, object?>? parameters = null,
             CancellationToken ct = default);
 
+        IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default);
+
         IAsyncEnumerable<T> StreamDto<T>(
             QueryBuilder builder,
+            CancellationToken ct = default)
+            where T : new();
+
+        IAsyncEnumerable<T> StreamDto<T>(
+            QueryBuilder builder,
+            DbSession session,
             CancellationToken ct = default)
             where T : new();
 
@@ -24,12 +36,27 @@ namespace NekoLib.Data.Gateway
             QueryBuilder builder,
             CancellationToken ct = default);
 
+        IAsyncEnumerable<DynamicRow> StreamDynamic(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
         IAsyncEnumerable<dynamic> StreamData(
+            QueryBuilder builder,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<dynamic> StreamData(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<T> StreamData<T>(
             QueryBuilder builder,
             CancellationToken ct = default);
 
         IAsyncEnumerable<T> StreamData<T>(
             QueryBuilder builder,
+            DbSession session,
             CancellationToken ct = default);
     }
 }

@@ -21,13 +21,29 @@ namespace NekoLib.Data.Gateway
             string sql,
             CancellationToken ct = default);
 
+        Task<bool> ContainsData(
+            string sql,
+            DbSession session,
+            CancellationToken ct = default);
+
         Task<List<Dictionary<string, RecordItem>>> GetRaw(
             string sql,
             Dictionary<string, object?>? parameters = null,
             CancellationToken ct = default);
 
         Task<List<Dictionary<string, RecordItem>>> GetRaw(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default);
+
+        Task<List<Dictionary<string, RecordItem>>> GetRaw(
             QueryBuilder builder,
+            CancellationToken ct = default);
+
+        Task<List<Dictionary<string, RecordItem>>> GetRaw(
+            QueryBuilder builder,
+            DbSession session,
             CancellationToken ct = default);
 
         Task ReadRaw(
@@ -36,8 +52,21 @@ namespace NekoLib.Data.Gateway
             CancellationToken ct = default);
 
         Task ReadRaw(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            Action<Dictionary<string, RecordItem>> callback,
+            DbSession session,
+            CancellationToken ct = default);
+
+        Task ReadRaw(
             QueryBuilder builder,
             Action<Dictionary<string, RecordItem>> callback,
+            CancellationToken ct = default);
+
+        Task ReadRaw(
+            QueryBuilder builder,
+            Action<Dictionary<string, RecordItem>> callback,
+            DbSession session,
             CancellationToken ct = default);
     }
 
@@ -54,9 +83,22 @@ namespace NekoLib.Data.Gateway
             CancellationToken ct = default)
             where T : new();
 
+        Task<List<T>> GetDto<T>(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default)
+            where T : new();
+
         Task ReadDto<T>(
             QueryBuilder builder,
             Action<T> callback,
+            CancellationToken ct = default)
+            where T : new();
+
+        Task ReadDto<T>(
+            QueryBuilder builder,
+            Action<T> callback,
+            DbSession session,
             CancellationToken ct = default)
             where T : new();
     }
@@ -67,9 +109,20 @@ namespace NekoLib.Data.Gateway
             QueryBuilder builder,
             CancellationToken ct = default);
 
+        Task<List<DynamicRow>> GetDynamic(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
         Task ReadDynamic(
             QueryBuilder builder,
             Action<DynamicRow> callback,
+            CancellationToken ct = default);
+
+        Task ReadDynamic(
+            QueryBuilder builder,
+            Action<DynamicRow> callback,
+            DbSession session,
             CancellationToken ct = default);
     }
 
@@ -81,14 +134,33 @@ namespace NekoLib.Data.Gateway
             where TTranslator : IDbQueryTranslator, new()
             where T : new();
 
+        Task<List<T>> Get<TTranslator, T>(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default)
+            where TTranslator : IDbQueryTranslator, new()
+            where T : new();
+
         Task Read(
             QueryBuilder builder,
             Delegate handler,
             CancellationToken ct = default);
 
+        Task Read(
+            QueryBuilder builder,
+            Delegate handler,
+            DbSession session,
+            CancellationToken ct = default);
+
         Task Read<T>(
             QueryBuilder builder,
             Action<T> callback,
+            CancellationToken ct = default);
+
+        Task Read<T>(
+            QueryBuilder builder,
+            Action<T> callback,
+            DbSession session,
             CancellationToken ct = default);
     }
 }

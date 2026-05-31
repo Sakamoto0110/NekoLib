@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
@@ -30,6 +31,26 @@ namespace NekoLib.Data
 
             if (_transactionDepth == 0)
                 Transaction = Connection.BeginTransaction();
+
+            _transactionDepth++;
+        }
+
+        /// <summary>
+        /// Inicia uma transação no nível de isolamento informado.
+        /// Útil para leituras consistentes (ex.: <see cref="IsolationLevel.Snapshot"/> ou
+        /// <see cref="IsolationLevel.RepeatableRead"/>) que abrangem múltiplos acessos.
+        /// O isolamento só é aplicado quando uma transação real é aberta (profundidade 0);
+        /// chamadas aninhadas apenas incrementam a profundidade.
+        /// </summary>
+        public void BeginTransaction(IsolationLevel isolation)
+        {
+            ThrowIfDisposed();
+
+            if (_rolledBack)
+                throw new InvalidOperationException("Transaction already rolled back.");
+
+            if (_transactionDepth == 0)
+                Transaction = Connection.BeginTransaction(isolation);
 
             _transactionDepth++;
         }

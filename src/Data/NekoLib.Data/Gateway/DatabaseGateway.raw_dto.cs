@@ -23,7 +23,17 @@ namespace NekoLib.Data.Internal.Gateway
     {
         #region Raw API (RecordItem)
 
-        public async Task<bool> ContainsData(string Sql,CancellationToken Ct = default)
+        public Task<bool> ContainsData(string Sql, CancellationToken Ct = default)
+        {
+            return ContainsDataCore(Sql, null, Ct);
+        }
+
+        public Task<bool> ContainsData(string Sql, DbSession session, CancellationToken Ct = default)
+        {
+            return ContainsDataCore(Sql, session, Ct);
+        }
+
+        private async Task<bool> ContainsDataCore(string Sql, DbSession? session, CancellationToken Ct)
         {
             bool has = await WithCommandAsync(Sql, async delegate (DbCommand cmd)
             {
@@ -32,17 +42,27 @@ namespace NekoLib.Data.Internal.Gateway
                     bool any = await ReadSafeAsync(reader, Ct).ConfigureAwait(false);
                     return any;
                 }
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
 
             return has;
         }
 
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql,CancellationToken Ct = default)
         {
-            return GetRaw(Sql,null, Ct);
+            return GetRawCore(Sql, null, null, Ct);
         }
 
-        public async Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
+        {
+            return GetRawCore(Sql, Parameters, null, Ct);
+        }
+
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters, DbSession session, CancellationToken Ct = default)
+        {
+            return GetRawCore(Sql, Parameters, session, Ct);
+        }
+
+        private async Task<List<Dictionary<string, RecordItem>>> GetRawCore(string Sql, Dictionary<string, object?>? Parameters, DbSession? session, CancellationToken Ct)
         {
             List<Dictionary<string, RecordItem>> result = await WithCommandAsync(Sql,Parameters, async delegate (DbCommand cmd)
             {
@@ -60,17 +80,27 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return list;
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
 
             return result;
         }
 
         public Task ReadRaw(string Sql,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
         {
-            return ReadRaw(Sql, null, Callback, Ct);
+            return ReadRawCore(Sql, null, Callback, null, Ct);
         }
 
-        public async Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        {
+            return ReadRawCore(Sql, Parameters, Callback, null, Ct);
+        }
+
+        public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
+        {
+            return ReadRawCore(Sql, Parameters, Callback, session, Ct);
+        }
+
+        private async Task ReadRawCore(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct)
         {
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -89,7 +119,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, Ct).ConfigureAwait(false);
+            }, Ct, session).ConfigureAwait(false);
         }
 
         protected async Task<int> Upsert(string Sql,Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
@@ -123,7 +153,17 @@ namespace NekoLib.Data.Internal.Gateway
             return Upsert(Sql,Parameters, Ct);
         }
 
-        public async Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)
+        {
+            return GetRawFromBuilder(Builder, null, Ct);
+        }
+
+        public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder, DbSession session, CancellationToken Ct = default)
+        {
+            return GetRawFromBuilder(Builder, session, Ct);
+        }
+
+        private async Task<List<Dictionary<string, RecordItem>>> GetRawFromBuilder(QueryBuilder Builder, DbSession? session, CancellationToken Ct)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
 
@@ -131,10 +171,20 @@ namespace NekoLib.Data.Internal.Gateway
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
-            return await GetRaw(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
+            return await GetRawCore(dbq.Sql, dbq.Parameters, session, Ct).ConfigureAwait(false);
         }
 
-        public async Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
+        {
+            return ReadRawFromBuilder(Builder, Callback, null, Ct);
+        }
+
+        public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
+        {
+            return ReadRawFromBuilder(Builder, Callback, session, Ct);
+        }
+
+        private async Task ReadRawFromBuilder(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
@@ -144,7 +194,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadRaw(dbq.Sql, dbq.Parameters, Callback, Ct).ConfigureAwait(false);
+            await ReadRawCore(dbq.Sql, dbq.Parameters, Callback, session, Ct).ConfigureAwait(false);
 
         }
 
@@ -194,26 +244,44 @@ namespace NekoLib.Data.Internal.Gateway
 
 
 
-        public async Task<List<T>> GetDto<
+        public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
             T>(QueryBuilder Builder , CancellationToken Ct = default) where T : new()
         {
+            return GetDtoFromBuilder<T>(Builder, null, Ct);
+        }
+
+        public Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder , DbSession session, CancellationToken Ct = default) where T : new()
+        {
+            return GetDtoFromBuilder<T>(Builder, session, Ct);
+        }
+
+        private async Task<List<T>> GetDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder Builder , DbSession? session, CancellationToken Ct) where T : new()
+        {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
-            
+
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await GetDtoFromSql<T>(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
+            return await GetDtoFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session).ConfigureAwait(false);
         }
 
         private async Task<List<T>> GetDtoFromSql<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default) where T : new()
+            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
         {
             List<T> list = new List<T>();
 
@@ -231,32 +299,50 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, ct).ConfigureAwait(false);
+            }, ct, session).ConfigureAwait(false);
 
             return list;
         }
 
-        public async Task ReadDto<
+        public Task ReadDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
             T>( QueryBuilder Builder , Action<T> Callback,CancellationToken Ct = default)where T : new()
         {
+            return ReadDtoFromBuilder<T>(Builder, Callback, null, Ct);
+        }
+
+        public Task ReadDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>( QueryBuilder Builder , Action<T> Callback, DbSession session, CancellationToken Ct = default)where T : new()
+        {
+            return ReadDtoFromBuilder<T>(Builder, Callback, session, Ct);
+        }
+
+        private async Task ReadDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>( QueryBuilder Builder , Action<T> Callback, DbSession? session, CancellationToken Ct)where T : new()
+        {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
-           
+
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadDtoFromSql<T>(dbq.Sql, dbq.Parameters, Callback, Ct).ConfigureAwait(false);
+            await ReadDtoFromSql<T>(dbq.Sql, dbq.Parameters, Callback, Ct, session).ConfigureAwait(false);
         }
 
         private async Task ReadDtoFromSql<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default) where T : new()
+            T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default, DbSession? session = null) where T : new()
         {
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
@@ -272,7 +358,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, ct).ConfigureAwait(false);
+            }, ct, session).ConfigureAwait(false);
         }
 
         #endregion
@@ -290,6 +376,30 @@ namespace NekoLib.Data.Internal.Gateway
 #endif
             T>(QueryBuilder builder, CancellationToken ct = default) where T : new()
         {
+            return StreamDtoFromBuilder<T>(builder, null, ct);
+        }
+
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<T> StreamDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession session, CancellationToken ct = default) where T : new()
+        {
+            return StreamDtoFromBuilder<T>(builder, session, ct);
+        }
+
+        private IAsyncEnumerable<T> StreamDtoFromBuilder<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(QueryBuilder builder, DbSession? session, CancellationToken ct) where T : new()
+        {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             QueryModel model = builder.Build();
@@ -297,12 +407,13 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return StreamDtoCore<T>(dbq, ct);
+            return StreamDtoCore<T>(dbq, session, ct);
         }
 
-        private async IAsyncEnumerable<T> StreamDtoCore<T>(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) where T : new()
+        private async IAsyncEnumerable<T> StreamDtoCore<T>(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) where T : new()
         {
             DbConnection? conn = null;
+            bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
             List<PropertyColumnBinding>? bindings = null;
@@ -311,10 +422,20 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 try
                 {
-                    conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                    if(session != null)
+                    {
+                        conn = session.Connection;
+                    }
+                    else
+                    {
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
+                    }
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);
                     ApplyParameters(cmd, dbq.Parameters);
 
@@ -353,13 +474,14 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
-                if(conn != null) conn.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
             }
         }
 
-        private async IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRawCore(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        private async IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRawCore(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
             DbConnection? conn = null;
+            bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
             SchemaInfo? schema = null;
@@ -368,10 +490,20 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 try
                 {
-                    conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                    if(session != null)
+                    {
+                        conn = session.Connection;
+                    }
+                    else
+                    {
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
+                    }
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);
                     ApplyParameters(cmd, dbq.Parameters);
 
@@ -410,7 +542,7 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
-                if(conn != null) conn.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
             }
         }
 

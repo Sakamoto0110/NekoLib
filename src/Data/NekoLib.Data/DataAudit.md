@@ -23,6 +23,49 @@ Verification run:
 - `dotnet build src\Data\NekoLib.Data\NekoLib.Data.csproj --no-restore`
   succeeded for `net481` and `net9.0`, with 47 warnings and 0 errors.
 
+## Pass 1.5 Reconciliation (2026-05-31)
+
+Source-only follow-up after changes landed since Pass 1. Nothing here was proven
+by execution; this section only reconciles findings against the current source so
+the verification pass does not chase already-closed issues.
+
+Current build: `NekoLib.Data` builds for `net481` and `net9.0` with 0 warnings
+and 0 errors (down from 47 at Pass 1). The "Build Warnings Worth Carrying
+Forward" section below is therefore stale.
+
+Resolved since Pass 1:
+
+- #7 swallowed failures / sentinel returns: QueryBuilder read and DML paths no
+  longer catch-and-return. `GetRaw`, `Insert`, `Update` forward to a core that
+  runs through `WithCommandAsync`, which raises `OnError` and rethrows. Callback
+  exceptions in `ReadRaw` / `ReadDynamic` propagate.
+- #10 streaming `OnError` on enumeration failures: the streaming cores now wrap
+  open/read/map in try/catch inside the async iterator and call `RaiseError`
+  before rethrowing during enumeration.
+- #12 interfaces vs implementation: `DatabaseGateway` declares
+  `: IDatabaseGateway` and implements the full composite (string-based DTO,
+  session-aware DML / `Delete`, streaming) across the partial files.
+- #13 transaction session disconnected: `DbSession` is threaded through reads and
+  streaming via explicit `DbSession` overloads, and session-aware DML is
+  implemented. Remaining gap: `QueryBuilder`-based `Insert` / `Update` overloads
+  still do not accept a session.
+- #14 `DbSession.Dispose` skipping connection disposal: `DbSession` now has a
+  `_disposed` guard, `ThrowIfDisposed`, and disposes the connection in `finally`.
+- Interface intent decision (was open under "Suggested Next Pass"): decided. The
+  focused gateway interfaces are the intended contracts; the obsolete
+  `IDatabaseGatewayPrototype` / `IDatabaseGateway0` prototypes were removed.
+
+Needs reconfirmation (appear stale, not yet proven):
+
+- #9 duplicate dispatch/success events: QueryBuilder overloads now raise only
+  `OnSqlGenerated`; dispatch/success come once from `WithCommandAsync`. Re-check
+  before treating as live.
+- #11 streaming contract exposed on `net481`: mitigated. `IDqlStreamingGateway`
+  carries `[Obsolete(..., error: true)]` off `net6.0+`, and the `net481`
+  `IDatabaseGateway` composite excludes it.
+
+Still open, carry into next pass: #1, #2, #3, #4, #5, #6, #8, #15-#21.
+
 ## Intended Shape Of The Module
 
 The project targets `net481;net9.0` in `NekoLib.Data.csproj:4`, with
@@ -123,6 +166,12 @@ especially dangerous.
 
 ### 7. Some public methods swallow database failures and return sentinel values
 
+> RESOLVED (Pass 1.5, 2026-05-31): QueryBuilder read and DML paths no longer
+> catch-and-return. `GetRaw`, `Insert`, `Update` forward to a core that runs
+> through `WithCommandAsync`, which raises `OnError` and rethrows; callback
+> exceptions in `ReadRaw` / `ReadDynamic` propagate. Source-only; reconfirm under
+> the verification pass.
+
 `GetRaw(QueryBuilder)` catches all exceptions, raises an error event, and then
 returns `result`, which can be null despite the `Task<List<...>>` signature
 (`Gateway/DatabaseGateway.raw_dto.cs:168-185`). `Insert(QueryBuilder)` and
@@ -163,6 +212,10 @@ methods swallow exceptions.
 
 ### 10. Streaming error events do not cover enumeration-time failures
 
+> RESOLVED (Pass 1.5, 2026-05-31): the streaming cores now wrap open/read/map in
+> a try/catch inside the async iterator and call `RaiseError` before rethrowing
+> during enumeration. Source-only; reconfirm under the verification pass.
+
 The public streaming methods return `IAsyncEnumerable` inside a `try/catch`,
 but the database open/read/map work happens later during enumeration
 (`Gateway/DatabaseGateway.Dynamic.cs:361-419`,
@@ -190,6 +243,11 @@ does not reflect that split.
 
 ### 12. Gateway interfaces do not match the actual `DatabaseGateway` implementation
 
+> RESOLVED (Pass 1.5, 2026-05-31): `DatabaseGateway` now declares
+> `: IDatabaseGateway` and implements the full composite (string-based DTO,
+> session-aware DML / `Delete`, streaming) across the partial files. The obsolete
+> root `IDatabaseGateway.cs` prototypes were removed.
+
 `Gateway/IDatabaseGateway.cs` composes DQL, streaming, DML, and TCL interfaces
 (`Gateway/IDatabaseGateway.cs:1-10`). Those interfaces include string-based
 DTO/dynamic/universal reads, string streaming, `Delete`, and session-aware DML
@@ -205,6 +263,11 @@ abstraction for consumers, and it obscures what API surface is supported on
 
 ### 13. Transaction session support exists but is mostly disconnected
 
+> RESOLVED (Pass 1.5, 2026-05-31): `DbSession` is threaded through reads and
+> streaming via explicit `DbSession` overloads, and session-aware DML is
+> implemented. Remaining gap: `QueryBuilder`-based `Insert` / `Update` overloads
+> still do not accept a session (carry forward).
+
 `DbSession` supports nested transaction depth and rollback on dispose
 (`DbSession.cs:23-70`). `DatabaseGateway.Core` has private `WithCommandAsync`
 overloads that accept a `DbSession` (`Gateway/DatabaseGateway.Core.cs:102-151`).
@@ -217,6 +280,10 @@ gateway methods. Callers can open a session, but normal Insert/Update paths
 will create separate connections and operate outside that transaction.
 
 ### 14. `DbSession.Dispose` can fail before disposing the connection
+
+> RESOLVED (Pass 1.5, 2026-05-31): `DbSession` now has a `_disposed` guard,
+> `ThrowIfDisposed`, and disposes the connection in a `finally`. A
+> `BeginTransaction(IsolationLevel)` overload was also added.
 
 `Dispose` calls `Rollback()` when a transaction is active, then disposes the
 connection (`DbSession.cs:65-70`). If `Rollback()` or `Transaction.Dispose()`
@@ -308,6 +375,12 @@ the option currently misleads callers and tests.
 
 ## Build Warnings Worth Carrying Forward
 
+> STALE (Pass 1.5, 2026-05-31): the build now succeeds for both targets with
+> 0 warnings (was 47). The specific warnings listed below were resolved during
+> the session-threading work — most notably the `GetRaw(QueryBuilder)`
+> non-nullable-return warnings (folded into finding #7) and the unused `ilType`
+> in `DatabaseGateway.Universal.cs`. Kept here only for historical context.
+
 The build succeeded for both targets, but warnings point to real nullable and
 API-shape issues:
 
@@ -355,6 +428,8 @@ inside the Data module:
 - Prove `GetRaw(QueryBuilder)` returns null on failure.
 - Check whether `AccessQueryTranslator` output is accepted by the intended
   Access provider.
-- Decide whether public interfaces are intended contracts or old prototypes.
+- ~~Decide whether public interfaces are intended contracts or old prototypes.~~
+  DECIDED (Pass 1.5): the focused gateway interfaces are the intended contracts;
+  the obsolete `IDatabaseGatewayPrototype` / `IDatabaseGateway0` were removed.
 - Decide whether raw SQL/result telemetry should be masked, disabled by
   default, or documented as sensitive.

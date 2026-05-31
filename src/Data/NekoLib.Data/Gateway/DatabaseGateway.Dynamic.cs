@@ -311,28 +311,48 @@ namespace NekoLib.Data.Internal.Gateway
             return list;
         }
 
-        public async Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback,CancellationToken Ct = default)
+        public async Task<List<DynamicRow>> GetDynamic(QueryBuilder Builder, DbSession session, CancellationToken Ct = default)
+        {
+            if(Builder == null) throw new ArgumentNullException(nameof(Builder));
+
+            List<DynamicRow> list = new List<DynamicRow>();
+            await ReadDynamic(Builder, delegate (DynamicRow row) { list.Add(row); }, session, Ct)
+                .ConfigureAwait(false);
+            return list;
+        }
+
+        public Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback,CancellationToken Ct = default)
+        {
+            return ReadDynamicFromBuilder(Builder, Callback, null, Ct);
+        }
+
+        public Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback, DbSession session, CancellationToken Ct = default)
+        {
+            return ReadDynamicFromBuilder(Builder, Callback, session, Ct);
+        }
+
+        private async Task ReadDynamicFromBuilder(QueryBuilder Builder ,Action<DynamicRow> Callback, DbSession? session, CancellationToken Ct)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
-            
+
 
             var translator = ctx.Translator;
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct).ConfigureAwait(false);
+            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct, session).ConfigureAwait(false);
         }
 
-        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default)
+        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null)
         {
             List<DynamicRow> list = new List<DynamicRow>();
-            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct).ConfigureAwait(false);
+            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct, session).ConfigureAwait(false);
             return list;
         }
 
-        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default)
+        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default, DbSession? session = null)
         {
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
@@ -348,13 +368,13 @@ namespace NekoLib.Data.Internal.Gateway
                         ct.ThrowIfCancellationRequested();
                         DynamicRow row = CreateDynamicRow(schema, reader);
                         callback(row);
-                        
+
                     }
-                    
+
                 }
 
                 return 0;
-            }, ct).ConfigureAwait(false);
+            }, ct, session).ConfigureAwait(false);
         }
 
 
@@ -368,8 +388,23 @@ namespace NekoLib.Data.Internal.Gateway
         #region DataStreaming
 
         public IAsyncEnumerable<DynamicRow> StreamDynamic(QueryBuilder builder, CancellationToken ct = default)
+        {
+            return StreamDynamicFromBuilder(builder, null, ct);
+        }
 
-        {          
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<DynamicRow> StreamDynamic(QueryBuilder builder, DbSession session, CancellationToken ct = default)
+        {
+            return StreamDynamicFromBuilder(builder, session, ct);
+        }
+
+        private IAsyncEnumerable<DynamicRow> StreamDynamicFromBuilder(QueryBuilder builder, DbSession? session, CancellationToken ct)
+        {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
 
             var translator = ctx.Translator;
@@ -378,11 +413,12 @@ namespace NekoLib.Data.Internal.Gateway
 
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return StreamDynamicInternal(dbq, ct);
+            return StreamDynamicInternal(dbq, session, ct);
         }
-        private async IAsyncEnumerable<DynamicRow> StreamDynamicInternal(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        private async IAsyncEnumerable<DynamicRow> StreamDynamicInternal(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
             DbConnection? conn = null;
+            bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
             SchemaInfo? schema = null;
@@ -391,10 +427,20 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 try
                 {
-                    conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                    if(session != null)
+                    {
+                        conn = session.Connection;
+                    }
+                    else
+                    {
+                        conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
+                        ownsConnection = true;
+                    }
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    if(session?.Transaction != null)
+                        cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);
                     ApplyParameters(cmd, dbq.Parameters);
 
@@ -436,13 +482,13 @@ namespace NekoLib.Data.Internal.Gateway
             {
                 if(reader != null) reader.Dispose();
                 if(cmd != null) cmd.Dispose();
-                if(conn != null) conn.Dispose();
+                if(ownsConnection && conn != null) conn.Dispose();
             }
         }
 
-        internal async IAsyncEnumerable<dynamic> StreamDynamicAsDynamic(DatabaseQuery dbq, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        internal async IAsyncEnumerable<dynamic> StreamDynamicAsDynamic(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
-            await foreach(DynamicRow row in StreamDynamicInternal(dbq, ct))
+            await foreach(DynamicRow row in StreamDynamicInternal(dbq, session, ct))
             {
                 yield return row;
             }

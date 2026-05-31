@@ -60,7 +60,22 @@ namespace NekoLib.Data.Internal.Gateway
             Dictionary<string, object?>? parameters,
             CancellationToken ct)
         {
-            return StreamRawCore(new DatabaseQuery(sql, parameters ?? new Dictionary<string, object?>()), ct);
+            return StreamRawCore(new DatabaseQuery(sql, parameters ?? new Dictionary<string, object?>()), null, ct);
+        }
+
+        /// <remarks>
+        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
+        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
+        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
+        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// </remarks>
+        public IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default)
+        {
+            return StreamRawCore(new DatabaseQuery(sql, parameters ?? new Dictionary<string, object?>()), session, ct);
         }
 
 #endif
