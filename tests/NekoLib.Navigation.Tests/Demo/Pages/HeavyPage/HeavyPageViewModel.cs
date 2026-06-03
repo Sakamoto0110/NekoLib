@@ -1,4 +1,4 @@
-using NavigationDemo.Core;
+using NekoLib.Mvvm;
 
 namespace NavigationDemo.Pages.HeavyPage
 {

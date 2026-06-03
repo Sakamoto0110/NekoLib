@@ -1,5 +1,5 @@
 using System.Windows.Input;
-using NavigationDemo.Core;
+using NekoLib.Mvvm;
 using NekoLib.Navigation;
 using PageBView = NavigationDemo.Pages.PageB.PageB;
 using PageCView = NavigationDemo.Pages.PageC.PageC;

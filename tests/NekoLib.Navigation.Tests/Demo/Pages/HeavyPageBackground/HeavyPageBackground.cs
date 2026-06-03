@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Metadata.Attributes;
 using NekoLib.Navigation.WinForms.Hosting;
@@ -17,11 +15,11 @@ namespace NavigationDemo.Pages.HeavyPageBackground
     /// from touching the disposed/abandoned page.
     ///
     /// The Debug.WriteLine in ApplyBackgroundResultAsync makes the guard's effect
-    /// observable: if you see the line ~2 s after navigating away, A-5 has
-    /// regressed; if you don't see it, the guard held.
+    /// observable in the debugger; <see cref="ApplyFired"/> additionally surfaces
+    /// the event into the live demo log so the probe is visible without DebugView.
     /// </summary>
     [PageLoad(NekoLib.Navigation.Metadata.NavigationLoadMode.LoadInBackground)]
-    public sealed class HeavyPageBackground : PageView, IBackgroundLoadable
+    public sealed partial class HeavyPageBackground : PageView, IBackgroundLoadable
     {
         /// <summary>
         /// Static probe hook. <see cref="TestToolsForm"/> subscribes so the A-5 guard's
@@ -31,23 +29,13 @@ namespace NavigationDemo.Pages.HeavyPageBackground
         /// </summary>
         public static event Action<string> ApplyFired;
 
-        private readonly Label _label;
         private string _statusText = "Loading in background…";
 
         public HeavyPageBackground()
         {
-            _label = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Microsoft Sans Serif", 14F, FontStyle.Bold),
-                ForeColor = Color.White,
-                Text = _statusText,
-            };
+            InitializeComponent();
 
-            BackColor = Color.SaddleBrown;
-            Name = nameof(HeavyPageBackground);
-            Controls.Add(_label);
+            lblStatus.Text = _statusText;
         }
 
         public async Task LoadInBackgroundAsync(object args)
@@ -65,8 +53,8 @@ namespace NavigationDemo.Pages.HeavyPageBackground
             try { ApplyFired?.Invoke(msg); } catch { /* never let a probe break the runtime */ }
 
             _statusText = "Heavy background page loaded ✓";
-            if (!IsDisposed && _label != null)
-                _label.Text = _statusText;
+            if (!IsDisposed && lblStatus != null)
+                lblStatus.Text = _statusText;
 
             return Task.CompletedTask;
         }

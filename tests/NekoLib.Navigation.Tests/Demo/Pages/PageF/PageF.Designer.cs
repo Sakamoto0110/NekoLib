@@ -1,6 +1,6 @@
-namespace NavigationDemo.Pages.PageB
+namespace NavigationDemo.Pages.PageE
 {
-    partial class PageB
+    partial class PageF
     {
         private System.ComponentModel.IContainer components = null;
 
@@ -27,7 +27,7 @@ namespace NavigationDemo.Pages.PageB
             this.lblTitle.Font = new System.Drawing.Font("Microsoft Sans Serif", 28F, System.Drawing.FontStyle.Bold);
             this.lblTitle.Location = new System.Drawing.Point(40, 40);
             this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Text = "PAGE B";
+            this.lblTitle.Text = "PAGE F";
             //
             // btnBack
             //
@@ -37,14 +37,14 @@ namespace NavigationDemo.Pages.PageB
             this.btnBack.Text = "← Back";
             this.btnBack.UseVisualStyleBackColor = true;
             //
-            // PageB
+            // PageF
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.LightGreen;
+            this.BackColor = System.Drawing.Color.Plum;
             this.Controls.Add(this.btnBack);
             this.Controls.Add(this.lblTitle);
-            this.Name = "PageB";
+            this.Name = "PageF";
             this.Size = new System.Drawing.Size(800, 600);
             this.ResumeLayout(false);
             this.PerformLayout();

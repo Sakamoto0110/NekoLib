@@ -20,12 +20,14 @@ namespace NavigationDemo
 {
     /// <summary>
     /// Secondary tools window. Each section is a one-click reproduction of a
-    /// §2.8 runtime-repro scenario from the audit, so the user can validate the
-    /// fixes from passes 1-4 against the live framework.
+    /// §2.8 runtime-repro scenario from the audit. The designer owns the empty
+    /// layout containers (table, scroll panel, flow panel, log); this file
+    /// populates the flow panel with the scenario buttons at runtime — each
+    /// button is dynamically tagged with the finding ID it validates, which the
+    /// WinForms designer can't represent naturally.
     /// </summary>
-    public class TestToolsForm : Form
+    public partial class TestToolsForm : Form
     {
-        private readonly RichTextBox _log;
         private static readonly Type[] _stressPages =
         {
             typeof(PageAView), typeof(PageBView), typeof(PageCView),
@@ -36,44 +38,16 @@ namespace NavigationDemo
         {
             // Subscribe to the A-5 probe so an unexpected stale-apply lands in
             // the demo's own log (silent = guard held; line printed = regression).
-            HeavyPageBackgroundView.ApplyFired += msg => Log("[A-5] " + msg);
+            HeavyPageBackgroundView.ApplyFired += OnApplyFired;
 
-            Text = "Navigation demo — tools";
-            Size = new Size(380, 720);
-            FormBorderStyle = FormBorderStyle.SizableToolWindow;
-            ShowInTaskbar = false;
-            MinimumSize = new Size(320, 500);
+            InitializeComponent();
+            PopulateButtons();
+        }
 
-            var root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(10)
-            };
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 65F));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 35F));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            Controls.Add(root);
+        private void OnApplyFired(string msg) => Log("[A-5] " + msg);
 
-            var scroll = new Panel
-            {
-                Dock = DockStyle.Fill,
-                AutoScroll = true,
-                BorderStyle = BorderStyle.None,
-            };
-            root.Controls.Add(scroll, 0, 0);
-
-            var buttonPanel = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                WrapContents = false,
-                Margin = Padding.Empty,
-            };
-            scroll.Controls.Add(buttonPanel);
-
+        private void PopulateButtons()
+        {
             // ---- TOASTS ---------------------------------------------------
             buttonPanel.Controls.Add(MakeHeader("Toasts"));
             buttonPanel.Controls.Add(MakeButton("Spawn bottom-left toast",
@@ -121,18 +95,6 @@ namespace NavigationDemo
                 async () => { await NavigationService.SwitchPage<HeavyPageBackgroundView>(); Log("HeavyPageBackground requested (background load)."); }));
             buttonPanel.Controls.Add(MakeButton("Navigate-away-mid-load (A-5)",
                 NavigateAwayMidLoad));
-
-            // ---- LOG ------------------------------------------------------
-            _log = new RichTextBox
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(245, 245, 245),
-                Font = new Font("Consolas", 8.5F),
-                Margin = new Padding(0, 10, 0, 0)
-            };
-            root.Controls.Add(_log, 0, 1);
         }
 
         // -----------------------------------------------------------------
@@ -229,7 +191,7 @@ namespace NavigationDemo
             _ = Task.Run(async () =>
             {
                 var t1 = NavigationService.ShowDialogAsync<ConfirmDialogView>();
-                await Task.Delay(150); // let the first reach the UI
+                await Task.Delay(150);
                 var t2 = NavigationService.ShowDialogAsync<ConfirmDialogView>();
                 try
                 {
@@ -336,12 +298,9 @@ namespace NavigationDemo
         /// immediately switch elsewhere. The page is shown before its load runs,
         /// so the apply phase fires asynchronously — the runtime's stale-apply
         /// guard must skip <c>ApplyBackgroundResultAsync</c> because the page is
-        /// no longer current. (Initially the [A-5] button targeted the
-        /// LoadBeforeShow HeavyPage, which made the second await wait for the
-        /// full 2 s load behind the semaphore — that was NEW-11, the scenario
-        /// not actually testing A-5.) Watch the debug output: if
-        /// "[HeavyPageBackground] ApplyBackgroundResultAsync fired." prints
-        /// after the jump, A-5 regressed; if it stays silent, the guard held.
+        /// no longer current. Watch the log: if
+        /// "[A-5] [HeavyPageBackground] ApplyBackgroundResultAsync fired."
+        /// prints after the jump, A-5 regressed; if it stays silent, the guard held.
         /// </summary>
         private async void NavigateAwayMidLoad()
         {
@@ -351,7 +310,7 @@ namespace NavigationDemo
                 _ = NavigationService.SwitchPage<HeavyPageBackgroundView>();
                 await Task.Delay(200);
                 await NavigationService.SwitchPage<PageAView>();
-                Log("[A-5] Jumped to PageA. Watch debug output for ~2s — apply must NOT fire.");
+                Log("[A-5] Jumped to PageA. Watch log for ~2s — apply must NOT fire.");
             }
             catch (Exception ex) { Log("[A-5] Error: " + ex.Message); Debug.WriteLine(ex); }
         }
@@ -362,15 +321,15 @@ namespace NavigationDemo
 
         private void Log(string message)
         {
-            if (IsDisposed || _log == null) return;
+            if (IsDisposed || logBox == null) return;
             if (InvokeRequired)
             {
                 try { BeginInvoke((Action<string>)Log, message); } catch { }
                 return;
             }
-            _log.AppendText(DateTime.Now.ToString("HH:mm:ss.fff") + "  " + message + Environment.NewLine);
-            _log.SelectionStart = _log.TextLength;
-            _log.ScrollToCaret();
+            logBox.AppendText(DateTime.Now.ToString("HH:mm:ss.fff") + "  " + message + Environment.NewLine);
+            logBox.SelectionStart = logBox.TextLength;
+            logBox.ScrollToCaret();
         }
 
         private static string Truncate(string s, int max)

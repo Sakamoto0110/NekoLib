@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 using System.Windows.Forms;
 using NekoLib.Navigation.WinForms.Hosting;
 
@@ -15,21 +14,14 @@ namespace NavigationDemo.Pages.Home
 
             _viewModel = new HomePageViewModel();
 
-            // Click anywhere on the page to go to PAGE A.
+            // Click anywhere on the page (or any descendant control) to go to PAGE A.
+            // The designer owns label1 + lblClickHint; we wire the click affordance
+            // here in user-code so the behavior travels with the page lifecycle, and
+            // we react to ControlAdded so any control the designer adds later also
+            // forwards its Click to the same handler.
             Cursor = Cursors.Hand;
             this.Click += OnPageClick;
             HookClickRecursive(this);
-
-            var hint = new Label
-            {
-                Text = "(click anywhere to go to PAGE A)",
-                AutoSize = true,
-                Font = new Font("Microsoft Sans Serif", 10F, FontStyle.Italic),
-                ForeColor = Color.DimGray,
-                Location = new Point(225, 240),
-            };
-            hint.Click += OnPageClick;
-            Controls.Add(hint);
         }
 
         private void HookClickRecursive(Control parent)

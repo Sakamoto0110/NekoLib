@@ -1,18 +1,9 @@
-using NekoLib.Navigation.WinForms;
-
 namespace NavigationDemo.Pages.Home
 {
     partial class HomePage
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -24,13 +15,10 @@ namespace NavigationDemo.Pages.Home
 
         #region Component Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.label1 = new System.Windows.Forms.Label();
+            this.lblClickHint = new System.Windows.Forms.Label();
             this.SuspendLayout();
             //
             // label1
@@ -44,21 +32,31 @@ namespace NavigationDemo.Pages.Home
             this.label1.TabIndex = 0;
             this.label1.Text = "Home Page";
             //
+            // lblClickHint
+            //
+            this.lblClickHint.AutoSize = true;
+            this.lblClickHint.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Italic);
+            this.lblClickHint.ForeColor = System.Drawing.Color.DimGray;
+            this.lblClickHint.Location = new System.Drawing.Point(225, 240);
+            this.lblClickHint.Name = "lblClickHint";
+            this.lblClickHint.Text = "(click anywhere to go to PAGE A)";
+            //
             // HomePage
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.MistyRose;
+            this.Controls.Add(this.lblClickHint);
             this.Controls.Add(this.label1);
             this.Name = "HomePage";
             this.Size = new System.Drawing.Size(632, 433);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
 
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label lblClickHint;
     }
 }

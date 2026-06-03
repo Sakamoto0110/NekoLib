@@ -15,31 +15,17 @@ namespace NavigationDemo.Pages.BottomLeftToast
     /// our own Dock=None / Anchor=Bottom|Left positioning. We also subscribe to the
     /// parent's <c>Resize</c> to keep the rectangle pinned if the host window resizes.
     /// </summary>
-    public class BottomLeftToastView : ToastViewBase
+    public partial class BottomLeftToastView : ToastViewBase
     {
         private const int EdgeMargin = 12;
         private const int ToastWidth = 280;
         private const int ToastHeight = 56;
 
         private Control _trackedParent;
-        private readonly Label _lblMessage;
 
         public BottomLeftToastView()
         {
-            Name = nameof(BottomLeftToastView);
-            BackColor = Color.FromArgb(40, 40, 40);
-            Size = new Size(ToastWidth, ToastHeight);
-
-            _lblMessage = new Label
-            {
-                Dock = DockStyle.Fill,
-                Font = new Font("Microsoft Sans Serif", 11F, FontStyle.Bold),
-                ForeColor = Color.White,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Text = "Toast",
-                BackColor = Color.Transparent,
-            };
-            Controls.Add(_lblMessage);
+            InitializeComponent();
 
             ParentChanged += OnParentChanged;
         }
@@ -47,12 +33,15 @@ namespace NavigationDemo.Pages.BottomLeftToast
         protected override void OnShown(object payload)
         {
             if (payload is string text && !string.IsNullOrEmpty(text))
-                _lblMessage.Text = text;
+                lblMessage.Text = text;
         }
+
+        // ---------------------------------------------------------------------
+        // Bottom-left positioning (overrides the host's Dock=Fill after attach)
+        // ---------------------------------------------------------------------
 
         private void OnParentChanged(object sender, EventArgs e)
         {
-            // Detach from the previous parent's resize hook.
             if (_trackedParent != null)
             {
                 _trackedParent.Resize -= OnParentResize;
@@ -61,9 +50,6 @@ namespace NavigationDemo.Pages.BottomLeftToast
 
             if (Parent == null) return;
 
-            // The host docks us to Fill in AddView. Undo that and pin bottom-left.
-            // Use BeginInvoke so we run after the host's add-time configuration
-            // completes (BringToFront, Visible=true, etc.).
             BeginInvoke((Action)(() =>
             {
                 if (IsDisposed || Parent == null) return;
@@ -88,7 +74,13 @@ namespace NavigationDemo.Pages.BottomLeftToast
                 Parent.ClientSize.Height - ToastHeight - EdgeMargin);
         }
 
-        protected override void Dispose(bool disposing)
+        // ---------------------------------------------------------------------
+        // Cleanup
+        // ---------------------------------------------------------------------
+
+        // Designer.cs already overrides Dispose(bool) for `components`; piggy-back
+        // there to also unhook our positioning hooks.
+        partial void DisposeOverrides(bool disposing)
         {
             if (disposing)
             {
@@ -99,7 +91,6 @@ namespace NavigationDemo.Pages.BottomLeftToast
                     _trackedParent = null;
                 }
             }
-            base.Dispose(disposing);
         }
     }
 }

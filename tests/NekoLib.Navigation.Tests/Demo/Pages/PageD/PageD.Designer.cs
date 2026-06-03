@@ -1,6 +1,6 @@
-namespace NavigationDemo.Pages.PageB
+namespace NavigationDemo.Pages.PageD
 {
-    partial class PageB
+    partial class PageD
     {
         private System.ComponentModel.IContainer components = null;
 
@@ -19,6 +19,7 @@ namespace NavigationDemo.Pages.PageB
         {
             this.lblTitle = new System.Windows.Forms.Label();
             this.btnBack = new System.Windows.Forms.Button();
+            this.btnToF = new System.Windows.Forms.Button();
             this.SuspendLayout();
             //
             // lblTitle
@@ -27,7 +28,7 @@ namespace NavigationDemo.Pages.PageB
             this.lblTitle.Font = new System.Drawing.Font("Microsoft Sans Serif", 28F, System.Drawing.FontStyle.Bold);
             this.lblTitle.Location = new System.Drawing.Point(40, 40);
             this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Text = "PAGE B";
+            this.lblTitle.Text = "PAGE D";
             //
             // btnBack
             //
@@ -37,14 +38,23 @@ namespace NavigationDemo.Pages.PageB
             this.btnBack.Text = "← Back";
             this.btnBack.UseVisualStyleBackColor = true;
             //
-            // PageB
+            // btnToF
+            //
+            this.btnToF.Location = new System.Drawing.Point(40, 144);
+            this.btnToF.Name = "btnToF";
+            this.btnToF.Size = new System.Drawing.Size(140, 34);
+            this.btnToF.Text = "Go to PAGE F →";
+            this.btnToF.UseVisualStyleBackColor = true;
+            //
+            // PageD
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.LightGreen;
+            this.BackColor = System.Drawing.Color.LightSalmon;
+            this.Controls.Add(this.btnToF);
             this.Controls.Add(this.btnBack);
             this.Controls.Add(this.lblTitle);
-            this.Name = "PageB";
+            this.Name = "PageD";
             this.Size = new System.Drawing.Size(800, 600);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -54,5 +64,6 @@ namespace NavigationDemo.Pages.PageB
 
         private System.Windows.Forms.Label lblTitle;
         private System.Windows.Forms.Button btnBack;
+        private System.Windows.Forms.Button btnToF;
     }
 }

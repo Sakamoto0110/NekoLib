@@ -16,33 +16,22 @@ namespace NavigationDemo
     /// D → F, E → F) and owns the secondary <see cref="TestToolsForm"/>.
     /// Demo entry point (replaces the deleted legacy `Form1`/`ShellForm`).
     /// </summary>
-    public class TestForm : Form
+    public partial class TestForm : Form
     {
-        private readonly TestToolsForm _toolsWindow;
-        private readonly Panel _hostPanel;
+        private TestToolsForm _toolsWindow;
         private bool _closingFromShutdown;
 
         public TestForm()
         {
-            Text = "Navigation demo — primary";
-            Size = new Size(900, 600);
-            StartPosition = FormStartPosition.CenterScreen;
+            InitializeComponent();
 
-            _hostPanel = new Panel
-            {
-                Name = "TestHostPanel",
-                Dock = DockStyle.Fill,
-                BackColor = Color.Black
-            };
-            Controls.Add(_hostPanel);
-
-            // Bootstrap the navigation framework against the host panel.
+            // Bootstrap the navigation framework against the designer-owned host panel.
             var logger = new Logger(LogLevel.Debug, new DebugLogSink());
             var memory = new MemoryTelemetrySink();
             var diagnostics = new Diagnostics(logger, memory);
 
             var ctx = PageNavBootstrap
-                .Use<WinFormsPlatformAdapter>(_hostPanel)
+                .Use<WinFormsPlatformAdapter>(hostPanel)
                 .RegisterPagesFromAssembly(typeof(TestForm).Assembly)
                 .UseDiagnostics(diagnostics)
                 .ConfigurePages(cfg => { cfg.Page<HomeView>().AsHome(); })
@@ -50,9 +39,9 @@ namespace NavigationDemo
 
             NavigationService.UseContext(ctx);
 
-            // Secondary tools window — opens alongside the primary.
             _toolsWindow = new TestToolsForm();
             _toolsWindow.FormClosed += OnToolsClosed;
+
             Load += TestForm_Load;
             FormClosing += TestForm_FormClosing;
         }
@@ -66,7 +55,6 @@ namespace NavigationDemo
 
         private void PositionToolsWindowBesideMain()
         {
-            // Snap the tools window to the right of the primary window.
             var screen = Screen.FromControl(this).WorkingArea;
             int desiredLeft = Right + 8;
             if (desiredLeft + _toolsWindow.Width > screen.Right)
@@ -78,14 +66,12 @@ namespace NavigationDemo
 
         private void OnToolsClosed(object sender, FormClosedEventArgs e)
         {
-            // If the user closed the tools window, also close the primary.
             if (!_closingFromShutdown)
                 Close();
         }
 
         private async void TestForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            // First close: tear the framework down cleanly, then re-close.
             if (_closingFromShutdown) return;
 
             _closingFromShutdown = true;
