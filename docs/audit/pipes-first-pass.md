@@ -71,20 +71,20 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 |---|-------|----------|
 | M1 | ✅ **FIXED** — the latency quad + a per-channel sample counter are now guarded by a per-channel lock, read under the same lock in `Snapshot`; +concurrency test (commit `0ad161d`). | `SimplePipeMetrics.cs` |
 | M2 | **`_handlers` is a plain `Dictionary`** read by concurrent client tasks (`Dispatch`) with no synchronization and no freeze after `Start`. Safe only if `Map` is always called before `Start` (current usage), but a `Map` after `Start` races `Dispatch`. Use `ConcurrentDictionary` or reject `Map` after `Start`. | `PipeServer.cs` |
-| M3 | **Event publish head-of-line blocking.** `PipeEventHub.PublishAsync` awaits `WriteAsync` to each subscriber **sequentially**; one slow/backed-up subscriber stalls delivery to all others. No per-subscriber queue or drop policy. | `PipeEventHub.cs` `PublishAsync` |
-| M4 | **`PipeEventClient` dies silently.** `ListenLoop` catches all exceptions and exits with no reconnect and no disconnect callback — so a server restart, a dropped pipe, **or a throwing `OnEvent` handler** permanently ends the subscription with no signal to the consumer. (e.g. the Supervisor dashboard would silently stop receiving logs.) | `PipeEventClient.cs` `ListenLoop` |
-| M5 | **Oversized response drops the connection.** A response > `MaxSize` (1 MB) throws `InvalidOperationException` inside the write path; `HandleClient` catches and `break`s, dropping the connection without sending a structured error. The client sees an `EndOfStream`, not an error code. | `PipeFraming.cs` `WriteCore`, `PipeServer.cs` `HandleClient` |
+| M3 | ✅ **FIXED** — `PublishAsync` now writes to all subscribers concurrently (per-subscriber send task + `Task.WhenAll`), so a slow subscriber no longer stalls the others; +fan-out test (commit `e4df3e1`). A full per-subscriber bounded queue + drop policy remains possible future hardening. | `PipeEventHub.cs` |
+| M4 | ✅ **FIXED** — `PipeEventClient` now auto-reconnects (with a bounded connect timeout), raises `OnConnected`/`OnDisconnected`, and isolates throwing handlers. Additive defaults; Watchdog log streaming now survives a watchdog restart. +reconnect + handler-isolation tests (commit `599ec63`). Also completed M6 for the event hub on net9 (dispose pending accept in `finally`). | `PipeEventClient.cs`, `PipeEventHub.cs` |
+| M5 | ✅ **FIXED** — `PipeFraming` throws a distinguishable `PipeFrameTooLargeException`; `HandleClient` catches it on the response write and replies with a structured `response_too_large` error instead of dropping the connection. +test (commit `670f427`). | `PipeFraming.cs`, `PipeServer.cs` |
 | M6 | ✅ **FIXED** — net481 registers the accept's `CancellationToken` to dispose the pending pipe on cancel, so `WaitForConnection` throws and releases its thread at shutdown (was leaking up to `MaxClients` blocked threads per server until GC). Same in `PipeEventHub`. Verified: net481 suite stable across repeated runs (commit `c0cfa3d`). | `PipeServer.cs`, `PipeEventHub.cs` |
 
 ### Low
 
 | # | Issue | Location |
 |---|-------|----------|
-| L1 | `PipeMessage.Error` / `Data` are non-nullable despite `Nullable=enable`, producing CS8618 warnings; they are effectively optional and should be annotated nullable. | `PipeMessage.cs` |
-| L2 | `PlatformGuards.IsModern` is dead code — declared, never referenced. | `PlatformGuards.cs` |
-| L3 | Duplicate `using System;` (one inside the namespace) in `PipeClientOptions.cs`. | `PipeClientOptions.cs` |
-| L4 | csproj quirks: `<ImplicitUsings> enable</ImplicitUsings>` has a leading space in the value; `<Compile Remove="Internal\**" />` excludes a folder that does not exist. | `NekoLib.Pipes.csproj` |
-| L5 | `NoopPipeMetrics.Snapshot()` returns `null` (via explicit interface impl), forcing every caller to null-check; an empty snapshot would be friendlier. | `IPipeMetrics.cs` |
+| L1 | ✅ **FIXED** — nullable annotations completed (`PipeMessage.Data/Error`, `PipeServer._cts/Events/pipe`, `IPipeMetrics` `errorCode` params); Pipes now builds with zero warnings (commit `dc17863`). | `PipeMessage.cs`, `PipeServer.cs`, `IPipeMetrics.cs` |
+| L2 | ✅ **FIXED** — `PlatformGuards.cs` deleted (commit `dc17863`). | — |
+| L3 | ✅ **FIXED** — duplicate `using` removed (commit `dc17863`). | `PipeClientOptions.cs` |
+| L4 | ✅ **FIXED** — `ImplicitUsings` leading space corrected; dead `Internal\**` excludes removed (commit `dc17863`). | `NekoLib.Pipes.csproj` |
+| L5 | ✅ **FIXED (annotation)** — `IPipeMetrics.Snapshot()` return is now annotated `PipeMetricsSnapshot?` to match the existing null-returning Noop contract (clears CS8603); kept returning `null` by design rather than an empty snapshot (commit `dc17863`). | `IPipeMetrics.cs` |
 
 ---
 
@@ -102,12 +102,13 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 
 ## 6. Missing Pieces (Summary)
 
-- Unit tests (zero coverage) — framing round-trip, RPC dispatch/not-found/exception, correlation mismatch, event fan-out, metrics math.
-- net481 cancellation/timeout parity with net9.
-- Event backpressure handling (per-subscriber queue + drop policy).
-- `PipeEventClient` reconnect + disconnect notification; isolation of throwing handlers.
+- ~~Unit tests (zero coverage)~~ → ✅ 20 tests
+- ~~net481 cancellation/timeout parity with net9~~ → ✅ H2
+- ~~`PipeEventClient` reconnect + disconnect notification; isolation of throwing handlers~~ → ✅ M4
+- Event backpressure handling (per-subscriber **bounded queue + drop policy**) — M3 parallelized delivery but did not add per-subscriber queues.
 - Pipe ACL/security configuration (created with default security).
 - Graceful drain of in-flight client tasks on `Dispose`.
+- `_handlers` thread-safety / freeze-after-Start (M2, open).
 
 ---
 
@@ -119,7 +120,11 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 | 2026-06-04 | H2 | net481 framing now honors the `CancellationToken` (RequestTimeout / ClientIdleTimeout work) | `4f1d779` |
 | 2026-06-04 | M1 | `SimplePipeMetrics` latency stats made thread-safe (per-channel lock) | `0ad161d` |
 | 2026-06-04 | M6 | net481 accept threads released on shutdown (dispose-on-cancel) | `c0cfa3d` |
+| 2026-06-04 | M4 | `PipeEventClient` reconnect + connect/disconnect signals + handler isolation (also completed M6 for the hub on net9) | `599ec63` |
+| 2026-06-04 | M3 | Event publish parallelized (no head-of-line blocking) | `e4df3e1` |
+| 2026-06-04 | M5 | Oversized response → structured `response_too_large` error instead of dropped connection | `670f427` |
+| 2026-06-04 | L1–L5 | Nullable annotations completed (zero-warning build), dead `PlatformGuards` removed, duplicate using + csproj quirks fixed | `dc17863` |
 
-**Watchdog compatibility:** every change is internal or additive — no public Pipes API touched. Watchdog rebuilt against modified Pipes and an RPC round-trip (ping→pong, status) verified end-to-end after each behavioral change.
+**Watchdog compatibility:** every change is internal or additive — no public Pipes API touched. After the full set, Watchdog was rebuilt against modified Pipes and verified end-to-end: RPC `ping→pong` + `status` + `pause`, **and** live event delivery to a `PipeEventClient` subscriber (telemetry from `pause`). All green.
 
-**Still open:** M3 (event-publish head-of-line blocking), M4 (`PipeEventClient` no reconnect / silent death — touches Watchdog log streaming, weigh carefully), M5 (oversized response drops connection), L1–L5 (nullable annotations, dead `PlatformGuards`, duplicate using, csproj quirks, Noop snapshot null).
+**Still open:** M2 (`_handlers` plain `Dictionary` — freeze after `Start` or use `ConcurrentDictionary`). Possible future hardening: per-subscriber bounded event queue with a drop policy (beyond the M3 parallelization), and pipe ACL/security configuration.
