@@ -199,17 +199,17 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 
 | # | Issue | Location |
 |---|-------|----------|
-| H1 | **Zero xUnit unit tests** — no assertion coverage for any watchdog behavior | — |
-| H2 | **`NativeMethods.cs` is dead code** — duplicate P/Invoke declarations, nothing references it | `NativeMethods.cs` |
+| H1 | 🟡 **PARTIAL** — **Zero xUnit unit tests** → now 52 tests (Options/CrashBundler/Hotkeys/LogFile) + a supervisor runtime app. Runtime supervision paths (restart loop, taskkill, hotkeys) still only manually exercised. | — |
+| H2 | ✅ **FIXED** — **`NativeMethods.cs` is dead code** — removed (commit `4e1a664`). | `NativeMethods.cs` |
 | H3 | **Pervasive silent `catch { }`** — failures in critical paths (kill, telemetry, log flush) swallowed with no trace | Throughout `WatchdogRuntime`, `CrashBundler` |
 
 ### Medium
 
 | # | Issue | Location |
 |---|-------|----------|
-| M1 | `ForceKillTimeoutMs` option defined but `TryKill` uses hardcoded `5000` ms for taskkill | `WatchdogRuntime.cs:432`, `WatchdogOptions.cs:50` |
+| M1 | ✅ **FIXED** — `ForceKillTimeoutMs` now used by `TryKill`; default raised 1000→5000 to preserve prior behavior (commit `25e37dc`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs` |
 | M2 | `HeartbeatIntervalMs` option defined (default 5000) but never read | `WatchdogOptions.cs:55` |
-| M3 | `MaxLogBytes` defined but file log rotation never implemented — log grows unbounded | `WatchdogOptions.cs:40`, `WatchdogRuntime.cs:494` |
+| M3 | ✅ **FIXED** — `MaxLogBytes` now enforced via `WatchdogLogFile.Append` (single-backup rotation to `<path>.1`); +8 tests (commit `25e37dc`). | `WatchdogLogFile.cs`, `WatchdogRuntime.cs` |
 | M4 | Hotkeys (`Ctrl+Alt+P/R/Q`) hardcoded as raw VK literals in `HotkeyLoop`; not wired to `WatchdogOptions` or `WatchdogHotkeys` | `WatchdogRuntime.cs:510-512` |
 | M5 | `EnableUpdates` / `UpdateStagingRoot` / `UseAtomicDirectorySwap` defined but no RPC handler or implementation exists | `WatchdogOptions.cs:80-97` |
 | M6 | `CrashBundler.TryFinalizeLatestCrashBundle()` is never called from `WatchdogRuntime` — callers must wire it manually, but no documentation or hook point exists | `CrashBundler.cs`, `WatchdogRuntime.cs` |
@@ -246,11 +246,23 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 
 ## 6. Missing Pieces (Summary)
 
-- xUnit unit tests (zero coverage)
-- File log rotation (`MaxLogBytes` is a stub)
+- ~~xUnit unit tests (zero coverage)~~ → ✅ 52 tests added (pure-logic surface)
+- ~~File log rotation (`MaxLogBytes` is a stub)~~ → ✅ implemented
+- ~~`ForceKillTimeoutMs` respected in kill sequence~~ → ✅ wired
 - Update mechanism (options exist, no implementation)
 - `CrashBundler` integration into `WatchdogRuntime` (caller must wire manually)
 - `WatchdogLogPipeServer` integration into `WatchdogRuntime` (caller must wire manually)
 - Configurable hotkeys
 - Self-restart for the watchdog host process itself
-- `ForceKillTimeoutMs` respected in kill sequence
+
+---
+
+## 7. Remediation Log
+
+| Date | Findings | Change | Commits |
+|------|----------|--------|---------|
+| 2026-06-04 | H1 (partial) | Added `tests/NekoLib.Watchdog.Tests/Unit/` (52 tests: Options, CrashBundler, Hotkeys, LogFile) + `runtime_tests/Supervisor_481/` WinForms supervisor dashboard | `6074e01` |
+| 2026-06-04 | H2 | Removed dead `NativeMethods.cs` | `4e1a664` |
+| 2026-06-04 | M1, M3 | Wired `ForceKillTimeoutMs`; implemented `MaxLogBytes` rotation via new `WatchdogLogFile` | `25e37dc` |
+
+**Still open (recommended next):** M10 (move `WatchdogQuickTests` out of `tests/`), M4 (configurable hotkeys), M6/M7 (`CrashBundler`/`WatchdogLogPipeServer` not wired into the runtime), H3 (silent `catch {}` blocks), L1 (RPC command constants).
