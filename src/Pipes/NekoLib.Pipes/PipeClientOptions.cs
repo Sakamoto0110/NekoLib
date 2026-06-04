@@ -1,8 +1,6 @@
 ﻿using System;
 namespace NekoLib.Pipes
 {
-    using System;
-
     public sealed class PipeClientOptions
     {
         public string PipeName { get; set; } = "nekolib.pipe";

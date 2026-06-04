@@ -106,7 +106,7 @@ namespace NekoLib.Pipes
             string pipeName,
             TimeSpan elapsed,
             bool ok,
-            string errorCode)
+            string? errorCode)
         {
             Interlocked.Increment(ref _cliConnAttempts);
 
@@ -124,7 +124,7 @@ namespace NekoLib.Pipes
             string name,
             bool ok,
             TimeSpan elapsed,
-            string errorCode)
+            string? errorCode)
         {
             if (ok)
                 Interlocked.Increment(ref _cliOk);

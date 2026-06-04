@@ -19,10 +19,10 @@ namespace NekoLib.Pipes
 #if NET9
     public JsonElement? Data { get; set; }
 #else
-        public Newtonsoft.Json.Linq.JToken Data { get; set; }
+        public Newtonsoft.Json.Linq.JToken? Data { get; set; }
 #endif
 
-        public PipeError Error { get; set; }
+        public PipeError? Error { get; set; }
     }
 
   

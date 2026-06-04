@@ -34,7 +34,7 @@ namespace NekoLib.Pipes
             string pipeName,
             TimeSpan elapsed,
             bool ok,
-            string errorCode);
+            string? errorCode);
 
         void OnClientRequest(string pipeName, string name);
 
@@ -43,7 +43,7 @@ namespace NekoLib.Pipes
             string name,
             bool ok,
             TimeSpan elapsed,
-            string errorCode);
+            string? errorCode);
 
         // =========================
         // Errors
@@ -55,7 +55,7 @@ namespace NekoLib.Pipes
         // Snapshot
         // =========================
 
-        PipeMetricsSnapshot Snapshot();
+        PipeMetricsSnapshot? Snapshot();
     }
 
     public sealed class NoopPipeMetrics : IPipeMetrics
@@ -67,14 +67,12 @@ namespace NekoLib.Pipes
         public void OnServerRequestReceived(string pipeName, string name) { }
         public void OnServerResponseSent(string pipeName, string name, bool ok, TimeSpan elapsed) { }
         public void OnServerEventPublished(string pipeName, string eventName, int subscribers, int success, int failed) { }
-        public void OnClientConnect(string pipeName, TimeSpan elapsed, bool ok, string errorCode) { }
+        public void OnClientConnect(string pipeName, TimeSpan elapsed, bool ok, string? errorCode) { }
         public void OnClientRequest(string pipeName, string name) { }
-        public void OnClientResponse(string pipeName, string name, bool ok, TimeSpan elapsed, string errorCode) { }
+        public void OnClientResponse(string pipeName, string name, bool ok, TimeSpan elapsed, string? errorCode) { }
         public void OnError(string pipeName, string where, Exception ex) { }
 
-       
-
-        PipeMetricsSnapshot IPipeMetrics.Snapshot() => null;
+        PipeMetricsSnapshot? IPipeMetrics.Snapshot() => null;
     }
 }
 

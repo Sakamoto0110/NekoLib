@@ -15,10 +15,10 @@ namespace NekoLib.Pipes
         private readonly Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
             = new Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
 
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
         private volatile bool _running;
 
-        public PipeEventHub Events { get; private set; }
+        public PipeEventHub? Events { get; private set; }
 
         public PipeServer(PipeServerOptions options)
         {
@@ -83,7 +83,7 @@ namespace NekoLib.Pipes
 
                 _ = Task.Run(async () =>
                 {
-                    NamedPipeServerStream pipe = null;
+                    NamedPipeServerStream? pipe = null;
                     bool connected = false;
 
                     try
@@ -101,7 +101,7 @@ namespace NekoLib.Pipes
                         // net481 WaitForConnection can't observe ct; dispose the pipe on
                         // cancel so the blocked wait throws and releases its thread on
                         // shutdown instead of leaking until GC (audit M6).
-                        using (ct.Register(() => { try { pipe.Dispose(); } catch { } }))
+                        using (ct.Register(() => { try { pipe?.Dispose(); } catch { } }))
                         {
                             await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
                         }
