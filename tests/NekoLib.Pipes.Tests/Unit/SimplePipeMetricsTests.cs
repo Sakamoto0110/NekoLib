@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace NekoLib.Pipes.Tests.Unit
@@ -94,6 +95,29 @@ namespace NekoLib.Pipes.Tests.Unit
             m.OnError("p", "dispatch", new Exception());
 
             Assert.Equal(2L, m.Snapshot().Errors.Total);
+        }
+
+        [Fact]
+        public void ConcurrentResponses_ProduceExactCounts_AndConsistentMax()
+        {
+            // Thread-safety lock for audit M1: under parallel load the counters must
+            // not lose updates and the derived latency stats must not tear/crash.
+            var m = new SimplePipeMetrics();
+            const int threads = 8;
+            const int perThread = 1000;
+
+            Parallel.For(0, threads, _ =>
+            {
+                for (int i = 0; i < perThread; i++)
+                    m.OnServerResponseSent("p", "cmd", ok: true, elapsed: TimeSpan.FromMilliseconds(i % 100));
+            });
+
+            var s = m.Snapshot().Server;
+
+            Assert.Equal((long)(threads * perThread), s.Success);
+            Assert.Equal(0L, s.Failures);
+            Assert.Equal(99L, s.MaxLatencyMs);                 // max of (i % 100)
+            Assert.InRange(s.AverageLatencyMs, 0.0, 99.0);     // finite, untorn
         }
 
         [Fact]

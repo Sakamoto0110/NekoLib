@@ -44,6 +44,14 @@ namespace NekoLib.Pipes
 
         private const double EmaAlpha = 0.2;
 
+        // Latency stats (last/max/avg/ema + sample count) are derived values that
+        // need a read-modify-write; guard each channel so concurrent responses
+        // don't tear the doubles or race the sample count (audit M1).
+        private readonly object _srvLatencyGate = new object();
+        private readonly object _cliLatencyGate = new object();
+        private long _srvSamples;
+        private long _cliSamples;
+
         // ============================================================
         // SERVER
         // ============================================================
@@ -69,12 +77,13 @@ namespace NekoLib.Pipes
                 Interlocked.Increment(ref _srvFail);
 
             UpdateLatency(
+                _srvLatencyGate,
                 elapsed,
                 ref _srvLastLatency,
                 ref _srvMaxLatency,
                 ref _srvAvgLatency,
                 ref _srvEmaLatency,
-                _srvOk + _srvFail);
+                ref _srvSamples);
         }
 
         public void OnServerEventPublished(
@@ -123,12 +132,13 @@ namespace NekoLib.Pipes
                 Interlocked.Increment(ref _cliFail);
 
             UpdateLatency(
+                _cliLatencyGate,
                 elapsed,
                 ref _cliLastLatency,
                 ref _cliMaxLatency,
                 ref _cliAvgLatency,
                 ref _cliEmaLatency,
-                _cliOk + _cliFail);
+                ref _cliSamples);
         }
 
         // ============================================================
@@ -142,34 +152,27 @@ namespace NekoLib.Pipes
         // LATENCY HELPER
         // ============================================================
 
-        private void UpdateLatency(
+        private static void UpdateLatency(
+            object gate,
             TimeSpan elapsed,
             ref long last,
             ref long max,
             ref double avg,
             ref double ema,
-            long count)
+            ref long samples)
         {
             var ms = (long)elapsed.TotalMilliseconds;
 
-            Interlocked.Exchange(ref last, ms);
-
-            long currentMax;
-            do
+            lock (gate)
             {
-                currentMax = max;
-                if (ms <= currentMax)
-                    break;
+                last = ms;
+                if (ms > max)
+                    max = ms;
+
+                samples++;
+                avg = ((avg * (samples - 1)) + ms) / samples;
+                ema = (samples == 1) ? ms : (ema * (1 - EmaAlpha)) + (ms * EmaAlpha);
             }
-            while (Interlocked.CompareExchange(ref max, ms, currentMax) != currentMax);
-
-            if (count > 0)
-                avg = ((avg * (count - 1)) + ms) / count;
-
-            if (ema == 0)
-                ema = ms;
-            else
-                ema = (ema * (1 - EmaAlpha)) + (ms * EmaAlpha);
         }
 
         // ============================================================
@@ -178,16 +181,34 @@ namespace NekoLib.Pipes
 
         public PipeMetricsSnapshot Snapshot()
         {
+            long srvLast, srvMax; double srvAvg, srvEma;
+            lock (_srvLatencyGate)
+            {
+                srvLast = _srvLastLatency;
+                srvMax = _srvMaxLatency;
+                srvAvg = _srvAvgLatency;
+                srvEma = _srvEmaLatency;
+            }
+
+            long cliLast, cliMax; double cliAvg, cliEma;
+            lock (_cliLatencyGate)
+            {
+                cliLast = _cliLastLatency;
+                cliMax = _cliMaxLatency;
+                cliAvg = _cliAvgLatency;
+                cliEma = _cliEmaLatency;
+            }
+
             return new PipeMetricsSnapshot(
                 new PipeMetricsSnapshot.ServerMetrics(
                     Interlocked.Read(ref _srvClients),
                     Interlocked.Read(ref _srvReq),
                     Interlocked.Read(ref _srvOk),
                     Interlocked.Read(ref _srvFail),
-                    Interlocked.Read(ref _srvLastLatency),
-                    Interlocked.Read(ref _srvMaxLatency),
-                    Math.Round(_srvAvgLatency, 2),
-                    Math.Round(_srvEmaLatency, 2)
+                    srvLast,
+                    srvMax,
+                    Math.Round(srvAvg, 2),
+                    Math.Round(srvEma, 2)
                 ),
                 new PipeMetricsSnapshot.ClientMetrics(
                     Interlocked.Read(ref _cliConnAttempts),
@@ -196,10 +217,10 @@ namespace NekoLib.Pipes
                     Interlocked.Read(ref _cliReq),
                     Interlocked.Read(ref _cliOk),
                     Interlocked.Read(ref _cliFail),
-                    Interlocked.Read(ref _cliLastLatency),
-                    Interlocked.Read(ref _cliMaxLatency),
-                    Math.Round(_cliAvgLatency, 2),
-                    Math.Round(_cliEmaLatency, 2)
+                    cliLast,
+                    cliMax,
+                    Math.Round(cliAvg, 2),
+                    Math.Round(cliEma, 2)
                 ),
                 new PipeMetricsSnapshot.EventMetrics(
                     Interlocked.Read(ref _evtPublished),
