@@ -115,8 +115,7 @@ namespace NekoLib.Pipes
 
                         using (var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
                         {
-                            idleCts.CancelAfter(_o.ClientIdleTimeout);
-                            await HandleClient(pipe, idleCts.Token).ConfigureAwait(false);
+                            await HandleClient(pipe, idleCts).ConfigureAwait(false);
                         }
                     }
                     catch (OperationCanceledException)
@@ -149,24 +148,32 @@ namespace NekoLib.Pipes
         // Client handler
         // ============================================================
 
-        private async Task HandleClient(NamedPipeServerStream pipe, CancellationToken ct)
+        private async Task HandleClient(NamedPipeServerStream pipe, CancellationTokenSource idleCts)
         {
+            var ct = idleCts.Token;
+
             while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
             {
+                // Arm the idle timer for the wait for the next request. ClientIdleTimeout
+                // now measures inactivity *between* requests (a true idle timeout that
+                // resets on activity) rather than capping the whole session.
+                try { idleCts.CancelAfter(_o.ClientIdleTimeout); } catch { }
+
                 PipeMessage request;
 
                 try
                 {
-#if NET9
                     request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
-#else
-                    request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
-#endif
                 }
                 catch
                 {
                     break; // client disconnected or bad frame
                 }
+
+                // Activity received: pause the idle timer while we dispatch + reply so a
+                // slow handler isn't mistaken for an idle client. Shutdown via the linked
+                // outer token still cancels.
+                try { idleCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan); } catch { }
 
                 if (request.Type != "req")
                     continue;
