@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net481</TargetFramework>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Watchdog.RuntimeTests.Supervisor481</RootNamespace>
+    <AssemblyName>NekoLib.Watchdog.RuntimeTests.Supervisor481</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Watchdog\NekoLib.Watchdog\NekoLib.Watchdog.csproj" />
+    <ProjectReference Include="..\..\..\src\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+  </ItemGroup>
+
+</Project>
