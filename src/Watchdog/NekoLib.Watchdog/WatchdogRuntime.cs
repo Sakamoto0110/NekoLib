@@ -341,6 +341,10 @@ namespace NekoLib.Watchdog
                     _childUptime = null;
                 }
 
+                // Promote any crash artifacts the child dropped before restarting.
+                // No-ops cheaply when the app left no pending crash-* folder.
+                TryFinalizeCrashBundle(_lastExitCode);
+
                 if (runtime.TotalSeconds < 3)
                 {
                     fastCrashCount++;
@@ -371,6 +375,45 @@ namespace NekoLib.Watchdog
                 _rpc?.Events?.PublishAsync("telemetry", BuildTelemetry());
             }
             catch { }
+        }
+
+        // Finalize the newest pending crash bundle (if any) the supervised app wrote.
+        // Safe to call after every non-shutdown child exit: the bundler is a cheap
+        // no-op when PendingCrashRoot holds no crash-* folder.
+        private void TryFinalizeCrashBundle(int? exitCode)
+        {
+            if (!_o.EnableCrashBundling)
+                return;
+
+            try
+            {
+                var opts = new CrashBundlerOptions
+                {
+                    PendingCrashRoot = _o.PendingCrashRoot,
+                    BundleRoot = _o.BundleRoot,
+                    MaxBundles = _o.MaxBundles,
+                    EnableManifests = _o.EnableBundleManifests,
+                    EnableChecksums = _o.EnableBundleChecksums,
+                    CopyWatchdogLogTail = _o.EnableFileLogging && !string.IsNullOrWhiteSpace(_o.LogPath),
+                    WatchdogLogPath = _o.LogPath,
+                    GetWatchdogStatus = StatusSnapshot
+                };
+
+                var reason = exitCode.HasValue
+                    ? "child_exit_code=" + exitCode.Value
+                    : "child_exit";
+
+                CrashBundler.TryFinalizeLatestCrashBundle(opts, reason, _restartCount, m => LogInfo(m));
+            }
+            catch { }
+        }
+
+        private string StatusSnapshot()
+        {
+            return "state=" + GetState()
+                + " uptimeMs=" + _uptime.ElapsedMilliseconds
+                + " restartCount=" + _restartCount
+                + " lastExitCode=" + (_lastExitCode.HasValue ? _lastExitCode.Value.ToString() : "null");
         }
 
         private void StartChild()
