@@ -16,6 +16,12 @@ namespace NekoLib.Watchdog
         public const uint VK_F1 = 0x70;
         public const uint VK_F24 = 0x87;
 
+        // Letter keys used by the default watchdog control hotkeys (VK codes for
+        // A-Z and 0-9 equal their uppercase ASCII value).
+        public const uint VK_P = 0x50;
+        public const uint VK_Q = 0x51;
+        public const uint VK_R = 0x52;
+
         /// <summary>
         /// Enumerates all possible virtual key codes that WinAPI hotkeys can accept.
         /// This does not guarantee they are meaningful on a given keyboard/layout.
@@ -37,6 +43,48 @@ namespace NekoLib.Watchdog
             if(alt) m |= MOD_ALT;
             if(win) m |= MOD_WIN;
             return m;
+        }
+
+        /// <summary>
+        /// Virtual-key code for an alphanumeric character (case-insensitive).
+        /// Valid for A-Z and 0-9, whose VK codes equal their uppercase ASCII value.
+        /// </summary>
+        public static uint Vk(char key)
+        {
+            return (uint)char.ToUpperInvariant(key);
+        }
+    }
+
+    /// <summary>
+    /// A single global hotkey binding (modifier mask + virtual key) for a watchdog
+    /// control action. Used by <c>WatchdogOptions</c> to make the pause/resume/stop
+    /// hotkeys configurable instead of hardcoded.
+    /// </summary>
+    public sealed class WatchdogHotkey
+    {
+        public uint Modifiers { get; set; }
+        public uint VirtualKey { get; set; }
+
+        /// <summary>When false the binding is skipped at registration time.</summary>
+        public bool Enabled { get; set; } = true;
+
+        public WatchdogHotkey()
+        {
+        }
+
+        public WatchdogHotkey(uint modifiers, uint virtualKey)
+        {
+            Modifiers = modifiers;
+            VirtualKey = virtualKey;
+            Enabled = true;
+        }
+
+        /// <summary>Convenience for the common Ctrl+Alt+&lt;key&gt; combo.</summary>
+        public static WatchdogHotkey CtrlAlt(uint virtualKey)
+        {
+            return new WatchdogHotkey(
+                WatchdogHotkeys.MOD_CONTROL | WatchdogHotkeys.MOD_ALT,
+                virtualKey);
         }
     }
 }

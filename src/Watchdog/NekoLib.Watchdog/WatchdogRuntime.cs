@@ -550,9 +550,12 @@ namespace NekoLib.Watchdog
             _hotkeyThreadId = Win32.GetCurrentThreadId();
             _hotkeyHwnd = Win32.CreateMessageOnlyWindow();
 
-            Win32.RegisterHotKey(_hotkeyHwnd, 1, Win32.MOD_CONTROL | Win32.MOD_ALT, 0x50); // P
-            Win32.RegisterHotKey(_hotkeyHwnd, 2, Win32.MOD_CONTROL | Win32.MOD_ALT, 0x52); // R
-            Win32.RegisterHotKey(_hotkeyHwnd, 3, Win32.MOD_CONTROL | Win32.MOD_ALT, 0x51); // Q
+            if (_o.EnableHotkeys)
+            {
+                TryRegisterHotkey(HotkeyPause, _o.PauseHotkey);
+                TryRegisterHotkey(HotkeyResume, _o.ResumeHotkey);
+                TryRegisterHotkey(HotkeyStop, _o.StopHotkey);
+            }
 
             while (!_exiting)
             {
@@ -563,14 +566,29 @@ namespace NekoLib.Watchdog
                 {
                     int id = (int)msg.wParam;
 
-                    if (id == 1) { _enabled = false; LogInfo("[hk] pause"); PublishTelemetry(); }
-                    else if (id == 2) { _enabled = true; LogInfo("[hk] resume"); PublishTelemetry(); }
-                    else if (id == 3) { LogWarn("[hk] stop"); Stop(true); }
+                    if (id == HotkeyPause) { _enabled = false; LogInfo("[hk] pause"); PublishTelemetry(); }
+                    else if (id == HotkeyResume) { _enabled = true; LogInfo("[hk] resume"); PublishTelemetry(); }
+                    else if (id == HotkeyStop) { LogWarn("[hk] stop"); Stop(true); }
                 }
 
                 Win32.TranslateMessage(ref msg);
                 Win32.DispatchMessage(ref msg);
             }
+        }
+
+        // Hotkey registration ids (stable; map to the configured bindings).
+        private const int HotkeyPause = 1;
+        private const int HotkeyResume = 2;
+        private const int HotkeyStop = 3;
+
+        private void TryRegisterHotkey(int id, WatchdogHotkey hk)
+        {
+            if (hk == null || !hk.Enabled || hk.VirtualKey == 0)
+                return;
+
+            bool ok = Win32.RegisterHotKey(_hotkeyHwnd, id, hk.Modifiers, hk.VirtualKey);
+            if (!ok)
+                LogWarn("[hotkey] registration failed", new { id, mods = hk.Modifiers, vk = hk.VirtualKey });
         }
 
         // ============================================================
@@ -590,9 +608,6 @@ namespace NekoLib.Watchdog
         {
             public const int WM_HOTKEY = 0x0312;
             public const int WM_QUIT = 0x0012;
-
-            public const uint MOD_ALT = 0x0001;
-            public const uint MOD_CONTROL = 0x0002;
 
             private const int HWND_MESSAGE = -3;
 

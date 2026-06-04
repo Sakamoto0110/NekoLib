@@ -62,6 +62,22 @@ namespace NekoLib.Watchdog
         public bool BringToFrontOnStartIfRunning { get; set; } = true;
 
         // ============================================================
+        // Control Hotkeys (global)
+        // ============================================================
+
+        /// <summary>Master switch for the global control hotkeys.</summary>
+        public bool EnableHotkeys { get; set; } = true;
+
+        /// <summary>Pauses supervision (default Ctrl+Alt+P).</summary>
+        public WatchdogHotkey PauseHotkey { get; set; } = WatchdogHotkey.CtrlAlt(WatchdogHotkeys.VK_P);
+
+        /// <summary>Resumes supervision (default Ctrl+Alt+R).</summary>
+        public WatchdogHotkey ResumeHotkey { get; set; } = WatchdogHotkey.CtrlAlt(WatchdogHotkeys.VK_R);
+
+        /// <summary>Stops the watchdog (default Ctrl+Alt+Q).</summary>
+        public WatchdogHotkey StopHotkey { get; set; } = WatchdogHotkey.CtrlAlt(WatchdogHotkeys.VK_Q);
+
+        // ============================================================
         // Crash Bundling
         // ============================================================
 

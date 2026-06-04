@@ -86,5 +86,52 @@ namespace NekoLib.Watchdog.Tests.Unit
             for (int i = 1; i < keys.Count; i++)
                 Assert.Equal(keys[i - 1] + 1, keys[i]);
         }
+
+        // -----------------------------------------------------------------
+        // Letter VK constants + Vk(char) helper
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void LetterConstants_MatchUppercaseAscii()
+        {
+            Assert.Equal(0x50u, WatchdogHotkeys.VK_P);
+            Assert.Equal(0x51u, WatchdogHotkeys.VK_Q);
+            Assert.Equal(0x52u, WatchdogHotkeys.VK_R);
+        }
+
+        [Theory]
+        [InlineData('p', 0x50u)]
+        [InlineData('P', 0x50u)]
+        [InlineData('q', 0x51u)]
+        [InlineData('r', 0x52u)]
+        [InlineData('a', 0x41u)]
+        [InlineData('Z', 0x5Au)]
+        [InlineData('0', 0x30u)]
+        [InlineData('9', 0x39u)]
+        public void Vk_MapsAlphanumericToVirtualKey_CaseInsensitive(char key, uint expected)
+        {
+            Assert.Equal(expected, WatchdogHotkeys.Vk(key));
+        }
+
+        // -----------------------------------------------------------------
+        // WatchdogHotkey binding type
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WatchdogHotkey_CtrlAlt_SetsCtrlAltModifiersAndKey()
+        {
+            var hk = WatchdogHotkey.CtrlAlt(WatchdogHotkeys.VK_P);
+
+            Assert.Equal(WatchdogHotkeys.MOD_CONTROL | WatchdogHotkeys.MOD_ALT, hk.Modifiers);
+            Assert.Equal(0x03u, hk.Modifiers);
+            Assert.Equal(WatchdogHotkeys.VK_P, hk.VirtualKey);
+            Assert.True(hk.Enabled);
+        }
+
+        [Fact]
+        public void WatchdogHotkey_DefaultCtor_IsEnabled()
+        {
+            Assert.True(new WatchdogHotkey().Enabled);
+        }
     }
 }

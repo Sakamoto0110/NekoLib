@@ -257,5 +257,28 @@ namespace NekoLib.Watchdog.Tests.Unit
             Assert.True(Directory.Exists(o.BundleRoot));
             Assert.True(Directory.Exists(o.UpdateStagingRoot));
         }
+
+        // -----------------------------------------------------------------
+        // Control hotkey defaults (Ctrl+Alt+P / R / Q)
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void Defaults_EnableHotkeys_WithCtrlAltPRQ()
+        {
+            var o = new WatchdogOptions();
+
+            Assert.True(o.EnableHotkeys);
+
+            uint ctrlAlt = WatchdogHotkeys.MOD_CONTROL | WatchdogHotkeys.MOD_ALT;
+
+            Assert.Equal(ctrlAlt, o.PauseHotkey.Modifiers);
+            Assert.Equal(WatchdogHotkeys.VK_P, o.PauseHotkey.VirtualKey);
+
+            Assert.Equal(ctrlAlt, o.ResumeHotkey.Modifiers);
+            Assert.Equal(WatchdogHotkeys.VK_R, o.ResumeHotkey.VirtualKey);
+
+            Assert.Equal(ctrlAlt, o.StopHotkey.Modifiers);
+            Assert.Equal(WatchdogHotkeys.VK_Q, o.StopHotkey.VirtualKey);
+        }
     }
 }
