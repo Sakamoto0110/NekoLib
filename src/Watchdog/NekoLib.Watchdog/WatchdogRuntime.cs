@@ -33,6 +33,7 @@ namespace NekoLib.Watchdog
         private Process _child;
         private Thread _monitorThread;
         private Thread _hotkeyThread;
+        private Timer _heartbeatTimer;
         private Mutex _instanceMutex;
         private bool _ownsMutex;
 
@@ -111,6 +112,26 @@ namespace NekoLib.Watchdog
                 Name = "WDG-Hotkeys"
             };
             _hotkeyThread.Start();
+
+            // Periodic alive/telemetry beat. 0 disables (per WatchdogOptions).
+            if (_o.HeartbeatIntervalMs > 0)
+                _heartbeatTimer = new Timer(
+                    OnHeartbeat, null, _o.HeartbeatIntervalMs, _o.HeartbeatIntervalMs);
+        }
+
+        private void OnHeartbeat(object state)
+        {
+            if (_shutdownRequested)
+                return;
+
+            LogInfo("[heartbeat]", new
+            {
+                state = GetState(),
+                childPid = (_child != null && !_child.HasExited) ? _child.Id : (int?)null,
+                restartCount = _restartCount
+            });
+
+            PublishTelemetry();
         }
 
         public void WaitForExit()
@@ -135,6 +156,8 @@ namespace NekoLib.Watchdog
                     _exiting = true;
 
                 LogWarn("[stop] requested");
+
+                try { _heartbeatTimer?.Dispose(); } catch { }
 
                 lock (_childLock)
                 {
