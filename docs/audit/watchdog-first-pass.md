@@ -210,7 +210,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | M1 | ✅ **FIXED** — `ForceKillTimeoutMs` now used by `TryKill`; default raised 1000→5000 to preserve prior behavior (commit `25e37dc`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs` |
 | M2 | `HeartbeatIntervalMs` option defined (default 5000) but never read | `WatchdogOptions.cs:55` |
 | M3 | ✅ **FIXED** — `MaxLogBytes` now enforced via `WatchdogLogFile.Append` (single-backup rotation to `<path>.1`); +8 tests (commit `25e37dc`). | `WatchdogLogFile.cs`, `WatchdogRuntime.cs` |
-| M4 | Hotkeys (`Ctrl+Alt+P/R/Q`) hardcoded as raw VK literals in `HotkeyLoop`; not wired to `WatchdogOptions` or `WatchdogHotkeys` | `WatchdogRuntime.cs:510-512` |
+| M4 | ✅ **FIXED** — hotkeys now configurable via `WatchdogOptions` (`EnableHotkeys` + `WatchdogHotkey` bindings); defaults preserve Ctrl+Alt+P/R/Q. Registration failures logged (commit `ffccc68`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs`, `WatchdogHotkeys.cs` |
 | M5 | `EnableUpdates` / `UpdateStagingRoot` / `UseAtomicDirectorySwap` defined but no RPC handler or implementation exists | `WatchdogOptions.cs:80-97` |
 | M6 | ✅ **FIXED** — `WatchdogRuntime` now calls `CrashBundler` after each non-shutdown child exit (gated on `EnableCrashBundling`); verified end-to-end (commit `f084cd7`). | `CrashBundler.cs`, `WatchdogRuntime.cs` |
 | M7 | ⚠️ **NEEDS DECISION** — `WatchdogLogPipeServer` (raw-text log fan-out server) + `WatchdogPipeLogSink` (app-side `ILogSink`) form a half-built app-log-forwarding feature: (1) the runtime never starts the server, (2) the sink's default pipe name `NekoLib.Watchdog.logs` doesn't match the runtime's `NekoLib.Watchdog.<hash>` identity, (3) received lines don't feed the watchdog's own structured log/event stream. Distinct from the RPC `"log"` events (which already stream the *watchdog's* logs). Either complete it (define a consumer + pipe naming) or remove both types. | `WatchdogLogPipeServer.cs`, `WatchdogPipeLogSink.cs` |
@@ -222,8 +222,8 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 
 | # | Issue | Location |
 |---|-------|----------|
-| L1 | RPC command names (`"ping"`, `"status"`, etc.) are magic strings — no constants | `WatchdogRuntime.cs:177-252` |
-| L2 | `WatchdogHotkeys.MOD_ALT`/`MOD_CONTROL` duplicate `WatchdogRuntime.Win32.MOD_ALT`/`MOD_CONTROL` | `WatchdogHotkeys.cs:11-12`, `WatchdogRuntime.cs:551-552` |
+| L1 | ✅ **FIXED** — RPC command names centralized in `WatchdogCommands` constants; wire values pinned by a test (commit `35a749a`). | `WatchdogCommands.cs` |
+| L2 | ✅ **FIXED** — duplicate `MOD_ALT`/`MOD_CONTROL` removed from the nested `Win32` class; `WatchdogHotkeys` is the single source (commit `ffccc68`). | `WatchdogRuntime.cs` |
 | L3 | `Dispose()` calls `Stop(true)` which is idempotent via `_stopped` flag — but only if `_stopped` is set before any error path; double-dispose is safe in practice but fragile | `WatchdogRuntime.cs:537-539` |
 | L4 | `HostArgumentParser` accepts `--args` as a single quoted string — no support for per-argument arrays; multi-word arguments require quoting workarounds | `HostArgumentParser.cs` |
 | L5 | `watchdog_host_fatal.log` uses a relative path in `Program.Main` — lands in CWD, not a predictable log directory | `Program.cs:24` |
@@ -266,5 +266,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | 2026-06-04 | M1, M3 | Wired `ForceKillTimeoutMs`; implemented `MaxLogBytes` rotation via new `WatchdogLogFile` | `25e37dc` |
 | 2026-06-04 | M10 | Removed misplaced `WatchdogQuickTests` sim from `tests/` | `877d502` |
 | 2026-06-04 | M6 | Wired `CrashBundler` into the monitor loop (finalize after child exit); verified end-to-end | `f084cd7` |
+| 2026-06-04 | M4, L2 | Configurable control hotkeys; removed duplicate `Win32` modifier constants | `ffccc68` |
+| 2026-06-04 | L1 | RPC command names centralized in `WatchdogCommands` constants | `35a749a` |
 
-**Still open (recommended next):** M7 (decide: complete vs remove the app-log-forwarding types), M4 (configurable hotkeys), H3 (silent `catch {}` blocks), L1 (RPC command constants), M2/L7 (other unused options).
+**Still open (recommended next):** H3 (silent `catch {}` blocks — surgical pass through the logger), M2 (`HeartbeatIntervalMs` unused), L7 (`BringToFrontOnStartIfRunning` unused), M5/update mechanism, M8 (pipe-name hash length), L4/L5 (host arg parsing, fatal-log path). M7 deferred by decision.
