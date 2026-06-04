@@ -16,41 +16,44 @@ namespace NekoLib.Pipes
 
     internal static class PipeFraming
     {
-        private const int MaxSize = 1024 * 1024;
-        
+        /// <summary>Default maximum framed-message size (1 MiB). Overridable per call
+        /// via the <c>maxBytes</c> parameter, surfaced as <c>MaxMessageBytes</c> on the
+        /// server/client options.</summary>
+        public const int DefaultMaxBytes = 1024 * 1024;
+
 #if NET9
-    public static async Task WriteAsync(Stream stream, PipeMessage msg, CancellationToken ct)
+    public static async Task WriteAsync(Stream stream, PipeMessage msg, CancellationToken ct, int maxBytes = DefaultMaxBytes)
     {
         byte[] json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(msg);
-        await WriteCore(stream, json, ct);
+        await WriteCore(stream, json, maxBytes, ct);
     }
 
-    public static async Task<PipeMessage> ReadAsync(Stream stream, CancellationToken ct)
+    public static async Task<PipeMessage> ReadAsync(Stream stream, CancellationToken ct, int maxBytes = DefaultMaxBytes)
     {
-        byte[] payload = await ReadFrame(stream, ct);
+        byte[] payload = await ReadFrame(stream, maxBytes, ct);
         return System.Text.Json.JsonSerializer.Deserialize<PipeMessage>(payload)!;
     }
 
 #else
 
-        public static async Task WriteAsync(Stream stream, PipeMessage msg, CancellationToken ct = default)
+        public static async Task WriteAsync(Stream stream, PipeMessage msg, CancellationToken ct = default, int maxBytes = DefaultMaxBytes)
         {
             var work = Task.Run(() =>
             {
                 byte[] json = System.Text.Encoding.UTF8.GetBytes(
                     Newtonsoft.Json.JsonConvert.SerializeObject(msg));
 
-                WriteCore(stream, json);
+                WriteCore(stream, json, maxBytes);
             });
 
             await WithCancellation(work, ct).ConfigureAwait(false);
         }
 
-        public static async Task<PipeMessage> ReadAsync(Stream stream, CancellationToken ct = default)
+        public static async Task<PipeMessage> ReadAsync(Stream stream, CancellationToken ct = default, int maxBytes = DefaultMaxBytes)
         {
             var work = Task.Run(() =>
             {
-                byte[] payload = ReadFrame(stream);
+                byte[] payload = ReadFrame(stream, maxBytes);
                 return Newtonsoft.Json.JsonConvert
                     .DeserializeObject<PipeMessage>(
                         System.Text.Encoding.UTF8.GetString(payload))!;
@@ -121,10 +124,10 @@ namespace NekoLib.Pipes
         // --- Shared Core Methods ---
 
 #if NET9
-    private static async Task WriteCore(Stream stream, byte[] json, CancellationToken ct)
+    private static async Task WriteCore(Stream stream, byte[] json, int maxBytes, CancellationToken ct)
     {
-        if (json.Length > MaxSize)
-            throw new PipeFrameTooLargeException(json.Length, MaxSize);
+        if (json.Length > maxBytes)
+            throw new PipeFrameTooLargeException(json.Length, maxBytes);
 
         byte[] length = BitConverter.GetBytes(json.Length);
 
@@ -133,12 +136,12 @@ namespace NekoLib.Pipes
         await stream.FlushAsync(ct);
     }
 
-    private static async Task<byte[]> ReadFrame(Stream stream, CancellationToken ct)
+    private static async Task<byte[]> ReadFrame(Stream stream, int maxBytes, CancellationToken ct)
     {
         byte[] lengthBytes = await ReadExact(stream, 4, ct);
         int size = BitConverter.ToInt32(lengthBytes, 0);
 
-        if (size <= 0 || size > MaxSize)
+        if (size <= 0 || size > maxBytes)
             throw new InvalidDataException();
 
         return await ReadExact(stream, size, ct);
@@ -162,10 +165,10 @@ namespace NekoLib.Pipes
 
 #else
 
-        private static void WriteCore(Stream stream, byte[] json)
+        private static void WriteCore(Stream stream, byte[] json, int maxBytes)
         {
-            if (json.Length > MaxSize)
-                throw new PipeFrameTooLargeException(json.Length, MaxSize);
+            if (json.Length > maxBytes)
+                throw new PipeFrameTooLargeException(json.Length, maxBytes);
 
             byte[] length = BitConverter.GetBytes(json.Length);
 
@@ -174,12 +177,12 @@ namespace NekoLib.Pipes
             stream.Flush();
         }
 
-        private static byte[] ReadFrame(Stream stream)
+        private static byte[] ReadFrame(Stream stream, int maxBytes)
         {
             byte[] lengthBytes = ReadExact(stream, 4);
             int size = BitConverter.ToInt32(lengthBytes, 0);
 
-            if (size <= 0 || size > MaxSize)
+            if (size <= 0 || size > maxBytes)
                 throw new InvalidDataException();
 
             return ReadExact(stream, size);

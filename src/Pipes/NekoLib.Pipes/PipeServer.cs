@@ -163,7 +163,7 @@ namespace NekoLib.Pipes
 
                 try
                 {
-                    request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
+                    request = await PipeFraming.ReadAsync(pipe, ct, _o.MaxMessageBytes).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -208,7 +208,7 @@ namespace NekoLib.Pipes
                 var toSend = response;
                 try
                 {
-                    await PipeFraming.WriteAsync(pipe, toSend, ct).ConfigureAwait(false);
+                    await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false);
                 }
                 catch (PipeFrameTooLargeException)
                 {
@@ -227,7 +227,7 @@ namespace NekoLib.Pipes
                         }
                     };
 
-                    try { await PipeFraming.WriteAsync(pipe, toSend, ct).ConfigureAwait(false); }
+                    try { await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false); }
                     catch { break; }
                 }
                 catch

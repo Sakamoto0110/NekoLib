@@ -121,6 +121,82 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
+        public async Task ConfiguredMaxMessageBytes_IsHonored()
+        {
+            // Lowering MaxMessageBytes well below a normally-fine response proves the
+            // configured cap threads through framing: an 8 KB response (fine at the 1 MB
+            // default) is now rejected as response_too_large.
+            var name = PipeTestUtil.UniqueName();
+
+            using (var server = new PipeServer(new PipeServerOptions
+            {
+                PipeName = name,
+                EnableEvents = false,
+                MaxMessageBytes = 2048
+            }))
+            using (var client = new PipeClient(new PipeClientOptions
+            {
+                PipeName = name,
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                RequestTimeout = TimeSpan.FromSeconds(3),
+                MaxMessageBytes = 2048
+            }))
+            {
+                server.Map("big", (req, ct) => Task.FromResult(new PipeMessage
+                {
+                    Ok = true,
+                    Error = new PipeError { Code = "", Message = new string('x', 8000) }
+                }));
+                server.Start();
+
+                var resp = await client.SendAsync("big");
+
+                Assert.False(resp.Ok);
+                Assert.NotNull(resp.Error);
+                Assert.Equal("response_too_large", resp.Error.Code);
+            }
+        }
+
+        [Fact]
+        public async Task ConfiguredMaxMessageBytes_AllowsLargerResponse()
+        {
+            // With both sides raising the cap, a 2 MB response (over the 1 MB default)
+            // round-trips on both TFMs. Regression guard: a missed net9 client call site
+            // had left the read pinned to the 1 MB default.
+            var name = PipeTestUtil.UniqueName();
+            const int big = 2 * 1024 * 1024;
+            const int cap = 8 * 1024 * 1024;
+
+            using (var server = new PipeServer(new PipeServerOptions
+            {
+                PipeName = name,
+                EnableEvents = false,
+                MaxMessageBytes = cap
+            }))
+            using (var client = new PipeClient(new PipeClientOptions
+            {
+                PipeName = name,
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                RequestTimeout = TimeSpan.FromSeconds(15),
+                MaxMessageBytes = cap
+            }))
+            {
+                server.Map("big", (req, ct) => Task.FromResult(new PipeMessage
+                {
+                    Ok = true,
+                    Error = new PipeError { Code = "", Message = new string('x', big) }
+                }));
+                server.Start();
+
+                var resp = await client.SendAsync("big");
+
+                Assert.True(resp.Ok);
+                Assert.NotNull(resp.Error);
+                Assert.True(resp.Error.Message.Length >= big, "large payload did not round-trip");
+            }
+        }
+
+        [Fact]
         public async Task MultipleSequentialRequests_AllSucceed()
         {
             var name = PipeTestUtil.UniqueName();

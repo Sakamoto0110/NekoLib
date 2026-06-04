@@ -50,11 +50,11 @@ namespace NekoLib.Pipes
                 timeoutCts.CancelAfter(_o.RequestTimeout);
 
 #if NET9
-            await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token).ConfigureAwait(false);
-            var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token).ConfigureAwait(false);
+            await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
+            var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
 #else
-                await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token).ConfigureAwait(false);
-                var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token).ConfigureAwait(false);
+                await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
+                var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
 #endif
 
                 ValidateCorrelation(request, response);

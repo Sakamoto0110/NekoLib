@@ -15,6 +15,9 @@ namespace NekoLib.Pipes
         /// </summary>
         public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
+        /// <summary>Maximum framed request/response size. Default 1 MiB.</summary>
+        public int MaxMessageBytes { get; set; } = PipeFraming.DefaultMaxBytes;
+
         /// <summary>
         /// Optional metrics hook.
         /// </summary>
