@@ -66,6 +66,49 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
+        public async Task PublishedEvent_FansOutToAllSubscribers()
+        {
+            // Locks parallel-delivery correctness (audit M3): both subscribers
+            // receive the same published event.
+            var name = PipeTestUtil.UniqueName();
+
+            using (var server = new PipeServer(new PipeServerOptions
+            {
+                PipeName = name,
+                EnableEvents = true,
+                MaxEventSubscribers = 4
+            }))
+            {
+                server.Start();
+
+                var gotA = new ManualResetEventSlim(false);
+                var gotB = new ManualResetEventSlim(false);
+
+                using (var subA = new PipeEventClient(name))
+                using (var subB = new PipeEventClient(name))
+                {
+                    subA.OnEvent += _ => gotA.Set();
+                    subB.OnEvent += _ => gotB.Set();
+                    subA.Start();
+                    subB.Start();
+
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => server.Events.SubscriberCount >= 2, 5000),
+                        "both subscribers never connected");
+
+                    for (int i = 0; i < 5 && !(gotA.IsSet && gotB.IsSet); i++)
+                    {
+                        await server.Events.PublishAsync("e", new { i });
+                        WaitHandle.WaitAll(new[] { gotA.WaitHandle, gotB.WaitHandle }, 800);
+                    }
+
+                    Assert.True(gotA.IsSet, "subscriber A did not receive the event");
+                    Assert.True(gotB.IsSet, "subscriber B did not receive the event");
+                }
+            }
+        }
+
+        [Fact]
         public async Task Publish_WithNoSubscribers_DoesNotThrow()
         {
             var name = PipeTestUtil.UniqueName();

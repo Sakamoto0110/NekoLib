@@ -164,34 +164,22 @@ namespace NekoLib.Pipes
             };
 #endif
 
-            int total = _subscribers.Count;
-            int success = 0;
-            int failed = 0;
+            var subs = _subscribers.ToArray();
+            int total = subs.Length;
 
-            foreach (var kv in _subscribers.ToArray())
+            // Write to every subscriber concurrently so one slow/backed-up subscriber
+            // can't stall delivery to the others (audit M3 — head-of-line blocking).
+            var sends = new Task<bool>[subs.Length];
+            for (int i = 0; i < subs.Length; i++)
+                sends[i] = SendToSubscriber(subs[i].Key, subs[i].Value, msg, ct);
+
+            bool[] results = await Task.WhenAll(sends).ConfigureAwait(false);
+
+            int success = 0, failed = 0;
+            foreach (var r in results)
             {
-                var id = kv.Key;
-                var pipe = kv.Value;
-
-                try
-                {
-                    if (!pipe.IsConnected)
-                        throw new Exception("Disconnected subscriber.");
-
-#if NET9
-                await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
-#else
-                    await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
-#endif
-
-                    success++;
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    _metrics.OnError(_pipeName, "event_publish", ex);
-                    RemoveSubscriber(id);
-                }
+                if (r) success++;
+                else failed++;
             }
 
             _metrics.OnServerEventPublished(
@@ -200,6 +188,28 @@ namespace NekoLib.Pipes
                 total,
                 success,
                 failed);
+        }
+
+        private async Task<bool> SendToSubscriber(
+            Guid id,
+            System.IO.Pipes.NamedPipeServerStream pipe,
+            PipeMessage msg,
+            CancellationToken ct)
+        {
+            try
+            {
+                if (!pipe.IsConnected)
+                    throw new InvalidOperationException("Disconnected subscriber.");
+
+                await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _metrics.OnError(_pipeName, "event_publish", ex);
+                RemoveSubscriber(id);
+                return false;
+            }
         }
 
         private void RemoveSubscriber(Guid id)
