@@ -47,7 +47,12 @@ namespace NekoLib.Watchdog
         public int RestartDelayMs { get; set; } = 1000;
 
         public int GracefulKillTimeoutMs { get; set; } = 1000;
-        public int ForceKillTimeoutMs { get; set; } = 1000;
+
+        /// <summary>
+        /// Time to wait for the forced <c>taskkill /T /F</c> tree-kill to complete
+        /// after a graceful close times out. Default preserves the historical 5 s wait.
+        /// </summary>
+        public int ForceKillTimeoutMs { get; set; } = 5000;
 
         /// <summary>
         /// 0 disables heartbeat logging.

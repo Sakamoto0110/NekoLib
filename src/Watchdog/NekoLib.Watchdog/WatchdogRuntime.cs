@@ -429,7 +429,7 @@ namespace NekoLib.Watchdog
                         Arguments = $"/PID {p.Id} /T /F",
                         CreateNoWindow = true,
                         UseShellExecute = false
-                    })?.WaitForExit(5000);
+                    })?.WaitForExit(_o.ForceKillTimeoutMs);
                 }
                 catch { }
             }
@@ -486,13 +486,13 @@ namespace NekoLib.Watchdog
             try { _rpc?.Events?.PublishAsync("log", entry); }
             catch { }
 
-            // file logging
+            // file logging (size-bounded with single-backup rotation, honoring MaxLogBytes)
             if (_o.EnableFileLogging)
             {
                 try
                 {
                     lock (_logLock)
-                        File.AppendAllText(_o.LogPath, line + Environment.NewLine);
+                        WatchdogLogFile.Append(_o.LogPath, line, _o.MaxLogBytes);
                 }
                 catch { }
             }
