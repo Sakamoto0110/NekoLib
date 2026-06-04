@@ -212,11 +212,11 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | M3 | ✅ **FIXED** — `MaxLogBytes` now enforced via `WatchdogLogFile.Append` (single-backup rotation to `<path>.1`); +8 tests (commit `25e37dc`). | `WatchdogLogFile.cs`, `WatchdogRuntime.cs` |
 | M4 | Hotkeys (`Ctrl+Alt+P/R/Q`) hardcoded as raw VK literals in `HotkeyLoop`; not wired to `WatchdogOptions` or `WatchdogHotkeys` | `WatchdogRuntime.cs:510-512` |
 | M5 | `EnableUpdates` / `UpdateStagingRoot` / `UseAtomicDirectorySwap` defined but no RPC handler or implementation exists | `WatchdogOptions.cs:80-97` |
-| M6 | `CrashBundler.TryFinalizeLatestCrashBundle()` is never called from `WatchdogRuntime` — callers must wire it manually, but no documentation or hook point exists | `CrashBundler.cs`, `WatchdogRuntime.cs` |
-| M7 | `WatchdogLogPipeServer` is never started from `WatchdogRuntime` — callers must wire it manually | `WatchdogLogPipeServer.cs` |
+| M6 | ✅ **FIXED** — `WatchdogRuntime` now calls `CrashBundler` after each non-shutdown child exit (gated on `EnableCrashBundling`); verified end-to-end (commit `f084cd7`). | `CrashBundler.cs`, `WatchdogRuntime.cs` |
+| M7 | ⚠️ **NEEDS DECISION** — `WatchdogLogPipeServer` (raw-text log fan-out server) + `WatchdogPipeLogSink` (app-side `ILogSink`) form a half-built app-log-forwarding feature: (1) the runtime never starts the server, (2) the sink's default pipe name `NekoLib.Watchdog.logs` doesn't match the runtime's `NekoLib.Watchdog.<hash>` identity, (3) received lines don't feed the watchdog's own structured log/event stream. Distinct from the RPC `"log"` events (which already stream the *watchdog's* logs). Either complete it (define a consumer + pipe naming) or remove both types. | `WatchdogLogPipeServer.cs`, `WatchdogPipeLogSink.cs` |
 | M8 | Pipe name SHA1 truncated to 16 hex chars — theoretical collision for paths that share a common prefix after lowercasing | `WatchdogController.cs:47`, `WatchdogOptions.cs:169` |
 | M9 | Ring buffer silently drops oldest entries at 300 with no log warning | `WatchdogRuntime.cs:480-482` |
-| M10 | `WatchdogQuickTests` WinForms app sits in `tests/` instead of `runtime_tests/` | `tests/NekoLib.Watchdog.Tests/Watchdog/` |
+| M10 | ✅ **FIXED** — misplaced `WatchdogQuickTests` sim removed from `tests/` (commit `877d502`); supervision scenario now covered by `runtime_tests/Supervisor_481`. | `tests/NekoLib.Watchdog.Tests/Watchdog/` |
 
 ### Low
 
@@ -249,9 +249,9 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 - ~~xUnit unit tests (zero coverage)~~ → ✅ 52 tests added (pure-logic surface)
 - ~~File log rotation (`MaxLogBytes` is a stub)~~ → ✅ implemented
 - ~~`ForceKillTimeoutMs` respected in kill sequence~~ → ✅ wired
+- ~~`CrashBundler` integration into `WatchdogRuntime`~~ → ✅ wired
 - Update mechanism (options exist, no implementation)
-- `CrashBundler` integration into `WatchdogRuntime` (caller must wire manually)
-- `WatchdogLogPipeServer` integration into `WatchdogRuntime` (caller must wire manually)
+- `WatchdogLogPipeServer`/`WatchdogPipeLogSink` app-log forwarding (half-built — see M7)
 - Configurable hotkeys
 - Self-restart for the watchdog host process itself
 
@@ -264,5 +264,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | 2026-06-04 | H1 (partial) | Added `tests/NekoLib.Watchdog.Tests/Unit/` (52 tests: Options, CrashBundler, Hotkeys, LogFile) + `runtime_tests/Supervisor_481/` WinForms supervisor dashboard | `6074e01` |
 | 2026-06-04 | H2 | Removed dead `NativeMethods.cs` | `4e1a664` |
 | 2026-06-04 | M1, M3 | Wired `ForceKillTimeoutMs`; implemented `MaxLogBytes` rotation via new `WatchdogLogFile` | `25e37dc` |
+| 2026-06-04 | M10 | Removed misplaced `WatchdogQuickTests` sim from `tests/` | `877d502` |
+| 2026-06-04 | M6 | Wired `CrashBundler` into the monitor loop (finalize after child exit); verified end-to-end | `f084cd7` |
 
-**Still open (recommended next):** M10 (move `WatchdogQuickTests` out of `tests/`), M4 (configurable hotkeys), M6/M7 (`CrashBundler`/`WatchdogLogPipeServer` not wired into the runtime), H3 (silent `catch {}` blocks), L1 (RPC command constants).
+**Still open (recommended next):** M7 (decide: complete vs remove the app-log-forwarding types), M4 (configurable hotkeys), H3 (silent `catch {}` blocks), L1 (RPC command constants), M2/L7 (other unused options).
