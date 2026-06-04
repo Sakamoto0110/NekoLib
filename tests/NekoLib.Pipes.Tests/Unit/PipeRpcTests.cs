@@ -97,6 +97,30 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
+        public async Task OversizeResponse_ReturnsStructuredError_NotDroppedConnection()
+        {
+            // The handler returns a response larger than the 1 MB frame limit (via a
+            // big Error.Message — no TFM-specific Data construction needed). Before the
+            // M5 fix this dropped the connection; now the client gets a clean error.
+            var name = PipeTestUtil.UniqueName();
+
+            using (var server = StartServer(name, s =>
+                s.Map("big", (req, ct) => Task.FromResult(new PipeMessage
+                {
+                    Ok = true,
+                    Error = new PipeError { Code = "", Message = new string('x', 1_200_000) }
+                }))))
+            using (var client = Client(name))
+            {
+                var resp = await client.SendAsync("big");
+
+                Assert.False(resp.Ok);
+                Assert.NotNull(resp.Error);
+                Assert.Equal("response_too_large", resp.Error.Code);
+            }
+        }
+
+        [Fact]
         public async Task MultipleSequentialRequests_AllSucceed()
         {
             var name = PipeTestUtil.UniqueName();

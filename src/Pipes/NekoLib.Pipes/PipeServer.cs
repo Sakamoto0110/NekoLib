@@ -195,13 +195,30 @@ namespace NekoLib.Pipes
                     };
                 }
 
+                var toSend = response;
                 try
                 {
-#if NET9
-                    await PipeFraming.WriteAsync(pipe, response, ct).ConfigureAwait(false);
-#else
-                    await PipeFraming.WriteAsync(pipe, response, ct).ConfigureAwait(false);
-#endif
+                    await PipeFraming.WriteAsync(pipe, toSend, ct).ConfigureAwait(false);
+                }
+                catch (PipeFrameTooLargeException)
+                {
+                    // Reply with a structured error rather than dropping the connection.
+                    // WriteCore validates size before emitting, so nothing was written.
+                    toSend = new PipeMessage
+                    {
+                        Id = request.Id,
+                        Type = "res",
+                        Name = request.Name,
+                        Ok = false,
+                        Error = new PipeError
+                        {
+                            Code = "response_too_large",
+                            Message = "Response exceeded the maximum frame size."
+                        }
+                    };
+
+                    try { await PipeFraming.WriteAsync(pipe, toSend, ct).ConfigureAwait(false); }
+                    catch { break; }
                 }
                 catch
                 {
@@ -213,7 +230,7 @@ namespace NekoLib.Pipes
                     _metrics.OnServerResponseSent(
                         _o.PipeName,
                         request.Name,
-                        response.Ok,
+                        toSend.Ok,
                         sw.Elapsed);
                 }
             }

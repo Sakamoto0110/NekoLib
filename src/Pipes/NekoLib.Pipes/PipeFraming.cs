@@ -4,6 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 namespace NekoLib.Pipes
 {
+    /// <summary>Thrown when a message exceeds the maximum pipe frame size. Derives from
+    /// InvalidOperationException so existing catch sites still match.</summary>
+    internal sealed class PipeFrameTooLargeException : InvalidOperationException
+    {
+        public PipeFrameTooLargeException(int size, int maxSize)
+            : base("Message too large: " + size + " > " + maxSize + " bytes.")
+        {
+        }
+    }
+
     internal static class PipeFraming
     {
         private const int MaxSize = 1024 * 1024;
@@ -114,7 +124,7 @@ namespace NekoLib.Pipes
     private static async Task WriteCore(Stream stream, byte[] json, CancellationToken ct)
     {
         if (json.Length > MaxSize)
-            throw new InvalidOperationException("Message too large");
+            throw new PipeFrameTooLargeException(json.Length, MaxSize);
 
         byte[] length = BitConverter.GetBytes(json.Length);
 
@@ -155,7 +165,7 @@ namespace NekoLib.Pipes
         private static void WriteCore(Stream stream, byte[] json)
         {
             if (json.Length > MaxSize)
-                throw new InvalidOperationException("Message too large");
+                throw new PipeFrameTooLargeException(json.Length, MaxSize);
 
             byte[] length = BitConverter.GetBytes(json.Length);
 
