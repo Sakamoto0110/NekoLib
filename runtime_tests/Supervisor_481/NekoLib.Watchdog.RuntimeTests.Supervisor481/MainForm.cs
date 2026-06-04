@@ -120,11 +120,11 @@ namespace NekoLib.Watchdog.RuntimeTests.Supervisor481
         // RPC commands
         // =====================================================================
 
-        private async void btnPing_Click(object sender, EventArgs e) => await SendCommand("ping");
-        private async void btnStatus_Click(object sender, EventArgs e) => await SendCommand("status");
-        private async void btnPause_Click(object sender, EventArgs e) => await SendCommand("pause");
-        private async void btnResume_Click(object sender, EventArgs e) => await SendCommand("resume");
-        private async void btnRestart_Click(object sender, EventArgs e) => await SendCommand("restart");
+        private async void btnPing_Click(object sender, EventArgs e) => await SendCommand(WatchdogCommands.Ping);
+        private async void btnStatus_Click(object sender, EventArgs e) => await SendCommand(WatchdogCommands.Status);
+        private async void btnPause_Click(object sender, EventArgs e) => await SendCommand(WatchdogCommands.Pause);
+        private async void btnResume_Click(object sender, EventArgs e) => await SendCommand(WatchdogCommands.Resume);
+        private async void btnRestart_Click(object sender, EventArgs e) => await SendCommand(WatchdogCommands.Restart);
 
         private async Task SendCommand(string cmd)
         {

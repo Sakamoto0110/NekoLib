@@ -71,7 +71,7 @@ namespace NekoLib.Watchdog
                         source
                     };
 
-                    client.SendAsync("exception_notify", payload)
+                    client.SendAsync(WatchdogCommands.ExceptionNotify, payload)
                           .GetAwaiter()
                           .GetResult();
                 }
@@ -124,15 +124,15 @@ namespace NekoLib.Watchdog
         // Public API (No targetPath needed anymore)
         // ============================================================
 
-        public static bool Ping() => Send("ping") == "pong";
+        public static bool Ping() => Send(WatchdogCommands.Ping) == "pong";
 
-        public static string Status() => Send("status");
+        public static string Status() => Send(WatchdogCommands.Status);
 
-        public static void Pause() => Send("pause");
+        public static void Pause() => Send(WatchdogCommands.Pause);
 
-        public static void Stop() => Send("stop");
+        public static void Stop() => Send(WatchdogCommands.Stop);
 
-        public static void Restart() => Send("restart");
+        public static void Restart() => Send(WatchdogCommands.Restart);
 
         // ============================================================
         // Log Subscription (Replay + Live)
@@ -221,7 +221,7 @@ namespace NekoLib.Watchdog
                 using (var client = CreateClient())
                 {
                     var response = client
-                        .SendAsync("log_history")
+                        .SendAsync(WatchdogCommands.LogHistory)
                         .GetAwaiter()
                         .GetResult();
 

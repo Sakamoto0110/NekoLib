@@ -174,12 +174,12 @@ namespace NekoLib.Watchdog
 
         private void RegisterRpcHandlers()
         {
-            _rpc.Map("ping", async (req, ct) => PipeOk("pong"));
+            _rpc.Map(WatchdogCommands.Ping, async (req, ct) => PipeOk("pong"));
 
-            _rpc.Map("status", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.Status, async (req, ct) =>
                 PipeOk(BuildTelemetry()));
 
-            _rpc.Map("pause", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.Pause, async (req, ct) =>
             {
                 _enabled = false;
                 LogInfo("[cmd] pause");
@@ -187,7 +187,7 @@ namespace NekoLib.Watchdog
                 return PipeOk("paused");
             });
 
-            _rpc.Map("resume", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.Resume, async (req, ct) =>
             {
                 _enabled = true;
                 LogInfo("[cmd] resume");
@@ -195,7 +195,7 @@ namespace NekoLib.Watchdog
                 return PipeOk("running");
             });
 
-            _rpc.Map("restart", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.Restart, async (req, ct) =>
             {
                 LogWarn("[cmd] restart");
 
@@ -209,7 +209,7 @@ namespace NekoLib.Watchdog
                 return PipeOk("restarting");
             });
 
-            _rpc.Map("stop", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.Stop, async (req, ct) =>
             {
                 LogWarn("[cmd] stop");
                 Stop(true);
@@ -217,7 +217,7 @@ namespace NekoLib.Watchdog
             });
 
             // 🔥 Log replay buffer
-            _rpc.Map("log_history", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.LogHistory, async (req, ct) =>
             {
                 LogEntry[] history;
                 lock (_bufferLock)
@@ -225,7 +225,7 @@ namespace NekoLib.Watchdog
 
                 return PipeOk(history);
             });
-            _rpc.Map("exception_notify", async (req, ct) =>
+            _rpc.Map(WatchdogCommands.ExceptionNotify, async (req, ct) =>
             {
 #if NET9
     var root = req.Data.Value;
