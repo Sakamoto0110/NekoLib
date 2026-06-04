@@ -98,7 +98,13 @@ namespace NekoLib.Pipes
 #if NET9
                         await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
 #else
-                        await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        // net481 WaitForConnection can't observe ct; dispose the pipe on
+                        // cancel so the blocked wait throws and releases its thread on
+                        // shutdown instead of leaking until GC (audit M6).
+                        using (ct.Register(() => { try { pipe.Dispose(); } catch { } }))
+                        {
+                            await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        }
 #endif
 
                         connected = true;
@@ -113,6 +119,10 @@ namespace NekoLib.Pipes
                     catch (OperationCanceledException)
                     {
                         // normal shutdown
+                    }
+                    catch (Exception) when (ct.IsCancellationRequested)
+                    {
+                        // pipe disposed during shutdown — normal
                     }
                     catch (Exception ex)
                     {

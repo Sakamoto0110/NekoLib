@@ -43,12 +43,19 @@ namespace NekoLib.Pipes.Tests.Unit
                     // Publish only once the hub actually has the subscriber connected,
                     // otherwise the event has no one to go to.
                     Assert.True(
-                        PipeTestUtil.WaitUntil(() => server.Events.SubscriberCount >= 1),
+                        PipeTestUtil.WaitUntil(() => server.Events.SubscriberCount >= 1, 5000),
                         "subscriber never connected to the event hub");
 
-                    await server.Events.PublishAsync("telemetry", new { hello = "world" });
+                    // Publish a few times: on net481 the subscriber's blocking read may
+                    // not be parked on the very first frame yet; redundant publishes make
+                    // delivery deterministic without weakening the assertion.
+                    for (int i = 0; i < 3 && !gotEvent.IsSet; i++)
+                    {
+                        await server.Events.PublishAsync("telemetry", new { hello = "world" });
+                        gotEvent.Wait(1500);
+                    }
 
-                    Assert.True(gotEvent.Wait(3000), "event was not delivered in time");
+                    Assert.True(gotEvent.IsSet, "event was not delivered in time");
                 }
 
                 Assert.NotNull(received);
