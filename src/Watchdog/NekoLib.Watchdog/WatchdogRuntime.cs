@@ -315,7 +315,13 @@ namespace NekoLib.Watchdog
                     continue;
                 }
 
-                StartChild();
+                if (!StartChild())
+                {
+                    // Spawn failed (e.g. target became unavailable). Back off and
+                    // retry rather than letting the exception kill the monitor thread.
+                    Thread.Sleep(_o.RestartDelayMs);
+                    continue;
+                }
 
                 var start = DateTime.UtcNow;
 
@@ -416,67 +422,92 @@ namespace NekoLib.Watchdog
                 + " lastExitCode=" + (_lastExitCode.HasValue ? _lastExitCode.Value.ToString() : "null");
         }
 
-        private void StartChild()
+        private bool StartChild()
         {
             lock (_childLock)
             {
                 if (_child != null && !_child.HasExited)
-                    return;
+                    return true;
 
-                var psi = new ProcessStartInfo
+                try
                 {
-                    FileName = _o.TargetPath,
-                    Arguments = _o.TargetArguments,
-                    WorkingDirectory = _o.WorkingDirectory,
-                    UseShellExecute = false,
-                    CreateNoWindow = false
-                };
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = _o.TargetPath,
+                        Arguments = _o.TargetArguments,
+                        WorkingDirectory = _o.WorkingDirectory,
+                        UseShellExecute = false,
+                        CreateNoWindow = false
+                    };
 
-                psi.Environment["NEKO_UNDER_WATCHDOG"] = "1";
+                    psi.Environment["NEKO_UNDER_WATCHDOG"] = "1";
 
-                _child = Process.Start(psi);
-                _childUptime = Stopwatch.StartNew();
-                _restartCount++;
+                    _child = Process.Start(psi);
+                    _childUptime = Stopwatch.StartNew();
+                    _restartCount++;
 
-                LogInfo("[child_start]", new { pid = _child.Id });
+                    LogInfo("[child_start]", new { pid = _child.Id });
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _child = null;
+                    _childUptime = null;
+                    LogError("[child_start_failed]", new { target = _o.TargetPath, error = ex.Message });
+                    return false;
+                }
             }
         }
 
         private void TryKill(Process p)
         {
+            if (p == null)
+                return;
+
+            int pid;
             try
             {
-                if (p == null || p.HasExited)
+                if (p.HasExited)
                     return;
-
-                // Graceful
-                try
-                {
-                    p.CloseMainWindow();
-                    if (p.WaitForExit(_o.GracefulKillTimeoutMs))
-                    {
-                        LogInfo("[kill] graceful", new { pid = p.Id });
-                        return;
-                    }
-                }
-                catch { }
-
-                // Force kill tree (works on net481 + net9)
-                try
-                {
-                    LogWarn("[kill] taskkill_tree", new { pid = p.Id });
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "taskkill",
-                        Arguments = $"/PID {p.Id} /T /F",
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    })?.WaitForExit(_o.ForceKillTimeoutMs);
-                }
-                catch { }
+                pid = p.Id;
             }
-            catch { }
+            catch
+            {
+                return; // already gone
+            }
+
+            // Graceful
+            try
+            {
+                p.CloseMainWindow();
+                if (p.WaitForExit(_o.GracefulKillTimeoutMs))
+                {
+                    LogInfo("[kill] graceful", new { pid });
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogWarn("[kill] graceful_failed", new { pid, error = ex.Message });
+            }
+
+            // Force kill tree (works on net481 + net9)
+            try
+            {
+                LogWarn("[kill] taskkill_tree", new { pid });
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "taskkill",
+                    Arguments = $"/PID {pid} /T /F",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                })?.WaitForExit(_o.ForceKillTimeoutMs);
+            }
+            catch (Exception ex)
+            {
+                LogError("[kill] taskkill_failed", new { pid, error = ex.Message });
+            }
         }
 
         // ============================================================
