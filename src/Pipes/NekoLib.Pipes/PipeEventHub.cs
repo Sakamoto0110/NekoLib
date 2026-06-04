@@ -119,6 +119,10 @@ namespace NekoLib.Pipes
                     finally
                     {
                         RemoveSubscriber(id);
+                        // Dispose the accept pipe even if it never registered a subscriber
+                        // (e.g. WaitForConnection cancelled on shutdown) so it doesn't
+                        // linger and intercept a later client connect (audit M6).
+                        try { pipe?.Dispose(); } catch { }
                         _subscriberLimiter.Release();
                     }
 
