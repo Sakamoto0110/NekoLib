@@ -62,19 +62,19 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 
 | # | Issue | Location |
 |---|-------|----------|
-| H1 | **No unit tests** — zero assertion coverage for framing, RPC round-trip, correlation, events, or metrics. The only `Pipe*` files under `tests/` are build-artifact DLLs. | — |
-| H2 | **net481 timeouts are non-functional.** The net481 framing path (`PipeFraming.WriteAsync`/`ReadAsync`) runs the blocking I/O in `Task.Run` and **ignores the `CancellationToken`**. As a result: (a) `PipeClient.RequestTimeout` is never enforced on net481 — a hung server blocks the caller indefinitely (the `timeoutCts` is created but its token is never passed to the net481 framing calls); (b) `PipeServer.ClientIdleTimeout` never disconnects idle clients on net481 (the idle `ct` isn't passed to `ReadAsync`, and even if it were it'd be ignored). net9 is fully cancellable, so behavior diverges by TFM. **Directly affects Watchdog**, whose `WatchdogController` relies on a 3 s `RequestTimeout` on net481. | `PipeFraming.cs` (net481 `ReadAsync`/`WriteAsync`), `PipeClient.cs`, `PipeServer.cs` |
+| H1 | ✅ **FIXED** — added `tests/NekoLib.Pipes.Tests/Unit/` (16 tests, net481 + net9): RPC round-trip / not_found / handler-exception / correlation / request-timeout, event pub-sub, metrics counters + latency math + concurrency. Run serially with raised pool minimums (in-process IPC). (commit `ea72043`) | — |
+| H2 | ✅ **FIXED** — net481 framing now honors the `CancellationToken`: `PipeFraming` wraps the blocking work so the await observes the token, and the call sites pass it. `PipeClient.RequestTimeout` and `PipeServer.ClientIdleTimeout` now take effect on net481, matching net9. Verified with a timeout test + watchdog RPC E2E (commit `4f1d779`). | `PipeFraming.cs`, `PipeClient.cs`, `PipeServer.cs`, `PipeEventHub.cs` |
 
 ### Medium
 
 | # | Issue | Location |
 |---|-------|----------|
-| M1 | **Metrics latency data race.** `SimplePipeMetrics.UpdateLatency` updates the `avg` and `ema` doubles with plain read-modify-write (no lock/Interlocked) and takes `count` as a non-atomic `_ok + _fail`. Concurrent server/client responses tear and lose updates. Counters via `Interlocked` are fine; only the derived doubles race. (Impact: inaccurate stats, not functional failure.) | `SimplePipeMetrics.cs` `UpdateLatency` |
+| M1 | ✅ **FIXED** — the latency quad + a per-channel sample counter are now guarded by a per-channel lock, read under the same lock in `Snapshot`; +concurrency test (commit `0ad161d`). | `SimplePipeMetrics.cs` |
 | M2 | **`_handlers` is a plain `Dictionary`** read by concurrent client tasks (`Dispatch`) with no synchronization and no freeze after `Start`. Safe only if `Map` is always called before `Start` (current usage), but a `Map` after `Start` races `Dispatch`. Use `ConcurrentDictionary` or reject `Map` after `Start`. | `PipeServer.cs` |
 | M3 | **Event publish head-of-line blocking.** `PipeEventHub.PublishAsync` awaits `WriteAsync` to each subscriber **sequentially**; one slow/backed-up subscriber stalls delivery to all others. No per-subscriber queue or drop policy. | `PipeEventHub.cs` `PublishAsync` |
 | M4 | **`PipeEventClient` dies silently.** `ListenLoop` catches all exceptions and exits with no reconnect and no disconnect callback — so a server restart, a dropped pipe, **or a throwing `OnEvent` handler** permanently ends the subscription with no signal to the consumer. (e.g. the Supervisor dashboard would silently stop receiving logs.) | `PipeEventClient.cs` `ListenLoop` |
 | M5 | **Oversized response drops the connection.** A response > `MaxSize` (1 MB) throws `InvalidOperationException` inside the write path; `HandleClient` catches and `break`s, dropping the connection without sending a structured error. The client sees an `EndOfStream`, not an error code. | `PipeFraming.cs` `WriteCore`, `PipeServer.cs` `HandleClient` |
-| M6 | **net481 accept thread not interruptible on shutdown.** `AcceptLoop` (and `PipeEventHub`) block on `Task.Run(() => pipe.WaitForConnection())`; on `Dispose` the cancellation can't interrupt the blocked native wait, so a pending accept lingers until the next connection. net9 uses `WaitForConnectionAsync(ct)` and shuts down cleanly. | `PipeServer.cs`, `PipeEventHub.cs` (net481 paths) |
+| M6 | ✅ **FIXED** — net481 registers the accept's `CancellationToken` to dispose the pending pipe on cancel, so `WaitForConnection` throws and releases its thread at shutdown (was leaking up to `MaxClients` blocked threads per server until GC). Same in `PipeEventHub`. Verified: net481 suite stable across repeated runs (commit `c0cfa3d`). | `PipeServer.cs`, `PipeEventHub.cs` |
 
 ### Low
 
@@ -113,6 +113,13 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 
 ## 7. Remediation Log
 
-_(none yet — first-pass read only)_
+| Date | Findings | Change | Commits |
+|------|----------|--------|---------|
+| 2026-06-04 | H1 | Added `tests/NekoLib.Pipes.Tests/Unit/` — 16 tests (RPC, events, metrics) on net481 + net9 | `ea72043` |
+| 2026-06-04 | H2 | net481 framing now honors the `CancellationToken` (RequestTimeout / ClientIdleTimeout work) | `4f1d779` |
+| 2026-06-04 | M1 | `SimplePipeMetrics` latency stats made thread-safe (per-channel lock) | `0ad161d` |
+| 2026-06-04 | M6 | net481 accept threads released on shutdown (dispose-on-cancel) | `c0cfa3d` |
 
-**Suggested order:** H1 (tests — lock current behavior first, incl. a framing round-trip that's pure and easy to assert), then H2 (net481 cancellation — highest reliability impact, affects Watchdog), then M1/M4 (metrics race, event-client resilience).
+**Watchdog compatibility:** every change is internal or additive — no public Pipes API touched. Watchdog rebuilt against modified Pipes and an RPC round-trip (ping→pong, status) verified end-to-end after each behavioral change.
+
+**Still open:** M3 (event-publish head-of-line blocking), M4 (`PipeEventClient` no reconnect / silent death — touches Watchdog log streaming, weigh carefully), M5 (oversized response drops connection), L1–L5 (nullable annotations, dead `PlatformGuards`, duplicate using, csproj quirks, Noop snapshot null).
