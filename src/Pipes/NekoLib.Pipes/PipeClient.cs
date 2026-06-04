@@ -53,8 +53,8 @@ namespace NekoLib.Pipes
             await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token).ConfigureAwait(false);
             var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token).ConfigureAwait(false);
 #else
-                await PipeFraming.WriteAsync(pipe, request).ConfigureAwait(false);
-                var response = await PipeFraming.ReadAsync(pipe).ConfigureAwait(false);
+                await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token).ConfigureAwait(false);
+                var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token).ConfigureAwait(false);
 #endif
 
                 ValidateCorrelation(request, response);

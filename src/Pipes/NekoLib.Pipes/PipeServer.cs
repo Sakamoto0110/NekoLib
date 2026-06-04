@@ -147,7 +147,7 @@ namespace NekoLib.Pipes
 #if NET9
                     request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
 #else
-                    request = await PipeFraming.ReadAsync(pipe).ConfigureAwait(false);
+                    request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
 #endif
                 }
                 catch
@@ -190,7 +190,7 @@ namespace NekoLib.Pipes
 #if NET9
                     await PipeFraming.WriteAsync(pipe, response, ct).ConfigureAwait(false);
 #else
-                    await PipeFraming.WriteAsync(pipe, response).ConfigureAwait(false);
+                    await PipeFraming.WriteAsync(pipe, response, ct).ConfigureAwait(false);
 #endif
                 }
                 catch

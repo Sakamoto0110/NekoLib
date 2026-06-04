@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes.Tests.Unit.Fakes;
@@ -110,6 +111,36 @@ namespace NekoLib.Pipes.Tests.Unit
                     Assert.True(resp.Ok);
                     Assert.Equal("ping", resp.Name);
                 }
+            }
+        }
+
+        [Fact]
+        public async Task RequestTimeout_IsEnforced_WhenHandlerStalls()
+        {
+            // Before the H2 fix this would block indefinitely on net481 (the framing
+            // layer ignored the CancellationToken there); net9 already honored it.
+            var name = PipeTestUtil.UniqueName();
+
+            using (var server = StartServer(name, s =>
+                s.Map("slow", async (req, ct) =>
+                {
+                    await Task.Delay(5000, ct);   // far longer than the client's RequestTimeout
+                    return new PipeMessage { Ok = true };
+                })))
+            using (var client = new PipeClient(new PipeClientOptions
+            {
+                PipeName = name,
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                RequestTimeout = TimeSpan.FromMilliseconds(500)
+            }))
+            {
+                var sw = Stopwatch.StartNew();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                    () => client.SendAsync("slow"));
+                sw.Stop();
+
+                Assert.True(sw.ElapsedMilliseconds < 3000,
+                    "request did not time out promptly (took " + sw.ElapsedMilliseconds + " ms)");
             }
         }
 

@@ -168,7 +168,7 @@ namespace NekoLib.Pipes
 #if NET9
                 await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
 #else
-                    await PipeFraming.WriteAsync(pipe, msg).ConfigureAwait(false);
+                    await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
 #endif
 
                     success++;
