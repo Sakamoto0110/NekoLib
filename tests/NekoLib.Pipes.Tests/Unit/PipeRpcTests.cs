@@ -169,6 +169,34 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
+        public async Task ConcurrentRequests_AllSucceed()
+        {
+            // Exercises concurrent Dispatch reads of the handler map (audit M2).
+            var name = PipeTestUtil.UniqueName();
+
+            using (var server = StartServer(name, s =>
+                s.Map("ping", (req, ct) => Task.FromResult(new PipeMessage { Ok = true }))))
+            {
+                const int n = 12;
+                var tasks = new Task<bool>[n];
+                for (int i = 0; i < n; i++)
+                {
+                    tasks[i] = Task.Run(async () =>
+                    {
+                        using (var client = Client(name))
+                        {
+                            var resp = await client.SendAsync("ping");
+                            return resp.Ok;
+                        }
+                    });
+                }
+
+                bool[] results = await Task.WhenAll(tasks);
+                Assert.All(results, ok => Assert.True(ok));
+            }
+        }
+
+        [Fact]
         public async Task Response_CorrelatesToRequest()
         {
             // A successful SendAsync internally asserts response.Id == request.Id

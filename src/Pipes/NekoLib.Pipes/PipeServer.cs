@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Threading;
@@ -12,8 +13,10 @@ namespace NekoLib.Pipes
         private readonly IPipeMetrics _metrics;
 
         private readonly SemaphoreSlim _clientLimiter;
-        private readonly Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
-            = new Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
+        // ConcurrentDictionary so Map() (typically before Start, but not enforced) can
+        // never race the concurrent TryGetValue reads in Dispatch (audit M2).
+        private readonly ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
+            = new ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
 
         private CancellationTokenSource? _cts;
         private volatile bool _running;
