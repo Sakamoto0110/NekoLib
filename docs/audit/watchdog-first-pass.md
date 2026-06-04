@@ -201,14 +201,14 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 |---|-------|----------|
 | H1 | 🟡 **PARTIAL** — **Zero xUnit unit tests** → now 52 tests (Options/CrashBundler/Hotkeys/LogFile) + a supervisor runtime app. Runtime supervision paths (restart loop, taskkill, hotkeys) still only manually exercised. | — |
 | H2 | ✅ **FIXED** — **`NativeMethods.cs` is dead code** — removed (commit `4e1a664`). | `NativeMethods.cs` |
-| H3 | **Pervasive silent `catch { }`** — failures in critical paths (kill, telemetry, log flush) swallowed with no trace | Throughout `WatchdogRuntime`, `CrashBundler` |
+| H3 | 🟡 **MOSTLY ADDRESSED** — critical paths now surface failures: `StartChild` logs + retries instead of killing the monitor thread; `TryKill` logs graceful/taskkill failures (commit `b8d0f06`). Shutdown-cleanup and logging-path catches are intentionally left silent (the latter to avoid log-recursion). | `WatchdogRuntime.cs` |
 
 ### Medium
 
 | # | Issue | Location |
 |---|-------|----------|
 | M1 | ✅ **FIXED** — `ForceKillTimeoutMs` now used by `TryKill`; default raised 1000→5000 to preserve prior behavior (commit `25e37dc`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs` |
-| M2 | `HeartbeatIntervalMs` option defined (default 5000) but never read | `WatchdogOptions.cs:55` |
+| M2 | ✅ **FIXED** — `HeartbeatIntervalMs` now drives a periodic `[heartbeat]` log + telemetry publish via a timer; 0 disables. Verified end-to-end (commit `42e3c67`). | `WatchdogRuntime.cs` |
 | M3 | ✅ **FIXED** — `MaxLogBytes` now enforced via `WatchdogLogFile.Append` (single-backup rotation to `<path>.1`); +8 tests (commit `25e37dc`). | `WatchdogLogFile.cs`, `WatchdogRuntime.cs` |
 | M4 | ✅ **FIXED** — hotkeys now configurable via `WatchdogOptions` (`EnableHotkeys` + `WatchdogHotkey` bindings); defaults preserve Ctrl+Alt+P/R/Q. Registration failures logged (commit `ffccc68`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs`, `WatchdogHotkeys.cs` |
 | M5 | `EnableUpdates` / `UpdateStagingRoot` / `UseAtomicDirectorySwap` defined but no RPC handler or implementation exists | `WatchdogOptions.cs:80-97` |
@@ -228,7 +228,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | L4 | `HostArgumentParser` accepts `--args` as a single quoted string — no support for per-argument arrays; multi-word arguments require quoting workarounds | `HostArgumentParser.cs` |
 | L5 | `watchdog_host_fatal.log` uses a relative path in `Program.Main` — lands in CWD, not a predictable log directory | `Program.cs:24` |
 | L6 | `WatchdogPipeLogSink` default pipe name `"NekoLib.Watchdog.logs"` does not match the auto-generated `NekoLib.Watchdog.<hash>` format — callers must pass the correct name manually | `WatchdogPipeLogSink.cs:18` |
-| L7 | `BringToFrontOnStartIfRunning` option defined in `WatchdogOptions` but never referenced in code | `WatchdogOptions.cs:57` |
+| L7 | ⚠️ **DEFERRED** — `BringToFrontOnStartIfRunning` unused. Implementing means cross-process window focus of the already-running instance's child (fiddly, low value); removing is a breaking API change. Decide implement vs remove (same posture as M7). | `WatchdogOptions.cs` |
 
 ---
 
@@ -268,5 +268,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | 2026-06-04 | M6 | Wired `CrashBundler` into the monitor loop (finalize after child exit); verified end-to-end | `f084cd7` |
 | 2026-06-04 | M4, L2 | Configurable control hotkeys; removed duplicate `Win32` modifier constants | `ffccc68` |
 | 2026-06-04 | L1 | RPC command names centralized in `WatchdogCommands` constants | `35a749a` |
+| 2026-06-04 | H3 | Spawn + kill paths now log failures (and `StartChild` retries instead of crashing the monitor thread) | `b8d0f06` |
+| 2026-06-04 | M2 | Implemented `HeartbeatIntervalMs` (periodic beat + telemetry) | `42e3c67` |
 
-**Still open (recommended next):** H3 (silent `catch {}` blocks — surgical pass through the logger), M2 (`HeartbeatIntervalMs` unused), L7 (`BringToFrontOnStartIfRunning` unused), M5/update mechanism, M8 (pipe-name hash length), L4/L5 (host arg parsing, fatal-log path). M7 deferred by decision.
+**Still open:** M5 (update mechanism — large, genuinely unimplemented), M8 (pipe-name hash length / collision), M9 (ring-buffer silent drop), L4 (host `--args` parsing), L5 (`watchdog_host_fatal.log` relative path), L6 (`WatchdogPipeLogSink` pipe-name mismatch). **Deferred by decision (implement vs remove public API):** M7 (app-log forwarding), L7 (`BringToFrontOnStartIfRunning`).
