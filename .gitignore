@@ -39,3 +39,6 @@ audit.md
 /tests/NekoLib.Data.Tests/WinFormsNet9
 /tests/NekoLib.Navigation.Tests/Unit
 /apagar
+
+# Claude context (local only)
+CLAUDE.md

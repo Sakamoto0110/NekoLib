@@ -87,7 +87,12 @@ namespace NekoLib.Pipes
 #if NET9
                     await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
 #else
-                        await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        // See PipeServer: dispose-on-cancel so the blocked net481 wait
+                        // releases its thread on shutdown rather than leaking (audit M6).
+                        using (ct.Register(() => { try { pipe.Dispose(); } catch { } }))
+                        {
+                            await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        }
 #endif
 
                         _subscribers[id] = pipe;
@@ -103,6 +108,10 @@ namespace NekoLib.Pipes
                     {
                         // normal shutdown
                     }
+                    catch (Exception) when (ct.IsCancellationRequested)
+                    {
+                        // pipe disposed during shutdown — normal
+                    }
                     catch (Exception ex)
                     {
                         _metrics.OnError(_pipeName, "event_accept", ex);
@@ -110,6 +119,10 @@ namespace NekoLib.Pipes
                     finally
                     {
                         RemoveSubscriber(id);
+                        // Dispose the accept pipe even if it never registered a subscriber
+                        // (e.g. WaitForConnection cancelled on shutdown) so it doesn't
+                        // linger and intercept a later client connect (audit M6).
+                        try { pipe?.Dispose(); } catch { }
                         _subscriberLimiter.Release();
                     }
 
@@ -151,34 +164,22 @@ namespace NekoLib.Pipes
             };
 #endif
 
-            int total = _subscribers.Count;
-            int success = 0;
-            int failed = 0;
+            var subs = _subscribers.ToArray();
+            int total = subs.Length;
 
-            foreach (var kv in _subscribers.ToArray())
+            // Write to every subscriber concurrently so one slow/backed-up subscriber
+            // can't stall delivery to the others (audit M3 — head-of-line blocking).
+            var sends = new Task<bool>[subs.Length];
+            for (int i = 0; i < subs.Length; i++)
+                sends[i] = SendToSubscriber(subs[i].Key, subs[i].Value, msg, ct);
+
+            bool[] results = await Task.WhenAll(sends).ConfigureAwait(false);
+
+            int success = 0, failed = 0;
+            foreach (var r in results)
             {
-                var id = kv.Key;
-                var pipe = kv.Value;
-
-                try
-                {
-                    if (!pipe.IsConnected)
-                        throw new Exception("Disconnected subscriber.");
-
-#if NET9
-                await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
-#else
-                    await PipeFraming.WriteAsync(pipe, msg).ConfigureAwait(false);
-#endif
-
-                    success++;
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    _metrics.OnError(_pipeName, "event_publish", ex);
-                    RemoveSubscriber(id);
-                }
+                if (r) success++;
+                else failed++;
             }
 
             _metrics.OnServerEventPublished(
@@ -187,6 +188,28 @@ namespace NekoLib.Pipes
                 total,
                 success,
                 failed);
+        }
+
+        private async Task<bool> SendToSubscriber(
+            Guid id,
+            System.IO.Pipes.NamedPipeServerStream pipe,
+            PipeMessage msg,
+            CancellationToken ct)
+        {
+            try
+            {
+                if (!pipe.IsConnected)
+                    throw new InvalidOperationException("Disconnected subscriber.");
+
+                await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _metrics.OnError(_pipeName, "event_publish", ex);
+                RemoveSubscriber(id);
+                return false;
+            }
         }
 
         private void RemoveSubscriber(Guid id)

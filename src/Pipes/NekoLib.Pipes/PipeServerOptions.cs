@@ -10,6 +10,9 @@ namespace NekoLib.Pipes
         public bool EnableEvents { get; set; } = true;
         public int MaxEventSubscribers { get; set; } = 16;
 
+        /// <summary>Maximum framed request/response size. Default 1 MiB.</summary>
+        public int MaxMessageBytes { get; set; } = PipeFraming.DefaultMaxBytes;
+
         public IPipeMetrics? Metrics { get; set; }
     }
 }

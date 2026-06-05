@@ -1,8 +1,6 @@
 ﻿using System;
 namespace NekoLib.Pipes
 {
-    using System;
-
     public sealed class PipeClientOptions
     {
         public string PipeName { get; set; } = "nekolib.pipe";
@@ -16,6 +14,9 @@ namespace NekoLib.Pipes
         /// Request timeout (send + response).
         /// </summary>
         public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>Maximum framed request/response size. Default 1 MiB.</summary>
+        public int MaxMessageBytes { get; set; } = PipeFraming.DefaultMaxBytes;
 
         /// <summary>
         /// Optional metrics hook.

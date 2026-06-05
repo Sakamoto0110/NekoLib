@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Threading;
@@ -12,13 +13,15 @@ namespace NekoLib.Pipes
         private readonly IPipeMetrics _metrics;
 
         private readonly SemaphoreSlim _clientLimiter;
-        private readonly Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
-            = new Dictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
+        // ConcurrentDictionary so Map() (typically before Start, but not enforced) can
+        // never race the concurrent TryGetValue reads in Dispatch (audit M2).
+        private readonly ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
+            = new ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
 
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
         private volatile bool _running;
 
-        public PipeEventHub Events { get; private set; }
+        public PipeEventHub? Events { get; private set; }
 
         public PipeServer(PipeServerOptions options)
         {
@@ -83,7 +86,7 @@ namespace NekoLib.Pipes
 
                 _ = Task.Run(async () =>
                 {
-                    NamedPipeServerStream pipe = null;
+                    NamedPipeServerStream? pipe = null;
                     bool connected = false;
 
                     try
@@ -98,7 +101,13 @@ namespace NekoLib.Pipes
 #if NET9
                         await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
 #else
-                        await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        // net481 WaitForConnection can't observe ct; dispose the pipe on
+                        // cancel so the blocked wait throws and releases its thread on
+                        // shutdown instead of leaking until GC (audit M6).
+                        using (ct.Register(() => { try { pipe?.Dispose(); } catch { } }))
+                        {
+                            await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                        }
 #endif
 
                         connected = true;
@@ -106,13 +115,16 @@ namespace NekoLib.Pipes
 
                         using (var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
                         {
-                            idleCts.CancelAfter(_o.ClientIdleTimeout);
-                            await HandleClient(pipe, idleCts.Token).ConfigureAwait(false);
+                            await HandleClient(pipe, idleCts).ConfigureAwait(false);
                         }
                     }
                     catch (OperationCanceledException)
                     {
                         // normal shutdown
+                    }
+                    catch (Exception) when (ct.IsCancellationRequested)
+                    {
+                        // pipe disposed during shutdown — normal
                     }
                     catch (Exception ex)
                     {
@@ -136,24 +148,32 @@ namespace NekoLib.Pipes
         // Client handler
         // ============================================================
 
-        private async Task HandleClient(NamedPipeServerStream pipe, CancellationToken ct)
+        private async Task HandleClient(NamedPipeServerStream pipe, CancellationTokenSource idleCts)
         {
+            var ct = idleCts.Token;
+
             while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
             {
+                // Arm the idle timer for the wait for the next request. ClientIdleTimeout
+                // now measures inactivity *between* requests (a true idle timeout that
+                // resets on activity) rather than capping the whole session.
+                try { idleCts.CancelAfter(_o.ClientIdleTimeout); } catch { }
+
                 PipeMessage request;
 
                 try
                 {
-#if NET9
-                    request = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
-#else
-                    request = await PipeFraming.ReadAsync(pipe).ConfigureAwait(false);
-#endif
+                    request = await PipeFraming.ReadAsync(pipe, ct, _o.MaxMessageBytes).ConfigureAwait(false);
                 }
                 catch
                 {
                     break; // client disconnected or bad frame
                 }
+
+                // Activity received: pause the idle timer while we dispatch + reply so a
+                // slow handler isn't mistaken for an idle client. Shutdown via the linked
+                // outer token still cancels.
+                try { idleCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan); } catch { }
 
                 if (request.Type != "req")
                     continue;
@@ -185,13 +205,30 @@ namespace NekoLib.Pipes
                     };
                 }
 
+                var toSend = response;
                 try
                 {
-#if NET9
-                    await PipeFraming.WriteAsync(pipe, response, ct).ConfigureAwait(false);
-#else
-                    await PipeFraming.WriteAsync(pipe, response).ConfigureAwait(false);
-#endif
+                    await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false);
+                }
+                catch (PipeFrameTooLargeException)
+                {
+                    // Reply with a structured error rather than dropping the connection.
+                    // WriteCore validates size before emitting, so nothing was written.
+                    toSend = new PipeMessage
+                    {
+                        Id = request.Id,
+                        Type = "res",
+                        Name = request.Name,
+                        Ok = false,
+                        Error = new PipeError
+                        {
+                            Code = "response_too_large",
+                            Message = "Response exceeded the maximum frame size."
+                        }
+                    };
+
+                    try { await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false); }
+                    catch { break; }
                 }
                 catch
                 {
@@ -203,7 +240,7 @@ namespace NekoLib.Pipes
                     _metrics.OnServerResponseSent(
                         _o.PipeName,
                         request.Name,
-                        response.Ok,
+                        toSend.Ok,
                         sw.Elapsed);
                 }
             }

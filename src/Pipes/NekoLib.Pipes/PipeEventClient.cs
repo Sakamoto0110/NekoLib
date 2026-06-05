@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO.Pipes;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,11 +11,27 @@ namespace NekoLib.Pipes
 #endif
     {
         private readonly string _pipeName;
-        private NamedPipeClientStream? _pipe;
         private CancellationTokenSource? _cts;
         private volatile bool _running;
+        private volatile NamedPipeClientStream? _pipe;
 
+        /// <summary>Raised for each event frame received from the hub.</summary>
         public event Action<PipeMessage>? OnEvent;
+
+        /// <summary>Raised after a (re)connection to the event hub is established.</summary>
+        public event Action? OnConnected;
+
+        /// <summary>Raised when the current connection ends (drop or shutdown).</summary>
+        public event Action? OnDisconnected;
+
+        /// <summary>When true (default) the client keeps reconnecting after a drop until disposed.</summary>
+        public bool AutoReconnect { get; set; } = true;
+
+        /// <summary>Delay between reconnect attempts.</summary>
+        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromMilliseconds(500);
+
+        /// <summary>Per-attempt connection timeout (so a missing hub doesn't block forever).</summary>
+        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
         public PipeEventClient(string basePipeName)
         {
@@ -32,43 +46,90 @@ namespace NekoLib.Pipes
             _running = true;
             _cts = new CancellationTokenSource();
 
-            Task.Run(() => ListenLoop(_cts.Token));
+            Task.Run(() => RunLoop(_cts.Token));
         }
 
-        private async Task ListenLoop(CancellationToken ct)
+        private async Task RunLoop(CancellationToken ct)
         {
+            while (_running && !ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await ConnectAndListen(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break; // disposed / shutting down
+                }
+                catch
+                {
+                    // connection failed or dropped — fall through to the reconnect gate
+                }
+
+                if (!_running || ct.IsCancellationRequested || !AutoReconnect)
+                    break;
+
+                try { await Task.Delay(ReconnectDelay, ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
+            }
+        }
+
+        private async Task ConnectAndListen(CancellationToken ct)
+        {
+            var pipe = new NamedPipeClientStream(
+                ".",
+                _pipeName,
+                PipeDirection.In,
+                PipeOptions.Asynchronous);
+
+            _pipe = pipe;
+
             try
             {
-                _pipe = new NamedPipeClientStream(
-                    ".",
-                    _pipeName,
-                    PipeDirection.In,
-                    PipeOptions.Asynchronous);
-
 #if NET9
-            await _pipe.ConnectAsync(ct).ConfigureAwait(false);
-#else
-                await Task.Run(() => _pipe.Connect()).ConfigureAwait(false);
-#endif
-
-                while (_running && _pipe.IsConnected && !ct.IsCancellationRequested)
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
-                    PipeMessage msg;
-
-#if NET9
-                msg = await PipeFraming.ReadAsync(_pipe, ct).ConfigureAwait(false);
+                    connectCts.CancelAfter(ConnectTimeout);
+                    await pipe.ConnectAsync(connectCts.Token).ConfigureAwait(false);
+                }
 #else
-                    msg = await PipeFraming.ReadAsync(_pipe).ConfigureAwait(false);
+                await Task.Run(() => pipe.Connect((int)ConnectTimeout.TotalMilliseconds), ct).ConfigureAwait(false);
 #endif
+
+                Raise(OnConnected);
+
+                while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
+                {
+                    var msg = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
 
                     if (msg.Type == "evt")
-                        OnEvent?.Invoke(msg);
+                        Dispatch(msg);
                 }
             }
-            catch
+            finally
             {
-                // connection dropped or shutdown
+                try { pipe.Dispose(); } catch { }
+                Raise(OnDisconnected);
             }
+        }
+
+        // A throwing subscriber must not kill the listen loop or block the others.
+        private void Dispatch(PipeMessage msg)
+        {
+            var handler = OnEvent;
+            if (handler == null)
+                return;
+
+            foreach (var d in handler.GetInvocationList())
+            {
+                try { ((Action<PipeMessage>)d)(msg); }
+                catch { /* isolate handler faults */ }
+            }
+        }
+
+        private static void Raise(Action? evt)
+        {
+            try { evt?.Invoke(); } catch { /* notification callbacks must not break the loop */ }
         }
 
         public void Dispose()
@@ -79,19 +140,17 @@ namespace NekoLib.Pipes
             _running = false;
 
             try { _cts?.Cancel(); } catch { }
-            try { _pipe?.Dispose(); } catch { }
+            try { _pipe?.Dispose(); } catch { }   // unblock an in-flight connect/read
 
             _cts?.Dispose();
         }
 
 #if NET9
-    public ValueTask DisposeAsync()
-    {
-        Dispose();
-        return ValueTask.CompletedTask;
-    }
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return ValueTask.CompletedTask;
+        }
 #endif
     }
-
-
 }
