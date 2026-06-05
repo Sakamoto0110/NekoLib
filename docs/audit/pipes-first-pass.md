@@ -70,7 +70,7 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 | # | Issue | Location |
 |---|-------|----------|
 | M1 | ✅ **FIXED** — the latency quad + a per-channel sample counter are now guarded by a per-channel lock, read under the same lock in `Snapshot`; +concurrency test (commit `0ad161d`). | `SimplePipeMetrics.cs` |
-| M2 | **`_handlers` is a plain `Dictionary`** read by concurrent client tasks (`Dispatch`) with no synchronization and no freeze after `Start`. Safe only if `Map` is always called before `Start` (current usage), but a `Map` after `Start` races `Dispatch`. Use `ConcurrentDictionary` or reject `Map` after `Start`. | `PipeServer.cs` |
+| M2 | ✅ **FIXED** — `_handlers` is now a `ConcurrentDictionary`, so concurrent `Map`/`Dispatch` can't tear or crash (no restriction on dynamic mapping); +concurrent-requests test (commit `0a14c07`). | `PipeServer.cs` |
 | M3 | ✅ **FIXED** — `PublishAsync` now writes to all subscribers concurrently (per-subscriber send task + `Task.WhenAll`), so a slow subscriber no longer stalls the others; +fan-out test (commit `e4df3e1`). A full per-subscriber bounded queue + drop policy remains possible future hardening. | `PipeEventHub.cs` |
 | M4 | ✅ **FIXED** — `PipeEventClient` now auto-reconnects (with a bounded connect timeout), raises `OnConnected`/`OnDisconnected`, and isolates throwing handlers. Additive defaults; Watchdog log streaming now survives a watchdog restart. +reconnect + handler-isolation tests (commit `599ec63`). Also completed M6 for the event hub on net9 (dispose pending accept in `finally`). | `PipeEventClient.cs`, `PipeEventHub.cs` |
 | M5 | ✅ **FIXED** — `PipeFraming` throws a distinguishable `PipeFrameTooLargeException`; `HandleClient` catches it on the response write and replies with a structured `response_too_large` error instead of dropping the connection. +test (commit `670f427`). | `PipeFraming.cs`, `PipeServer.cs` |
@@ -124,7 +124,10 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 | 2026-06-04 | M3 | Event publish parallelized (no head-of-line blocking) | `e4df3e1` |
 | 2026-06-04 | M5 | Oversized response → structured `response_too_large` error instead of dropped connection | `670f427` |
 | 2026-06-04 | L1–L5 | Nullable annotations completed (zero-warning build), dead `PlatformGuards` removed, duplicate using + csproj quirks fixed | `dc17863` |
+| 2026-06-04 | M2 | `_handlers` → `ConcurrentDictionary` | `0a14c07` |
+| 2026-06-04 | (config) | `ClientIdleTimeout` corrected to a true idle timeout that resets on activity (was a hard max-session cap) | `94808e6` |
+| 2026-06-04 | (config) | Max frame size configurable via `MaxMessageBytes` (server/client options); also fixed a latent net9 client call site capped at 1 MB | `753cb82` |
 
-**Watchdog compatibility:** every change is internal or additive — no public Pipes API touched. After the full set, Watchdog was rebuilt against modified Pipes and verified end-to-end: RPC `ping→pong` + `status` + `pause`, **and** live event delivery to a `PipeEventClient` subscriber (telemetry from `pause`). All green.
+**Watchdog compatibility:** every change is internal or additive — no public Pipes API touched (new options default to prior behavior). After the full set, Watchdog was rebuilt against modified Pipes and verified end-to-end: RPC `ping→pong` + `status` + `pause`, **and** live event delivery to a `PipeEventClient` subscriber. All green.
 
-**Still open:** M2 (`_handlers` plain `Dictionary` — freeze after `Start` or use `ConcurrentDictionary`). Possible future hardening: per-subscriber bounded event queue with a drop policy (beyond the M3 parallelization), and pipe ACL/security configuration.
+**Still open / future hardening:** per-subscriber bounded event queue with a drop policy (beyond the M3 parallelization); pipe ACL/security configuration; graceful drain of in-flight client tasks on `Dispose`. No known correctness/threading bugs remain in the request/response or event paths.
