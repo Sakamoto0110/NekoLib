@@ -127,6 +127,24 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 | 2026-06-04 | M2 | `_handlers` → `ConcurrentDictionary` | `0a14c07` |
 | 2026-06-04 | (config) | `ClientIdleTimeout` corrected to a true idle timeout that resets on activity (was a hard max-session cap) | `94808e6` |
 | 2026-06-04 | (config) | Max frame size configurable via `MaxMessageBytes` (server/client options); also fixed a latent net9 client call site capped at 1 MB | `753cb82` |
+| 2026-06-06 | (behavior) | **Breaking (semantic):** `PipeClient.SendAsync` now returns a synthetic `Ok=false` / `Error.Code="connection_closed"` response when the server closes before sending a response frame, instead of throwing `EndOfStreamException`. Backed by `PipeFraming.TryReadAsync` (returns `null` on clean EOF). Callers using `if (!response.Ok)` need no change; callers relying on a thrown exception on close must now inspect `Error.Code`. | — |
+
+### Behavior change — connection close surfaces as `Ok=false` (not an exception)
+
+`PipeFraming` gained `TryReadAsync`, which returns `null` on a clean disconnect
+instead of throwing `EndOfStreamException`; the strict `ReadAsync` is now a thin
+`?? throw` wrapper over it. `PipeClient.SendAsync` uses `TryReadAsync` and, on a
+`null` (server closed before responding), returns `ConnectionClosedResponse`
+(`PipeClient.cs:120`): a `PipeMessage` with `Ok=false`, `Type="res"`, correlated
+`Id`, and `Error.Code="connection_closed"`.
+
+- **Why:** the common consumer pattern is `if (!response.Ok) ...`; a thrown
+  `EndOfStreamException` forced a `try/catch` around every call for the normal
+  "watchdog not running / shut down mid-call" case.
+- **Migration:** code that caught the close exception should switch to checking
+  `response.Ok` / `response.Error?.Code == "connection_closed"`. A truncated frame
+  (header read, body cut mid-stream) is still treated as a clean EOF — same
+  ambiguity as before, now silent rather than an exception.
 
 **Watchdog compatibility:** every change is internal or additive — no public Pipes API touched (new options default to prior behavior). After the full set, Watchdog was rebuilt against modified Pipes and verified end-to-end: RPC `ping→pong` + `status` + `pause`, **and** live event delivery to a `PipeEventClient` subscriber. All green.
 

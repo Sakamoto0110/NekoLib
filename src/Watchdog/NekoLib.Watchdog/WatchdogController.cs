@@ -1,5 +1,7 @@
 ﻿using NekoLib.Pipes;
+using NekoLib.Diagnostics.Contracts;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
@@ -38,8 +40,12 @@ namespace NekoLib.Watchdog
         private static string ResolvePipeName()
         {
             var exe = Process.GetCurrentProcess().MainModule.FileName;
-            var full = Path.GetFullPath(exe).ToLowerInvariant();
+            return ResolvePipeNameForTarget(exe);
+        }
 
+        public static string ResolvePipeNameForTarget(string targetPath)
+        {
+            var full = Path.GetFullPath(targetPath).ToLowerInvariant();
             using (var sha1 = SHA1.Create())
             {
                 var bytes = Encoding.UTF8.GetBytes(full);
@@ -51,18 +57,33 @@ namespace NekoLib.Watchdog
 
         private static PipeClient CreateClient()
         {
+            return CreateClient(_pipeName);
+        }
+
+        private static PipeClient CreateClient(string pipeName)
+        {
             return new PipeClient(new PipeClientOptions
             {
-                PipeName = _pipeName,
+                PipeName = pipeName,
                 ConnectTimeout = TimeSpan.FromMilliseconds(1500),
                 RequestTimeout = TimeSpan.FromMilliseconds(3000)
             });
         }
         public static void NotifyException(string type, string message, string source)
         {
+            NotifyExceptionToPipe(_pipeName, type, message, source);
+        }
+
+        public static void NotifyExceptionForTarget(string targetPath, string type, string message, string source)
+        {
+            NotifyExceptionToPipe(ResolvePipeNameForTarget(targetPath), type, message, source);
+        }
+
+        private static void NotifyExceptionToPipe(string pipeName, string type, string message, string source)
+        {
             try
             {
-                using (var client = CreateClient())
+                using (var client = CreateClient(pipeName))
                 {
                     var payload = new
                     {
@@ -130,9 +151,83 @@ namespace NekoLib.Watchdog
 
         public static void Pause() => Send("pause");
 
+        public static void Resume() => Send("resume");
+
         public static void Stop() => Send("stop");
 
         public static void Restart() => Send("restart");
+
+        public static void NotifyLog(LogEntry entry)
+        {
+            if (entry == null)
+                return;
+
+            try
+            {
+                using (var client = CreateClient())
+                {
+                    var payload = new
+                    {
+                        level = entry.Level.ToString(),
+                        category = entry.Category,
+                        message = entry.Message,
+                        exception = entry.Exception?.ToString()
+                    };
+
+                    client.SendAsync("log_write", payload)
+                          .GetAwaiter()
+                          .GetResult();
+                }
+            }
+            catch
+            {
+                // external logging must not throw back into the app
+            }
+        }
+
+        /// <summary>
+        /// Forwards a batch of log entries to the watchdog over a single pipe
+        /// connection (one connect amortized over the whole batch). Used by the
+        /// buffered <see cref="WatchdogPipeLogSink"/>.
+        /// </summary>
+        public static void NotifyLogBatch(IReadOnlyList<LogEntry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            try
+            {
+                var items = new List<object>(entries.Count);
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var e = entries[i];
+                    if (e == null)
+                        continue;
+
+                    items.Add(new
+                    {
+                        level = e.Level.ToString(),
+                        category = e.Category,
+                        message = e.Message,
+                        exception = e.Exception?.ToString()
+                    });
+                }
+
+                if (items.Count == 0)
+                    return;
+
+                using (var client = CreateClient())
+                {
+                    client.SendAsync("log_write_batch", new { entries = items })
+                          .GetAwaiter()
+                          .GetResult();
+                }
+            }
+            catch
+            {
+                // external logging must not throw back into the app
+            }
+        }
 
         // ============================================================
         // Log Subscription (Replay + Live)

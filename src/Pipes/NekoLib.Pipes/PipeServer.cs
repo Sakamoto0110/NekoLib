@@ -19,6 +19,7 @@ namespace NekoLib.Pipes
             = new ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
 
         private CancellationTokenSource? _cts;
+        private Task? _acceptTask;
         private volatile bool _running;
 
         public PipeEventHub? Events { get; private set; }
@@ -64,7 +65,7 @@ namespace NekoLib.Pipes
                 Events.Start();
             }
 
-            Task.Run(() => AcceptLoop(_cts.Token));
+            _acceptTask = Task.Run(() => AcceptLoop(_cts.Token));
         }
 
         // ============================================================
@@ -159,11 +160,13 @@ namespace NekoLib.Pipes
                 // resets on activity) rather than capping the whole session.
                 try { idleCts.CancelAfter(_o.ClientIdleTimeout); } catch { }
 
-                PipeMessage request;
+                PipeMessage? request;
 
                 try
                 {
-                    request = await PipeFraming.ReadAsync(pipe, ct, _o.MaxMessageBytes).ConfigureAwait(false);
+                    request = await PipeFraming.TryReadAsync(pipe, ct, _o.MaxMessageBytes).ConfigureAwait(false);
+                    if (request == null)
+                        break;
                 }
                 catch
                 {
@@ -290,6 +293,7 @@ namespace NekoLib.Pipes
 
             try { _cts?.Cancel(); } catch { }
             try { Events?.Dispose(); } catch { }
+            try { _acceptTask?.Wait(2000); } catch { }
 
             _clientLimiter.Dispose();
             _cts?.Dispose();

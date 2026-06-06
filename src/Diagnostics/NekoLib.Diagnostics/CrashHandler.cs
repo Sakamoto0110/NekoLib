@@ -62,6 +62,10 @@ namespace NekoLib.Diagnostics
 
     public sealed class CrashHandler : IDisposable
     {
+        private static readonly object RegistryLock = new object();
+        private static readonly List<CrashHandler> InstalledHandlers = new List<CrashHandler>();
+        private static bool _globalHandlersInstalled;
+
         private readonly CrashHandlerOptions _o;
         private readonly Stopwatch _uptime = Stopwatch.StartNew();
 
@@ -74,7 +78,7 @@ namespace NekoLib.Diagnostics
         {
             _o = options ?? throw new ArgumentNullException(nameof(options));
 
-            if (string.IsNullOrWhiteSpace(_o.CrashRootDirectory))
+            if (_o.WriteCrashFolder && string.IsNullOrWhiteSpace(_o.CrashRootDirectory))
                 throw new ArgumentException("CrashRootDirectory is required.", nameof(options));
         }
 
@@ -87,34 +91,65 @@ namespace NekoLib.Diagnostics
             if (Interlocked.Exchange(ref _installed, 1) == 1)
                 return;
 
+            lock (RegistryLock)
+            {
+                InstalledHandlers.Add(this);
+                EnsureGlobalHandlersInstalled();
+            }
+        }
+
+        private static void EnsureGlobalHandlersInstalled()
+        {
+            if (_globalHandlersInstalled)
+                return;
+
+            _globalHandlersInstalled = true;
+
 #if WINFORMS
             try
             {
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-
-                Application.ThreadException += (s, e) =>
-                {
-                    HandleCrash("Application.ThreadException", e.Exception, false);
-                };
+                Application.ThreadException += OnApplicationThreadException;
             }
             catch { }
 #endif
 
-            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            {
-                HandleCrash("AppDomain.UnhandledException",
-                    e.ExceptionObject as Exception,
-                    e.IsTerminating);
-            };
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        }
 
-            TaskScheduler.UnobservedTaskException += (s, e) =>
-            {
-                HandleCrash("TaskScheduler.UnobservedTaskException",
-                    e.Exception,
-                    false);
+#if WINFORMS
+        private static void OnApplicationThreadException(object sender, ThreadExceptionEventArgs e)
+        {
+            DispatchCrash("Application.ThreadException", e.Exception, false);
+        }
+#endif
 
-                try { e.SetObserved(); } catch { }
-            };
+        private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            DispatchCrash("AppDomain.UnhandledException",
+                e.ExceptionObject as Exception,
+                e.IsTerminating);
+        }
+
+        private static void OnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            DispatchCrash("TaskScheduler.UnobservedTaskException", e.Exception, false);
+
+            try { e.SetObserved(); } catch { }
+        }
+
+        private static void DispatchCrash(string source, Exception ex, bool terminating)
+        {
+            CrashHandler[] snapshot;
+            lock (RegistryLock)
+                snapshot = InstalledHandlers.ToArray();
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                try { snapshot[i].HandleCrash(source, ex, terminating); }
+                catch { }
+            }
         }
 
         // ============================================================
@@ -126,40 +161,16 @@ namespace NekoLib.Diagnostics
             if (Interlocked.Exchange(ref _crashing, 1) == 1)
                 return;
 
+            var args = new CrashDetectedEventArgs(source, ex, terminating);
+
             try
             {
-                CrashDetected?.Invoke(this,
-                    new CrashDetectedEventArgs(source, ex, terminating));
+                RaiseCrashDetected(args);
 
-                // NEW: auto watchdog notify
+                WriteCrashArtifacts(args);
+
                 if (_o.NotifyWatchdog && IsUnderWatchdog())
-                {
-                    CrashDetected?.Invoke(this,
-    new CrashDetectedEventArgs(source, ex, terminating));
-
-                    // External integration hook (no dependency)
-                    try
-                    {
-                        _o.ExternalNotifier?.Invoke(
-                            new CrashDetectedEventArgs(source, ex, terminating));
-                    }
-                    catch { }
-                }
-
-                if (_o.WriteCrashFolder)
-                {
-                    var bundleDir = CreateCrashFolder();
-                    var crashTxt = Path.Combine(bundleDir, "crash.txt");
-                    var dumpPath = Path.Combine(bundleDir, "crash.dmp");
-
-                    WriteCrashText(crashTxt, source, ex, terminating);
-                    bool dumpOk = MiniDumpWriter.TryWrite(dumpPath, _o.DumpLevel);
-
-                    TailConfiguredFiles(bundleDir);
-
-                    CrashBundleWritten?.Invoke(this,
-                        new CrashBundleWrittenEventArgs(bundleDir, crashTxt, dumpPath, dumpOk));
-                }
+                    NotifyExternal(args);
             }
             catch
             {
@@ -170,6 +181,63 @@ namespace NekoLib.Diagnostics
                 // allow multiple non-terminating reports (WinForms)
                 if (!terminating)
                     Interlocked.Exchange(ref _crashing, 0);
+            }
+        }
+
+        private void RaiseCrashDetected(CrashDetectedEventArgs args)
+        {
+            var handler = CrashDetected;
+            if (handler == null)
+                return;
+
+            foreach (var d in handler.GetInvocationList())
+            {
+                try { ((EventHandler<CrashDetectedEventArgs>)d)(this, args); }
+                catch { }
+            }
+        }
+
+        private void NotifyExternal(CrashDetectedEventArgs args)
+        {
+            try { _o.ExternalNotifier?.Invoke(args); }
+            catch { }
+        }
+
+        private void WriteCrashArtifacts(CrashDetectedEventArgs args)
+        {
+            if (!_o.WriteCrashFolder)
+                return;
+
+            try
+            {
+                var bundleDir = CreateCrashFolder();
+                var crashTxt = Path.Combine(bundleDir, "crash.txt");
+                var dumpPath = Path.Combine(bundleDir, "crash.dmp");
+
+                WriteCrashText(crashTxt, args.Source, args.Exception, args.IsTerminating);
+                bool dumpOk = MiniDumpWriter.TryWrite(dumpPath, _o.DumpLevel);
+
+                TailConfiguredFiles(bundleDir);
+
+                RaiseCrashBundleWritten(new CrashBundleWrittenEventArgs(
+                    bundleDir,
+                    crashTxt,
+                    dumpPath,
+                    dumpOk));
+            }
+            catch { }
+        }
+
+        private void RaiseCrashBundleWritten(CrashBundleWrittenEventArgs args)
+        {
+            var handler = CrashBundleWritten;
+            if (handler == null)
+                return;
+
+            foreach (var d in handler.GetInvocationList())
+            {
+                try { ((EventHandler<CrashBundleWrittenEventArgs>)d)(this, args); }
+                catch { }
             }
         }
 
@@ -285,7 +353,11 @@ namespace NekoLib.Diagnostics
 
         public void Dispose()
         {
-            // intentionally do not uninstall handlers
+            if (Interlocked.Exchange(ref _installed, 0) == 0)
+                return;
+
+            lock (RegistryLock)
+                InstalledHandlers.Remove(this);
         }
     }
 }

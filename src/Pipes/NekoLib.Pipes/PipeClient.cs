@@ -51,10 +51,12 @@ namespace NekoLib.Pipes
 
 #if NET9
             await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
-            var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
+            var response = await PipeFraming.TryReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false)
+                ?? ConnectionClosedResponse(request);
 #else
                 await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
-                var response = await PipeFraming.ReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
+                var response = await PipeFraming.TryReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false)
+                    ?? ConnectionClosedResponse(request);
 #endif
 
                 ValidateCorrelation(request, response);
@@ -113,6 +115,22 @@ namespace NekoLib.Pipes
 
             if (response.Type != "res")
                 throw new InvalidOperationException("Invalid pipe response type.");
+        }
+
+        private static PipeMessage ConnectionClosedResponse(PipeMessage request)
+        {
+            return new PipeMessage
+            {
+                Id = request.Id,
+                Type = "res",
+                Name = request.Name,
+                Ok = false,
+                Error = new PipeError
+                {
+                    Code = "connection_closed",
+                    Message = "The pipe closed before a response frame was received."
+                }
+            };
         }
 
         private static PipeMessage CreateRequest(string name, object? payload)
