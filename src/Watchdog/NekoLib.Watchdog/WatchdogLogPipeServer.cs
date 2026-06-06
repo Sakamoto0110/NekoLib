@@ -8,6 +8,7 @@ using System.Threading;
 
 namespace NekoLib.Watchdog
 {
+    [Obsolete("Use WatchdogRuntime's PipeServer event stream and WatchdogController.SubscribeLogs instead.")]
     public sealed class WatchdogLogPipeServer : IDisposable
     {
         private sealed class Client

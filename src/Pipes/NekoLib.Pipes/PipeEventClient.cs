@@ -12,6 +12,7 @@ namespace NekoLib.Pipes
     {
         private readonly string _pipeName;
         private CancellationTokenSource? _cts;
+        private Task? _loopTask;
         private volatile bool _running;
         private volatile NamedPipeClientStream? _pipe;
 
@@ -46,7 +47,7 @@ namespace NekoLib.Pipes
             _running = true;
             _cts = new CancellationTokenSource();
 
-            Task.Run(() => RunLoop(_cts.Token));
+            _loopTask = Task.Run(() => RunLoop(_cts.Token));
         }
 
         private async Task RunLoop(CancellationToken ct)
@@ -100,7 +101,9 @@ namespace NekoLib.Pipes
 
                 while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
                 {
-                    var msg = await PipeFraming.ReadAsync(pipe, ct).ConfigureAwait(false);
+                    var msg = await PipeFraming.TryReadAsync(pipe, ct).ConfigureAwait(false);
+                    if (msg == null)
+                        break;
 
                     if (msg.Type == "evt")
                         Dispatch(msg);
@@ -141,6 +144,7 @@ namespace NekoLib.Pipes
 
             try { _cts?.Cancel(); } catch { }
             try { _pipe?.Dispose(); } catch { }   // unblock an in-flight connect/read
+            try { _loopTask?.Wait(2000); } catch { }
 
             _cts?.Dispose();
         }

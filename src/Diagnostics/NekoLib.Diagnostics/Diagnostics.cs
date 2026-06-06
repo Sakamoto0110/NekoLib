@@ -1,4 +1,5 @@
 using NekoLib.Diagnostics.Contracts;
+using NekoLib.Diagnostics.Sinks;
 using System;
 using System.Collections.Generic;
 
@@ -10,12 +11,12 @@ namespace NekoLib.Diagnostics
         public ITelemetrySink Telemetry { get; }
 
         public static readonly IDiagnosticsContext Null =
-            new Diagnostics(null,null);
+            new Diagnostics(NullLogger.Instance, NullTelemetrySink.Instance);
 
         public Diagnostics(ILogger logger, ITelemetrySink telemetry)
         {
-            Logger = logger;
-            Telemetry = telemetry;
+            Logger = logger ?? NullLogger.Instance;
+            Telemetry = telemetry ?? NullTelemetrySink.Instance;
         }
     }
 

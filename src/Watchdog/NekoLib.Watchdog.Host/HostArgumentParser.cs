@@ -13,6 +13,7 @@ namespace NekoLib.Watchdog.Host
 
             string target = null;
             string targetArgs = null;
+            string workdir = null;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -25,6 +26,12 @@ namespace NekoLib.Watchdog.Host
                 if (args[i] == "--args" && i + 1 < args.Length)
                 {
                     targetArgs = args[++i];
+                    continue;
+                }
+
+                if (args[i] == "--workdir" && i + 1 < args.Length)
+                {
+                    workdir = args[++i];
                     continue;
                 }
             }
@@ -40,7 +47,10 @@ namespace NekoLib.Watchdog.Host
             return new WatchdogOptions
             {
                 TargetPath = fullPath,
-                TargetArguments = targetArgs ?? ""
+                TargetArguments = targetArgs ?? "",
+                WorkingDirectory = string.IsNullOrWhiteSpace(workdir)
+                    ? null
+                    : Path.GetFullPath(workdir)
             };
         }
     }

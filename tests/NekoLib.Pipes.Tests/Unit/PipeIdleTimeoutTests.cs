@@ -64,7 +64,7 @@ namespace NekoLib.Pipes.Tests.Unit
         {
             var name = PipeTestUtil.UniqueName();
 
-            using (var server = StartPingServer(name, TimeSpan.FromMilliseconds(500)))
+            using (var server = StartPingServer(name, TimeSpan.FromMilliseconds(2000)))
             using (var raw = ConnectRaw(name))
             {
                 // One active request works.
@@ -73,7 +73,7 @@ namespace NekoLib.Pipes.Tests.Unit
                 Assert.True(ok.Ok);
 
                 // Stay idle well past the timeout — the server drops the connection.
-                await Task.Delay(1500);
+                await Task.Delay(3000);
 
                 // The next exchange must fail (server closed its end).
                 var ex = await Record.ExceptionAsync(async () =>

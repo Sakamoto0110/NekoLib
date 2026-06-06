@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using NekoLib.Diagnostics.Contracts;
 
 namespace NekoLib.Watchdog
 {
@@ -38,6 +39,8 @@ namespace NekoLib.Watchdog
         public bool EnableFileLogging { get; set; } = true;
         public string LogPath { get; set; }
         public long MaxLogBytes { get; set; } = 2 * 1024 * 1024;
+        public ILogSink[] LogSinks { get; set; } = new ILogSink[0];
+        public ITelemetrySink TelemetrySink { get; set; }
 
         // ============================================================
         // Supervision Timings
@@ -108,9 +111,7 @@ namespace NekoLib.Watchdog
             var full = Path.GetFullPath(TargetPath);
             TargetPath = full;
 
-            var targetId = ComputeTargetId(full);
-
-            PipeName = $"NekoLib.Watchdog.{targetId}";
+            PipeName = WatchdogController.ResolvePipeNameForTarget(full);
             if (!File.Exists(TargetPath))
                 throw new FileNotFoundException("Target executable not found.", TargetPath);
 
@@ -128,6 +129,18 @@ namespace NekoLib.Watchdog
 
             if (RestartDelayMs < 200)
                 RestartDelayMs = 200;
+
+            if (MonitorPollMs < 50)
+                MonitorPollMs = 50;
+
+            if (GracefulKillTimeoutMs < 0)
+                GracefulKillTimeoutMs = 0;
+
+            if (ForceKillTimeoutMs < 100)
+                ForceKillTimeoutMs = 100;
+
+            if (MaxLogBytes < 64 * 1024)
+                MaxLogBytes = 64 * 1024;
 
             // Logging
             if (EnableFileLogging && string.IsNullOrWhiteSpace(LogPath))
@@ -158,19 +171,6 @@ namespace NekoLib.Watchdog
             TryCreateDirectory(PendingCrashRoot);
             TryCreateDirectory(BundleRoot);
             TryCreateDirectory(UpdateStagingRoot);
-        }
-        private static string ComputeTargetId(string fullPath)
-        {
-            using (var sha1 = System.Security.Cryptography.SHA1.Create())
-            {
-                var bytes = System.Text.Encoding.UTF8.GetBytes(fullPath.ToLowerInvariant());
-                var hash = sha1.ComputeHash(bytes);
-
-                return BitConverter.ToString(hash)
-                    .Replace("-", "")
-                    .Substring(0, 16); // shorter but still safe}
-                ;
-            }
         }
         private static void TryCreateDirectory(string path)
         {

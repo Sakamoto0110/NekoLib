@@ -1,71 +1,20 @@
-﻿using NekoLib.Diagnostics.Contracts;
+using NekoLib.Diagnostics.Contracts;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Pipes;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NekoLib.Watchdog
 {
     public sealed class WatchdogPipeLogSink : ILogSink, IDisposable
     {
-        private readonly string _pipeName;
-        private NamedPipeClientStream _client;
-        private StreamWriter _writer;
-
+        [Obsolete("The pipe name is resolved from the current process path; this parameter is ignored.")]
         public WatchdogPipeLogSink(string pipeName = "NekoLib.Watchdog.logs")
         {
-            _pipeName = pipeName;
-            TryConnect();
-        }
-
-        private void TryConnect()
-        {
-            try
-            {
-                _client = new NamedPipeClientStream(
-                    ".",
-                    _pipeName,
-                    PipeDirection.Out,
-                    PipeOptions.Asynchronous);
-
-                _client.Connect(200); // short timeout
-                _writer = new StreamWriter(_client) { AutoFlush = true };
-            }
-            catch
-            {
-                DisposeInternal();
-            }
         }
 
         public void Write(LogEntry entry)
         {
-            try
-            {
-                if (_writer == null)
-                    TryConnect();
-
-                _writer?.WriteLine(entry.ToString());
-            }
-            catch
-            {
-                DisposeInternal();
-            }
+            WatchdogController.NotifyLog(entry);
         }
 
-        private void DisposeInternal()
-        {
-            try { _writer?.Dispose(); } catch { }
-            try { _client?.Dispose(); } catch { }
-
-            _writer = null;
-            _client = null;
-        }
-
-        public void Dispose() => DisposeInternal();
+        public void Dispose() { }
     }
-
-
 }

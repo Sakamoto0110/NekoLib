@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Observability.RuntimeTests.WinForms</RootNamespace>
+    <AssemblyName>NekoLib.Observability.RuntimeTests.WinForms</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
+    <DefineConstants>$(DefineConstants);NET_9;NET9</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+    <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\src\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+    <ProjectReference Include="..\..\..\src\Watchdog\NekoLib.Watchdog\NekoLib.Watchdog.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -34,6 +34,14 @@ namespace NekoLib.Pipes
         return System.Text.Json.JsonSerializer.Deserialize<PipeMessage>(payload)!;
     }
 
+    public static async Task<PipeMessage?> TryReadAsync(Stream stream, CancellationToken ct, int maxBytes = DefaultMaxBytes)
+    {
+        byte[]? payload = await TryReadFrame(stream, maxBytes, ct);
+        return payload == null
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<PipeMessage>(payload)!;
+    }
+
 #else
 
         public static async Task WriteAsync(Stream stream, PipeMessage msg, CancellationToken ct = default, int maxBytes = DefaultMaxBytes)
@@ -57,6 +65,20 @@ namespace NekoLib.Pipes
                 return Newtonsoft.Json.JsonConvert
                     .DeserializeObject<PipeMessage>(
                         System.Text.Encoding.UTF8.GetString(payload))!;
+            });
+
+            return await WithCancellation(work, ct).ConfigureAwait(false);
+        }
+
+        public static async Task<PipeMessage?> TryReadAsync(Stream stream, CancellationToken ct = default, int maxBytes = DefaultMaxBytes)
+        {
+            var work = Task.Run(() =>
+            {
+                byte[]? payload = TryReadFrame(stream, maxBytes);
+                return payload == null
+                    ? null
+                    : Newtonsoft.Json.JsonConvert.DeserializeObject<PipeMessage>(
+                        System.Text.Encoding.UTF8.GetString(payload));
             });
 
             return await WithCancellation(work, ct).ConfigureAwait(false);
@@ -147,7 +169,30 @@ namespace NekoLib.Pipes
         return await ReadExact(stream, size, ct);
     }
 
+    private static async Task<byte[]?> TryReadFrame(Stream stream, int maxBytes, CancellationToken ct)
+    {
+        byte[]? lengthBytes = await TryReadExact(stream, 4, ct);
+        if (lengthBytes == null)
+            return null;
+
+        int size = BitConverter.ToInt32(lengthBytes, 0);
+
+        if (size <= 0 || size > maxBytes)
+            throw new InvalidDataException();
+
+        return await TryReadExact(stream, size, ct);
+    }
+
     private static async Task<byte[]> ReadExact(Stream stream, int size, CancellationToken ct)
+    {
+        byte[]? buffer = await TryReadExact(stream, size, ct);
+        if (buffer == null)
+            throw new EndOfStreamException();
+
+        return buffer;
+    }
+
+    private static async Task<byte[]?> TryReadExact(Stream stream, int size, CancellationToken ct)
     {
         byte[] buffer = new byte[size];
         int read = 0;
@@ -156,7 +201,7 @@ namespace NekoLib.Pipes
         {
             int r = await stream.ReadAsync(buffer.AsMemory(read, size - read), ct);
             if (r == 0)
-                throw new EndOfStreamException();
+                return null;
             read += r;
         }
 
@@ -188,7 +233,30 @@ namespace NekoLib.Pipes
             return ReadExact(stream, size);
         }
 
+        private static byte[]? TryReadFrame(Stream stream, int maxBytes)
+        {
+            byte[]? lengthBytes = TryReadExact(stream, 4);
+            if (lengthBytes == null)
+                return null;
+
+            int size = BitConverter.ToInt32(lengthBytes, 0);
+
+            if (size <= 0 || size > maxBytes)
+                throw new InvalidDataException();
+
+            return TryReadExact(stream, size);
+        }
+
         private static byte[] ReadExact(Stream stream, int size)
+        {
+            byte[]? buffer = TryReadExact(stream, size);
+            if (buffer == null)
+                throw new EndOfStreamException();
+
+            return buffer;
+        }
+
+        private static byte[]? TryReadExact(Stream stream, int size)
         {
             byte[] buffer = new byte[size];
             int read = 0;
@@ -197,7 +265,7 @@ namespace NekoLib.Pipes
             {
                 int r = stream.Read(buffer, read, size - read);
                 if (r == 0)
-                    throw new EndOfStreamException();
+                    return null;
                 read += r;
             }
 

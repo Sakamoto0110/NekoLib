@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NekoLib.Diagnostics.Contracts;
 using NekoLib.Pipes;
 
  
@@ -27,12 +29,14 @@ namespace NekoLib.Watchdog
         private readonly object _bufferLock = new object();
 
         private const int MaxBufferedLogs = 300;
+        private const int MaxQueuedEvents = 1024;
 
         private readonly WatchdogOptions _o;
 
         private Process _child;
         private Thread _monitorThread;
         private Thread _hotkeyThread;
+        private Thread _eventThread;
         private Mutex _instanceMutex;
         private bool _ownsMutex;
 
@@ -47,6 +51,8 @@ namespace NekoLib.Watchdog
 
         private long _restartCount;
         private int? _lastExitCode;
+        private string _lastRestartReason = "startup";
+        private volatile bool _crashNotificationReceived;
 
         private volatile bool _enabled = true;
         private volatile bool _shutdownRequested;
@@ -56,6 +62,14 @@ namespace NekoLib.Watchdog
 
         // Buffered structured log entries (replay on subscribe)
         private readonly Queue<LogEntry> _logBuffer = new Queue<LogEntry>(MaxBufferedLogs);
+        private readonly BlockingCollection<QueuedEvent> _eventQueue =
+            new BlockingCollection<QueuedEvent>(MaxQueuedEvents);
+
+        private sealed class QueuedEvent
+        {
+            public string Name;
+            public object Payload;
+        }
 
         public WatchdogRuntime(WatchdogOptions options)
         {
@@ -81,8 +95,13 @@ namespace NekoLib.Watchdog
             _ownsMutex = created;
 
             if (!created)
+            {
+                if (_o.BringToFrontOnStartIfRunning)
+                    TryBringExistingTargetToFront();
+
                 throw new InvalidOperationException(
                     $"Watchdog already running for target: {_o.TargetPath}");
+            }
 
             _rpc = new PipeServer(new PipeServerOptions
             {
@@ -95,6 +114,13 @@ namespace NekoLib.Watchdog
 
             RegisterRpcHandlers();
             _rpc.Start();
+
+            _eventThread = new Thread(EventLoop)
+            {
+                IsBackground = true,
+                Name = "WDG-Events"
+            };
+            _eventThread.Start();
 
             LogInfo("[watchdog_start]", new { target = _o.TargetPath, pipe = _o.PipeName });
 
@@ -150,6 +176,9 @@ namespace NekoLib.Watchdog
                 }
                 catch { }
 
+                try { _eventQueue.CompleteAdding(); } catch { }
+                try { _eventThread?.Join(1500); } catch { }
+
                 try { _rpc?.Dispose(); } catch { }
 
                 try { _monitorThread?.Join(3000); } catch { }
@@ -198,6 +227,7 @@ namespace NekoLib.Watchdog
             _rpc.Map("restart", async (req, ct) =>
             {
                 LogWarn("[cmd] restart");
+                _lastRestartReason = "command_restart";
 
                 lock (_childLock)
                 {
@@ -212,8 +242,24 @@ namespace NekoLib.Watchdog
             _rpc.Map("stop", async (req, ct) =>
             {
                 LogWarn("[cmd] stop");
-                Stop(true);
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try
+                    {
+                        Thread.Sleep(100);
+                        Stop(true);
+                    }
+                    catch { }
+                });
                 return PipeOk("stopped");
+            });
+
+            _rpc.Map("update", async (req, ct) =>
+            {
+                if (!_o.EnableUpdates)
+                    return PipeErrorResponse("updates_disabled", "Updates are disabled.");
+
+                return PipeErrorResponse("not_implemented", "Watchdog update orchestration is not implemented yet.");
             });
 
             // 🔥 Log replay buffer
@@ -228,16 +274,19 @@ namespace NekoLib.Watchdog
             _rpc.Map("exception_notify", async (req, ct) =>
             {
 #if NET9
-    var root = req.Data.Value;
+                var root = req.Data.Value;
 
-    string type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
-    string message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
-    string source = root.TryGetProperty("source", out var s) ? s.GetString() : null;
+                string type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+                string message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
+                string source = root.TryGetProperty("source", out var s) ? s.GetString() : null;
 #else
                 string type = req.Data?["type"]?.ToString();
                 string message = req.Data?["message"]?.ToString();
                 string source = req.Data?["source"]?.ToString();
 #endif
+
+                _crashNotificationReceived = true;
+                _lastRestartReason = "exception_notify";
 
                 var formatted = $"Crash detected: {type} - {message} (source={source})";
 
@@ -247,6 +296,24 @@ namespace NekoLib.Watchdog
                     message,
                     source
                 });
+
+                return PipeOk("ok");
+            });
+
+            _rpc.Map("log_write", async (req, ct) =>
+            {
+#if NET9
+                var root = req.Data.Value;
+                string level = root.TryGetProperty("level", out var l) ? l.GetString() : null;
+                string message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
+                string category = root.TryGetProperty("category", out var c) ? c.GetString() : null;
+#else
+                string level = req.Data?["level"]?.ToString();
+                string message = req.Data?["message"]?.ToString();
+                string category = req.Data?["category"]?.ToString();
+#endif
+                Log(LogSeverity.info, string.IsNullOrWhiteSpace(message) ? "[external_log]" : message,
+                    new { level, category });
 
                 return PipeOk("ok");
             });
@@ -262,8 +329,14 @@ namespace NekoLib.Watchdog
                 uptimeMs = _uptime.ElapsedMilliseconds,
                 childUptimeMs = _childUptime?.ElapsedMilliseconds,
                 restartCount = _restartCount,
+                restartReason = _lastRestartReason,
                 childPid = (_child != null && !_child.HasExited) ? _child.Id : (int?)null,
                 lastExitCode = _lastExitCode,
+                updates = new
+                {
+                    enabled = _o.EnableUpdates,
+                    stagingRoot = _o.UpdateStagingRoot
+                },
                 metrics = snap == null ? null : new
                 {
                     server = snap.Server,
@@ -297,6 +370,19 @@ namespace NekoLib.Watchdog
 #endif
         }
 
+        private PipeMessage PipeErrorResponse(string code, string message)
+        {
+            return new PipeMessage
+            {
+                Ok = false,
+                Error = new PipeError
+                {
+                    Code = code,
+                    Message = message
+                }
+            };
+        }
+
         // ============================================================
         // MONITOR LOOP
         // ============================================================
@@ -311,15 +397,40 @@ namespace NekoLib.Watchdog
             {
                 if (!_enabled)
                 {
-                    Thread.Sleep(250);
+                    Thread.Sleep(_o.MonitorPollMs);
                     continue;
                 }
 
                 StartChild();
 
                 var start = DateTime.UtcNow;
+                var nextHeartbeat = _o.HeartbeatIntervalMs > 0
+                    ? DateTime.UtcNow.AddMilliseconds(_o.HeartbeatIntervalMs)
+                    : DateTime.MaxValue;
 
-                try { _child.WaitForExit(); } catch { }
+                while (!_shutdownRequested)
+                {
+                    Process current;
+                    lock (_childLock)
+                        current = _child;
+
+                    if (current == null)
+                        break;
+
+                    bool exited = false;
+                    try { exited = current.WaitForExit(_o.MonitorPollMs); }
+                    catch { exited = true; }
+
+                    if (exited)
+                        break;
+
+                    if (_o.HeartbeatIntervalMs > 0 && DateTime.UtcNow >= nextHeartbeat)
+                    {
+                        LogInfo("[heartbeat]", new { pid = current.Id, uptimeMs = _childUptime?.ElapsedMilliseconds });
+                        PublishTelemetry();
+                        nextHeartbeat = DateTime.UtcNow.AddMilliseconds(_o.HeartbeatIntervalMs);
+                    }
+                }
 
                 if (_shutdownRequested)
                     break;
@@ -333,6 +444,8 @@ namespace NekoLib.Watchdog
                     code = _lastExitCode,
                     uptimeSec = runtime.TotalSeconds
                 });
+
+                TryFinalizeCrashBundle(_lastRestartReason, "child_exit");
 
                 lock (_childLock)
                 {
@@ -356,7 +469,7 @@ namespace NekoLib.Watchdog
                     fastCrashCount = 0;
                 }
 
-                Thread.Sleep(_o.RestartDelayMs);
+                SleepWithShutdown(_o.RestartDelayMs);
 
                 PublishTelemetry();
             }
@@ -366,11 +479,42 @@ namespace NekoLib.Watchdog
 
         private void PublishTelemetry()
         {
+            var telemetry = BuildTelemetry();
+            QueueEvent("telemetry", telemetry);
+            TrackTelemetry("watchdog.telemetry", telemetry);
+        }
+
+        private void QueueEvent(string name, object payload)
+        {
+            if (_eventQueue.IsAddingCompleted)
+                return;
+
             try
             {
-                _rpc?.Events?.PublishAsync("telemetry", BuildTelemetry());
+                _eventQueue.TryAdd(new QueuedEvent
+                {
+                    Name = name,
+                    Payload = payload
+                });
             }
             catch { }
+        }
+
+        private void EventLoop()
+        {
+            foreach (var evt in _eventQueue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    using (var publishCts = new CancellationTokenSource(1000))
+                    {
+                        _rpc?.Events?.PublishAsync(evt.Name, evt.Payload, publishCts.Token)
+                            .GetAwaiter()
+                            .GetResult();
+                    }
+                }
+                catch { }
+            }
         }
 
         private void StartChild()
@@ -396,6 +540,63 @@ namespace NekoLib.Watchdog
                 _restartCount++;
 
                 LogInfo("[child_start]", new { pid = _child.Id });
+            }
+        }
+
+        private void TryFinalizeCrashBundle(string restartReason, string fallbackReason)
+        {
+            if (!_o.EnableCrashBundling)
+                return;
+
+            try
+            {
+                var reason = _crashNotificationReceived
+                    ? restartReason
+                    : fallbackReason;
+
+                CrashBundler.TryFinalizeLatestCrashBundle(
+                    new CrashBundlerOptions
+                    {
+                        PendingCrashRoot = _o.PendingCrashRoot,
+                        BundleRoot = _o.BundleRoot,
+                        MaxBundles = _o.MaxBundles,
+                        EnableChecksums = _o.EnableBundleChecksums,
+                        EnableManifests = _o.EnableBundleManifests,
+                        WatchdogLogPath = _o.LogPath,
+                        CopyWatchdogLogTail = _o.EnableFileLogging,
+                        GetWatchdogStatus = () => SafeStatusText(),
+                        GetWatchdogVersion = () => typeof(WatchdogRuntime).Assembly.GetName().Version?.ToString()
+                    },
+                    reason,
+                    _restartCount,
+                    line => LogInfo(line));
+
+                _crashNotificationReceived = false;
+            }
+            catch { }
+        }
+
+        private string SafeStatusText()
+        {
+            try
+            {
+#if NET9
+                return JsonSerializer.Serialize(BuildTelemetry());
+#else
+                return Newtonsoft.Json.JsonConvert.SerializeObject(BuildTelemetry());
+#endif
+            }
+            catch { return null; }
+        }
+
+        private void SleepWithShutdown(int delayMs)
+        {
+            var remaining = delayMs;
+            while (remaining > 0 && !_shutdownRequested)
+            {
+                var slice = Math.Min(_o.MonitorPollMs, remaining);
+                Thread.Sleep(slice);
+                remaining -= slice;
             }
         }
 
@@ -429,7 +630,7 @@ namespace NekoLib.Watchdog
                         Arguments = $"/PID {p.Id} /T /F",
                         CreateNoWindow = true,
                         UseShellExecute = false
-                    })?.WaitForExit(5000);
+                    })?.WaitForExit(_o.ForceKillTimeoutMs);
                 }
                 catch { }
             }
@@ -483,19 +684,119 @@ namespace NekoLib.Watchdog
             }
 
             // live event
-            try { _rpc?.Events?.PublishAsync("log", entry); }
-            catch { }
+            QueueEvent("log", entry);
+            WriteDiagnosticsLog(sev, msg);
+            TrackTelemetry("watchdog.log", new { level = sev.ToString(), message = msg, meta });
 
             // file logging
             if (_o.EnableFileLogging)
             {
-                try
-                {
-                    lock (_logLock)
-                        File.AppendAllText(_o.LogPath, line + Environment.NewLine);
-                }
+                WriteLogFile(line);
+            }
+        }
+
+        private void WriteDiagnosticsLog(LogSeverity sev, string msg)
+        {
+            var sinks = _o.LogSinks;
+            if (sinks == null || sinks.Length == 0)
+                return;
+
+            var level = ToLogLevel(sev);
+            var entry = new NekoLib.Diagnostics.Contracts.LogEntry(
+                DateTime.UtcNow,
+                level,
+                "watchdog",
+                msg);
+
+            for (int i = 0; i < sinks.Length; i++)
+            {
+                try { sinks[i]?.Write(entry); }
                 catch { }
             }
+        }
+
+        private static LogLevel ToLogLevel(LogSeverity sev)
+        {
+            switch (sev)
+            {
+                case LogSeverity.warn: return LogLevel.Warn;
+                case LogSeverity.error: return LogLevel.Error;
+                default: return LogLevel.Info;
+            }
+        }
+
+        private void TrackTelemetry(string name, object payload)
+        {
+            var sink = _o.TelemetrySink;
+            if (sink == null)
+                return;
+
+            try
+            {
+                var data = new Dictionary<string, object>
+                {
+                    { "payload", payload }
+                };
+
+                sink.Track(new TelemetryEvent(DateTime.UtcNow, name, data: data));
+            }
+            catch { }
+        }
+
+        private void WriteLogFile(string line)
+        {
+            try
+            {
+                lock (_logLock)
+                {
+                    RotateLogIfNeeded();
+                    File.AppendAllText(_o.LogPath, line + Environment.NewLine);
+                }
+            }
+            catch { }
+        }
+
+        private void RotateLogIfNeeded()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_o.LogPath) || !File.Exists(_o.LogPath))
+                    return;
+
+                var info = new FileInfo(_o.LogPath);
+                if (info.Length < _o.MaxLogBytes)
+                    return;
+
+                var rotated = _o.LogPath + ".1";
+                try { if (File.Exists(rotated)) File.Delete(rotated); } catch { }
+                try { File.Move(_o.LogPath, rotated); } catch { }
+            }
+            catch { }
+        }
+
+        private void TryBringExistingTargetToFront()
+        {
+            try
+            {
+                var exeName = Path.GetFileNameWithoutExtension(_o.TargetPath);
+                if (string.IsNullOrWhiteSpace(exeName))
+                    return;
+
+                foreach (var p in Process.GetProcessesByName(exeName))
+                {
+                    try
+                    {
+                        if (p.MainWindowHandle == IntPtr.Zero)
+                            continue;
+
+                        Win32.ShowWindow(p.MainWindowHandle, Win32.SW_RESTORE);
+                        Win32.SetForegroundWindow(p.MainWindowHandle);
+                        return;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
 
         // ============================================================
@@ -547,6 +848,7 @@ namespace NekoLib.Watchdog
         {
             public const int WM_HOTKEY = 0x0312;
             public const int WM_QUIT = 0x0012;
+            public const int SW_RESTORE = 9;
 
             public const uint MOD_ALT = 0x0001;
             public const uint MOD_CONTROL = 0x0002;
@@ -582,6 +884,12 @@ namespace NekoLib.Watchdog
                 IntPtr menu,
                 IntPtr instance,
                 IntPtr param);
+
+            [DllImport("user32.dll")]
+            public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+            [DllImport("user32.dll")]
+            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
             public static IntPtr CreateMessageOnlyWindow()
             {

@@ -32,6 +32,7 @@ namespace NekoLib.Pipes
             = new();
 
         private CancellationTokenSource? _cts;
+        private Task? _acceptTask;
         private volatile bool _running;
 
         public int SubscriberCount => _subscribers.Count;
@@ -54,7 +55,7 @@ namespace NekoLib.Pipes
             _running = true;
             _cts = new CancellationTokenSource();
 
-            Task.Run(() => AcceptLoop(_cts.Token));
+            _acceptTask = Task.Run(() => AcceptLoop(_cts.Token));
         }
 
         private async Task AcceptLoop(CancellationToken ct)
@@ -229,6 +230,7 @@ namespace NekoLib.Pipes
             _running = false;
 
             try { _cts?.Cancel(); } catch { }
+            try { _acceptTask?.Wait(2000); } catch { }
 
             foreach (var kv in _subscribers)
             {
@@ -254,6 +256,7 @@ public ValueTask DisposeAsync()
             _running = false;
 
             try { _cts?.Cancel(); } catch { }
+            try { _acceptTask?.Wait(2000); } catch { }
 
             foreach (var kv in _subscribers)
             {
