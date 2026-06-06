@@ -50,6 +50,7 @@ namespace NekoLib.Watchdog
         private Stopwatch _childUptime;
 
         private long _restartCount;
+        private long _eventsDropped;
         private int? _lastExitCode;
         private string _lastRestartReason = "startup";
         private volatile bool _crashNotificationReceived;
@@ -312,9 +313,52 @@ namespace NekoLib.Watchdog
                 string message = req.Data?["message"]?.ToString();
                 string category = req.Data?["category"]?.ToString();
 #endif
+                // forwardToSinks: false — an externally-received log must not be
+                // re-emitted to LogSinks (would loop back through a pipe sink).
                 Log(LogSeverity.info, string.IsNullOrWhiteSpace(message) ? "[external_log]" : message,
-                    new { level, category });
+                    new { level, category }, forwardToSinks: false);
 
+                return PipeOk("ok");
+            });
+
+            _rpc.Map("log_write_batch", async (req, ct) =>
+            {
+#if NET9
+                if (req.Data.HasValue &&
+                    req.Data.Value.TryGetProperty("entries", out var arr) &&
+                    arr.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.Object)
+                            continue;
+
+                        string level = item.TryGetProperty("level", out var l) ? l.GetString() : null;
+                        string message = item.TryGetProperty("message", out var m) ? m.GetString() : null;
+                        string category = item.TryGetProperty("category", out var c) ? c.GetString() : null;
+
+                        Log(LogSeverity.info, string.IsNullOrWhiteSpace(message) ? "[external_log]" : message,
+                            new { level, category }, forwardToSinks: false);
+                    }
+                }
+#else
+                var arr = req.Data?["entries"] as JArray;
+                if (arr != null)
+                {
+                    foreach (var item in arr)
+                    {
+                        if (item == null || item.Type != JTokenType.Object)
+                            continue;
+
+                        string level = item["level"]?.ToString();
+                        string message = item["message"]?.ToString();
+                        string category = item["category"]?.ToString();
+
+                        Log(LogSeverity.info, string.IsNullOrWhiteSpace(message) ? "[external_log]" : message,
+                            new { level, category }, forwardToSinks: false);
+                    }
+                }
+#endif
                 return PipeOk("ok");
             });
         }
@@ -330,6 +374,7 @@ namespace NekoLib.Watchdog
                 childUptimeMs = _childUptime?.ElapsedMilliseconds,
                 restartCount = _restartCount,
                 restartReason = _lastRestartReason,
+                eventsDropped = Interlocked.Read(ref _eventsDropped),
                 childPid = (_child != null && !_child.HasExited) ? _child.Id : (int?)null,
                 lastExitCode = _lastExitCode,
                 updates = new
@@ -491,13 +536,38 @@ namespace NekoLib.Watchdog
 
             try
             {
-                _eventQueue.TryAdd(new QueuedEvent
+                var added = _eventQueue.TryAdd(new QueuedEvent
                 {
                     Name = name,
                     Payload = payload
                 });
+
+                if (!added)
+                    OnEventDropped();
             }
             catch { }
+        }
+
+        private void OnEventDropped()
+        {
+            var total = Interlocked.Increment(ref _eventsDropped);
+
+            // Rate-limited so a saturated queue does not spam the log: warn on the
+            // first drop and then every 1000th. The warning is written directly to
+            // file/sinks WITHOUT re-queuing — the event queue is full.
+            if (total == 1 || total % 1000 == 0)
+                WriteDropWarning(total);
+        }
+
+        private void WriteDropWarning(long total)
+        {
+            var msg = $"[events] dropped {total} telemetry/log events (queue full, cap={MaxQueuedEvents})";
+            var line = $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] [warn] {msg}";
+
+            if (_o.EnableFileLogging)
+                WriteLogFile(line);
+
+            WriteDiagnosticsLog(LogSeverity.warn, msg);
         }
 
         private void EventLoop()
@@ -570,10 +640,14 @@ namespace NekoLib.Watchdog
                     reason,
                     _restartCount,
                     line => LogInfo(line));
-
-                _crashNotificationReceived = false;
             }
             catch { }
+            finally
+            {
+                // Reset in finally so a throwing bundler can't leave the flag set
+                // and contaminate the reason of the next finalize.
+                _crashNotificationReceived = false;
+            }
         }
 
         private string SafeStatusText()
@@ -661,7 +735,7 @@ namespace NekoLib.Watchdog
         private void LogWarn(string msg, object meta = null) => Log(LogSeverity.warn, msg, meta);
         private void LogError(string msg, object meta = null) => Log(LogSeverity.error, msg, meta);
 
-        private void Log(LogSeverity sev, string msg, object meta)
+        private void Log(LogSeverity sev, string msg, object meta, bool forwardToSinks = true)
         {
             var now = DateTimeOffset.Now;
             var line = $"[{now:yyyy-MM-dd HH:mm:ss}] [{sev}] {msg}";
@@ -685,7 +759,13 @@ namespace NekoLib.Watchdog
 
             // live event
             QueueEvent("log", entry);
-            WriteDiagnosticsLog(sev, msg);
+
+            // Externally-received logs (log_write / log_write_batch) are NOT
+            // re-forwarded to LogSinks: a WatchdogPipeLogSink would push them
+            // back onto the control pipe and loop.
+            if (forwardToSinks)
+                WriteDiagnosticsLog(sev, msg);
+
             TrackTelemetry("watchdog.log", new { level = sev.ToString(), message = msg, meta });
 
             // file logging
@@ -710,7 +790,18 @@ namespace NekoLib.Watchdog
 
             for (int i = 0; i < sinks.Length; i++)
             {
-                try { sinks[i]?.Write(entry); }
+                var sink = sinks[i];
+                if (sink == null)
+                    continue;
+
+                // Guard against an infinite log loop: a WatchdogPipeLogSink forwards
+                // to the watchdog's own control pipe, which maps log_write(_batch)
+                // back into Log(...). A runtime must never re-forward its own logs
+                // to such a sink (defense-in-depth alongside the forwardToSinks flag).
+                if (sink is WatchdogPipeLogSink)
+                    continue;
+
+                try { sink.Write(entry); }
                 catch { }
             }
         }

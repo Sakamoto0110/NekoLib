@@ -36,3 +36,12 @@
   - (optionally) `NekoLib.Diagnostics.Abstractions`
 - Only the entrypoint (`NekoLib`) should reference `NekoLib.Diagnostics` runtime.
 
+## Breaking behavior changes
+
+### Pipes — connection close now returns `Ok=false` (was an exception)
+`PipeClient.SendAsync` no longer throws `EndOfStreamException` when the server
+closes before sending a response. It returns a `PipeMessage` with `Ok=false` and
+`Error.Code="connection_closed"`. Replace `try/catch` around the close case with a
+check on `response.Ok` / `response.Error?.Code`. See
+`docs/audit/pipes-first-pass.md` for details.
+

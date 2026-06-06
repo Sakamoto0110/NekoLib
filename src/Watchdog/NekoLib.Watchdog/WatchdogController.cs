@@ -1,6 +1,7 @@
 ﻿using NekoLib.Pipes;
 using NekoLib.Diagnostics.Contracts;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
@@ -174,6 +175,50 @@ namespace NekoLib.Watchdog
                     };
 
                     client.SendAsync("log_write", payload)
+                          .GetAwaiter()
+                          .GetResult();
+                }
+            }
+            catch
+            {
+                // external logging must not throw back into the app
+            }
+        }
+
+        /// <summary>
+        /// Forwards a batch of log entries to the watchdog over a single pipe
+        /// connection (one connect amortized over the whole batch). Used by the
+        /// buffered <see cref="WatchdogPipeLogSink"/>.
+        /// </summary>
+        public static void NotifyLogBatch(IReadOnlyList<LogEntry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            try
+            {
+                var items = new List<object>(entries.Count);
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var e = entries[i];
+                    if (e == null)
+                        continue;
+
+                    items.Add(new
+                    {
+                        level = e.Level.ToString(),
+                        category = e.Category,
+                        message = e.Message,
+                        exception = e.Exception?.ToString()
+                    });
+                }
+
+                if (items.Count == 0)
+                    return;
+
+                using (var client = CreateClient())
+                {
+                    client.SendAsync("log_write_batch", new { entries = items })
                           .GetAwaiter()
                           .GetResult();
                 }
