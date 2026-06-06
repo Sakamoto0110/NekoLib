@@ -90,10 +90,18 @@ namespace NekoLib.Pipes
 #else
                         // See PipeServer: dispose-on-cancel so the blocked net481 wait
                         // releases its thread on shutdown rather than leaking (audit M6).
+                        // The throw is contained inside the delegate (only while cancelling)
+                        // so it doesn't surface as a user-unhandled break; bail via the token.
                         using (ct.Register(() => { try { pipe.Dispose(); } catch { } }))
                         {
-                            await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                            await Task.Run(() =>
+                            {
+                                try { pipe.WaitForConnection(); }
+                                catch when (ct.IsCancellationRequested) { /* pipe disposed on shutdown */ }
+                            }).ConfigureAwait(false);
                         }
+
+                        ct.ThrowIfCancellationRequested();
 #endif
 
                         _subscribers[id] = pipe;
