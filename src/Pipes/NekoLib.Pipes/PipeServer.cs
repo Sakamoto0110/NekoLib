@@ -104,11 +104,20 @@ namespace NekoLib.Pipes
 #else
                         // net481 WaitForConnection can't observe ct; dispose the pipe on
                         // cancel so the blocked wait throws and releases its thread on
-                        // shutdown instead of leaking until GC (audit M6).
+                        // shutdown instead of leaking until GC (audit M6). The throw is
+                        // swallowed *inside* the delegate (only while cancelling) so it
+                        // doesn't surface as a user-unhandled first-chance break in the
+                        // debugger; we then bail cleanly via the token below.
                         using (ct.Register(() => { try { pipe?.Dispose(); } catch { } }))
                         {
-                            await Task.Run(() => pipe.WaitForConnection()).ConfigureAwait(false);
+                            await Task.Run(() =>
+                            {
+                                try { pipe.WaitForConnection(); }
+                                catch when (ct.IsCancellationRequested) { /* pipe disposed on shutdown */ }
+                            }).ConfigureAwait(false);
                         }
+
+                        ct.ThrowIfCancellationRequested();
 #endif
 
                         connected = true;
