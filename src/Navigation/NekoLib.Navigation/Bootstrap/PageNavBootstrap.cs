@@ -280,6 +280,10 @@ namespace NekoLib.Navigation.Bootstrap
             if (subscriber != null)
                 services.Register(typeof(IEventSubscriptionAdapter), subscriber);
 
+            var focusObserver = _platform.CreateFocusObserver(_nativeHost);
+            if (focusObserver != null)
+                services.Register(typeof(IFocusObserverAdapter), focusObserver);
+
            
              
 
@@ -311,6 +315,9 @@ namespace NekoLib.Navigation.Bootstrap
 
             var promptService = new PromptService(viewHost, pageFactory, modalBlocker);
             services.Register(typeof(IPromptService), promptService);
+
+            var popoverService = new PopoverService(viewHost, pageFactory, focusObserver);
+            services.Register(typeof(IPopoverService), popoverService);
             // --- SAFE FALLBACK INJECTION ---
            
 
