@@ -142,9 +142,20 @@ Resolve target page instance
 - `IPageView` — minimal page contract (Name, NativeView handle, IsDisposed)
 - `IPageLifecycle` — optional lifecycle hooks (OnNavigatedToAsync, OnNavigatedFromAsync, OnEnterAsync, OnExitAsync)
 - `IPageHost` — owns attach/detach lifecycle
-- `IPlatformAdapter` — abstracts WinForms vs WPF concerns (timer, event dispatch, interaction blocking)
+- `IPlatformAdapter` — abstracts WinForms vs WPF concerns (timer, event dispatch, interaction blocking, focus observer)
 - `IGuard` / `GuardContext` / `GuardResult` — async access control evaluated before navigation
 - Guards compose via `AndGuard`, `OrGuard`
+
+**Overlay primitives** (4 services, strictly partitioned by intent):
+
+| Primitive | Blocking | Auto-dismiss | Return |
+|---|---|---|---|
+| `IToastView` / `IToastService` | no | timer (+ tap) | `void` |
+| `IDialogView` / `IDialogService` | **yes** | — | `Task<bool>` |
+| `IPromptView<TResult>` / `IPromptService` | **yes** | — | `Task<TResult>` |
+| `IPopoverView` / `IPopoverService` | no | on focus loss (via `IUnfocusAware`) | `Task<bool>` |
+
+Rules: Dialog is always `bool` — anything tri-state uses `Prompt<TEnum>`. Popover is always non-blocking — blocking variants go through Dialog. Popovers opt into auto-dismiss by implementing `IUnfocusAware`; the platform's `IFocusObserverAdapter` raises the unfocus notification. WinForms ships `PopoverViewBase` + `AutoDismissPopoverBase` so subclasses skip the wiring.
 
 **Typical bootstrap:**
 ```csharp
