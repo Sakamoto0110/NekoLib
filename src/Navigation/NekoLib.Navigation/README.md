@@ -129,7 +129,7 @@ subscribers that want `context.Events` / `context.History`.
 
 ## 7. Next logical steps
 
-1. WPF adapter parity with WinForms (currently broken — missing `IFocusObserverAdapter`)
-2. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
+1. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
+2. Anchor-positioned popover convenience (e.g. attach to a clicked control)
 
 This snapshot intentionally favors **clarity over cleverness**.
