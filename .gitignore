@@ -42,3 +42,6 @@ audit.md
 
 # Claude context (local only)
 CLAUDE.md
+
+# Runtime test apps (kept on disk, out of git for now)
+/runtime_tests/
