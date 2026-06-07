@@ -57,24 +57,42 @@ NavigationContext is the **only component allowed** to invoke lifecycle methods.
 
 ## 3. Folder responsibilities
 
-### Core/Abstractions
+### Contracts/
 Pure contracts. No logic. No platform assumptions.
 
-### Core/Models
-DTO-like structures and enums. No behavior.
+### Metadata/
+DTO-like structures, attributes, and enums. No behavior.
 
-### Core/Services
-Navigation runtime, registry, cleanup, timeout, history.
+### Runtime/
+Navigation runtime, registry, factories, services, history, session.
 
-### Core/Infrastructure
-Low-level helpers (ServiceLocator, PlatformRegistry).
+### Diagnostics/
+Navigation tracing + optional bridge to NekoLib.Diagnostics.
 
-### Diagnostics
-Leak detection, lifecycle tracking, navigation tracing.
+### Toolkit/
+Optional surface positioning abstractions (anchors). Not required by Core.
 
 ---
 
-## 4. What should be considered FROZEN
+## 4. Overlay primitives (Toast / Dialog / Prompt / Popover)
+
+| Primitive | Blocks input? | Auto-dismiss | Return |
+|-----------|---------------|--------------|--------|
+| `IToastView` / `IToastService` | no | timer (+ tap) | `void` |
+| `IDialogView` / `IDialogService` | **yes** | — | `Task<bool>` |
+| `IPromptView<TResult>` / `IPromptService` | **yes** | — | `Task<TResult>` |
+| `IPopoverView` / `IPopoverService` | no | on focus loss (via `IUnfocusAware`) | `Task<bool>` |
+
+Dialog is binary by definition; for 3+ outcomes use `IPromptView<TEnum>`.
+Popover stays open until the view calls its completion, OR — if it implements
+`IUnfocusAware` — the platform's `IFocusObserverAdapter` fires unfocus and the
+view's `OnUnfocusAsync` resolves the awaiter. WinForms ships
+`PopoverViewBase` (manual close only) and `AutoDismissPopoverBase` (auto-close
+on unfocus) so subclasses don't repeat the wiring.
+
+---
+
+## 5. What should be considered FROZEN
 
 Do not casually modify:
 
@@ -87,7 +105,7 @@ Extensions should live outside Core.
 
 ---
 
-## 5. Typical initialization (example)
+## 6. Typical initialization (example)
 
 ```csharp
 PageNavBootstrap
@@ -109,9 +127,9 @@ subscribers that want `context.Events` / `context.History`.
 
 ---
 
-## 6. Next logical steps
+## 7. Next logical steps
 
-1. WPF adapter parity with WinForms
+1. WPF adapter parity with WinForms (currently broken — missing `IFocusObserverAdapter`)
 2. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
 
 This snapshot intentionally favors **clarity over cleverness**.
