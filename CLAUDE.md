@@ -121,7 +121,7 @@ var ctx = PageNavBootstrap
     .RegisterPagesFromAssembly(typeof(MainPage).Assembly)
     .ConfigurePages(cfg =>
     {
-        cfg.Page<HomePage>().AsHome().StrongSingleton();
+        cfg.Page<IdlePage>().AsIdle().StrongSingleton();
         cfg.Page<AdminPage>().AsModal().StrongSingleton();
     })
     .Timeout(10)

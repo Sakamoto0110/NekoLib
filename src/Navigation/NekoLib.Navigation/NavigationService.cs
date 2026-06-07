@@ -121,7 +121,7 @@ namespace NekoLib.Navigation
 
 
 
-        public async static Task GoHomeAsync() => await EnsureRuntime().GoHomeAsync();  
+        public async static Task GoIdleAsync() => await EnsureRuntime().GoIdleAsync();
         public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
 
         // ------------------------------------------------------------
