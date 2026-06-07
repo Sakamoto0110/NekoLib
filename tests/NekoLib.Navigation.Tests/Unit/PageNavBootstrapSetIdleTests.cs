@@ -1,6 +1,5 @@
 using System;
 using NekoLib.Navigation.Bootstrap;
-using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Tests.Unit.Fakes;
 using Xunit;
 
@@ -13,14 +12,8 @@ namespace NekoLib.Navigation.Tests.Unit
     /// page is declared more than once or split across two different pages, so an
     /// ambiguous idle page never reaches the runtime's idle-resolver.
     /// </summary>
-    public class PageNavBootstrapSetIdleTests : IDisposable
+    public class PageNavBootstrapSetIdleTests
     {
-        // PlatformRegistry is a process-wide singleton — reset around every test
-        // so PageNavBootstrap.Use<T>() inside the test body doesn't trip the
-        // "already registered" guard left by a previous test in the same fixture.
-        public PageNavBootstrapSetIdleTests() => PlatformRegistry.Reset();
-        public void Dispose() => PlatformRegistry.Reset();
-
         [Fact]
         public void SetIdle_called_twice_throws()
         {

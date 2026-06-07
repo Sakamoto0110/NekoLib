@@ -1,8 +1,9 @@
 ﻿// FILE: PageNav.Core/Services/NavigationService.cs
 using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Infrastructure;
+using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
+using NekoLib.Navigation.Runtime.History;
 using NekoLib.Navigation.Runtime.Session;
 
 using System;
@@ -31,6 +32,18 @@ namespace NekoLib.Navigation
         /// navigation.
         /// </summary>
         public static NavigationSession Session => EnsureContext().Session;
+
+        /// <summary>Back/forward stacks for the active context.</summary>
+        public static NavigationHistory History => EnsureContext().History;
+
+        /// <summary>True when there is at least one entry on the back-stack.</summary>
+        public static bool CanGoBack => EnsureContext().History.CanGoBack;
+
+        /// <summary>
+        /// Navigation diagnostics hub (NavigationLogged / GuardDenied). Use this
+        /// instead of holding a reference to the NavigationContext just to subscribe.
+        /// </summary>
+        public static NavigationEventHub Events => EnsureContext().Events;
 
         private static NavigationContext EnsureContext()
         {
@@ -64,7 +77,7 @@ namespace NekoLib.Navigation
         // INIT / SHUTDOWN
         // -------------------------------------------------------------------------
 
-        public static void UseContext(NavigationContext context)
+        internal static void UseContext(NavigationContext context)
         {
             // Release-safe guards (S-2). Initializing twice without Shutdown() would
             // leak the previous runtime's event subscriptions and services, so this
@@ -91,9 +104,6 @@ namespace NekoLib.Navigation
             }
 
             _context = null;
-
-            // Allow a new adapter to be registered in the next session (S-1).
-            PlatformRegistry.Reset();
 
             // Release all external subscribers so they are not kept alive past this
             // session. A subsequent UseContext() starts with a clean slate (L-4).
@@ -123,6 +133,14 @@ namespace NekoLib.Navigation
 
         public async static Task GoIdleAsync() => await EnsureRuntime().GoIdleAsync();
         public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
+
+        /// <summary>
+        /// Tears down every page (current, cached, overlays), clears history, and
+        /// leaves the runtime ready to navigate again. The context, session and
+        /// adapter stay alive — use <see cref="Shutdown"/> if you want a full
+        /// teardown.
+        /// </summary>
+        public static Task ResetAsync() => EnsureRuntime().ResetAsync();
 
         // ------------------------------------------------------------
         // Toast (fire-and-forget, ephemeral)

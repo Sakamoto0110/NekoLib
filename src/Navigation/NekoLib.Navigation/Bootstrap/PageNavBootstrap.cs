@@ -4,7 +4,6 @@ using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
-using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
@@ -29,12 +28,9 @@ namespace NekoLib.Navigation.Bootstrap
     {
         private readonly object _nativeHost;
         private readonly IPlatformAdapter _platform;
-        private Assembly _pagesAssembly;
         private PageRegistry _registry;
         private Action<PageMetadataBuilder>? _pageConfig;
         private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
-
-        private int _timeoutSeconds = 10;
 
         private IDiagnosticsContext _diagnostics;
 
@@ -68,9 +64,7 @@ namespace NekoLib.Navigation.Bootstrap
         public static PageNavBootstrap Use<TPlatform>(object nativeHost) where TPlatform : IPlatformAdapter, new()
         {
             var adapter = new TPlatform();
-            PlatformRegistry.Register(adapter);
-             
-            return new PageNavBootstrap(nativeHost,adapter);
+            return new PageNavBootstrap(nativeHost, adapter);
         }
       
 
@@ -392,10 +386,13 @@ namespace NekoLib.Navigation.Bootstrap
                 idleTimer.Start();
             }
 
+            // Auto-mount on the facade so consumers don't need a second
+            // NavigationService.UseContext(ctx) step. Tests of the bootstrap
+            // itself MUST call NavigationService.Shutdown() in teardown so the
+            // next test starts clean (UseContext throws on double-mount).
+            NavigationService.UseContext(context);
+
             return context;
-
-
-
         }
 
 
