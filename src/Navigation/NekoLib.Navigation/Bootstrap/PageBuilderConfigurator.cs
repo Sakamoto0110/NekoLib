@@ -24,9 +24,9 @@ namespace NekoLib.Navigation.Bootstrap
             _builder = builder;
         }
 
-        public PageRuleBuilder<T> AsHome()
+        public PageRuleBuilder<T> AsIdle()
         {
-            _builder.Register<T>(d => d.Role = PageRole.Home);
+            _builder.Register<T>(d => d.Role = PageRole.Idle);
             return this;
         }
 

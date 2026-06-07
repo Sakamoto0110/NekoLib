@@ -36,7 +36,7 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
         public void Dispose() => IsDisposed = true;
     }
 
-    public sealed class StubHome : StubPageView { }
+    public sealed class StubIdle : StubPageView { }
     public sealed class StubA    : StubPageView { }
     public sealed class StubB    : StubPageView { }
     public sealed class StubC    : StubPageView { }

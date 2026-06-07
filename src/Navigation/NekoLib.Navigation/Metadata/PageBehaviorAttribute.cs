@@ -14,7 +14,7 @@ public sealed class PageBehaviorAttribute : Attribute
     // --------------------------------------------------------------------
 
     /// <summary>
-    /// Logical category of the page (Home, Modal, Popup, etc).
+    /// Logical category of the page (Idle, Modal, Popup, etc).
     /// Default: PageKind.Default
     /// </summary>
     public PagePresentationMode Kind { get; }

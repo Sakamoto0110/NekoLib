@@ -94,26 +94,27 @@ namespace NekoLib.Navigation.Runtime.Core
             _dispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
         }
 
-        private PageDescriptor ResolveHomeDescriptor()
+        private PageDescriptor ResolveIdleDescriptor()
         {
-            // 1) Explicit metadata: PageRole.Home (set via .AsHome()).
-            // 2) Convention tag: "home".
-            // 3) Name convention: any registered page whose Name is "HomePage" or
-            //    "MainPage" — lets timeouts / GoHomeAsync work when the consumer
-            //    forgets to call .AsHome().
+            // 1) Explicit metadata: PageRole.Idle (set via .AsIdle()).
+            // 2) Convention tag: "idle".
+            // 3) Name convention: any registered page whose Name is "IdlePage" —
+            //    lets timeouts / GoIdleAsync work when the consumer forgets to
+            //    call .AsIdle(). "MainPage" is deliberately NOT a fallback: a
+            //    main page can be a hub of options that is distinct from the
+            //    idle page the runtime drops back to on inactivity.
             return _ctx.Registry.AllDescriptors()
-                .FirstOrDefault(x => x.Role == PageRole.Home)
+                .FirstOrDefault(x => x.Role == PageRole.Idle)
                 ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x => x.Tags.Contains("home", StringComparer.OrdinalIgnoreCase))
+                    .FirstOrDefault(x => x.Tags.Contains("idle", StringComparer.OrdinalIgnoreCase))
                 ?? _ctx.Registry.AllDescriptors()
                     .FirstOrDefault(x =>
-                        string.Equals(x.Name, "HomePage", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(x.Name, "MainPage", StringComparison.OrdinalIgnoreCase));
+                        string.Equals(x.Name, "IdlePage", StringComparison.OrdinalIgnoreCase));
         }
 
-        public async Task GoHomeAsync(object args = null)
+        public async Task GoIdleAsync(object args = null)
         {
-            var desc = ResolveHomeDescriptor();
+            var desc = ResolveIdleDescriptor();
             if (desc == null)
                 return;
 
@@ -727,7 +728,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     .FirstOrDefault(x => x.TimeoutPolicy == PageTimeoutPolicy.IsTimeoutTarget);
 
                 if (timeoutTarget == null)
-                    timeoutTarget = ResolveHomeDescriptor();
+                    timeoutTarget = ResolveIdleDescriptor();
 
                 if (timeoutTarget == null)
                     return;
