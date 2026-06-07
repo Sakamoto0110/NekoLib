@@ -1,17 +1,21 @@
 ﻿
 using NekoLib.Diagnostics.Contracts;
+using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Infrastructure;
+using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
+using NekoLib.Navigation.Runtime.Session;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Bootstrap
 {
@@ -33,6 +37,10 @@ namespace NekoLib.Navigation.Bootstrap
         private int _timeoutSeconds = 10;
 
         private IDiagnosticsContext _diagnostics;
+
+        private int _idleTimeoutMs;
+
+        private Type _homePageType;
 
          
         private PageNavBootstrap(object nativeHost, IPlatformAdapter adapter)
@@ -87,6 +95,47 @@ namespace NekoLib.Navigation.Bootstrap
         public PageNavBootstrap UseDiagnostics(IDiagnosticsContext diagnostics)
         {
             _diagnostics = diagnostics;
+            return this;
+        }
+
+        /// <summary>
+        /// Return to the home page after <paramref name="milliseconds"/> ms without
+        /// any user interaction; also signs the framework-owned session out so
+        /// guards re-evaluate on the next attempt. The bootstrap wires the
+        /// platform interaction observer and timer adapter automatically — no
+        /// consumer code is required.
+        /// <para>
+        /// Home is resolved through the standard registry mechanism: the page
+        /// tagged with <c>.AsHome()</c> / <c>PageRole.Home</c>, with a name
+        /// fallback to a registered page named <c>HomePage</c> or <c>MainPage</c>.
+        /// </para>
+        /// </summary>
+        public PageNavBootstrap UseIdleTimeout(int milliseconds)
+        {
+            if (milliseconds <= 0)
+                throw new ArgumentOutOfRangeException(nameof(milliseconds));
+            _idleTimeoutMs = milliseconds;
+            return this;
+        }
+
+        /// <summary>
+        /// Declarative shortcut for marking <typeparamref name="TPage"/> as the home
+        /// page (equivalent to <c>ConfigurePages(cfg =&gt; cfg.Page&lt;TPage&gt;().AsHome())</c>),
+        /// surfaced at the top level of the fluent chain.
+        /// <para>
+        /// Throws if called more than once on the same bootstrap, or if a
+        /// <c>.AsHome()</c> call in <see cref="ConfigurePages(System.Action{PageBuilderConfigurator})"/>
+        /// targets a different page — the home page is exclusive, and split
+        /// declarations make navigation behaviour non-obvious.
+        /// </para>
+        /// </summary>
+        public PageNavBootstrap SetHome<TPage>() where TPage : IPageView
+        {
+            if (_homePageType != null)
+                throw new InvalidOperationException(
+                    $"PageNavBootstrap.SetHome was already called with '{_homePageType.FullName}'. " +
+                    "Call SetHome<TPage>() at most once.");
+            _homePageType = typeof(TPage);
             return this;
         }
 
@@ -150,9 +199,10 @@ namespace NekoLib.Navigation.Bootstrap
     .Any(t => typeof(IGlobalLoadingMask).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
             if (_registry != null)
             {
-                if (_assemblies.Count > 0 || _pageConfig != null)
+                if (_assemblies.Count > 0 || _pageConfig != null || _homePageType != null)
                     throw new InvalidOperationException(
-                        "Cannot configure pages when external registry is supplied.");
+                        "Cannot configure pages (RegisterPagesFromAssembly / ConfigurePages / SetHome) " +
+                        "when an external registry is supplied via UseRegistry.");
 
                 registry = _registry;
             }
@@ -162,7 +212,14 @@ namespace NekoLib.Navigation.Bootstrap
                 {
                     foreach (var asm in _assemblies)
                         builder.RegisterFromAssembly(asm);
-                    
+
+                    // SetHome<TPage>() lands here so the descriptor exists with
+                    // Role=Home before _pageConfig runs. ConfigurePages may still
+                    // call .AsHome() on the SAME page (redundant, allowed); a
+                    // call targeting a DIFFERENT page is caught after Build.
+                    if (_homePageType != null)
+                        builder.RegisterType(_homePageType, d => d.Role = PageRole.Home);
+
                     _pageConfig?.Invoke(builder);
                     var defaultMaskType = _platform.GetDefaultLoadingMaskType();
                     if (!hasCustomMask && defaultMaskType != null)
@@ -170,7 +227,22 @@ namespace NekoLib.Navigation.Bootstrap
                         builder.RegisterType(defaultMaskType); // Clean, no reflection!
                     }
                 });
-                
+
+                // Enforce: at most one page can be tagged Role=Home. Multiple
+                // declarations (e.g. SetHome<X>() + ConfigurePages(cfg =>
+                // cfg.Page<Y>().AsHome())) leave the runtime to pick one
+                // arbitrarily — better to fail loud at bootstrap time.
+                var homePages = registry.AllDescriptors()
+                    .Where(d => d.Role == PageRole.Home)
+                    .ToList();
+                if (homePages.Count > 1)
+                {
+                    var names = string.Join(", ", homePages.Select(d => d.PageType.FullName));
+                    throw new InvalidOperationException(
+                        "Multiple home pages registered: " + names + ". " +
+                        "Use SetHome<TPage>() or .AsHome() in ConfigurePages — not both, " +
+                        "and never targeting different pages.");
+                }
             }
             // ------------------------------------------------------------
             // 2) Validate platform
@@ -271,10 +343,55 @@ namespace NekoLib.Navigation.Bootstrap
         
             services.Register(context);
 
+            // Make the framework-owned session resolvable by both its concrete
+            // type and the IUserContext contract guards consume. Same instance —
+            // mutating context.Session is immediately visible to any service or
+            // guard that resolves it from the locator.
+            services.Register(typeof(NavigationSession), context.Session);
+            services.Register(typeof(IUserContext), context.Session);
+
             // ------------------------------------------------------------
             // 10) Lock services
             // ------------------------------------------------------------
             services.Lock();
+
+            // ------------------------------------------------------------
+            // 11) Optional idle timeout (UseIdleTimeout)
+            //
+            // Wires the platform interaction observer + timer adapter so any
+            // period without UI input longer than _idleTimeoutMs returns to
+            // home and signs the built-in session out. The consumer writes no
+            // timer/observer/session code.
+            // ------------------------------------------------------------
+            if (_idleTimeoutMs > 0 &&
+                services.CanResolve(typeof(IInteractionObserverService)))
+            {
+                var idleObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
+                var idleTimer = _platform.CreateTimerAdapter();
+                idleTimer.IntervalMilliseconds = _idleTimeoutMs;
+
+                idleObserver.InteractionDetected += () =>
+                {
+                    idleTimer.Stop();
+                    idleTimer.Start();
+                };
+
+                idleTimer.Tick += async () =>
+                {
+                    idleTimer.Stop();
+                    context.Session.SignOut();
+                    try { await NavigationService.GoHomeAsync(); }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            "[PageNavBootstrap] Idle timeout navigation failed: " + ex);
+                    }
+                };
+
+                // Start immediately so an unattended boot also returns home.
+                idleTimer.Start();
+            }
+
             return context;
 
 

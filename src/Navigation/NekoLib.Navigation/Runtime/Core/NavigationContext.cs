@@ -6,6 +6,7 @@ using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Runtime.History;
 using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
+using NekoLib.Navigation.Runtime.Session;
 using System;
 
 namespace NekoLib.Navigation.Runtime.Core
@@ -19,7 +20,16 @@ namespace NekoLib.Navigation.Runtime.Core
         public ServiceLocator Services { get; }
         public PageRegistry Registry { get; }
         public NavigationHistory History { get; }
-        public IUserContext User { get; }
+
+        /// <summary>
+        /// The framework-owned mutable session. Same instance is returned through
+        /// <see cref="User"/> as the <see cref="IUserContext"/> that guards read,
+        /// so calling <c>Session.SignIn(...)</c> immediately satisfies role/auth
+        /// guards on the next navigation.
+        /// </summary>
+        public NavigationSession Session { get; }
+
+        public IUserContext User => Session;
 
         /// <summary>
         /// Optional diagnostics context. (You can omit this if you want only static NavigationDiagnostics.)
@@ -36,15 +46,14 @@ namespace NekoLib.Navigation.Runtime.Core
             PageRegistry registry,
 
         IPlatformAdapter platform,
-        IDiagnosticsContext? diagnosticsContext = null, 
-        IUserContext user = null)
+        IDiagnosticsContext? diagnosticsContext = null)
         {
             Host = host ?? throw new ArgumentNullException(nameof(host));
             Services = services ?? throw new ArgumentNullException(nameof(services));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Platform = platform ?? throw new ArgumentNullException(nameof(platform));
             DiagnosticsContext = diagnosticsContext;
-            User = user ?? new DefaultUserContext();
+            Session = new NavigationSession();
             History = new NavigationHistory();
             var hub = new NavigationEventHub();
 

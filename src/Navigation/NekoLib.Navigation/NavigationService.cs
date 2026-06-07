@@ -3,6 +3,7 @@ using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
+using NekoLib.Navigation.Runtime.Session;
 
 using System;
 using System.Threading.Tasks;
@@ -22,6 +23,22 @@ namespace NekoLib.Navigation
         // -------------------------------------------------------------------------
 
         public static IPageView Current => _runtime?.Current;
+
+        /// <summary>
+        /// The framework-owned mutable session. Use
+        /// <c>NavigationService.Session.SignIn("admin")</c> / <c>SignOut()</c> from
+        /// view-models; role/auth guards see the change immediately on the next
+        /// navigation.
+        /// </summary>
+        public static NavigationSession Session => EnsureContext().Session;
+
+        private static NavigationContext EnsureContext()
+        {
+            if (_context == null)
+                throw new InvalidOperationException(
+                    "NavigationService.UseContext must be called first.");
+            return _context;
+        }
 
         // -------------------------------------------------------------------------
         // PUBLIC EVENTS (forwarded from context)

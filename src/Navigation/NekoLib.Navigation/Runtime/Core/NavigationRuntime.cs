@@ -96,10 +96,19 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private PageDescriptor ResolveHomeDescriptor()
         {
+            // 1) Explicit metadata: PageRole.Home (set via .AsHome()).
+            // 2) Convention tag: "home".
+            // 3) Name convention: any registered page whose Name is "HomePage" or
+            //    "MainPage" — lets timeouts / GoHomeAsync work when the consumer
+            //    forgets to call .AsHome().
             return _ctx.Registry.AllDescriptors()
                 .FirstOrDefault(x => x.Role == PageRole.Home)
                 ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x => x.Tags.Contains("home", StringComparer.OrdinalIgnoreCase));
+                    .FirstOrDefault(x => x.Tags.Contains("home", StringComparer.OrdinalIgnoreCase))
+                ?? _ctx.Registry.AllDescriptors()
+                    .FirstOrDefault(x =>
+                        string.Equals(x.Name, "HomePage", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Name, "MainPage", StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task GoHomeAsync(object args = null)
