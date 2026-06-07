@@ -1,26 +1,42 @@
-﻿using PageNav.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 
-namespace PageNav.Wpf.Adapters
+namespace NekoLib.Navigation.Wpf.Adapters
 {
-    public class InteractionBlocker : IInteractionBlocker
+    /// <summary>
+    /// Blocks user interaction by disabling the host element. WPF propagates a disabled
+    /// state through the entire visual subtree, so the whole host surface is blocked.
+    /// The prior enabled state is restored on unblock.
+    /// </summary>
+    public sealed class InteractionBlocker : IInteractionBlocker
     {
-        public void Block(object view)
+        private readonly UIElement _root;
+        private bool _blocked;
+        private bool _previousIsEnabled;
+
+        public InteractionBlocker(UIElement root)
         {
-            if(view is UIElement e)
-                e.IsEnabled = false;
+            _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
-        public void Unblock(object view)
+        public void Block()
         {
-            if(view is UIElement e)
-                e.IsEnabled = true;
+            if (_blocked)
+                return;
+
+            _previousIsEnabled = _root.IsEnabled;
+            _root.IsEnabled = false;
+            _blocked = true;
+        }
+
+        public void Unblock()
+        {
+            if (!_blocked)
+                return;
+
+            _root.IsEnabled = _previousIsEnabled;
+            _blocked = false;
         }
     }
 }

@@ -1,44 +1,37 @@
-﻿using PageNav;
-using PageNav.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 using System;
 using System.Windows.Threading;
 
-namespace PageNav.Wpf.Adapters
+namespace NekoLib.Navigation.Wpf.Adapters
 {
-    public class TimerAdapter : ITimerAdapter
+    public sealed class TimerAdapter : ITimerAdapter
     {
-        private DispatcherTimer _timer;
-        private Action _tick;
+        private readonly DispatcherTimer _timer;
 
-        public void Start(int intervalMilliseconds, Action tick)
+        public event Action Tick;
+
+        public TimerAdapter()
         {
-            _tick = tick;
             _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromMilliseconds(intervalMilliseconds);
-            _timer.Tick -= TimerTick;
-            _timer.Tick += TimerTick;
-            _timer.Start();
+            _timer.Tick += OnTick;
         }
 
-        private void TimerTick(object s, EventArgs e) => _tick?.Invoke();
+        public int IntervalMilliseconds
+        {
+            get => (int)_timer.Interval.TotalMilliseconds;
+            set => _timer.Interval = TimeSpan.FromMilliseconds(value);
+        }
+
+        public void Start() => _timer.Start();
 
         public void Stop() => _timer.Stop();
 
         public void Dispose()
         {
-
-            if(_timer != null)
-            {
-                _timer.Tick -= TimerTick;
-                _timer.Stop();                
-                _timer = null;
-            }
-            _tick = null;
+            _timer.Stop();
+            _timer.Tick -= OnTick;
         }
 
-        public void Continue()
-        {
-            _timer.Start();
-        }
+        private void OnTick(object sender, EventArgs e) => Tick?.Invoke();
     }
 }

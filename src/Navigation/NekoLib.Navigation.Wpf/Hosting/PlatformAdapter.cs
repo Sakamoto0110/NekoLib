@@ -1,38 +1,64 @@
-﻿using PageNav.Contracts.Pages;
-using PageNav.Contracts.Plataform;
-using PageNav.Core;
-using PageNav.Wpf.Adapters;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Contracts.Platform;
+using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Infrastructure;
+using NekoLib.Navigation.Wpf.Adapters;
+using NekoLib.Navigation.Wpf.Defaults;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
-namespace PageNav.Wpf
+namespace NekoLib.Navigation.Wpf
 {
-    public class PlatformAdapter : Contracts.Plataform.IPlatformAdapter
+    public sealed class PlatformAdapter : IPlatformAdapter
     {
-        public bool CanHandle(object host) => host is System.Windows.Controls.Panel;
+        public bool CanHandle(object host) => host is Panel;
 
-        public IPageHost CreateHost(object host) =>
-            new PageHost((Panel)host);
-
-        public IPageMask CreateMask(object host) =>
-            new PageMaskAdapter((Panel)host);
-
-        public IEventDispatcherAdapter CreateEventDispatcher(object host) =>
-            new EventDispatcherAdapter();
-
-        public IInteractionBlocker CreateInteractionBlocker(object host) =>
-            new InteractionBlocker();
-
-        public ITimerAdapter CreateTimerAdapter() =>
-            new TimerAdapter();
-
-        public IDialogService CreateDialogService(object host)
+        public IPageHost CreateHost(object host)
         {
-            throw new NotImplementedException();
+            if (host is not Panel panel)
+                throw new ArgumentException(
+                    "WPF PlatformAdapter requires a System.Windows.Controls.Panel as native host.",
+                    nameof(host));
+
+            return new PageHost(panel);
+        }
+
+        public IEventDispatcherAdapter CreateEventDispatcher(object host)
+            => new EventDispatcherAdapter(ResolveDispatcher(host));
+
+        public IEventSubscriptionAdapter CreateEventSubscriber(object host)
+            => new EventSubscriptionAdapter();
+
+        public IInteractionBlocker CreateInteractionBlocker(object host)
+        {
+            if (host is not UIElement element)
+                throw new ArgumentException(nameof(host));
+
+            return new InteractionBlocker(element);
+        }
+
+        public ITimerAdapter CreateTimerAdapter()
+            => new TimerAdapter();
+
+        public Type GetDefaultLoadingMaskType()
+            => typeof(DefaultLoadingMask);
+
+        public IInteractionObserverService CreateInteractionObserverAdapter(object host)
+        {
+            if (host is not UIElement element)
+                throw new ArgumentException(nameof(host));
+
+            return new InteractionObserver(element);
+        }
+
+        private static Dispatcher ResolveDispatcher(object host)
+        {
+            if (host is DispatcherObject dispatcherObject && dispatcherObject.Dispatcher != null)
+                return dispatcherObject.Dispatcher;
+
+            return Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         }
     }
 

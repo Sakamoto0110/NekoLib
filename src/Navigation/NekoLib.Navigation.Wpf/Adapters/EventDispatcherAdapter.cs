@@ -1,102 +1,39 @@
-﻿using PageNav.Contracts.Plataform;
+using NekoLib.Navigation.Contracts.Platform;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Media;
+using System.Windows.Threading;
 
-namespace PageNav.Wpf.Adapters
+namespace NekoLib.Navigation.Wpf.Adapters
 {
-    public class EventDispatcherAdapter : IEventDispatcherAdapter
+    /// <summary>
+    /// Marshals actions onto the WPF UI thread. When already on the UI thread, Invoke
+    /// executes inline; otherwise it is dispatched synchronously.
+    /// </summary>
+    public sealed class EventDispatcherAdapter : IEventDispatcherAdapter
     {
-        public void Attach<THandler>(object receiver, string eventName, THandler handler)
-           where THandler : Delegate
+        private readonly Dispatcher _dispatcher;
+
+        public EventDispatcherAdapter(Dispatcher dispatcher)
         {
-            if(receiver is DependencyObject d)
-                AttatchEventInternal(d, eventName, handler);
+            _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         }
 
-        public void Detach<THandler>(object receiver, string eventName, THandler handler)
-            where THandler : Delegate
+        public void Invoke(Action action)
         {
-            if(receiver is DependencyObject d)
-                DetatchEventInternal(d, eventName, handler);
+            if (action == null)
+                return;
+
+            if (_dispatcher.CheckAccess())
+                action();
+            else
+                _dispatcher.Invoke(action);
         }
 
-
-        // --------------------------------------------------------------------
-        // INTERNAL RECURSIVE IMPLEMENTATION
-        // --------------------------------------------------------------------
-
-        private void AttatchEventInternal<THandler>(DependencyObject receiver, string eventName, THandler handler)
-            where THandler : Delegate
+        public void BeginInvoke(Action action)
         {
-            AttachSingle(receiver, eventName, handler);
+            if (action == null)
+                return;
 
-            int count = VisualTreeHelper.GetChildrenCount(receiver);
-            for(int i = 0; i < count; i++)
-            {
-                var child = VisualTreeHelper.GetChild(receiver, i);
-                AttatchEventInternal(child, eventName, handler);
-            }
-        }
-
-        private void DetatchEventInternal<THandler>(DependencyObject receiver, string eventName, THandler handler)
-            where THandler : Delegate
-        {
-            DetachSingle(receiver, eventName, handler);
-
-            int count = VisualTreeHelper.GetChildrenCount(receiver);
-            for(int i = 0; i < count; i++)
-            {
-                var child = VisualTreeHelper.GetChild(receiver, i);
-                DetatchEventInternal(child, eventName, handler);
-            }
-        }
-
-
-        // --------------------------------------------------------------------
-        // HELPERS: Attach/Detach on a *single* object
-        // --------------------------------------------------------------------
-
-        private void AttachSingle<THandler>(DependencyObject obj, string eventName, THandler handler)
-            where THandler : Delegate
-        {
-            // WPF-specific: UIElement, FrameworkElement, ContentElement
-            var targetType = obj.GetType();
-            var ev = targetType.GetEvent(eventName);
-
-            if(ev != null)
-            {
-                try
-                {
-                    ev.AddEventHandler(obj, handler);
-                }
-                catch(Exception ex)
-                {
-                    throw new Exception($"Failed attaching event '{eventName}' on {targetType.Name}: {ex.Message}", ex);
-                }
-            }
-        }
-        private void DetachSingle<THandler>(DependencyObject obj, string eventName, THandler handler)
-            where THandler : Delegate
-        {
-            var targetType = obj.GetType();
-            var ev = targetType.GetEvent(eventName);
-
-            if(ev != null)
-            {
-                try
-                {
-                    ev.RemoveEventHandler(obj, handler);
-                }
-                catch(Exception ex)
-                {
-                    throw new Exception($"Failed detaching event '{eventName}' on {targetType.Name}: {ex.Message}", ex);
-                }
-            }
+            _dispatcher.BeginInvoke(action);
         }
     }
 }
