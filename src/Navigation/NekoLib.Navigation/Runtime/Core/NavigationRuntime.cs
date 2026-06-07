@@ -26,6 +26,7 @@ namespace NekoLib.Navigation.Runtime.Core
         private IToastService _toastService;
         private IDialogService _dialogService;
         private IPromptService _promptService;
+        private IPopoverService _popoverService;
 
         private readonly HashSet<IPageView> _attachedPages = new HashSet<IPageView>();
         private readonly HashSet<IPageView> _visiblePages = new HashSet<IPageView>();
@@ -156,6 +157,11 @@ namespace NekoLib.Navigation.Runtime.Core
             if (_promptService == null && services.CanResolve(typeof(IPromptService)))
             {
                 _promptService = (IPromptService)services.Get(typeof(IPromptService));
+            }
+
+            if (_popoverService == null && services.CanResolve(typeof(IPopoverService)))
+            {
+                _popoverService = (IPopoverService)services.Get(typeof(IPopoverService));
             }
         }
 
@@ -352,6 +358,17 @@ namespace NekoLib.Navigation.Runtime.Core
             return RunOnUiAsync(() => _promptService.ShowPromptAsync<TPrompt, TResult>(payload));
         }
 
+        internal Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+            where TPopover : class, IPopoverView
+        {
+            EnsureRuntimeServices();
+
+            if (_popoverService == null)
+                throw new InvalidOperationException("IPopoverService is not registered.");
+
+            return RunOnUiAsync(() => _popoverService.ShowPopoverAsync<TPopover>(payload));
+        }
+
         public Task ResetAsync()
         {
             return ExecuteAsync(async () =>
@@ -420,6 +437,7 @@ namespace NekoLib.Navigation.Runtime.Core
             _toastService?.DismissCurrentToast();
             _dialogService?.CloseAll();
             _promptService?.CloseAll();
+            _popoverService?.CloseAll();
         }
 
         // ---------------------------------------------------------------------

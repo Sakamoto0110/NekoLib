@@ -21,10 +21,15 @@ namespace NekoLib.Navigation.Contracts.Platform
         ITimerAdapter CreateTimerAdapter();
 
         Type GetDefaultLoadingMaskType( );
-        
+
 
           IInteractionObserverService CreateInteractionObserverAdapter(object host);
 
-
+        /// <summary>
+        /// Builds a focus observer for the given host. Required by <c>PopoverService</c>
+        /// to wire <c>IUnfocusAware</c> views; adapters that cannot observe focus may
+        /// return <c>null</c>, in which case popovers will simply not auto-dismiss.
+        /// </summary>
+        IFocusObserverAdapter CreateFocusObserver(object host);
     }
 }

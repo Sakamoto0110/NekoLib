@@ -177,6 +177,16 @@ namespace NekoLib.Navigation
             return EnsureRuntime().ShowPromptAsync<TPrompt, TResult>(payload);
         }
 
+        // ------------------------------------------------------------
+        // Popover (non-blocking, light-dismiss via IUnfocusAware)
+        // ------------------------------------------------------------
+
+        public static Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+            where TPopover : class, IPopoverView
+        {
+            return EnsureRuntime().ShowPopoverAsync<TPopover>(payload);
+        }
+
 
 #if DEBUG
         public static void AssertFrameworkIsDown()
