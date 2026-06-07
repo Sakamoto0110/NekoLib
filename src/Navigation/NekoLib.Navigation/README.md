@@ -74,19 +74,7 @@ Leak detection, lifecycle tracking, navigation tracing.
 
 ---
 
-## 4. What still needs *real* documentation
-
-The following files have XML TODO headers and should be documented next:
-
-- NavigationContext.cs (lifecycle + threading guarantees)
-- PageRegistry.cs (attribute reference + cache rules)
-- IPlatformAdapter.cs (implementation guide)
-- IPageOverlayService.cs (modal vs non-modal rules)
-- PageTimeoutController.cs (state machine + timing)
-
----
-
-## 5. What should be considered FROZEN
+## 4. What should be considered FROZEN
 
 Do not casually modify:
 
@@ -94,33 +82,36 @@ Do not casually modify:
 - PageRegistry
 - PageFactory
 - PageLifecycleCleanupService
-- PlatformRegistry
 
 Extensions should live outside Core.
 
 ---
 
-## 6. Typical initialization (example)
+## 5. Typical initialization (example)
 
 ```csharp
-var ctx = PageNavBootstrap
-    .Use(this, new WinFormsPlatformAdapter())
-    .RegisterPagesFromAssembly(typeof(MainPage).Assembly)
+PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(this)
+    .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
     .ConfigurePages(cfg =>
     {
         cfg.Page<IdlePage>().AsIdle().StrongSingleton();
-        cfg.Page<AdminPage>().AsModal().StrongSingleton();
+        cfg.Page<AdminPage>().StrongSingleton();
     })
-    .Timeout(10)
+    .UseIdleTimeout(10_000)
     .Start();
 ```
 
+`Start()` auto-mounts the context onto the static `NavigationService` facade,
+so view-models can call `NavigationService.SwitchPage<T>()` immediately after.
+The returned `NavigationContext` is optional — useful only for tests or for
+subscribers that want `context.Events` / `context.History`.
+
 ---
 
-## 7. Next logical steps
+## 6. Next logical steps
 
-1. Add Bootstrap layer permanently
-2. Implement WinForms/WPF adapters
-3. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
+1. WPF adapter parity with WinForms
+2. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
 
 This snapshot intentionally favors **clarity over cleverness**.

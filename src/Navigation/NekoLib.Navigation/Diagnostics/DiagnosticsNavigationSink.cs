@@ -59,27 +59,8 @@ namespace NekoLib.Navigation.Diagnostics
 
             try
             {
-                 
                 _ctx.Logger?.Warn($"GuardDenied: from={e.FromPage?.Name ?? "<null>"} target={e.TargetPage?.Name ?? "<null>"} redirect={e.RedirectPage?.Name ?? "<null>"} reason={e.Reason ?? "<null>"}");
             }
-            catch { }
-        }
-
-        public void OnInfo(string message)
-        {
-            try { _ctx.Logger?.Info(message); }
-            catch { }
-        }
-
-        public void OnWarn(string message)
-        {
-            try { _ctx.Logger?.Warn(message); }
-            catch { }
-        }
-
-        public void OnError(string message, Exception? ex = null)
-        {
-            try { _ctx.Logger?.Error(message, ex); }
             catch { }
         }
     }

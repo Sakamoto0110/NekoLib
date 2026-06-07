@@ -17,7 +17,7 @@ dotnet build NekoLib.sln
 
 Build a single project (both targets):
 ```bash
-dotnet build src/Data/NekoLib.Data/NekoLib.Data.csproj
+dotnet build src/Navigation/NekoLib.Navigation/NekoLib.Navigation.csproj
 ```
 
 Build for a specific target framework:
@@ -26,19 +26,20 @@ dotnet build src/Data/NekoLib.Data/NekoLib.Data.csproj -f net481
 dotnet build src/Data/NekoLib.Data/NekoLib.Data.csproj -f net9.0
 ```
 
-Run all tests:
+Run all unit tests:
 ```bash
 dotnet test NekoLib.sln
 ```
 
 Run tests for a single project:
 ```bash
+dotnet test tests/NekoLib.Navigation.Tests/Unit/NekoLib.Navigation.Tests.Unit.csproj
 dotnet test tests/NekoLib.Data.Tests/Unit/NekoLib.Data.Tests.Unit.csproj
 ```
 
 Run a single test by name (xUnit filter syntax):
 ```bash
-dotnet test tests/NekoLib.Data.Tests/Unit/ --filter "FullyQualifiedName~MyTestMethodName"
+dotnet test tests/NekoLib.Navigation.Tests/Unit/ --filter "FullyQualifiedName~TestClassName.MethodName"
 ```
 
 Query defined constants for a project/TFM (useful for verifying conditional compilation):
@@ -46,6 +47,8 @@ Query defined constants for a project/TFM (useful for verifying conditional comp
 dotnet msbuild src/Data/NekoLib.Data/NekoLib.Data.csproj -getProperty:DefineConstants -p:TargetFramework=net481
 dotnet msbuild src/Data/NekoLib.Data/NekoLib.Data.csproj -getProperty:DefineConstants -p:TargetFramework=net9.0
 ```
+
+**Runtime tests** (`runtime_tests/`) are WinForms `.exe` apps — run them by launching directly, not via `dotnet test`.
 
 There is no CI/CD pipeline — builds are manual via `dotnet` CLI or Visual Studio 2022.
 
@@ -66,25 +69,47 @@ There is no CI/CD pipeline — builds are manual via `dotnet` CLI or Visual Stud
 
 ## Architecture & Layering Rules
 
-The layering rule (enforced by project references) is:
+Each module follows a strict three-layer pattern:
 
+1. **Contracts/** — pure interfaces and data-only types. No logic, no platform assumptions.
+2. **Runtime/** — concrete implementations of those contracts.
+3. **Adapters/** — platform-specific glue (WinForms/WPF timer, event dispatch, UI blocking). Only present in Navigation platform projects.
+
+Dependencies flow downward only: `Adapters` → `Runtime` → `Contracts`. Feature modules reference contracts, never runtime classes from sibling modules.
+
+Specific cross-module rules:
 - **Feature modules** may only reference `NekoLib.Core` and optionally `NekoLib.Diagnostics.Abstractions`.
 - **Only `NekoLib` (the entrypoint/hosting)** may reference the concrete `NekoLib.Diagnostics` runtime.
-
-This keeps each module independently usable without pulling in the full stack.
 
 ## Compile-Time Conventions
 
 All projects share these constants:
-- `NEKOLIB` — always defined
-- `NETFRAMEWORK` — defined for `net481` targets
-- `NET_9` — defined for `net9.0` targets
+
+| Symbol | When active |
+|--------|-------------|
+| `NEKOLIB` | always |
+| `NETFRAMEWORK` | net481 only |
+| `NET_9` | net9.0 / net9.0-windows |
+| `WINFORMS` | any WinForms-enabled TFM |
+| `WINFORMS_NETFRAMEWORK` | WinForms + net481 |
+| `WINFORMS_NET_9` | WinForms + net9.0-windows |
 
 Use `#if NET6_0_OR_GREATER` for streaming and modern async APIs (not `#if NET_9`), since the Data module uses that guard for `IAsyncEnumerable` streaming paths.
 
-**Implicit usings are disabled** across the entire solution. All `using` directives are explicit.
+`PlatformGuards.cs` (in `NekoLib.Data`) provides runtime version checks for cases conditional compilation can't cover.
 
-**Nullable annotations** are inconsistent across modules: enabled in `NekoLib.Data` and `NekoLib.Diagnostics`; disabled in `NekoLib.Navigation` and `NekoLib.Mvvm`.
+**Implicit usings are disabled** across the entire solution. All `using` directives must be explicit.
+
+**Nullable annotations and implicit usings vary by module** — when editing a project, match its existing settings rather than flipping them:
+
+| Module | Nullable | ImplicitUsings |
+|--------|----------|----------------|
+| Navigation | disabled | disabled |
+| Data | **enabled** | disabled |
+| Diagnostics | enabled | — |
+| Pipes | enabled | enabled |
+| Mvvm | disabled | disabled |
+| Devices | disabled | **enabled** |
 
 ## Navigation Module
 
@@ -112,27 +137,68 @@ Resolve target page instance
 - `PageRegistry.cs`
 - `PageFactory.cs`
 - `PageLifecycleCleanupService.cs`
-- `PlatformRegistry.cs`
+
+**Key contracts:**
+- `IPageView` — minimal page contract (Name, NativeView handle, IsDisposed)
+- `IPageLifecycle` — optional lifecycle hooks (OnNavigatedToAsync, OnNavigatedFromAsync, OnEnterAsync, OnExitAsync)
+- `IPageHost` — owns attach/detach lifecycle
+- `IPlatformAdapter` — abstracts WinForms vs WPF concerns (timer, event dispatch, interaction blocking)
+- `IGuard` / `GuardContext` / `GuardResult` — async access control evaluated before navigation
+- Guards compose via `AndGuard`, `OrGuard`
 
 **Typical bootstrap:**
 ```csharp
-var ctx = PageNavBootstrap
-    .Use(this, new WinFormsPlatformAdapter())
-    .RegisterPagesFromAssembly(typeof(MainPage).Assembly)
+PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(this)
+    .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
     .ConfigurePages(cfg =>
     {
         cfg.Page<IdlePage>().AsIdle().StrongSingleton();
-        cfg.Page<AdminPage>().AsModal().StrongSingleton();
+        cfg.Page<AdminPage>().StrongSingleton();
     })
-    .Timeout(10)
+    .UseIdleTimeout(10_000)
     .Start();
 ```
 
+`Start()` auto-mounts the resulting `NavigationContext` onto the static
+`NavigationService` facade — view-models can call `NavigationService.SwitchPage<T>()`
+right after. `UseContext` is `internal` and not part of the public surface;
+shut down with `NavigationService.Shutdown()` to release subscribers and the
+adapter before a fresh `Start()`.
+
 `InternalsVisibleTo("NekoLib.Navigation.Tests.Unit")` is set in the Navigation project.
 
-## Data Module — Known Issues
+**Navigation tests** use fakes in `tests/NekoLib.Navigation.Tests/Unit/Fakes/`: `RuntimeTestFixture` wires a full in-memory runtime with `FakePlatformAdapter`, `FakePageHost`, and `StubPageViews`. Test naming follows `MethodName_Condition_ExpectedResult`.
 
-The Data module has a detailed audit at `src/Data/NekoLib.Data/DataAudit.md`. Open issues to be aware of:
+## Data Module
+
+`IDatabaseGateway` is the composition of `IDmlGateway` + `IDqlGateway` + `IDqlStreamingGateway` + `ITclGateway`.
+
+`DatabaseGateway` is split across partial classes by concern:
+
+| File | Responsibility |
+|------|----------------|
+| `DatabaseGateway.Core.cs` | Core execution pipeline (`WithCommandAsync`), connection handling, error raising |
+| `DatabaseGateway.raw_dto.cs` | Reflection-based typed DTO query paths |
+| `DatabaseGateway.Dynamic.cs` | IL-emitted dynamic type generation for `DynamicRow` |
+| `DatabaseGateway.Universal.cs` | Type-agnostic `Get<T>` with DTO→Dynamic fallback |
+| `DatabaseGateway.Helpers.cs` | Column schema extraction and helper utilities |
+| `DatabaseGateway.Interface.cs` | Interface compliance surface |
+
+**Data tests use real database fixtures** in `tests/NekoLib.Data.Tests/Shared/`: `Pods.db` (SQLite) and `PodsDB/` (Access). Do not mock the database layer in these tests.
+
+### Mental Model
+
+- `IDbConnectionFactory.Create()` returns a **new closed connection** every call.
+- `DatabaseGateway` is stateless except for its `QueryExecutionContext` (owns factory, translator, events).
+- `QueryExecutionContext` must be disposed by the caller; `DatabaseGateway` itself is not `IDisposable`.
+- Raw mode converts all values to invariant-culture strings via `RecordItem`; null vs. empty string is lost.
+- Dynamic mode defaults to `ExpandoObject`; IL-emitted types are behind an options flag and emit non-unloadable types.
+- Streaming (`IAsyncEnumerable`) is the only low-memory pull path and is net9-only.
+
+### Known Issues
+
+The Data module has a detailed audit at `src/Data/NekoLib.Data/DataAudit.md`. Active issues:
 
 - **OleDb/Access parameter ordering** (finding #1): The `#if NET481` guard in `DatabaseGateway.Core.cs` uses the wrong symbol — the project defines `NETFRAMEWORK`, not `NET481`. OleDb positional binding is therefore disabled on net481, which is correctness-critical.
 - **`QueryBuilder.Build()` is not idempotent** for INSERT/UPDATE (finding #6): calling `Build()` more than once accumulates parameters. Do not reuse a builder after building a DML query.
@@ -143,11 +209,14 @@ The Data module has a detailed audit at `src/Data/NekoLib.Data/DataAudit.md`. Op
 - **`QueryBuilder`-based `Insert`/`Update` do not accept a `DbSession`** (finding #13, partial): session-aware reads/streaming exist, but DML via `QueryBuilder` still bypasses the transaction.
 - **Telemetry events expose raw SQL and full result sets** (finding #8): subscribers receive unmasked SQL and full row data. Slow or throwing subscribers directly slow database calls.
 
-## Data Module — Mental Model
+## Other Modules
 
-- `IDbConnectionFactory.Create()` returns a **new closed connection** every call.
-- `DatabaseGateway` is stateless except for its `QueryExecutionContext` (owns factory, translator, events).
-- `QueryExecutionContext` must be disposed by the caller; `DatabaseGateway` itself is not `IDisposable`.
-- Raw mode converts all values to invariant-culture strings via `RecordItem`; null vs. empty string is lost.
-- Dynamic mode defaults to `ExpandoObject`; IL-emitted types are behind an options flag and emit non-unloadable types.
-- Streaming (`IAsyncEnumerable`) is the only low-memory pull path and is net9-only.
+**Diagnostics** (`NekoLib.Diagnostics`): `ILogger`/`Logger` with standard levels (Trace → Fatal); pluggable `ILogSink`/`ITelemetrySink` with built-in Console, Memory, Debug, and Null variants; `CrashHandler`/`DumpWriter` for unhandled exceptions; `IDiagnosticsContext` injected into feature modules (Navigation uses this).
+
+**Pipes** (`NekoLib.Pipes`): `PipeServer`/`PipeClient` framed message transport; `PipeEventHub` pub/sub over pipes (`IAsyncDisposable` on net9.0 only). Uses `Newtonsoft.Json` on net481 and `System.Text.Json` on net9.0.
+
+**Watchdog** (`NekoLib.Watchdog`): Process monitoring library with companion host executable (`NekoLib.Watchdog.Host`). Depends on both `NekoLib.Pipes` (IPC channel) and `NekoLib.Diagnostics` (logging). The `Supervisor_481` runtime test exercises this end-to-end.
+
+**MVVM** (`NekoLib.Mvvm`): Intentionally minimal. `ViewModelBase` with `INotifyPropertyChanged` and `SetProperty` helper; `RelayCommand`/`RelayCommand<T>` with safe `T` coercion. Works with both WinForms data binding and WPF binding.
+
+**Devices** (`NekoLib.Devices`): Serial port/hardware abstraction targeting `net481;net9.0` (not `-windows`). On net9.0, `System.IO.Ports` comes from NuGet; on net481 it is built-in. No unit test project exists for this module.

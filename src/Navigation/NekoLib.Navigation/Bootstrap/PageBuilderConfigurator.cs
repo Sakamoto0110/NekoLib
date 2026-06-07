@@ -42,6 +42,16 @@ namespace NekoLib.Navigation.Bootstrap
             return this;
         }
 
+        public PageRuleBuilder<T> StrongSingleton() => Cache(PageReusePolicy.Singleton);
+        public PageRuleBuilder<T> WeakSingleton() => Cache(PageReusePolicy.Cached);
+        public PageRuleBuilder<T> Transient() => Cache(PageReusePolicy.Transient);
+
+        public PageRuleBuilder<T> LoadMode(NavigationLoadMode mode)
+        {
+            _builder.Register<T>(d => d.LoadMode = mode);
+            return this;
+        }
+
         public PageRuleBuilder<T> Tag(string tag)
         {
             _builder.Register<T>(d => d.AddTag(tag));
