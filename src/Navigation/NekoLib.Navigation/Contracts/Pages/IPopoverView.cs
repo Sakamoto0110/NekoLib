@@ -18,7 +18,7 @@ namespace NekoLib.Navigation.Contracts.Pages
 
         /// <summary>
         /// Supplies the completion callback the view invokes to dismiss itself.
-        /// The boolean carries the view's chosen outcome — typically <c>true</c>
+        /// The boolean carries the view's chosen outcome, typically <c>true</c>
         /// for an explicit user action and <c>false</c> for cancel / auto-dismiss.
         /// </summary>
         void BindCompletion(Action<bool> completionCallback);

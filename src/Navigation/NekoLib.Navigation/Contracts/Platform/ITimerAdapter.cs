@@ -1,20 +1,17 @@
-/// <summary>
-/// TODO: Document this type.
-/// Describe responsibility, lifecycle expectations,
-/// threading guarantees, and ownership rules.
-/// </summary>
 using System;
 
 namespace NekoLib.Navigation.Contracts.Platform
 {
     /// <summary>
-    /// Platform-agnostic timer abstraction.
+    /// Platform timer used by navigation infrastructure, primarily idle timeout.
+    /// Implementations should raise <see cref="Tick"/> on the UI thread when the
+    /// native platform requires UI work to stay on that thread.
     /// </summary>
     public interface ITimerAdapter : IDisposable
     {
         /// <summary>
         /// Gets or sets the timer interval in milliseconds.
-        /// Must be set before Start().
+        /// Must be set before <see cref="Start"/>.
         /// </summary>
         int IntervalMilliseconds { get; set; }
 
