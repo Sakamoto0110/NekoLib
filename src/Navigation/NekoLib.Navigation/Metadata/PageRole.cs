@@ -19,15 +19,15 @@ namespace NekoLib.Navigation.Metadata
         /// Idle / default-state page. The system returns here when the user
         /// is inactive (idle timeout) and uses it as the fallback or reset
         /// target. Replaces the older "Home" name to make the semantics
-        /// explicit — this is not necessarily the app's launch page; it is
+        /// explicit. This is not necessarily the app's launch page; it is
         /// the page the runtime falls back to when there is nothing else
         /// to show.
         /// </summary>
         Idle = 1,
 
         /// <summary>
-        /// Explicit timeout destination.
-        /// Overrides default idle timeout target.
+        /// Explicit timeout destination for timeout policies that distinguish
+        /// timeout targets from the idle page.
         /// </summary>
         TimeoutTarget = 2
     }

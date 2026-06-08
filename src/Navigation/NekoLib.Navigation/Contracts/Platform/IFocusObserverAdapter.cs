@@ -12,7 +12,7 @@ namespace NekoLib.Navigation.Contracts.Platform
     {
         /// <summary>
         /// Subscribes to focus-loss notifications on <paramref name="nativeView"/>.
-        /// The returned disposable, when disposed, unsubscribes — the service
+        /// The returned disposable, when disposed, unsubscribes; the service
         /// MUST dispose it when the view is closed or the runtime tears down.
         /// </summary>
         /// <param name="nativeView">The platform handle (e.g. WinForms <c>Control</c>).</param>
