@@ -12,13 +12,22 @@ using System;
 namespace NekoLib.Navigation.Runtime.Core
 {
     /// <summary>
-    /// Passive container for navigation-scoped state and services.
+    /// Navigation-scoped state created by <c>PageNavBootstrap.Start()</c>.
+    /// Consumers usually access it through <c>NavigationService</c>, while tests
+    /// and diagnostics may keep the returned context directly.
     /// </summary>
     public  sealed class NavigationContext
     {
+        /// <summary>Platform host responsible for attaching and detaching pages.</summary>
         public IPageHost Host { get; }
+
+        /// <summary>Locked runtime service registry for this navigation context.</summary>
         public ServiceLocator Services { get; }
+
+        /// <summary>Registered page descriptors used for lookup and runtime policy.</summary>
         public PageRegistry Registry { get; }
+
+        /// <summary>Back/forward history owned by this context.</summary>
         public NavigationHistory History { get; }
 
         /// <summary>
@@ -32,12 +41,20 @@ namespace NekoLib.Navigation.Runtime.Core
         public IUserContext User => Session;
 
         /// <summary>
-        /// Optional diagnostics context. (You can omit this if you want only static NavigationDiagnostics.)
+        /// Platform adapter that created the host and platform services.
         /// </summary>
          public IPlatformAdapter Platform { get; }
+
+        /// <summary>Navigation diagnostics emitter and event hub.</summary>
         public NavigationDiagnostics Diagnostics { get; }
+
+        /// <summary>
+        /// Optional bridge into <c>NekoLib.Diagnostics</c>. When omitted, local
+        /// navigation events still emit through <see cref="Events"/>.
+        /// </summary>
         public IDiagnosticsContext? DiagnosticsContext { get; }
 
+        /// <summary>Convenience accessor for the navigation diagnostics event hub.</summary>
         public NavigationEventHub Events => Diagnostics.Hub;
 
         public NavigationContext(
