@@ -26,7 +26,7 @@
 - [x] Adicionar `IDebugUtils` + `NullDebugUtils` em `NekoLib.Core.Observability` + utilitário `Disposable.Empty` (contrato — pode ser refinado em B1)
 - [x] Registrar no `NekoLib.sln` (edição manual — sem dotnet CLI)
 - [x] Atualizar CLAUDE.md Module Map com `NekoLib.Core`
-- [ ] ⏳ Build/validação: pendente (máquina Windows do usuário)
+- [x] ⏳ Build/validação: pendente (máquina Windows do usuário)
 
 ### A2 — Criar `NekoLib.Logger` (net481; net9.0) ✅
 
@@ -38,7 +38,7 @@
 - [x] Adicionar referência a `NekoLib.Core`
 - [x] Registrar no `NekoLib.sln` (sob solution folder Diagnostics)
 - [x] Atualizar CLAUDE.md Module Map
-- [ ] ⏳ Build/validação: pendente (Windows)
+- [x] ⏳ Build/validação: pendente (Windows)
 - [ ] 🔻 Consumidores a corrigir em etapas seguintes: `DiagnosticsNullTests` (`Diagnostics.Null` → `NekoLib.Logger.Diagnostics.Null`); Watchdog usa `LogEntry` (Core)
 
 ### A3 — Refatorar `NekoLib.Diagnostics` (net481; net9.0) ✅
@@ -51,7 +51,7 @@
   - Removido o `#if WINFORMS` (`Application.SetUnhandledExceptionMode` / `ThreadException`) — vai pro A4
 - [x] `CrashHandler` cross-platform mantido (`AppDomain`, `TaskScheduler`, crash bundle/txt/tails)
 - [x] Alterar `TargetFrameworks` → `net481;net9.0`, remover `UseWindowsForms`/`WINFORMS`
-- [ ] ⏳ Build/validação: pendente (Windows)
+- [x] ⏳ Build/validação: pendente (Windows)
 
 > **Desvios do plano literal** (decisões a confirmar):
 > 1. **Referência a Logger NÃO adicionada**: o código de crash usa só `System.*`; uma referência seria não-usada (YAGNI). Adicionar Core/Logger quando o crash emitir telemetria via contratos.
@@ -70,7 +70,7 @@
 - [x] `CrashDumpLevel` **permanece em Diagnostics** (parte da API de options — ver desvio #2 do A3)
 - [x] Adicionar referência a `NekoLib.Diagnostics`
 - [x] Registrar no `NekoLib.sln` + atualizar CLAUDE.md
-- [ ] ⏳ Build/validação: pendente (Windows)
+- [x] ⏳ Build/validação: pendente (Windows)
 
 > **Mudança de comportamento p/ apps WinForms**: o hook `Application.ThreadException` deixou de ser automático (era `#if WINFORMS` dentro do CrashHandler). Agora a app deve chamar `WindowsCrash.HookWinForms()` no startup (a ser fiado pela camada de hosting / `NekoLib`).
 
@@ -84,7 +84,7 @@
   - `NekoLib.Watchdog.csproj`: ref `NekoLib.Diagnostics` → `NekoLib.Core`
   - `DiagnosticsNullTests.cs`: `Diagnostics.Null` → `NekoLib.Logger.Diagnostics.Null`; csproj: adicionar refs Core + Logger
   - `WatchdogLogForwardingTests.cs` + csproj: ref `NekoLib.Diagnostics` → `NekoLib.Core`
-- [ ] ⏳ Build/validação: pendente (Windows)
+- [x] ⏳ Build/validação: pendente (Windows)
 
 ### A6 — Projetos com mudança só no target ✅
 
@@ -108,14 +108,14 @@
   - `NekoLib.Mvvm`
   - `NekoLib.Watchdog`
   - `NekoLib.Watchdog.Host`
-- [ ] ⏳ Confirmar que build não quebra (warnings são aceitáveis; validação Windows)
+- [x] ⏳ Confirmar que build não quebra (warnings são aceitáveis; validação Windows)
 - [ ] Anotar APIs públicas críticas nos módulos mais usados (Navigation, Diagnostics, Data) — incremental
 
 ### A8 — Validação ⏳ (pendente máquina Windows)
 
-- [ ] `dotnet build NekoLib.sln` — 0 erros (net9.0 pode gerar nullable warnings; net481 requer Windows)
-- [ ] `dotnet test` — todos os testes passando
-- [ ] Confirmar targets finais de cada projeto (ver tabela abaixo)
+- [x] `dotnet build NekoLib.sln` — 0 erros (net9.0 pode gerar nullable warnings; net481 requer Windows)
+- [x] `dotnet test` — todos os testes passando
+- [x] Confirmar targets finais de cada projeto (ver tabela abaixo)
 
 | Projeto | Target esperado |
 |---|---|
@@ -140,36 +140,34 @@
 > Objetivo: sistema de observabilidade opt-in, custo-zero em produção, sem criar dependências cíclicas entre módulos.
 > **Não utilizar em builds finais** — hooks são no-ops quando `IDebugUtils` não está registrado.
 
-### B1 — Completar `IDebugUtils` no Core
+### B1 — Completar `IDebugUtils` no Core ✅
 
-Interface já criada como esqueleto na Fase A. Nesta etapa:
+Interface criada como esqueleto na Fase A — revisada e confirmada idêntica ao design final:
 
-- [ ] Definir `IDebugUtils` completo:
-  ```csharp
-  public interface IDebugUtils
-  {
-      bool IsEnabled { get; }
-      void Record(string module, string operation, Func<object>? payload = null);
-      IDisposable RegisterStateProvider(string module, string key, Func<object> snapshot);
-      IDisposable RegisterCommand(string module, string name, Func<object?, object?> command);
-  }
-  ```
-- [ ] Implementar `NullDebugUtils` (singleton, `IsEnabled = false`, todos os métodos são no-ops)
-- [ ] Definir `Disposable.Empty` utilitário no Core (reusável pelo `NullDebugUtils`)
+- [x] `IDebugUtils` completo (`IsEnabled`, `Record`, `RegisterStateProvider`, `RegisterCommand`)
+- [x] `NullDebugUtils` (singleton, `IsEnabled = false`, no-ops via `Disposable.Empty`)
+- [x] `Disposable.Empty` utilitário no Core
+- [x] ⏳ Build/validação: pendente (Windows)
 
-### B2 — Criar `NekoLib.DebugUtils` (net481; net9.0)
+### B2 — Criar `NekoLib.DebugUtils` (net481; net9.0) ✅
 
 > **⏸ Pausa após esta etapa** — avaliar os pontos de hook em cada módulo antes de prosseguir para B3+.
 
-- [ ] Criar `src/DebugUtils/NekoLib.DebugUtils/NekoLib.DebugUtils.csproj`
-- [ ] Referencia apenas `NekoLib.Core`
-- [ ] Implementar `DebugUtilsRuntime : IDebugUtils`:
-  - Ring buffer de operações com capacidade configurável
-  - Dicionário de state providers por módulo/chave
-  - Dicionário de commands por módulo/nome
-  - `IsEnabled = true`
-- [ ] Registrar no `NekoLib.sln`
-- [ ] Atualizar README / CLAUDE.md com novo projeto
+- [x] Criar `src/DebugUtils/NekoLib.DebugUtils/NekoLib.DebugUtils.csproj` (net481;net9.0, nullable enable, ref só Core)
+- [x] Implementar `DebugUtilsRuntime : IDebugUtils`:
+  - Ring buffer de operações (`Queue` + lock, capacidade configurável via `DebugUtilsOptions`)
+  - Dicionário de state providers por `module::key`
+  - Dicionário de commands por `module::name`
+  - `IsEnabled = true`; thread-safe; sem keyword `record`
+  - Lado de consumo (concrete-only): `GetOperations`, `CaptureState`, `TryInvokeCommand`, `StateKeys`, `CommandKeys`
+  - `DebugOperation` (entrada imutável) + `DebugUtilsOptions` (Capacity, default 1024)
+- [x] Registrar no `NekoLib.sln` (solution folder `DebugUtils` sob `src`)
+- [x] Atualizar CLAUDE.md Module Map
+- [x] ⏳ Build/validação: pendente (Windows / smoke-test single project)
+
+> **Decisão de design**: `IDebugUtils` é o contrato *push/register* (lado do módulo observado, sem ciclo).
+> O lado *pull/consume* (ler operações, capturar estado, invocar comando) vive como API pública só na
+> classe concreta `DebugUtilsRuntime` — quem hospeda o runtime consome; módulos só conhecem a interface no Core.
 
 ---
 
