@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using NekoLib.Diagnostics;
 using NekoLib.Watchdog;
 using Xunit;
 
@@ -91,11 +92,11 @@ namespace NekoLib.Watchdog.Tests.Unit
                         catch { return false; }
                     }));
 
-                    var handler = new global::NekoLib.Diagnostics.CrashHandler(
-                        new global::NekoLib.Diagnostics.CrashHandlerOptions
+                    var handler = new CrashHandler(
+                        new CrashHandlerOptions
                         {
                             CrashRootDirectory = options.PendingCrashRoot,
-                            DumpLevel = global::NekoLib.Diagnostics.CrashDumpLevel.None,
+                            DumpLevel = CrashDumpLevel.None,
                             ExternalNotifier = e => WatchdogController.NotifyExceptionForTarget(
                                 options.TargetPath,
                                 e.Exception?.GetType().FullName,
@@ -120,9 +121,9 @@ namespace NekoLib.Watchdog.Tests.Unit
             }
         }
 
-        private static void InvokeHandleCrash(global::NekoLib.Diagnostics.CrashHandler handler)
+        private static void InvokeHandleCrash(CrashHandler handler)
         {
-            var method = typeof(global::NekoLib.Diagnostics.CrashHandler).GetMethod(
+            var method = typeof(CrashHandler).GetMethod(
                 "HandleCrash",
                 BindingFlags.Instance | BindingFlags.NonPublic);
 

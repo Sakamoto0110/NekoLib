@@ -14,11 +14,11 @@ namespace NekoLib.Diagnostics.Tests.Unit
 
             try
             {
-                var handler = new global::NekoLib.Diagnostics.CrashHandler(
-                    new global::NekoLib.Diagnostics.CrashHandlerOptions
+                var handler = new CrashHandler(
+                    new CrashHandlerOptions
                     {
                         CrashRootDirectory = root,
-                        DumpLevel = global::NekoLib.Diagnostics.CrashDumpLevel.None
+                        DumpLevel = CrashDumpLevel.None
                     });
 
                 string crashTextPath = null;
@@ -37,9 +37,9 @@ namespace NekoLib.Diagnostics.Tests.Unit
             }
         }
 
-        private static void InvokeHandleCrash(global::NekoLib.Diagnostics.CrashHandler handler)
+        private static void InvokeHandleCrash(CrashHandler handler)
         {
-            var method = typeof(global::NekoLib.Diagnostics.CrashHandler).GetMethod(
+            var method = typeof(CrashHandler).GetMethod(
                 "HandleCrash",
                 BindingFlags.Instance | BindingFlags.NonPublic);
 
