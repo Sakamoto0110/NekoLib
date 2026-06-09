@@ -25,8 +25,12 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>Instance reuse policy used by the runtime page cache.</summary>
         public PageReusePolicy ReusePolicy { get; }
 
-        /// <summary>Timeout metadata retained for timeout-specific page selection.</summary>
-        public PageTimeoutPolicy TimeoutPolicy { get; }
+        /// <summary>
+        /// Idle timeout in seconds declared on the idle page, or <c>null</c> when the
+        /// page declares none. Only the idle page may carry a value (enforced at
+        /// bootstrap); it overrides the global <c>UseIdleTimeout(milliseconds)</c>.
+        /// </summary>
+        public int? IdleTimeoutSeconds { get; }
 
         /// <summary>Preferred load timing for pages that implement background loading.</summary>
         public NavigationLoadMode LoadMode { get; }
@@ -55,7 +59,7 @@ namespace NekoLib.Navigation.Metadata
             PageRole role,
             PagePresentationMode presentation,
             PageReusePolicy reusePolicy,
-            PageTimeoutPolicy timeoutPolicy,
+            int? idleTimeoutSeconds,
             NavigationLoadMode loadMode,
             bool allowAnonymous,
             IReadOnlyList<string> tags,
@@ -67,7 +71,7 @@ namespace NekoLib.Navigation.Metadata
             Role = role;
             Presentation = presentation;
             ReusePolicy = reusePolicy;
-            TimeoutPolicy = timeoutPolicy;
+            IdleTimeoutSeconds = idleTimeoutSeconds;
             LoadMode = loadMode;
             AllowAnonymous = allowAnonymous;
             Tags = tags;

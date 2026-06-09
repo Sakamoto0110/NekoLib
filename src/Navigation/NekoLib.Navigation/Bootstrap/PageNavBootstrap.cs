@@ -252,6 +252,29 @@ namespace NekoLib.Navigation.Bootstrap
                         "and never targeting different pages.");
                 }
             }
+
+            // ------------------------------------------------------------
+            // 1b) Resolve the idle page and validate [PageTimeout] placement
+            //
+            // The idle timeout (seconds) is the *inactivity* timeout, so it is
+            // declared on the idle page itself. Any other page carrying a timeout
+            // is a configuration mistake — fail loud instead of silently ignoring
+            // it (the timeout would never fire, since only the idle descriptor's
+            // value is read below).
+            // ------------------------------------------------------------
+            var allDescriptors = registry.AllDescriptors().ToList();
+            var idleDescriptor = IdlePageRules.Resolve(allDescriptors);
+
+            foreach (var d in allDescriptors)
+            {
+                if (d.IdleTimeoutSeconds.HasValue && !ReferenceEquals(d, idleDescriptor))
+                    throw new InvalidOperationException(
+                        $"Page '{d.PageType.FullName}' declares an idle timeout " +
+                        $"({d.IdleTimeoutSeconds}s) but is not the idle page. Declare the " +
+                        "timeout on the idle page (PageRole.Idle, an 'idle' tag, or a name " +
+                        "containing 'Idle'), or use UseIdleTimeout(ms) for the global timeout.");
+            }
+
             // ------------------------------------------------------------
             // 2) Validate platform
             // ------------------------------------------------------------
@@ -371,19 +394,28 @@ namespace NekoLib.Navigation.Bootstrap
             services.Lock();
 
             // ------------------------------------------------------------
-            // 11) Optional idle timeout (UseIdleTimeout)
+            // 11) Optional idle timeout
             //
             // Wires the platform interaction observer + timer adapter so any
-            // period without UI input longer than _idleTimeoutMs returns to
-            // the idle page and signs the built-in session out. The consumer
+            // period without UI input longer than the effective interval returns
+            // to the idle page and signs the built-in session out. The consumer
             // writes no timer/observer/session code.
+            //
+            // Effective interval (idle page wins, global is fallback):
+            //   idle page [PageTimeout]/.IdleTimeout(seconds)  ->  UseIdleTimeout(ms).
+            // A timeout declared on the idle page also enables the timer on its
+            // own, so UseIdleTimeout(ms) is not required when the idle page sets one.
             // ------------------------------------------------------------
-            if (_idleTimeoutMs > 0 &&
+            int effectiveIdleMs = _idleTimeoutMs;
+            if (idleDescriptor?.IdleTimeoutSeconds is int idleSeconds && idleSeconds > 0)
+                effectiveIdleMs = idleSeconds * 1000;
+
+            if (effectiveIdleMs > 0 &&
                 services.CanResolve(typeof(IInteractionObserverService)))
             {
                 var idleObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
                 var idleTimer = _platform.CreateTimerAdapter();
-                idleTimer.IntervalMilliseconds = _idleTimeoutMs;
+                idleTimer.IntervalMilliseconds = effectiveIdleMs;
 
                 idleObserver.InteractionDetected += () =>
                 {

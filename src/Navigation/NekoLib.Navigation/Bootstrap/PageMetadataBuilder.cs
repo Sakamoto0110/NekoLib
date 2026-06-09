@@ -166,6 +166,21 @@ namespace NekoLib.Navigation.Bootstrap
                 // Make sure the property name matches whatever is inside your PageLoadAttribute
                 builder.LoadMode = loadMeta.Mode;
             }
+            // Instance reuse / cache policy. The DSL (.Transient()/.StrongSingleton()/
+            // .WeakSingleton()) runs in the manual phase and overrides this.
+            var reuseMeta = type.GetCustomAttribute<PageReuseAttribute>();
+            if (reuseMeta != null)
+            {
+                builder.ReusePolicy = reuseMeta.Policy;
+            }
+            // Idle timeout (seconds). Only meaningful on the idle page; the bootstrap
+            // validates placement. A non-positive value is treated as "not declared"
+            // so it falls back to the global UseIdleTimeout(ms).
+            var timeoutMeta = type.GetCustomAttribute<PageTimeoutAttribute>();
+            if (timeoutMeta != null && timeoutMeta.Seconds > 0)
+            {
+                builder.IdleTimeoutSeconds = timeoutMeta.Seconds;
+            }
             foreach (var guardAttr in type.GetCustomAttributes<GuardAttribute>())
             {
                 var guard = guardAttr.CreateGuard();

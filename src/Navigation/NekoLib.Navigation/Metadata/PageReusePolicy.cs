@@ -12,14 +12,14 @@
 
         /// <summary>
         /// Keep a weakly referenced instance that may be reused while it remains
-        /// alive and undisposed.
+        /// alive and undisposed; recreated after the GC reclaims it.
         /// </summary>
-        Cached = 1,
+        WeakSingleton = 1,
 
         /// <summary>
-        /// Keep one strong instance for the lifetime of the navigation context,
-        /// or until the runtime is reset/disposed.
+        /// Keep one strongly referenced instance for the lifetime of the navigation
+        /// context, or until the runtime is reset/disposed.
         /// </summary>
-        Singleton = 2
+        StrongSingleton = 2
     }
 }

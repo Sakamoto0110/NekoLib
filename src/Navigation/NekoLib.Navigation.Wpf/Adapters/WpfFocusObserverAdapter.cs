@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using NekoLib.Navigation.Contracts.Platform;
 
 namespace NekoLib.Navigation.Wpf.Adapters
@@ -18,7 +19,17 @@ namespace NekoLib.Navigation.Wpf.Adapters
             if (onUnfocus == null) throw new ArgumentNullException(nameof(onUnfocus));
             if (nativeView is not UIElement element) return EmptySubscription.Instance;
 
-            KeyboardFocusChangedEventHandler lost = (_, _) => onUnfocus();
+            // LostKeyboardFocus is a bubbling routed event, so it also fires when focus
+            // moves between the tracked element's own children. Only treat focus that
+            // LEAVES the subtree as an unfocus; ignore internal moves so a multi-control
+            // popover doesn't dismiss itself while the user tabs through its fields.
+            KeyboardFocusChangedEventHandler lost = (_, e) =>
+            {
+                if (e.NewFocus is DependencyObject newFocus && IsInSubtree(element, newFocus))
+                    return;
+
+                onUnfocus();
+            };
             element.LostKeyboardFocus += lost;
 
             // Walk up to the owning Window so window-level focus loss also dismisses.
@@ -34,6 +45,25 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
             return new Subscription(element, lost, window, deactivated);
         }
+
+        // True when <paramref name="node"/> is <paramref name="root"/> or sits inside
+        // its tree — walking the visual tree, falling back to the logical tree for
+        // content elements that aren't Visuals.
+        private static bool IsInSubtree(DependencyObject root, DependencyObject node)
+        {
+            for (var current = node; current != null; current = GetParent(current))
+            {
+                if (ReferenceEquals(current, root))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static DependencyObject GetParent(DependencyObject node)
+            => node is Visual || node is System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(node)
+                : LogicalTreeHelper.GetParent(node);
 
         private sealed class Subscription : IDisposable
         {
