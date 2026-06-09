@@ -2,6 +2,14 @@
 
 ---
 
+## Notas gerais de implementação
+
+- **Keyword `record`**: não usar como keyword em tipos compartilhados entre targets. `record` (C# 9) requer `System.Runtime.CompilerServices.IsExternalInit` que não existe no net481 sem shim explícito. Usar classes normais para tipos de dados em projetos multi-target.
+- **README**: atualizar `README.md` / `CLAUDE.md` ao concluir cada etapa, refletindo a nova estrutura de projetos e o grafo de dependências.
+- **`NullDebugUtils`**: segue o padrão Null Object, consistente com `NullLogger` e `NullTelemetrySink` já existentes. A implementação satisfaz a interface sem fazer nada — o caller nunca precisa checar `if (debug != null)`.
+
+---
+
 ## Fase A — Reestruturação de base e desbloqueio multi-target
 
 > Objetivo: separar contratos de implementação, destravar `net9.0` nos módulos que não precisam de Windows, e criar o projeto `NekoLib.Core` como base da pirâmide de dependências.
@@ -15,6 +23,7 @@
   - `NullLogger`, `NullTelemetrySink`
 - [ ] Adicionar esqueletos de `IDebugUtils` e `NullDebugUtils` (contrato apenas — implementação na Fase B)
 - [ ] Registrar no `NekoLib.sln`
+- [ ] Atualizar README / CLAUDE.md com novo projeto
 
 ### A2 — Criar `NekoLib.Logger` (net481; net9.0)
 
@@ -25,6 +34,7 @@
   - `DebugLogSink`, `MemoryTelemetrySink`
 - [ ] Adicionar referência a `NekoLib.Core`
 - [ ] Registrar no `NekoLib.sln`
+- [ ] Atualizar README / CLAUDE.md com novo projeto
 
 ### A3 — Refatorar `NekoLib.Diagnostics` (net481; net9.0)
 
@@ -44,6 +54,7 @@
   - `CrashDumpLevel`
 - [ ] Adicionar referência a `NekoLib.Diagnostics`
 - [ ] Registrar no `NekoLib.sln`
+- [ ] Atualizar README / CLAUDE.md com novo projeto
 
 ### A5 — Atualizar `NekoLib.Navigation` (net481; net9.0)
 
@@ -106,6 +117,8 @@ Interface já criada como esqueleto na Fase A. Nesta etapa:
 
 ### B2 — Criar `NekoLib.DebugUtils` (net481; net9.0)
 
+> **⏸ Pausa após esta etapa** — avaliar os pontos de hook em cada módulo antes de prosseguir para B3+.
+
 - [ ] Criar `src/DebugUtils/NekoLib.DebugUtils/NekoLib.DebugUtils.csproj`
 - [ ] Referencia apenas `NekoLib.Core`
 - [ ] Implementar `DebugUtilsRuntime : IDebugUtils`:
@@ -114,28 +127,14 @@ Interface já criada como esqueleto na Fase A. Nesta etapa:
   - Dicionário de commands por módulo/nome
   - `IsEnabled = true`
 - [ ] Registrar no `NekoLib.sln`
+- [ ] Atualizar README / CLAUDE.md com novo projeto
 
-### B3 — Hooks em `NekoLib.Navigation`
+---
 
-> Padrão: aceitar `IDebugUtils?` no `NavigationContext`; todos os calls guardados por `_debug?.IsEnabled`.
-> State providers devem retornar snapshots **imutáveis** tirados sob o próprio lock do módulo.
-> O padrão `.Debug.cs` já existe em `NavigationHistory.Debug.cs` — generalizar.
+> As etapas B3–B5 serão detalhadas após avaliação dos pontos de hook na pausa de B2.
 
-- [ ] `NavigationContext`: receber `IDebugUtils?` via bootstrap
-- [ ] `NavigationRuntime`: `Record` nos pontos do lifecycle (Navigate, GoBack, Timeout, GuardDenied)
-- [ ] `PageRegistry`: `RegisterStateProvider` com snapshot dos descritores
-- [ ] `NavigationHistory`: `RegisterStateProvider` usando os snapshots já existentes em `.Debug.cs`
-- [ ] `PopoverService`: `Record` em Open/Close de overlays
+### B3 — Hooks em `NekoLib.Navigation` *(pendente avaliação)*
 
-### B4 — Hooks nos demais módulos
+### B4 — Hooks nos demais módulos *(pendente avaliação)*
 
-- [ ] `NekoLib.Data`: `Record` em Execute, Query, BeginTransaction
-- [ ] `NekoLib.Pipes`: `Record` em Connect, Send, Receive, Disconnect
-- [ ] `NekoLib.Watchdog`: `Record` em HealthCheck, Restart, HotKey
-- [ ] `NekoLib.Devices`: `Record` em Open, Close, Send, Receive
-
-### B5 — Validação
-
-- [ ] Confirmar que com `NullDebugUtils` (default) o overhead é zero (benchmark simples)
-- [ ] Confirmar ausência de dependências cíclicas (`dotnet list reference` em todos os projetos)
-- [ ] Testar `DebugUtilsRuntime` com Navigation: navegar 5 páginas, verificar ring buffer
+### B5 — Validação *(pendente avaliação)*
