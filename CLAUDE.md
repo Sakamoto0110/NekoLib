@@ -53,6 +53,7 @@ There is no CI/CD pipeline — builds are manual via `dotnet` CLI or Visual Stud
 
 | Module | Path | Targets | Purpose |
 |---|---|---|---|
+| `NekoLib.Core` | `src/Core/NekoLib.Core/` | net481, net9.0 | Foundation: logging/telemetry contracts (`ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `LogEntry`, `LogLevel`, `TelemetryEvent`), null objects, and the `IDebugUtils` observability contract. Zero dependencies. |
 | `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | Bootstrap facade: `Neko.CreateBuilder()`, `NekoHost`, version/ID constants |
 | `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | Logging, telemetry sinks, `DiagnosticsRuntime` |
 | `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0-windows | Page lifecycle runtime (see below) |

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-namespace NekoLib.Diagnostics.Contracts
 
+namespace NekoLib.Core.Diagnostics
 {
     public sealed class TelemetryEvent : LogEntry
     {
@@ -10,7 +10,7 @@ namespace NekoLib.Diagnostics.Contracts
         public TimeSpan? Duration { get; }
         public IReadOnlyDictionary<string, object> Data { get; }
 
-        public TelemetryEvent(DateTime timestampUtc, string name, TimeSpan? duration = null, IReadOnlyDictionary<string, object> data = null)
+        public TelemetryEvent(DateTime timestampUtc, string name, TimeSpan? duration = null, IReadOnlyDictionary<string, object>? data = null)
         {
             TimestampUtc = timestampUtc;
             Name = name;

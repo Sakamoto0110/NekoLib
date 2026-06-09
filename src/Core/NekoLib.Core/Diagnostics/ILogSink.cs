@@ -1,5 +1,4 @@
-﻿namespace NekoLib.Diagnostics.Contracts
-
+namespace NekoLib.Core.Diagnostics
 {
     public interface ILogSink
     {

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>false</ImplicitUsings>
+
+		<OutputType>Library</OutputType>
+		<AssemblyName>NekoLib.Core</AssemblyName>
+		<RootNamespace>NekoLib.Core</RootNamespace>
+
+		<!-- Assembly metadata: generated ONCE -->
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+		<!-- CRITICAL: avoid duplicate TargetFrameworkAttribute -->
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+</Project>

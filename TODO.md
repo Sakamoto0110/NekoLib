@@ -7,7 +7,8 @@
 - **Keyword `record`**: não usar como keyword em tipos compartilhados entre targets. `record` (C# 9) requer `System.Runtime.CompilerServices.IsExternalInit` que não existe no net481 sem shim explícito. Usar classes normais para tipos de dados em projetos multi-target.
 - **README**: atualizar `README.md` / `CLAUDE.md` ao concluir cada etapa, refletindo a nova estrutura de projetos e o grafo de dependências.
 - **`NullDebugUtils`**: segue o padrão Null Object, consistente com `NullLogger` e `NullTelemetrySink` já existentes. A implementação satisfaz a interface sem fazer nada — o caller nunca precisa checar `if (debug != null)`.
-- **Pausa entre etapas**: ao final de cada etapa (após commit, push e atualização do TODO/CLAUDE.md), fazer uma pausa para o usuário verificar contexto/tokens antes de continuar.
+- **Pausa entre etapas**: ao final de cada etapa (após commit e atualização do TODO/CLAUDE.md), fazer uma pausa para o usuário verificar contexto/tokens antes de continuar. **Push só ao final de cada fase** (ou quando solicitado), não a cada etapa.
+- **⚠ Build não disponível no ambiente remoto**: o SDK .NET não está instalado e os CDNs (aka.ms / builds.dotnet) estão bloqueados (403). Além disso, `net481` e os targets `-windows` só compilam no Windows. **Toda validação de compilação (A8, B5) é feita pelo usuário na máquina Windows / VS2022.** As etapas aqui são revisadas por inspeção manual.
 
 ---
 
@@ -15,16 +16,17 @@
 
 > Objetivo: separar contratos de implementação, destravar `net9.0` nos módulos que não precisam de Windows, e criar o projeto `NekoLib.Core` como base da pirâmide de dependências.
 
-### A1 — Criar `NekoLib.Core` (net481; net9.0)
+### A1 — Criar `NekoLib.Core` (net481; net9.0) ✅
 
-- [ ] Criar `src/Core/NekoLib.Core/NekoLib.Core.csproj`
-- [ ] Mover de `NekoLib.Diagnostics`:
+- [x] Criar `src/Core/NekoLib.Core/NekoLib.Core.csproj` (nullable enable, net481;net9.0, sem Windows)
+- [x] Mover de `NekoLib.Diagnostics` (via `git mv`, namespace → `NekoLib.Core.Diagnostics`, anotações nullable):
   - `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`
   - `LogEntry`, `LogLevel`, `TelemetryEvent`
   - `NullLogger`, `NullTelemetrySink`
-- [ ] Adicionar esqueletos de `IDebugUtils` e `NullDebugUtils` (contrato apenas — implementação na Fase B)
-- [ ] Registrar no `NekoLib.sln`
-- [ ] Atualizar README / CLAUDE.md com novo projeto
+- [x] Adicionar `IDebugUtils` + `NullDebugUtils` em `NekoLib.Core.Observability` + utilitário `Disposable.Empty` (contrato — pode ser refinado em B1)
+- [x] Registrar no `NekoLib.sln` (edição manual — sem dotnet CLI)
+- [x] Atualizar CLAUDE.md Module Map com `NekoLib.Core`
+- [ ] ⏳ Build/validação: pendente (máquina Windows do usuário)
 
 ### A2 — Criar `NekoLib.Logger` (net481; net9.0)
 
