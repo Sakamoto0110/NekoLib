@@ -1,4 +1,4 @@
-﻿using NekoLib.Diagnostics.Contracts;
+﻿using NekoLib.Core.Diagnostics;
 using System;
 using System.Collections.Generic;
 

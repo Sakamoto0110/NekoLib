@@ -1,4 +1,4 @@
-﻿using NekoLib.Diagnostics.Contracts;
+﻿using NekoLib.Core.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime;
 using System;

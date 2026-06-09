@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>disable</ImplicitUsings>
@@ -26,17 +26,10 @@
 
 	 
 
-	<!-- .NET 9 Windows specifics -->
-	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
+	<!-- .NET 9 specifics -->
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
 		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
-
-		<!-- Optional: pin Windows API surface -->
-		<!-- <TargetPlatformMinVersion>7.0</TargetPlatformMinVersion> -->
 	</PropertyGroup>
-
-	<ItemGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
-		<!-- No need for System.Windows.Forms reference; UseWindowsForms handles it -->
-	</ItemGroup>
 
 	<ItemGroup>
 	  <Compile Remove="old\**" />
@@ -53,11 +46,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Diagnostics\Contracts\" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="..\..\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+	  <ProjectReference Include="..\..\Core\NekoLib.Core\NekoLib.Core.csproj" />
 	</ItemGroup>
 
 	 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 using NekoLib.Pipes;
 using NekoLib.Watchdog;
 using Xunit;

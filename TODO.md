@@ -74,11 +74,17 @@
 
 > **Mudança de comportamento p/ apps WinForms**: o hook `Application.ThreadException` deixou de ser automático (era `#if WINFORMS` dentro do CrashHandler). Agora a app deve chamar `WindowsCrash.HookWinForms()` no startup (a ser fiado pela camada de hosting / `NekoLib`).
 
-### A5 — Atualizar `NekoLib.Navigation` (net481; net9.0)
+### A5 — Atualizar `NekoLib.Navigation` (net481; net9.0) ✅
 
-- [ ] Substituir referência `NekoLib.Diagnostics` → `NekoLib.Core`
-- [ ] Alterar `TargetFrameworks` de `net481;net9.0-windows` → `net481;net9.0`
-- [ ] Verificar `DiagnosticsNavigationSink` — usa apenas contratos de Core; ajustar se necessário
+- [x] Substituir referência `NekoLib.Diagnostics` → `NekoLib.Core`
+- [x] Alterar `TargetFrameworks` de `net481;net9.0-windows` → `net481;net9.0`
+- [x] Atualizar `DiagnosticsNavigationSink`, `PageLogEntry`, `TelemetryEventData`, `PageNavBootstrap`, `NavigationContext` — `using NekoLib.Diagnostics.Contracts` → `using NekoLib.Core.Diagnostics`
+- [x] Corrigir consumidores do namespace antigo:
+  - `WatchdogRuntime`, `WatchdogController`, `WatchdogOptions`, `WatchdogPipeLogSink` → `using NekoLib.Core.Diagnostics`
+  - `NekoLib.Watchdog.csproj`: ref `NekoLib.Diagnostics` → `NekoLib.Core`
+  - `DiagnosticsNullTests.cs`: `Diagnostics.Null` → `NekoLib.Logger.Diagnostics.Null`; csproj: adicionar refs Core + Logger
+  - `WatchdogLogForwardingTests.cs` + csproj: ref `NekoLib.Diagnostics` → `NekoLib.Core`
+- [ ] ⏳ Build/validação: pendente (Windows)
 
 ### A6 — Projetos com mudança só no target
 

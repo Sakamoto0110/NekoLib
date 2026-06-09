@@ -1,4 +1,4 @@
-using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;

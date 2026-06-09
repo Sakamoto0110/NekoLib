@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 using NekoLib.Pipes;
 
  
@@ -782,7 +782,7 @@ namespace NekoLib.Watchdog
                 return;
 
             var level = ToLogLevel(sev);
-            var entry = new NekoLib.Diagnostics.Contracts.LogEntry(
+            var entry = new NekoLib.Core.Diagnostics.LogEntry(
                 DateTime.UtcNow,
                 level,
                 "watchdog",

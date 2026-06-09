@@ -1,6 +1,6 @@
 ﻿using System;
 using System.IO;
-using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 
 namespace NekoLib.Watchdog
 {

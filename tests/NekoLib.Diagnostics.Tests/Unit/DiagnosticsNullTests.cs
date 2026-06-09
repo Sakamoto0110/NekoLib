@@ -1,5 +1,5 @@
 using System;
-using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 using Xunit;
 
 namespace NekoLib.Diagnostics.Tests.Unit
@@ -9,7 +9,7 @@ namespace NekoLib.Diagnostics.Tests.Unit
         [Fact]
         public void NullContext_ProvidesSafeLoggerAndTelemetry()
         {
-            var ctx = global::NekoLib.Diagnostics.Diagnostics.Null;
+            var ctx = NekoLib.Logger.Diagnostics.Null;
 
             Assert.NotNull(ctx.Logger);
             Assert.NotNull(ctx.Telemetry);

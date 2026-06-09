@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Logger\NekoLib.Logger.csproj" />
+    <ProjectReference Include="..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
   </ItemGroup>
 
 </Project>
