@@ -41,13 +41,22 @@
 - [ ] ⏳ Build/validação: pendente (Windows)
 - [ ] 🔻 Consumidores a corrigir em etapas seguintes: `DiagnosticsNullTests` (`Diagnostics.Null` → `NekoLib.Logger.Diagnostics.Null`); Watchdog usa `LogEntry` (Core)
 
-### A3 — Refatorar `NekoLib.Diagnostics` (net481; net9.0)
+### A3 — Refatorar `NekoLib.Diagnostics` (net481; net9.0) ✅
 
-- [ ] Remover contratos movidos para Core
-- [ ] Remover implementações movidas para Logger
-- [ ] Adicionar referência a `NekoLib.Logger`
-- [ ] Manter `CrashHandler` (partes cross-platform: `AppDomain`, `TaskScheduler`)
-- [ ] Alterar `TargetFrameworks` de `net481;net9.0-windows` → `net481;net9.0`
+- [x] Remover contratos movidos para Core (feito em A1)
+- [x] Remover implementações movidas para Logger (feito em A2)
+- [x] **Inversão do CrashHandler** (necessária p/ evitar ciclo Diagnostics ↔ Diagnostics.Windows):
+  - `CrashHandlerOptions.DumpWriter` (delegate `CrashDumpWriter`) substitui a chamada direta a `MiniDumpWriter.TryWrite`
+  - `CrashHandler.ReportExternalCrash(...)` estático: ponto de entrada para o hook WinForms (que vai pro Windows no A4)
+  - Removido o `#if WINFORMS` (`Application.SetUnhandledExceptionMode` / `ThreadException`) — vai pro A4
+- [x] `CrashHandler` cross-platform mantido (`AppDomain`, `TaskScheduler`, crash bundle/txt/tails)
+- [x] Alterar `TargetFrameworks` → `net481;net9.0`, remover `UseWindowsForms`/`WINFORMS`
+- [ ] ⏳ Build/validação: pendente (Windows)
+
+> **Desvios do plano literal** (decisões a confirmar):
+> 1. **Referência a Logger NÃO adicionada**: o código de crash usa só `System.*`; uma referência seria não-usada (YAGNI). Adicionar Core/Logger quando o crash emitir telemetria via contratos.
+> 2. **`CrashDumpLevel` permanece em Diagnostics** (não vai pro Windows como dizia A4): é parte da API de `CrashHandlerOptions`; mover criaria ciclo. Só o *impl* (`MiniDumpWriter`) é Windows.
+> 3. `MiniDumpWriter` + `CrashSuppressor` ainda fisicamente em Diagnostics (compilam em net9.0 como PInvoke); movidos no A4. Pode haver warning CA1416 transitório em net9.0.
 
 ### A4 — Criar `NekoLib.Diagnostics.Windows` (net481; net9.0-windows)
 

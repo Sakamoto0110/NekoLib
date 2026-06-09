@@ -6,13 +6,18 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-#if WINFORMS
-using System.Windows.Forms;
-#endif
-
 
 namespace NekoLib.Diagnostics
 {
+    /// <summary>
+    /// Writes a crash dump to <paramref name="filePath"/> at the requested
+    /// <paramref name="level"/>. Returns true on success. This is the extension
+    /// point filled by the OS-specific package (e.g. NekoLib.Diagnostics.Windows
+    /// wires the dbghelp.dll minidump writer here) so the cross-platform crash
+    /// orchestration never depends on a Windows-only assembly.
+    /// </summary>
+    public delegate bool CrashDumpWriter(string filePath, CrashDumpLevel level);
+
     public sealed class CrashHandlerOptions
     {
         public string CrashRootDirectory { get; set; }
@@ -24,6 +29,12 @@ namespace NekoLib.Diagnostics
         public bool WriteCrashFolder { get; set; } = true;
 
         public Func<IEnumerable<string>> ExtraLines { get; set; }
+
+        /// <summary>
+        /// Optional OS-specific dump writer. When null (no platform package wired),
+        /// no dump is produced and the crash bundle still contains crash.txt + tails.
+        /// </summary>
+        public CrashDumpWriter DumpWriter { get; set; }
 
         // NEW
         public bool NotifyWatchdog { get; set; } = true;
@@ -105,25 +116,19 @@ namespace NekoLib.Diagnostics
 
             _globalHandlersInstalled = true;
 
-#if WINFORMS
-            try
-            {
-                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-                Application.ThreadException += OnApplicationThreadException;
-            }
-            catch { }
-#endif
-
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         }
 
-#if WINFORMS
-        private static void OnApplicationThreadException(object sender, ThreadExceptionEventArgs e)
+        /// <summary>
+        /// Feeds a crash from an external, OS-specific source (e.g. the WinForms
+        /// <c>Application.ThreadException</c> hook installed by
+        /// NekoLib.Diagnostics.Windows) into the installed handlers. Never throws.
+        /// </summary>
+        public static void ReportExternalCrash(string source, Exception ex, bool terminating)
         {
-            DispatchCrash("Application.ThreadException", e.Exception, false);
+            DispatchCrash(source, ex, terminating);
         }
-#endif
 
         private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
@@ -215,7 +220,7 @@ namespace NekoLib.Diagnostics
                 var dumpPath = Path.Combine(bundleDir, "crash.dmp");
 
                 WriteCrashText(crashTxt, args.Source, args.Exception, args.IsTerminating);
-                bool dumpOk = MiniDumpWriter.TryWrite(dumpPath, _o.DumpLevel);
+                bool dumpOk = _o.DumpWriter != null && _o.DumpWriter(dumpPath, _o.DumpLevel);
 
                 TailConfiguredFiles(bundleDir);
 

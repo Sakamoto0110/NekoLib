@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<Nullable>disable</Nullable>
 		<ImplicitUsings>false</ImplicitUsings>
@@ -26,15 +26,6 @@
 	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 		<NoWarn>$(NoWarn);1591</NoWarn>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net481' Or '$(TargetFramework)' == 'net9.0-windows'">
-		<UseWindowsForms>true</UseWindowsForms>
-		<DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0|AnyCPU'">
-	  <DefineConstants>$(DefineConstants);NET_9;WINFORMS</DefineConstants>
 	</PropertyGroup>
 
 </Project>
