@@ -7,8 +7,8 @@ using System.Windows.Forms;
 namespace NekoLib.Navigation.WinForms.Hosting
 {
     /// <summary>
-    /// Unified base class for all WinForms pages. 
-    /// Merges legacy BasePage and PageView for a single, designer-safe entry point.
+    /// Base class for all WinForms pages: implements <see cref="IPageView"/> +
+    /// <see cref="IPageLifecycle"/> and exposes a single designer-safe entry point.
     /// </summary>
     public class PageView : UserControl, IPageView, IPageLifecycle
     {
@@ -24,18 +24,20 @@ namespace NekoLib.Navigation.WinForms.Hosting
             LicenseManager.UsageMode == LicenseUsageMode.Designtime;
 
         /// <summary>
-        /// Concept moved from legacy BasePage. Allows individual pages to 
-        /// opt-out of the back-stack.
+        /// Lets individual pages opt out of the back-stack. Default: true.
         /// </summary>
         public virtual bool AllowBackNavigation => true;
 
         protected PageView()
         {
-            // Keep the constructor empty or designer-safe.
+            // Keep the ctor designer-safe: the WinForms designer instantiates this
+            // type, so it must not run navigation/runtime logic here. Seed the
+            // IPageView.Name used for registration, lookup, and diagnostics.
             Name = GetType().FullName!;
         }
 
-        // Lifecycle hooks for your logic (e.g., loading Excel data)
+        // Optional lifecycle hooks — override to load/refresh state on entry and to
+        // persist/flush on exit. The runtime invokes both on the UI thread.
         public virtual Task OnNavigatedToAsync(NavigationArgs args)
             => Task.CompletedTask;
 

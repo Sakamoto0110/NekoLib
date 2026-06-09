@@ -79,12 +79,11 @@ namespace NekoLib.Navigation.Wpf.Hosting
             if (!Root.Children.Contains(element))
                 Root.Children.Add(element);
 
-            if (element is FrameworkElement fe)
-            {
-                fe.HorizontalAlignment = HorizontalAlignment.Stretch;
-                fe.VerticalAlignment = VerticalAlignment.Stretch;
-            }
-
+            // Do NOT force alignment here. Each overlay base sets its own intent in
+            // its ctor (dialog/prompt = Center, toast = bottom-right, popover = the
+            // designer placement); forcing Stretch afterwards would clobber it. The
+            // loading mask sets no alignment and fills naturally — Stretch is already
+            // the FrameworkElement default.
             element.Visibility = Visibility.Visible;
             Panel.SetZIndex(element, OverlayZIndex);
         }

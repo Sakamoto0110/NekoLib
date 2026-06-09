@@ -9,9 +9,9 @@ namespace NekoLib.Navigation.Wpf.Hosting
 {
     /// <summary>
     /// WPF base class for dialog views. Subclasses call <see cref="Confirm"/> /
-    /// <see cref="Cancel"/> to resolve the awaiting service task. The host
-    /// stretches every overlay; this base undoes that and centers itself using
-    /// the designer-defined Width/Height (or default UserControl sizing).
+    /// <see cref="Cancel"/> to resolve the awaiting service task. Centers itself
+    /// within the host using the designer-defined Width/Height (or default
+    /// UserControl sizing).
     /// </summary>
     public abstract class DialogViewBase : UserControl, IDialogView
     {
@@ -26,7 +26,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
         protected DialogViewBase()
         {
             Name = GetType().Name;
-            // Centered overlay: cancel the host's stretch so designer Width/Height apply.
+            // Center within the host; explicit designer Width/Height (if any) size it.
             HorizontalAlignment = HorizontalAlignment.Center;
             VerticalAlignment = VerticalAlignment.Center;
         }

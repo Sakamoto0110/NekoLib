@@ -95,23 +95,11 @@ namespace NekoLib.Navigation.Runtime.Core
             _dispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
         }
 
+        // Resolution priority (role -> "idle" tag -> name contains "idle") lives in
+        // IdlePageRules so the bootstrap's idle-timeout wiring and [PageTimeout]
+        // placement validation share the exact same notion of "the idle page".
         private PageDescriptor ResolveIdleDescriptor()
-        {
-            // 1) Explicit metadata: PageRole.Idle (set via .AsIdle()).
-            // 2) Convention tag: "idle".
-            // 3) Name convention: any registered page whose Name is "IdlePage" —
-            //    lets timeouts / GoIdleAsync work when the consumer forgets to
-            //    call .AsIdle(). "MainPage" is deliberately NOT a fallback: a
-            //    main page can be a hub of options that is distinct from the
-            //    idle page the runtime drops back to on inactivity.
-            return _ctx.Registry.AllDescriptors()
-                .FirstOrDefault(x => x.Role == PageRole.Idle)
-                ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x => x.Tags.Contains("idle", StringComparer.OrdinalIgnoreCase))
-                ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x =>
-                        string.Equals(x.Name, "IdlePage", StringComparison.OrdinalIgnoreCase));
-        }
+            => IdlePageRules.Resolve(_ctx.Registry.AllDescriptors());
 
         public async Task GoIdleAsync(object args = null)
         {
@@ -790,7 +778,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 case PageReusePolicy.Transient:
                     return factory.Create(d.PageType);
 
-                case PageReusePolicy.Singleton:
+                case PageReusePolicy.StrongSingleton:
                     if (_strongCache.TryGetValue(d.PageType, out var strong) &&
                         strong != null &&
                         !strong.IsDisposed)
@@ -802,7 +790,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     _strongCache[d.PageType] = strong;
                     return strong;
 
-                case PageReusePolicy.Cached:
+                case PageReusePolicy.WeakSingleton:
                     if (_weakCache.TryGetValue(d.PageType, out var weak) &&
                         weak.TryGetTarget(out var target) &&
                         target != null &&
