@@ -58,17 +58,21 @@
 > 2. **`CrashDumpLevel` permanece em Diagnostics** (não vai pro Windows como dizia A4): é parte da API de `CrashHandlerOptions`; mover criaria ciclo. Só o *impl* (`MiniDumpWriter`) é Windows.
 > 3. `MiniDumpWriter` + `CrashSuppressor` ainda fisicamente em Diagnostics (compilam em net9.0 como PInvoke); movidos no A4. Pode haver warning CA1416 transitório em net9.0.
 
-### A4 — Criar `NekoLib.Diagnostics.Windows` (net481; net9.0-windows)
+### A4 — Criar `NekoLib.Diagnostics.Windows` (net481; net9.0-windows) ✅
 
-- [ ] Criar `src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj`
-- [ ] Mover de `NekoLib.Diagnostics`:
-  - `CrashHandler` — partes WinForms (`Application.SetUnhandledExceptionMode`, `Application.ThreadException`)
+- [x] Criar `src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj` (UseWindowsForms, ref Diagnostics)
+- [x] Mover de `NekoLib.Diagnostics` (via `git mv`, namespace → `NekoLib.Diagnostics.Windows`):
   - `MiniDumpWriter` (`dbghelp.dll` PInvoke)
   - `CrashSuppressor` (`kernel32.dll` PInvoke)
-  - `CrashDumpLevel`
-- [ ] Adicionar referência a `NekoLib.Diagnostics`
-- [ ] Registrar no `NekoLib.sln`
-- [ ] Atualizar README / CLAUDE.md com novo projeto
+- [x] Novo facade `WindowsCrash` (substitui o hook auto que vivia no CrashHandler):
+  - `UseMiniDump(this CrashHandlerOptions)` → liga `MiniDumpWriter.TryWrite` no `DumpWriter`
+  - `HookWinForms()` → `Application.SetUnhandledExceptionMode` + `ThreadException` → `CrashHandler.ReportExternalCrash`
+- [x] `CrashDumpLevel` **permanece em Diagnostics** (parte da API de options — ver desvio #2 do A3)
+- [x] Adicionar referência a `NekoLib.Diagnostics`
+- [x] Registrar no `NekoLib.sln` + atualizar CLAUDE.md
+- [ ] ⏳ Build/validação: pendente (Windows)
+
+> **Mudança de comportamento p/ apps WinForms**: o hook `Application.ThreadException` deixou de ser automático (era `#if WINFORMS` dentro do CrashHandler). Agora a app deve chamar `WindowsCrash.HookWinForms()` no startup (a ser fiado pela camada de hosting / `NekoLib`).
 
 ### A5 — Atualizar `NekoLib.Navigation` (net481; net9.0)
 

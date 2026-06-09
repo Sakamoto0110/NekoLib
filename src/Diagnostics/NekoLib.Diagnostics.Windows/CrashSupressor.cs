@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace NekoLib.Diagnostics
+namespace NekoLib.Diagnostics.Windows
 {
     /// <summary>
     /// Best-effort suppression of Windows error UI (WER dialogs / critical error popups).

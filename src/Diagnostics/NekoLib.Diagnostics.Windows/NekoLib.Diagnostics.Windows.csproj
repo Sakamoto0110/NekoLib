@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>false</ImplicitUsings>
+
+		<OutputType>Library</OutputType>
+		<AssemblyName>NekoLib.Diagnostics.Windows</AssemblyName>
+		<RootNamespace>NekoLib.Diagnostics.Windows</RootNamespace>
+
+		<!-- Assembly metadata: generated ONCE -->
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+		<!-- CRITICAL: avoid duplicate TargetFrameworkAttribute -->
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<UseWindowsForms>true</UseWindowsForms>
+		<DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+	</ItemGroup>
+
+</Project>
