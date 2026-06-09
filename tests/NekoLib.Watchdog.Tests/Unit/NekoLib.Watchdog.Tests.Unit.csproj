@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\..\src\Watchdog\NekoLib.Watchdog\NekoLib.Watchdog.csproj" />
     <ProjectReference Include="..\..\..\src\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
     <ProjectReference Include="..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
+    <!-- CrashHandler integration tests (WatchdogCrashBundleTests) use NekoLib.Diagnostics. -->
+    <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
   </ItemGroup>
 
 </Project>
