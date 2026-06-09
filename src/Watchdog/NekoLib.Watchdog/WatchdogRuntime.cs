@@ -37,8 +37,13 @@ namespace NekoLib.Watchdog
         private Thread _monitorThread;
         private Thread _hotkeyThread;
         private Thread _eventThread;
-        private Mutex _instanceMutex;
-        private bool _ownsMutex;
+        // Single-instance guard. A named Semaphore (not a Mutex) because the permit
+        // is released from whatever thread runs Stop() — often a ThreadPool thread
+        // from the "stop" RPC, not the thread that acquired it in Start(). Mutex has
+        // thread affinity and would throw on release from a foreign thread; Semaphore
+        // does not.
+        private Semaphore _instanceLock;
+        private bool _ownsInstanceLock;
 
         private PipeServer _rpc;
         private readonly IPipeMetrics _pipeMetrics;
@@ -90,12 +95,15 @@ namespace NekoLib.Watchdog
 
             _started = true;
 
-            var mutexName = @"Global\NekoLib.Watchdog::" + _o.PipeName;
+            var lockName = @"Global\NekoLib.Watchdog::" + _o.PipeName;
 
-            _instanceMutex = new Mutex(true, mutexName, out bool created);
-            _ownsMutex = created;
+            // One permit, shared across processes. Try to take it without blocking;
+            // whoever holds the permit is the live instance, regardless of who
+            // created the kernel object.
+            _instanceLock = new Semaphore(1, 1, lockName, out bool _);
+            _ownsInstanceLock = _instanceLock.WaitOne(0);
 
-            if (!created)
+            if (!_ownsInstanceLock)
             {
                 if (_o.BringToFrontOnStartIfRunning)
                     TryBringExistingTargetToFront();
@@ -187,10 +195,13 @@ namespace NekoLib.Watchdog
 
                 try
                 {
-                    if (_ownsMutex)
-                        _instanceMutex?.ReleaseMutex();
+                    if (_ownsInstanceLock)
+                    {
+                        _ownsInstanceLock = false;
+                        _instanceLock?.Release();
+                    }
 
-                    _instanceMutex?.Dispose();
+                    _instanceLock?.Dispose();
                 }
                 catch { }
 
