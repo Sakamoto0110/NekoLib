@@ -19,8 +19,12 @@ namespace NekoLib.Navigation.Metadata
         public PageReusePolicy ReusePolicy { get; set; }
             = PageReusePolicy.Transient;
 
-        public PageTimeoutPolicy TimeoutPolicy { get; set; }
-            = PageTimeoutPolicy.Inherit;
+        /// <summary>
+        /// Idle timeout in seconds for the idle page; <c>null</c> means "not declared".
+        /// Set by <c>[PageTimeout]</c> (attribute phase) or by the DSL
+        /// <c>.IdleTimeout(seconds)</c> (manual phase, which overrides the attribute).
+        /// </summary>
+        public int? IdleTimeoutSeconds { get; set; }
 
         public NavigationLoadMode LoadMode { get; set; }
             = NavigationLoadMode.ShowImmediately;
@@ -66,7 +70,7 @@ namespace NekoLib.Navigation.Metadata
                 Role,
                 Presentation,
                 ReusePolicy,
-                TimeoutPolicy,
+                IdleTimeoutSeconds,
                 LoadMode,
                 AllowAnonymous,
                 _tags.AsReadOnly(),
