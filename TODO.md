@@ -111,11 +111,27 @@
 - [ ] ⏳ Confirmar que build não quebra (warnings são aceitáveis; validação Windows)
 - [ ] Anotar APIs públicas críticas nos módulos mais usados (Navigation, Diagnostics, Data) — incremental
 
-### A8 — Validação
+### A8 — Validação ⏳ (pendente máquina Windows)
 
-- [ ] `dotnet build NekoLib.sln` — 0 erros
+- [ ] `dotnet build NekoLib.sln` — 0 erros (net9.0 pode gerar nullable warnings; net481 requer Windows)
 - [ ] `dotnet test` — todos os testes passando
-- [ ] Confirmar targets finais de cada projeto
+- [ ] Confirmar targets finais de cada projeto (ver tabela abaixo)
+
+| Projeto | Target esperado |
+|---|---|
+| NekoLib.Core | net481; net9.0 |
+| NekoLib.Logger | net481; net9.0 |
+| NekoLib.Diagnostics | net481; net9.0 |
+| NekoLib.Diagnostics.Windows | net481; net9.0-windows |
+| NekoLib.Navigation | net481; net9.0 |
+| NekoLib.Navigation.WinForms | net481; net9.0-windows |
+| NekoLib.Navigation.Wpf | net481; net9.0-windows |
+| NekoLib.Mvvm | net481; net9.0 |
+| NekoLib.Pipes | net481; net9.0 |
+| NekoLib.Watchdog | net481; net9.0-windows |
+| NekoLib.Watchdog.Host | net481; net9.0-windows |
+| NekoLib.Data | net481; net9.0 |
+| NekoLib.Devices | net481; net9.0 |
 
 ---
 
