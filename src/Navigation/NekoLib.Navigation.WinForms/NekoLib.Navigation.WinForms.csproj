@@ -7,7 +7,7 @@
 
 		<!-- Language / compiler behavior -->
 		<LangVersion>latest</LangVersion>
-		<Nullable>disable</Nullable>
+		<Nullable>enable</Nullable>
 		<ImplicitUsings>disable</ImplicitUsings>
 
 		<TargetFrameworks>net481;net9.0-windows</TargetFrameworks>

@@ -99,7 +99,7 @@
 > Novos projetos (Core, Logger, DebugUtils) nascem com nullable enable — custo zero.
 > Projetos existentes: habilitar com warnings (não errors); usar `#nullable disable` localizado em arquivos ainda não migrados; migrar incrementalmente.
 
-- [ ] Habilitar `<Nullable>enable</Nullable>` nos projetos ainda em `disable`:
+- [x] Habilitar `<Nullable>enable</Nullable>` nos projetos ainda em `disable`:
   - `NekoLib.Diagnostics`
   - `NekoLib.Devices`
   - `NekoLib.Navigation`
@@ -108,8 +108,8 @@
   - `NekoLib.Mvvm`
   - `NekoLib.Watchdog`
   - `NekoLib.Watchdog.Host`
-- [ ] Confirmar que build não quebra (warnings são aceitáveis nesta etapa)
-- [ ] Anotar APIs públicas críticas nos módulos mais usados (Navigation, Diagnostics, Data)
+- [ ] ⏳ Confirmar que build não quebra (warnings são aceitáveis; validação Windows)
+- [ ] Anotar APIs públicas críticas nos módulos mais usados (Navigation, Diagnostics, Data) — incremental
 
 ### A8 — Validação
 

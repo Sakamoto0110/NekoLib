@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFrameworks>net481;net9.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
-		<Nullable>disable</Nullable>
+		<Nullable>enable</Nullable>
 		<ImplicitUsings>true</ImplicitUsings>
 
 		<OutputType>Library</OutputType>
