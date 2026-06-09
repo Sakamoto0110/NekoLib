@@ -1,8 +1,7 @@
-using NekoLib.Diagnostics.Contracts;
-using System;
+using NekoLib.Core.Diagnostics;
 using System.Diagnostics;
 
-namespace NekoLib.Diagnostics.Sinks
+namespace NekoLib.Logger.Sinks
 {
     /// <summary>
     /// Minimal console sink for debug. Safe for net481 and net9.
@@ -11,7 +10,7 @@ namespace NekoLib.Diagnostics.Sinks
     {
         public void Write(LogEntry entry)
         {
-            if(entry == null) return;
+            if (entry == null) return;
             try
             {
                 var ex = entry.Exception == null ? "" : (" | " + entry.Exception);

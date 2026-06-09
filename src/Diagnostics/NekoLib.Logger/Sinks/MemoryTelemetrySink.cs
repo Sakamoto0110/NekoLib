@@ -1,8 +1,7 @@
-using NekoLib.Diagnostics.Contracts;
-using System;
+using NekoLib.Core.Diagnostics;
 using System.Collections.Generic;
 
-namespace NekoLib.Diagnostics.Sinks
+namespace NekoLib.Logger.Sinks
 {
     /// <summary>
     /// In-memory telemetry sink for testing / debugging.
@@ -15,13 +14,13 @@ namespace NekoLib.Diagnostics.Sinks
 
         public IReadOnlyList<TelemetryEvent> Snapshot()
         {
-            lock(_lock) return _events.ToArray();
+            lock (_lock) return _events.ToArray();
         }
 
         public void Track(TelemetryEvent evt)
         {
-            if(evt == null) return;
-            lock(_lock) _events.Add(evt);
+            if (evt == null) return;
+            lock (_lock) _events.Add(evt);
         }
     }
 }

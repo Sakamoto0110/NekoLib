@@ -1,24 +1,20 @@
-﻿using NekoLib.Diagnostics.Contracts;
+using NekoLib.Core.Diagnostics;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace NekoLib.Diagnostics
+namespace NekoLib.Logger
 {
     public sealed class Logger : ILogger
     {
         private readonly ILogSink[] _sinks;
         private readonly LogLevel _minLevel;
 
-        public Logger(LogLevel minLevel, params ILogSink[] sinks)
+        public Logger(LogLevel minLevel, params ILogSink[]? sinks)
         {
             _minLevel = minLevel;
             _sinks = sinks ?? Array.Empty<ILogSink>();
         }
 
-        public void Log(LogLevel level, string message, Exception ex = null)
+        public void Log(LogLevel level, string message, Exception? ex = null)
         {
             if (level < _minLevel)
                 return;
@@ -47,10 +43,9 @@ namespace NekoLib.Diagnostics
         public void Debug(string message) => Log(LogLevel.Debug, message);
         public void Info(string message) => Log(LogLevel.Info, message);
         public void Warn(string message) => Log(LogLevel.Warn, message);
-        public void Error(string message, Exception ex = null)
+        public void Error(string message, Exception? ex = null)
             => Log(LogLevel.Error, message, ex);
-        public void Fatal(string message, Exception ex = null)
+        public void Fatal(string message, Exception? ex = null)
             => Log(LogLevel.Fatal, message, ex);
     }
 }
-

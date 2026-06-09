@@ -28,16 +28,18 @@
 - [x] Atualizar CLAUDE.md Module Map com `NekoLib.Core`
 - [ ] ⏳ Build/validação: pendente (máquina Windows do usuário)
 
-### A2 — Criar `NekoLib.Logger` (net481; net9.0)
+### A2 — Criar `NekoLib.Logger` (net481; net9.0) ✅
 
-- [ ] Criar `src/Diagnostics/NekoLib.Logger/NekoLib.Logger.csproj`
-- [ ] Mover de `NekoLib.Diagnostics`:
+- [x] Criar `src/Diagnostics/NekoLib.Logger/NekoLib.Logger.csproj` (nullable enable, ref Core)
+- [x] Mover de `NekoLib.Diagnostics` (via `git mv`, namespace → `NekoLib.Logger` / `NekoLib.Logger.Sinks`, nullable):
   - `Logger` (implementação concreta de `ILogger`)
-  - `Diagnostics` (implementação de `IDiagnosticsContext`)
+  - `Diagnostics` (implementação de `IDiagnosticsContext`, `Diagnostics.Null`)
   - `DebugLogSink`, `MemoryTelemetrySink`
-- [ ] Adicionar referência a `NekoLib.Core`
-- [ ] Registrar no `NekoLib.sln`
-- [ ] Atualizar README / CLAUDE.md com novo projeto
+- [x] Adicionar referência a `NekoLib.Core`
+- [x] Registrar no `NekoLib.sln` (sob solution folder Diagnostics)
+- [x] Atualizar CLAUDE.md Module Map
+- [ ] ⏳ Build/validação: pendente (Windows)
+- [ ] 🔻 Consumidores a corrigir em etapas seguintes: `DiagnosticsNullTests` (`Diagnostics.Null` → `NekoLib.Logger.Diagnostics.Null`); Watchdog usa `LogEntry` (Core)
 
 ### A3 — Refatorar `NekoLib.Diagnostics` (net481; net9.0)
 
