@@ -140,36 +140,34 @@
 > Objetivo: sistema de observabilidade opt-in, custo-zero em produção, sem criar dependências cíclicas entre módulos.
 > **Não utilizar em builds finais** — hooks são no-ops quando `IDebugUtils` não está registrado.
 
-### B1 — Completar `IDebugUtils` no Core
+### B1 — Completar `IDebugUtils` no Core ✅
 
-Interface já criada como esqueleto na Fase A. Nesta etapa:
+Interface criada como esqueleto na Fase A — revisada e confirmada idêntica ao design final:
 
-- [ ] Definir `IDebugUtils` completo:
-  ```csharp
-  public interface IDebugUtils
-  {
-      bool IsEnabled { get; }
-      void Record(string module, string operation, Func<object>? payload = null);
-      IDisposable RegisterStateProvider(string module, string key, Func<object> snapshot);
-      IDisposable RegisterCommand(string module, string name, Func<object?, object?> command);
-  }
-  ```
-- [ ] Implementar `NullDebugUtils` (singleton, `IsEnabled = false`, todos os métodos são no-ops)
-- [ ] Definir `Disposable.Empty` utilitário no Core (reusável pelo `NullDebugUtils`)
+- [x] `IDebugUtils` completo (`IsEnabled`, `Record`, `RegisterStateProvider`, `RegisterCommand`)
+- [x] `NullDebugUtils` (singleton, `IsEnabled = false`, no-ops via `Disposable.Empty`)
+- [x] `Disposable.Empty` utilitário no Core
+- [ ] ⏳ Build/validação: pendente (Windows)
 
-### B2 — Criar `NekoLib.DebugUtils` (net481; net9.0)
+### B2 — Criar `NekoLib.DebugUtils` (net481; net9.0) ✅
 
 > **⏸ Pausa após esta etapa** — avaliar os pontos de hook em cada módulo antes de prosseguir para B3+.
 
-- [ ] Criar `src/DebugUtils/NekoLib.DebugUtils/NekoLib.DebugUtils.csproj`
-- [ ] Referencia apenas `NekoLib.Core`
-- [ ] Implementar `DebugUtilsRuntime : IDebugUtils`:
-  - Ring buffer de operações com capacidade configurável
-  - Dicionário de state providers por módulo/chave
-  - Dicionário de commands por módulo/nome
-  - `IsEnabled = true`
-- [ ] Registrar no `NekoLib.sln`
-- [ ] Atualizar README / CLAUDE.md com novo projeto
+- [x] Criar `src/DebugUtils/NekoLib.DebugUtils/NekoLib.DebugUtils.csproj` (net481;net9.0, nullable enable, ref só Core)
+- [x] Implementar `DebugUtilsRuntime : IDebugUtils`:
+  - Ring buffer de operações (`Queue` + lock, capacidade configurável via `DebugUtilsOptions`)
+  - Dicionário de state providers por `module::key`
+  - Dicionário de commands por `module::name`
+  - `IsEnabled = true`; thread-safe; sem keyword `record`
+  - Lado de consumo (concrete-only): `GetOperations`, `CaptureState`, `TryInvokeCommand`, `StateKeys`, `CommandKeys`
+  - `DebugOperation` (entrada imutável) + `DebugUtilsOptions` (Capacity, default 1024)
+- [x] Registrar no `NekoLib.sln` (solution folder `DebugUtils` sob `src`)
+- [x] Atualizar CLAUDE.md Module Map
+- [ ] ⏳ Build/validação: pendente (Windows / smoke-test single project)
+
+> **Decisão de design**: `IDebugUtils` é o contrato *push/register* (lado do módulo observado, sem ciclo).
+> O lado *pull/consume* (ler operações, capturar estado, invocar comando) vive como API pública só na
+> classe concreta `DebugUtilsRuntime` — quem hospeda o runtime consome; módulos só conhecem a interface no Core.
 
 ---
 
