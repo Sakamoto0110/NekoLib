@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
     <UseWindowsForms>false</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>false</ImplicitUsings>
   </PropertyGroup>

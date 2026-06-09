@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>false</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
