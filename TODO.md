@@ -86,10 +86,12 @@
   - `WatchdogLogForwardingTests.cs` + csproj: ref `NekoLib.Diagnostics` → `NekoLib.Core`
 - [ ] ⏳ Build/validação: pendente (Windows)
 
-### A6 — Projetos com mudança só no target
+### A6 — Projetos com mudança só no target ✅
 
-- [ ] `NekoLib.Mvvm`: `net9.0-windows` → `net9.0` (sem mudança de código)
-- [ ] `NekoLib.Pipes`: já `net9.0`, confirmar que não há dependência Windows oculta
+- [x] `NekoLib.Mvvm`: `net9.0-windows` → `net9.0` (`System.Windows.Input` é cross-platform desde .NET Core)
+- [x] `NekoLib.Pipes`: `net9.0-windows` → `net9.0` (sem deps Windows no código-fonte confirmado)
+- `NekoLib.Watchdog`: permanece `net9.0-windows` (Win32 PInvoke: RegisterHotKey, CreateMessageOnlyWindow, etc.)
+- CLAUDE.md Module Map corrigido para refletir targets reais de todos os módulos
 
 ### A7 — Nullable unificado
 

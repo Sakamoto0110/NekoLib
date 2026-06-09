@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -16,7 +16,7 @@
     <DefineConstants>NET481</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0-windows'">
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
     <DefineConstants>NET9</DefineConstants>
   </PropertyGroup>
 

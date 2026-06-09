@@ -58,14 +58,14 @@ There is no CI/CD pipeline — builds are manual via `dotnet` CLI or Visual Stud
 | `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | Bootstrap facade: `Neko.CreateBuilder()`, `NekoHost`, version/ID constants |
 | `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | Cross-platform crash orchestration: `CrashHandler` (AppDomain/TaskScheduler hooks, crash bundle + crash.txt + tails), pluggable `CrashDumpWriter`. OS-specific dump/WER/WinForms hooks live in `NekoLib.Diagnostics.Windows`. |
 | `NekoLib.Diagnostics.Windows` | `src/Diagnostics/NekoLib.Diagnostics.Windows/` | net481, net9.0-windows | OS-specific crash facilities: `WindowsCrash.UseMiniDump()` (dbghelp.dll), `WindowsCrash.HookWinForms()` (Application.ThreadException), `CrashSuppressor` (kernel32 WER). References `NekoLib.Diagnostics`. |
-| `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0-windows | Page lifecycle runtime (see below) |
+| `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0 | Page lifecycle runtime (see below) |
 | `NekoLib.Navigation.WinForms` | `src/Navigation/NekoLib.Navigation.WinForms/` | net481, net9.0-windows | WinForms platform adapter |
 | `NekoLib.Navigation.Wpf` | `src/Navigation/NekoLib.Navigation.Wpf/` | net481, net9.0-windows | WPF platform adapter |
 | `NekoLib.Data` | `src/Data/NekoLib.Data/` | net481, net9.0 | Provider-neutral SQL gateway with `QueryBuilder` |
-| `NekoLib.Mvvm` | `src/Mvvm/NekoLib.Mvvm/` | net481, net9.0-windows | `ViewModelBase`, `RelayCommand` |
+| `NekoLib.Mvvm` | `src/Mvvm/NekoLib.Mvvm/` | net481, net9.0 | `ViewModelBase`, `RelayCommand` |
 | `NekoLib.Devices` | `src/Devices/NekoLib.Devices/` | net481, net9.0 | Serial/hardware protocol abstraction |
 | `NekoLib.Pipes` | `src/Pipes/NekoLib.Pipes/` | net481, net9.0 | Named pipe IPC (server, client, events) |
-| `NekoLib.Watchdog` | `src/Watchdog/NekoLib.Watchdog/` | net481, net9.0 | Runtime health monitoring |
+| `NekoLib.Watchdog` | `src/Watchdog/NekoLib.Watchdog/` | net481, net9.0-windows | Runtime health monitoring (Win32 hotkeys/PInvoke) |
 
 ## Architecture & Layering Rules
 
