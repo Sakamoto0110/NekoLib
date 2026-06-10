@@ -73,10 +73,18 @@ namespace NekoLib.Devices.Core.Protocols
         /// </exception>
         public byte[] BuildCommand(HardwareOperation op)
         {
+            if(op == null)
+                throw new ArgumentNullException(nameof(op));
+
+            if(op.Args == null)
+                throw new ArgumentException("Operation arguments are required.", nameof(op));
+
             // Binary-mode
             if(op.Args.ContainsKey("RawBytes"))
             {
-                var buff = (byte[])op.Args["RawBytes"];
+                if(!(op.Args["RawBytes"] is byte[] buff))
+                    throw new ArgumentException("Arg[\"RawBytes\"] must be a byte array.", nameof(op));
+
                 Log?.Invoke(LogLevel.Debug, $"[Raw] RAW BYTES CMD: {LogUtil.Hex(buff)}");
                 return buff;
             }
@@ -84,7 +92,11 @@ namespace NekoLib.Devices.Core.Protocols
             // ASCII mode
             if(op.Args.ContainsKey("RawText"))
             {
-                var text = op.Args["RawText"]?.ToString() ?? string.Empty;
+                var value = op.Args["RawText"];
+                if(value != null && !(value is string))
+                    throw new ArgumentException("Arg[\"RawText\"] must be a string.", nameof(op));
+
+                var text = (string)value ?? string.Empty;
                 Log?.Invoke(LogLevel.Debug, $"[Raw] RAW TEXT CMD: {LogUtil.Clean(text)}");
                 return Encoding.ASCII.GetBytes(text);
             }

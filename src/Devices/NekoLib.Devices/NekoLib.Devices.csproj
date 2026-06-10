@@ -21,11 +21,6 @@
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 	</PropertyGroup>
 
-	<!-- net481 references -->
-	<ItemGroup Condition="'$(TargetFramework)' == 'net481-Windows'">
-		<Reference Include="System.IO.Ports" />
-	</ItemGroup>
-
 	<!-- net9 references -->
 	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
 		<PackageReference Include="System.IO.Ports" Version="9.0.0" />
