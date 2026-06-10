@@ -28,9 +28,11 @@ namespace NekoLib.Watchdog
         public string TargetArguments { get; set; } = "";
 
         /// <summary>
-        /// Named pipe identity for RPC + events.
+        /// Named pipe identity for RPC + events. Leave null/empty to auto-derive a
+        /// stable per-target name in <see cref="Normalize"/>; set it explicitly to
+        /// override (e.g. to run more than one watchdog for the same executable).
         /// </summary>
-        public string PipeName { get; set; } = "NekoLib.Watchdog";
+        public string PipeName { get; set; }
 
         // ============================================================
         // Logging

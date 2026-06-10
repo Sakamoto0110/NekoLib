@@ -48,6 +48,9 @@ namespace NekoLib.Watchdog.Tests.Unit
             try
             {
                 var options = WatchdogTestUtil.NewOptions(root, "/c exit 0");
+                // NewOptions assigns a unique PipeName for test isolation; clear it
+                // to exercise Normalize's auto-derive-from-target path.
+                options.PipeName = null;
                 options.Normalize();
 
                 Assert.Equal(
