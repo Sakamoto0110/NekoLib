@@ -111,7 +111,6 @@ namespace NekoLib.Watchdog
             var full = Path.GetFullPath(TargetPath);
             TargetPath = full;
 
-            PipeName = WatchdogController.ResolvePipeNameForTarget(full);
             if (!File.Exists(TargetPath))
                 throw new FileNotFoundException("Target executable not found.", TargetPath);
 
@@ -121,11 +120,9 @@ namespace NekoLib.Watchdog
 
             WorkingDirectory = Path.GetFullPath(WorkingDirectory);
 
+            // Only auto-derive PipeName when the caller left it unset.
             if (string.IsNullOrWhiteSpace(PipeName))
-            {
-                var exeName = Path.GetFileNameWithoutExtension(TargetPath);
-                PipeName = $"NekoLib.Watchdog.{exeName}";
-            }
+                PipeName = WatchdogController.ResolvePipeNameForTarget(full);
 
             if (RestartDelayMs < 200)
                 RestartDelayMs = 200;

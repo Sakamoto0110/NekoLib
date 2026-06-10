@@ -18,6 +18,9 @@ namespace NekoLib.Watchdog.Tests.Unit
                 TargetPath = CmdPath,
                 TargetArguments = args,
                 WorkingDirectory = workingDirectory,
+                // Unique name per test instance so parallel TFM runs (net481 / net9.0-windows)
+                // don't compete for the same named OS kernel object.
+                PipeName = "NekoLib.Watchdog.Test." + Guid.NewGuid().ToString("N"),
                 RestartDelayMs = 500,
                 MonitorPollMs = 50,
                 HeartbeatIntervalMs = 0,
