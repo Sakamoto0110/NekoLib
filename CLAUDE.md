@@ -183,6 +183,8 @@ adapter before a fresh `Start()`.
 
 `InternalsVisibleTo("NekoLib.Navigation.Tests.Unit")` is set in the Navigation project.
 
+**Observability bridge (opt-in):** `PageNavBootstrap.UseDebugUtils(IDebugUtils)` attaches a `DebugUtilsNavigationObserver` — a *pure subscriber* on the public `NavigationEventHub` (`Diagnostics/`), so it forwards navigation/guard events to `IDebugUtils.Record(...)` and exposes the last navigation as `Navigation::current` state **without touching the frozen `NavigationContext`**. Disabled sink (`NullDebugUtils`) ⇒ no subscription. This is the template for hooking other modules: subscribe to an existing event seam, never instrument frozen core.
+
 **Navigation tests** use fakes in `tests/NekoLib.Navigation.Tests/Unit/Fakes/`: `RuntimeTestFixture` wires a full in-memory runtime with `FakePlatformAdapter`, `FakePageHost`, and `StubPageViews`. Test naming follows `MethodName_Condition_ExpectedResult`.
 
 ## Data Module

@@ -184,7 +184,28 @@ Interface criada como esqueleto na Fase A — revisada e confirmada idêntica ao
 
 > As etapas B3–B5 serão detalhadas após avaliação dos pontos de hook na pausa de B2.
 
-### B3 — Hooks em `NekoLib.Navigation` *(pendente avaliação)*
+### B3 — Hooks em `NekoLib.Navigation` ✅ (piloto)
+
+> **Decisão-chave**: `NavigationContext` é FROZEN (CLAUDE.md + README §5). Em vez de
+> instrumentar o ciclo de vida por dentro, o hook é um **subscriber puro** no
+> `NavigationEventHub` público — zero alteração no core congelado.
+
+- [x] `DebugUtilsNavigationObserver` (em `Navigation/Diagnostics/`): assina
+  `NavigationLogged`/`GuardDenied` do hub e encaminha pra `IDebugUtils.Record`
+  (`Navigation/Navigated`, `Navigation/NavigationFailed`, `Navigation/GuardDenied`).
+  Mantém o último evento como snapshot pull-based via `RegisterStateProvider`
+  (`Navigation::current`). `IDisposable` pra desanexar; no-op quando o sink está
+  desabilitado (`NullDebugUtils`) — retorna `Disposable.Empty`, sem assinar nada.
+- [x] `PageNavBootstrap.UseDebugUtils(IDebugUtils)` — espelha `UseDiagnostics`;
+  anexa o observer no slot "Diagnostics bridge (optional)" após criar o contexto.
+- [x] Teste `DebugUtilsNavigationObserverTests` (6 casos) usando o `DebugUtilsRuntime`
+  real (end-to-end): operações Navigated/Failed/GuardDenied, state pull, dispose
+  desanexa, sink desabilitado é no-op. Refs Core + DebugUtils adicionadas ao csproj.
+- [ ] ⏳ Build/validação: pendente (Windows)
+
+> **Mental model**: a Navigation só conhece `IDebugUtils` (contrato no Core). Quem
+> hospeda o `DebugUtilsRuntime` consome via `GetOperations`/`CaptureState`. Nenhum
+> acoplamento ao runtime concreto; nenhuma dependência cíclica.
 
 ### B4 — Hooks nos demais módulos *(pendente avaliação)*
 

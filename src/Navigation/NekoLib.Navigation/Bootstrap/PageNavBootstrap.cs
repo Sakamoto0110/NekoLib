@@ -1,9 +1,11 @@
 ﻿
 using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Observability;
 using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
@@ -34,6 +36,7 @@ namespace NekoLib.Navigation.Bootstrap
         private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
 
         private IDiagnosticsContext _diagnostics;
+        private IDebugUtils? _debugUtils;
 
         private int _idleTimeoutMs;
 
@@ -97,6 +100,17 @@ namespace NekoLib.Navigation.Bootstrap
         public PageNavBootstrap UseDiagnostics(IDiagnosticsContext diagnostics)
         {
             _diagnostics = diagnostics;
+            return this;
+        }
+
+        /// <summary>
+        /// Forward navigation events into an opt-in observability sink (debug builds).
+        /// A disabled sink (e.g. <see cref="NullDebugUtils"/>) is a no-op. Events stay
+        /// available through the context event hub regardless.
+        /// </summary>
+        public PageNavBootstrap UseDebugUtils(IDebugUtils debug)
+        {
+            _debugUtils = debug;
             return this;
         }
 
@@ -378,7 +392,11 @@ namespace NekoLib.Navigation.Bootstrap
             // 7) Diagnostics bridge (optional)
             // ------------------------------------------------------------
 
-        
+            // Opt-in observability: pure subscriber on the context event hub, so the
+            // frozen NavigationContext lifecycle is untouched. No-op when disabled.
+            if (_debugUtils != null)
+                DebugUtilsNavigationObserver.Attach(context, _debugUtils);
+
             services.Register(context);
 
             // Make the framework-owned session resolvable by both its concrete
