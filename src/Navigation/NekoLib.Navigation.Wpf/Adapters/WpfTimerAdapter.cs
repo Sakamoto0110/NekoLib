@@ -1,20 +1,14 @@
-using NekoLib.Navigation.Contracts.Platform;
 using System;
 using System.Windows.Threading;
+using NekoLib.Navigation.Contracts.Platform;
 
 namespace NekoLib.Navigation.Wpf.Adapters
 {
-    public sealed class TimerAdapter : ITimerAdapter
+    public sealed class WpfTimerAdapter : ITimerAdapter
     {
         private readonly DispatcherTimer _timer;
 
         public event Action Tick;
-
-        public TimerAdapter()
-        {
-            _timer = new DispatcherTimer();
-            _timer.Tick += OnTick;
-        }
 
         public int IntervalMilliseconds
         {
@@ -22,16 +16,18 @@ namespace NekoLib.Navigation.Wpf.Adapters
             set => _timer.Interval = TimeSpan.FromMilliseconds(value);
         }
 
-        public void Start() => _timer.Start();
+        public WpfTimerAdapter(int intervalMillis = 15000)
+        {
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(intervalMillis) };
+            _timer.Tick += (_, __) => Tick?.Invoke();
+        }
 
+        public void Start() => _timer.Start();
         public void Stop() => _timer.Stop();
 
         public void Dispose()
         {
             _timer.Stop();
-            _timer.Tick -= OnTick;
         }
-
-        private void OnTick(object sender, EventArgs e) => Tick?.Invoke();
     }
 }

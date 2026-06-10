@@ -1,8 +1,9 @@
 ﻿// FILE: PageNav.Core/Services/NavigationService.cs
 using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Infrastructure;
+using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
+using NekoLib.Navigation.Runtime.History;
 using NekoLib.Navigation.Runtime.Session;
 
 using System;
@@ -11,8 +12,10 @@ using System.Threading.Tasks;
 namespace NekoLib.Navigation 
 {
     /// <summary>
-    /// Thin static facade over a default NavigationContext.
-    /// Keeps legacy call sites working while the framework becomes instance-based.
+    /// Static facade over the active navigation context created by
+    /// <see cref="Bootstrap.PageNavBootstrap.Start"/>. This is the intended
+    /// application-facing entrypoint for view-models and code-behind after
+    /// bootstrap has completed.
     /// </summary>
     public static partial class NavigationService
     {
@@ -32,6 +35,18 @@ namespace NekoLib.Navigation
         /// </summary>
         public static NavigationSession Session => EnsureContext().Session;
 
+        /// <summary>Back/forward stacks for the active context.</summary>
+        public static NavigationHistory History => EnsureContext().History;
+
+        /// <summary>True when there is at least one entry on the back-stack.</summary>
+        public static bool CanGoBack => EnsureContext().History.CanGoBack;
+
+        /// <summary>
+        /// Navigation diagnostics hub (NavigationLogged / GuardDenied). Use this
+        /// instead of holding a reference to the NavigationContext just to subscribe.
+        /// </summary>
+        public static NavigationEventHub Events => EnsureContext().Events;
+
         private static NavigationContext EnsureContext()
         {
             if (_context == null)
@@ -45,8 +60,8 @@ namespace NekoLib.Navigation
         // -------------------------------------------------------------------------
         // These are static events, which means every subscriber is a GC root for
         // the AppDomain lifetime unless it unsubscribes explicitly (L-4).
-        // Shutdown() nulls all of them so that a login/logout cycle (UseContext →
-        // Shutdown → UseContext) releases all subscribers without requiring callers
+        // Shutdown() nulls all of them so that a login/logout cycle (UseContext ->
+        // Shutdown -> UseContext) releases all subscribers without requiring callers
         // to unsubscribe manually. Callers that span multiple sessions SHOULD still
         // unsubscribe when they no longer need the events, but a missed unsubscribe
         // will not leak past the next Shutdown() call.
@@ -64,7 +79,7 @@ namespace NekoLib.Navigation
         // INIT / SHUTDOWN
         // -------------------------------------------------------------------------
 
-        public static void UseContext(NavigationContext context)
+        internal static void UseContext(NavigationContext context)
         {
             // Release-safe guards (S-2). Initializing twice without Shutdown() would
             // leak the previous runtime's event subscriptions and services, so this
@@ -92,9 +107,6 @@ namespace NekoLib.Navigation
 
             _context = null;
 
-            // Allow a new adapter to be registered in the next session (S-1).
-            PlatformRegistry.Reset();
-
             // Release all external subscribers so they are not kept alive past this
             // session. A subsequent UseContext() starts with a clean slate (L-4).
             Navigating = null;
@@ -111,29 +123,49 @@ namespace NekoLib.Navigation
         // PUBLIC API (forwarders)
         // -------------------------------------------------------------------------
 
+        /// <summary>Navigate to a registered page and pass an optional payload.</summary>
         public static Task SwitchPage<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Default(args));
 
+        /// <summary>Navigate to a registered page type and pass an optional payload.</summary>
         public static Task SwitchPage(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Default(args));
 
+        /// <summary>
+        /// Navigate through the transient entrypoint. The target page lifetime is
+        /// still controlled by the registered page reuse policy.
+        /// </summary>
         public static Task SwitchTransient<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Transient(args));
 
+        /// <summary>Navigate through the transient entrypoint using a runtime page type.</summary>
         public static Task SwitchTransient(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Transient(args));
 
 
 
+        /// <summary>Navigate to the configured idle page if one can be resolved.</summary>
         public async static Task GoIdleAsync() => await EnsureRuntime().GoIdleAsync();
+
+        /// <summary>Navigate to the most recent back-stack entry, if any.</summary>
         public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
+
+        /// <summary>
+        /// Tears down every page (current, cached, overlays), clears history, and
+        /// leaves the runtime ready to navigate again. The context, session and
+        /// adapter stay alive; use <see cref="Shutdown"/> if you want a full
+        /// teardown.
+        /// </summary>
+        public static Task ResetAsync() => EnsureRuntime().ResetAsync();
 
         // ------------------------------------------------------------
         // Toast (fire-and-forget, ephemeral)
         // ------------------------------------------------------------
 
+        /// <summary>Show a non-blocking toast surface.</summary>
         public static void ShowToast<TToast>(object payload = null, int durationMs = 3000)
             where TToast : class, IToastView
         {
             EnsureRuntime().ShowToast<TToast>(payload, durationMs);
         }
 
+        /// <summary>Dismiss the current toast, if one is visible.</summary>
         public static void DismissCurrentToast()
         {
             EnsureRuntime().DismissCurrentToast();
@@ -143,6 +175,7 @@ namespace NekoLib.Navigation
         // Dialog (modal, binary outcome -> bool)
         // ------------------------------------------------------------
 
+        /// <summary>Show a modal binary dialog and await its confirm/cancel result.</summary>
         public static Task<bool> ShowDialogAsync<TDialog>(object payload = null)
             where TDialog : class, IDialogView
         {
@@ -153,10 +186,22 @@ namespace NekoLib.Navigation
         // Prompt (modal, typed user input)
         // ------------------------------------------------------------
 
+        /// <summary>Show a modal prompt and await its typed result.</summary>
         public static Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
             where TPrompt : class, IPromptView<TResult>
         {
             return EnsureRuntime().ShowPromptAsync<TPrompt, TResult>(payload);
+        }
+
+        // ------------------------------------------------------------
+        // Popover (non-blocking, light-dismiss via IUnfocusAware)
+        // ------------------------------------------------------------
+
+        /// <summary>Show a non-blocking popover and await its completion result.</summary>
+        public static Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+            where TPopover : class, IPopoverView
+        {
+            return EnsureRuntime().ShowPopoverAsync<TPopover>(payload);
         }
 
 

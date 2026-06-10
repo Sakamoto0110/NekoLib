@@ -1,41 +1,64 @@
-﻿//// FILE: PageNav.Toolkit.Wpf/WpfNavigationSurface.cs
-//using System.Windows;
-//using System.Windows.Media;
-//using System.Windows.Shapes;
+using System;
+using System.Windows;
+using System.Windows.Media;
+using NekoLib.Navigation.Toolkit.Abstractions;
+using NekoLib.Navigation.Toolkit.Models;
+using DrawingPoint = System.Drawing.Point;
+using DrawingRectangle = System.Drawing.Rectangle;
 
-//namespace PageNav.Toolkit.Wpf
-//{
-//    public sealed class WpfNavigationSurface : INavigationSurface
-//    {
-//        private readonly FrameworkElement _host;
+namespace NekoLib.Navigation.Wpf.Toolkit
+{
+    /// <summary>
+    /// Read-only view of a WPF <see cref="FrameworkElement"/> as the navigation
+    /// surface. Reports its render-size bounds, DPI scale, visibility/enabled
+    /// state, and resolves named anchor points used to position overlays.
+    /// </summary>
+    public sealed class WpfNavigationSurface : INavigationSurface
+    {
+        private readonly FrameworkElement _host;
 
-//        public WpfNavigationSurface(FrameworkElement host)
-//        {
-//            _host = host;
-//        }
+        public WpfNavigationSurface(FrameworkElement host)
+        {
+            _host = host ?? throw new ArgumentNullException(nameof(host));
+        }
 
-//        public Rectangle ClientBounds
-//        {
-//            get { var r = new Rectangle();
-//                r.w }
+        public DrawingRectangle ClientBounds => new DrawingRectangle(
+            0,
+            0,
+            (int)_host.ActualWidth,
+            (int)_host.ActualHeight);
 
-//        }
-            
+        public float Scale
+        {
+            get
+            {
+                var src = PresentationSource.FromVisual(_host);
+                return (float?)src?.CompositionTarget?.TransformToDevice.M11 ?? 1f;
+            }
+        }
 
-//        public Point Anchor =>
-//            new Point(
-//                (int)(_host.ActualWidth / 2),
-//                (int)(_host.ActualHeight / 2));
+        public bool IsActive => _host.IsVisible && _host.IsEnabled;
 
-//        public float Scale
-//        {
-//            get
-//            {
-//                var src = PresentationSource.FromVisual(_host);
-//                return src?.CompositionTarget?.TransformToDevice.M11 ?? 1f;
-//            }
-//        }
+        public DrawingPoint ResolveAnchor(SurfaceAnchor anchor)
+        {
+            int w = (int)_host.ActualWidth;
+            int h = (int)_host.ActualHeight;
+            int midX = w / 2;
+            int midY = h / 2;
 
-//        public bool IsActive => _host.IsVisible && _host.IsEnabled;
-//    }
-//}
+            return anchor switch
+            {
+                SurfaceAnchor.TopLeft => new DrawingPoint(0, 0),
+                SurfaceAnchor.TopCenter => new DrawingPoint(midX, 0),
+                SurfaceAnchor.TopRight => new DrawingPoint(w, 0),
+                SurfaceAnchor.CenterLeft => new DrawingPoint(0, midY),
+                SurfaceAnchor.Center => new DrawingPoint(midX, midY),
+                SurfaceAnchor.CenterRight => new DrawingPoint(w, midY),
+                SurfaceAnchor.BottomLeft => new DrawingPoint(0, h),
+                SurfaceAnchor.BottomCenter => new DrawingPoint(midX, h),
+                SurfaceAnchor.BottomRight => new DrawingPoint(w, h),
+                _ => new DrawingPoint(midX, midY),
+            };
+        }
+    }
+}

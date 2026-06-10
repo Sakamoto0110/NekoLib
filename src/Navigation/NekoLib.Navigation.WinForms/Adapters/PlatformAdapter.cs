@@ -58,5 +58,8 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
             return new WinFormsInteractionObserver(control);
         }
+
+        public IFocusObserverAdapter CreateFocusObserver(object nativeHost)
+            => new WinFormsFocusObserverAdapter();
     }
 }

@@ -57,32 +57,38 @@ NavigationContext is the **only component allowed** to invoke lifecycle methods.
 
 ## 3. Folder responsibilities
 
-### Core/Abstractions
+### Contracts/
 Pure contracts. No logic. No platform assumptions.
 
-### Core/Models
-DTO-like structures and enums. No behavior.
+### Metadata/
+DTO-like structures, attributes, and enums. No behavior.
 
-### Core/Services
-Navigation runtime, registry, cleanup, timeout, history.
+### Runtime/
+Navigation runtime, registry, factories, services, history, session.
 
-### Core/Infrastructure
-Low-level helpers (ServiceLocator, PlatformRegistry).
+### Diagnostics/
+Navigation tracing + optional bridge to NekoLib.Diagnostics.
 
-### Diagnostics
-Leak detection, lifecycle tracking, navigation tracing.
+### Toolkit/
+Optional surface positioning abstractions (anchors). Not required by Core.
 
 ---
 
-## 4. What still needs *real* documentation
+## 4. Overlay primitives (Toast / Dialog / Prompt / Popover)
 
-The following files have XML TODO headers and should be documented next:
+| Primitive | Blocks input? | Auto-dismiss | Return |
+|-----------|---------------|--------------|--------|
+| `IToastView` / `IToastService` | no | timer (+ tap) | `void` |
+| `IDialogView` / `IDialogService` | **yes** | — | `Task<bool>` |
+| `IPromptView<TResult>` / `IPromptService` | **yes** | — | `Task<TResult>` |
+| `IPopoverView` / `IPopoverService` | no | on focus loss (via `IUnfocusAware`) | `Task<bool>` |
 
-- NavigationContext.cs (lifecycle + threading guarantees)
-- PageRegistry.cs (attribute reference + cache rules)
-- IPlatformAdapter.cs (implementation guide)
-- IPageOverlayService.cs (modal vs non-modal rules)
-- PageTimeoutController.cs (state machine + timing)
+Dialog is binary by definition; for 3+ outcomes use `IPromptView<TEnum>`.
+Popover stays open until the view calls its completion, OR — if it implements
+`IUnfocusAware` — the platform's `IFocusObserverAdapter` fires unfocus and the
+view's `OnUnfocusAsync` resolves the awaiter. WinForms ships
+`PopoverViewBase` (manual close only) and `AutoDismissPopoverBase` (auto-close
+on unfocus) so subclasses don't repeat the wiring.
 
 ---
 
@@ -94,7 +100,6 @@ Do not casually modify:
 - PageRegistry
 - PageFactory
 - PageLifecycleCleanupService
-- PlatformRegistry
 
 Extensions should live outside Core.
 
@@ -103,24 +108,28 @@ Extensions should live outside Core.
 ## 6. Typical initialization (example)
 
 ```csharp
-var ctx = PageNavBootstrap
-    .Use(this, new WinFormsPlatformAdapter())
-    .RegisterPagesFromAssembly(typeof(MainPage).Assembly)
+PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(this)
+    .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
     .ConfigurePages(cfg =>
     {
         cfg.Page<IdlePage>().AsIdle().StrongSingleton();
-        cfg.Page<AdminPage>().AsModal().StrongSingleton();
+        cfg.Page<AdminPage>().StrongSingleton();
     })
-    .Timeout(10)
+    .UseIdleTimeout(10_000)
     .Start();
 ```
+
+`Start()` auto-mounts the context onto the static `NavigationService` facade,
+so view-models can call `NavigationService.SwitchPage<T>()` immediately after.
+The returned `NavigationContext` is optional — useful only for tests or for
+subscribers that want `context.Events` / `context.History`.
 
 ---
 
 ## 7. Next logical steps
 
-1. Add Bootstrap layer permanently
-2. Implement WinForms/WPF adapters
-3. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
+1. Build DM extension layer (virtual keyboard, dialogs, kiosk rules)
+2. Anchor-positioned popover convenience (e.g. attach to a clicked control)
 
 This snapshot intentionally favors **clarity over cleverness**.

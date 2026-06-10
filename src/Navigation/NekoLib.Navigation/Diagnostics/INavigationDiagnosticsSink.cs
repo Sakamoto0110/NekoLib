@@ -9,8 +9,5 @@ namespace NekoLib.Navigation.Diagnostics
     {
         void OnNavigation(PageLogEntry entry);
         void OnGuardDenied(GuardDeniedEvent e);
-        void OnInfo(string message);
-        void OnWarn(string message);
-        void OnError(string message, System.Exception? ex = null);
     }
 }

@@ -4,7 +4,6 @@ using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
-using NekoLib.Navigation.Infrastructure;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime.Core;
 using NekoLib.Navigation.Runtime.Factories;
@@ -22,19 +21,17 @@ namespace NekoLib.Navigation.Bootstrap
    
 
     /// <summary>
-    /// Fluent bootstrap to initialize PageNav in 1–3 lines,
-    /// while still allowing hybrid registration (attributes + manual tweaks).
+    /// Fluent bootstrap for creating a navigation context, registering pages,
+    /// wiring platform services, and mounting the static <c>NavigationService</c>
+    /// facade.
     /// </summary>
     public sealed class PageNavBootstrap
     {
         private readonly object _nativeHost;
         private readonly IPlatformAdapter _platform;
-        private Assembly _pagesAssembly;
         private PageRegistry _registry;
         private Action<PageMetadataBuilder>? _pageConfig;
         private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
-
-        private int _timeoutSeconds = 10;
 
         private IDiagnosticsContext _diagnostics;
 
@@ -62,20 +59,19 @@ namespace NekoLib.Navigation.Bootstrap
 
 
         /// <summary>
-        /// Use a specific platform adapter (WinForms/WPF/etc). You can call this multiple
-        /// times across app startup, but resolution locks at first context creation.
+        /// Start a bootstrap chain with a concrete platform adapter such as
+        /// <c>WinFormsPlatformAdapter</c> or <c>WpfPlatformAdapter</c>.
         /// </summary>
         public static PageNavBootstrap Use<TPlatform>(object nativeHost) where TPlatform : IPlatformAdapter, new()
         {
             var adapter = new TPlatform();
-            PlatformRegistry.Register(adapter);
-             
-            return new PageNavBootstrap(nativeHost,adapter);
+            return new PageNavBootstrap(nativeHost, adapter);
         }
       
 
         /// <summary>
-        /// If you already registered adapters manually, use this.
+        /// Start a bootstrap chain when the platform adapter is supplied through
+        /// a previously registered platform mechanism.
         /// </summary>
         public static PageNavBootstrap UseRegistered(object nativeHost)
             => new PageNavBootstrap(nativeHost);
@@ -84,14 +80,20 @@ namespace NekoLib.Navigation.Bootstrap
         // Configuration
         // --------------------------------------------------------------------
 
-        
-
+        /// <summary>
+        /// Use a prebuilt registry instead of assembly scanning/manual page
+        /// configuration. Page configuration methods cannot be combined with this.
+        /// </summary>
         public PageNavBootstrap UseRegistry(PageRegistry registry)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             return this;
         }
 
+        /// <summary>
+        /// Bridge navigation diagnostics into the provided diagnostics context.
+        /// Local navigation events are still available through the context/event hub.
+        /// </summary>
         public PageNavBootstrap UseDiagnostics(IDiagnosticsContext diagnostics)
         {
             _diagnostics = diagnostics;
@@ -102,7 +104,7 @@ namespace NekoLib.Navigation.Bootstrap
         /// Return to the idle page after <paramref name="milliseconds"/> ms without
         /// any user interaction; also signs the framework-owned session out so
         /// guards re-evaluate on the next attempt. The bootstrap wires the
-        /// platform interaction observer and timer adapter automatically — no
+        /// platform interaction observer and timer adapter automatically; no
         /// consumer code is required.
         /// <para>
         /// The idle page is resolved through the standard registry mechanism:
@@ -125,7 +127,7 @@ namespace NekoLib.Navigation.Bootstrap
         /// <para>
         /// Throws if called more than once on the same bootstrap, or if a
         /// <c>.AsIdle()</c> call in <see cref="ConfigurePages(System.Action{PageBuilderConfigurator})"/>
-        /// targets a different page — the idle page is exclusive, and split
+        /// targets a different page. The idle page is exclusive, and split
         /// declarations make navigation behaviour non-obvious.
         /// </para>
         /// </summary>
@@ -140,7 +142,8 @@ namespace NekoLib.Navigation.Bootstrap
         }
 
         /// <summary>
-        /// Auto-register pages by scanning an assembly for IPageView + [PageBehavior] metadata.
+        /// Auto-register pages by scanning an assembly for <c>IPageView</c>
+        /// implementations and page metadata attributes.
         /// </summary>
         public PageNavBootstrap RegisterPagesFromAssembly(Assembly asm)
         {
@@ -150,7 +153,7 @@ namespace NekoLib.Navigation.Bootstrap
  
 
         /// <summary>
-        /// Optional: add/override services before ServiceLocator gets locked.
+        /// Add application-specific services before the runtime service locator is locked.
         /// </summary>
         public PageNavBootstrap ConfigureServices(Action<ServiceLocator,IPlatformAdapter> configure)
         {
@@ -159,7 +162,7 @@ namespace NekoLib.Navigation.Bootstrap
         }
         // 
         /// <summary>
-        /// Manual tweaks after attribute defaults. (Hybrid mode) 🔹 Lambda API
+        /// Apply manual page metadata overrides after attribute defaults.
         /// </summary>
         public PageNavBootstrap ConfigurePages(Action<PageMetadataBuilder> configure)
         {
@@ -168,7 +171,7 @@ namespace NekoLib.Navigation.Bootstrap
         }
         // 
         /// <summary>
-        /// Manual tweaks after attribute defaults. (Hybrid mode) 🔹 Fluent DSL API
+        /// Apply manual page metadata overrides through the fluent page DSL.
         /// </summary>
         // 
         public PageNavBootstrap ConfigurePages(Action<PageBuilderConfigurator> configureDsl)
@@ -186,6 +189,11 @@ namespace NekoLib.Navigation.Bootstrap
         // --------------------------------------------------------------------
         private readonly List<Assembly> _assemblies = new();
          
+        /// <summary>
+        /// Build the registry and runtime services, lock the service locator, wire
+        /// optional idle timeout, mount <c>NavigationService</c>, and return the
+        /// created context.
+        /// </summary>
         public NavigationContext Start()
         {
             // ------------------------------------------------------------
@@ -231,7 +239,7 @@ namespace NekoLib.Navigation.Bootstrap
                 // Enforce: at most one page can be tagged Role=Idle. Multiple
                 // declarations (e.g. SetIdle<X>() + ConfigurePages(cfg =>
                 // cfg.Page<Y>().AsIdle())) leave the runtime to pick one
-                // arbitrarily — better to fail loud at bootstrap time.
+                // arbitrarily; better to fail loud at bootstrap time.
                 var idlePages = registry.AllDescriptors()
                     .Where(d => d.Role == PageRole.Idle)
                     .ToList();
@@ -244,6 +252,29 @@ namespace NekoLib.Navigation.Bootstrap
                         "and never targeting different pages.");
                 }
             }
+
+            // ------------------------------------------------------------
+            // 1b) Resolve the idle page and validate [PageTimeout] placement
+            //
+            // The idle timeout (seconds) is the *inactivity* timeout, so it is
+            // declared on the idle page itself. Any other page carrying a timeout
+            // is a configuration mistake — fail loud instead of silently ignoring
+            // it (the timeout would never fire, since only the idle descriptor's
+            // value is read below).
+            // ------------------------------------------------------------
+            var allDescriptors = registry.AllDescriptors().ToList();
+            var idleDescriptor = IdlePageRules.Resolve(allDescriptors);
+
+            foreach (var d in allDescriptors)
+            {
+                if (d.IdleTimeoutSeconds.HasValue && !ReferenceEquals(d, idleDescriptor))
+                    throw new InvalidOperationException(
+                        $"Page '{d.PageType.FullName}' declares an idle timeout " +
+                        $"({d.IdleTimeoutSeconds}s) but is not the idle page. Declare the " +
+                        "timeout on the idle page (PageRole.Idle, an 'idle' tag, or a name " +
+                        "containing 'Idle'), or use UseIdleTimeout(ms) for the global timeout.");
+            }
+
             // ------------------------------------------------------------
             // 2) Validate platform
             // ------------------------------------------------------------
@@ -286,6 +317,10 @@ namespace NekoLib.Navigation.Bootstrap
             if (subscriber != null)
                 services.Register(typeof(IEventSubscriptionAdapter), subscriber);
 
+            var focusObserver = _platform.CreateFocusObserver(_nativeHost);
+            if (focusObserver != null)
+                services.Register(typeof(IFocusObserverAdapter), focusObserver);
+
            
              
 
@@ -317,6 +352,9 @@ namespace NekoLib.Navigation.Bootstrap
 
             var promptService = new PromptService(viewHost, pageFactory, modalBlocker);
             services.Register(typeof(IPromptService), promptService);
+
+            var popoverService = new PopoverService(viewHost, pageFactory, focusObserver);
+            services.Register(typeof(IPopoverService), popoverService);
             // --- SAFE FALLBACK INJECTION ---
            
 
@@ -344,7 +382,7 @@ namespace NekoLib.Navigation.Bootstrap
             services.Register(context);
 
             // Make the framework-owned session resolvable by both its concrete
-            // type and the IUserContext contract guards consume. Same instance —
+            // type and the IUserContext contract guards consume. Same instance:
             // mutating context.Session is immediately visible to any service or
             // guard that resolves it from the locator.
             services.Register(typeof(NavigationSession), context.Session);
@@ -356,19 +394,28 @@ namespace NekoLib.Navigation.Bootstrap
             services.Lock();
 
             // ------------------------------------------------------------
-            // 11) Optional idle timeout (UseIdleTimeout)
+            // 11) Optional idle timeout
             //
             // Wires the platform interaction observer + timer adapter so any
-            // period without UI input longer than _idleTimeoutMs returns to
-            // the idle page and signs the built-in session out. The consumer
+            // period without UI input longer than the effective interval returns
+            // to the idle page and signs the built-in session out. The consumer
             // writes no timer/observer/session code.
+            //
+            // Effective interval (idle page wins, global is fallback):
+            //   idle page [PageTimeout]/.IdleTimeout(seconds)  ->  UseIdleTimeout(ms).
+            // A timeout declared on the idle page also enables the timer on its
+            // own, so UseIdleTimeout(ms) is not required when the idle page sets one.
             // ------------------------------------------------------------
-            if (_idleTimeoutMs > 0 &&
+            int effectiveIdleMs = _idleTimeoutMs;
+            if (idleDescriptor?.IdleTimeoutSeconds is int idleSeconds && idleSeconds > 0)
+                effectiveIdleMs = idleSeconds * 1000;
+
+            if (effectiveIdleMs > 0 &&
                 services.CanResolve(typeof(IInteractionObserverService)))
             {
                 var idleObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
                 var idleTimer = _platform.CreateTimerAdapter();
-                idleTimer.IntervalMilliseconds = _idleTimeoutMs;
+                idleTimer.IntervalMilliseconds = effectiveIdleMs;
 
                 idleObserver.InteractionDetected += () =>
                 {
@@ -392,10 +439,13 @@ namespace NekoLib.Navigation.Bootstrap
                 idleTimer.Start();
             }
 
+            // Auto-mount on the facade so consumers don't need a second
+            // NavigationService.UseContext(ctx) step. Tests of the bootstrap
+            // itself MUST call NavigationService.Shutdown() in teardown so the
+            // next test starts clean (UseContext throws on double-mount).
+            NavigationService.UseContext(context);
+
             return context;
-
-
-
         }
 
 

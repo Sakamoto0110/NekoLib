@@ -6,6 +6,7 @@ using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
+using NekoLib.Navigation.Runtime;
 using NekoLib.Navigation.Runtime.Factories;
 using System;
 using System.Collections.Generic;
@@ -25,6 +26,7 @@ namespace NekoLib.Navigation.Runtime.Core
         private IToastService _toastService;
         private IDialogService _dialogService;
         private IPromptService _promptService;
+        private IPopoverService _popoverService;
 
         private readonly HashSet<IPageView> _attachedPages = new HashSet<IPageView>();
         private readonly HashSet<IPageView> _visiblePages = new HashSet<IPageView>();
@@ -57,7 +59,6 @@ namespace NekoLib.Navigation.Runtime.Core
         public event Action<IPageView, Type, Exception> NavigationFailed;
         public event Action<IPageView> CurrentChanged;
         public event Action HistoryChanged;
-        public event Action TimeoutReached;
         public event Action<IPageView> OnFirstPageAttached;
         public event Action OnNoPageAttached;
         public event Action OnNoPageVisible;
@@ -94,23 +95,11 @@ namespace NekoLib.Navigation.Runtime.Core
             _dispatcher = (IEventDispatcherAdapter)services.Get(typeof(IEventDispatcherAdapter));
         }
 
+        // Resolution priority (role -> "idle" tag -> name contains "idle") lives in
+        // IdlePageRules so the bootstrap's idle-timeout wiring and [PageTimeout]
+        // placement validation share the exact same notion of "the idle page".
         private PageDescriptor ResolveIdleDescriptor()
-        {
-            // 1) Explicit metadata: PageRole.Idle (set via .AsIdle()).
-            // 2) Convention tag: "idle".
-            // 3) Name convention: any registered page whose Name is "IdlePage" —
-            //    lets timeouts / GoIdleAsync work when the consumer forgets to
-            //    call .AsIdle(). "MainPage" is deliberately NOT a fallback: a
-            //    main page can be a hub of options that is distinct from the
-            //    idle page the runtime drops back to on inactivity.
-            return _ctx.Registry.AllDescriptors()
-                .FirstOrDefault(x => x.Role == PageRole.Idle)
-                ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x => x.Tags.Contains("idle", StringComparer.OrdinalIgnoreCase))
-                ?? _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x =>
-                        string.Equals(x.Name, "IdlePage", StringComparison.OrdinalIgnoreCase));
-        }
+            => IdlePageRules.Resolve(_ctx.Registry.AllDescriptors());
 
         public async Task GoIdleAsync(object args = null)
         {
@@ -156,6 +145,11 @@ namespace NekoLib.Navigation.Runtime.Core
             if (_promptService == null && services.CanResolve(typeof(IPromptService)))
             {
                 _promptService = (IPromptService)services.Get(typeof(IPromptService));
+            }
+
+            if (_popoverService == null && services.CanResolve(typeof(IPopoverService)))
+            {
+                _popoverService = (IPopoverService)services.Get(typeof(IPopoverService));
             }
         }
 
@@ -352,6 +346,17 @@ namespace NekoLib.Navigation.Runtime.Core
             return RunOnUiAsync(() => _promptService.ShowPromptAsync<TPrompt, TResult>(payload));
         }
 
+        internal Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+            where TPopover : class, IPopoverView
+        {
+            EnsureRuntimeServices();
+
+            if (_popoverService == null)
+                throw new InvalidOperationException("IPopoverService is not registered.");
+
+            return RunOnUiAsync(() => _popoverService.ShowPopoverAsync<TPopover>(payload));
+        }
+
         public Task ResetAsync()
         {
             return ExecuteAsync(async () =>
@@ -420,6 +425,7 @@ namespace NekoLib.Navigation.Runtime.Core
             _toastService?.DismissCurrentToast();
             _dialogService?.CloseAll();
             _promptService?.CloseAll();
+            _popoverService?.CloseAll();
         }
 
         // ---------------------------------------------------------------------
@@ -470,12 +476,15 @@ namespace NekoLib.Navigation.Runtime.Core
             IPageView to = null;
             PageDescriptor toDesc = null;
             PageDescriptor fromDesc = null;
+            var stage = NavigationFailureKind.PageNotRegistered;
 
             try
             {
                 if (!_ctx.Registry.TryGetDescriptor(pageType, out toDesc))
                     throw new InvalidOperationException(
                         $"Type '{pageType.FullName}' is not a registered page.");
+
+                stage = NavigationFailureKind.PageCreationFailed;
 
                 var canonicalPageType = toDesc.PageType;
 
@@ -584,8 +593,11 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (toDesc.LoadMode == NavigationLoadMode.LoadBeforeShow)
                 {
+                    stage = NavigationFailureKind.LoadFailed;
                     await LoadAsync(to, navArgs.Payload);
                 }
+
+                stage = NavigationFailureKind.LifecycleFailed;
 
                 // Hide base page
                 if (from is IPageVisibility fromVis)
@@ -643,7 +655,9 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 if (toDesc.LoadMode == NavigationLoadMode.ShowImmediately)
                 {
+                    stage = NavigationFailureKind.LoadFailed;
                     await LoadAsync(to, navArgs.Payload);
+                    stage = NavigationFailureKind.LifecycleFailed;
                 }
                 else if (toDesc.LoadMode == NavigationLoadMode.LoadInBackground)
                 {
@@ -682,59 +696,9 @@ namespace NekoLib.Navigation.Runtime.Core
             catch (Exception ex)
             {
                 NavigationFailed?.Invoke(from, pageType, ex);
-                _diagnostics.EmitFailure(from, to, navArgs, desc: toDesc);
+                _diagnostics.EmitFailure(from, to, navArgs, kind: stage, error: ex.Message, desc: toDesc);
                 throw;
             }
-        }
-
-        // Keep a sync signature if something calls it, but route to safe async path.
-        private void OnTimeout()
-        {
-            // Observe faults so a poisoned gate or guard failure doesn't vanish via the
-            // discarded task (A-7).
-            _ = OnTimeoutAsync().ContinueWith(
-                t => System.Diagnostics.Debug.WriteLine(
-                    $"[NavigationRuntime] Timeout navigation failed: {t.Exception}"),
-                TaskContinuationOptions.OnlyOnFaulted);
-        }
-
-        private Task OnTimeoutAsync()
-        {
-            return ExecuteAsync(async () =>
-            {
-                TimeoutReached?.Invoke();
-
-                var current = Current;
-
-                if (current != null &&
-                    _ctx.Registry.TryGetDescriptor(current.GetType(), out var desc))
-                {
-                    switch (desc.TimeoutPolicy)
-                    {
-                        case PageTimeoutPolicy.Disabled:
-                            return;
-
-                        case PageTimeoutPolicy.IsTimeoutTarget:
-                            return; // already at timeout page
-
-                        case PageTimeoutPolicy.ResetOnEnter:
-                        case PageTimeoutPolicy.Inherit:
-                        default:
-                            break;
-                    }
-                }
-
-                var timeoutTarget = _ctx.Registry.AllDescriptors()
-                    .FirstOrDefault(x => x.TimeoutPolicy == PageTimeoutPolicy.IsTimeoutTarget);
-
-                if (timeoutTarget == null)
-                    timeoutTarget = ResolveIdleDescriptor();
-
-                if (timeoutTarget == null)
-                    return;
-
-                await SwitchInternalAsync(timeoutTarget.PageType, NavigationArgs.Default());
-            });
         }
 
         // Fire-and-forget wrapper for LoadInBackground. Never lets a background-load
@@ -748,7 +712,7 @@ namespace NekoLib.Navigation.Runtime.Core
             }
             catch (Exception ex)
             {
-                _diagnostics.EmitFailure(page, page, NavigationArgs.Empty, desc: null);
+                _diagnostics.EmitFailure(page, page, NavigationArgs.Empty, kind: NavigationFailureKind.LoadFailed, error: ex.Message, desc: null);
                 System.Diagnostics.Debug.WriteLine(
                     $"[NavigationRuntime] Background load failed for '{page?.GetType().FullName}': {ex}");
             }
@@ -814,7 +778,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 case PageReusePolicy.Transient:
                     return factory.Create(d.PageType);
 
-                case PageReusePolicy.Singleton:
+                case PageReusePolicy.StrongSingleton:
                     if (_strongCache.TryGetValue(d.PageType, out var strong) &&
                         strong != null &&
                         !strong.IsDisposed)
@@ -826,7 +790,7 @@ namespace NekoLib.Navigation.Runtime.Core
                     _strongCache[d.PageType] = strong;
                     return strong;
 
-                case PageReusePolicy.Cached:
+                case PageReusePolicy.WeakSingleton:
                     if (_weakCache.TryGetValue(d.PageType, out var weak) &&
                         weak.TryGetTarget(out var target) &&
                         target != null &&

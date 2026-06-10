@@ -1,20 +1,19 @@
-using NekoLib.Navigation.Contracts.Pages;
-using NekoLib.Navigation.Metadata.Attributes;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Metadata.Attributes;
 
 namespace NekoLib.Navigation.Wpf.Defaults
 {
     /// <summary>
-    /// Default loading mask. Renders as a dimmed overlay that fills the host Panel and
-    /// shows a centered message while a load is in progress.
+    /// Default WPF loading mask. Dimmed scrim with a centered message; participates
+    /// in the IPageOverlay lifecycle so the runtime can set the message via payload.
     /// </summary>
     [PageMetadata(Name = "DefaultLoadingMask")]
     public class DefaultLoadingMask : UserControl, IGlobalLoadingMask
     {
-        // Fulfill the IPageView contract manually (UserControl is not IDisposable).
         public object NativeView => this;
         public bool IsDisposed { get; private set; }
 
@@ -22,27 +21,22 @@ namespace NekoLib.Navigation.Wpf.Defaults
 
         public DefaultLoadingMask()
         {
-            HorizontalAlignment = HorizontalAlignment.Stretch;
-            VerticalAlignment = VerticalAlignment.Stretch;
+            Background = new SolidColorBrush(Color.FromArgb(160, 40, 40, 40));
+            Focusable = false;
 
             _message = new TextBlock
             {
                 Foreground = Brushes.White,
-                FontSize = 16,
+                FontFamily = new FontFamily("Verdana"),
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextAlignment = TextAlignment.Center
+                TextAlignment = TextAlignment.Center,
+                Text = "Loading..."
             };
 
-            // Dimmed scrim filling the host.
-            var root = new Grid
-            {
-                Background = new SolidColorBrush(Color.FromArgb(160, 0, 0, 0))
-            };
-            root.Children.Add(_message);
-
-            Content = root;
+            Content = _message;
         }
 
         public Task OnOverlayOpenedAsync(object payload)

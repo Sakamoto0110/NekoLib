@@ -23,5 +23,6 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
         public ITimerAdapter CreateTimerAdapter() => throw new NotImplementedException();
         public Type GetDefaultLoadingMaskType() => null;
         public IInteractionObserverService CreateInteractionObserverAdapter(object host) => throw new NotImplementedException();
+        public IFocusObserverAdapter CreateFocusObserver(object host) => null;
     }
 }
