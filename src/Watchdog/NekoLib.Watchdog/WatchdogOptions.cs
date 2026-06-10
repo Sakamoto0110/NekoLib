@@ -28,11 +28,9 @@ namespace NekoLib.Watchdog
         public string TargetArguments { get; set; } = "";
 
         /// <summary>
-        /// Named pipe identity for RPC + events. Leave null/empty to auto-derive a
-        /// stable per-target name in <see cref="Normalize"/>; set it explicitly to
-        /// override (e.g. to run more than one watchdog for the same executable).
+        /// Named pipe identity for RPC + events.
         /// </summary>
-        public string PipeName { get; set; }
+        public string PipeName { get; set; } = "NekoLib.Watchdog";
 
         // ============================================================
         // Logging
@@ -113,6 +111,7 @@ namespace NekoLib.Watchdog
             var full = Path.GetFullPath(TargetPath);
             TargetPath = full;
 
+            PipeName = WatchdogController.ResolvePipeNameForTarget(full);
             if (!File.Exists(TargetPath))
                 throw new FileNotFoundException("Target executable not found.", TargetPath);
 
@@ -122,9 +121,11 @@ namespace NekoLib.Watchdog
 
             WorkingDirectory = Path.GetFullPath(WorkingDirectory);
 
-            // Only auto-derive PipeName when the caller left it unset.
             if (string.IsNullOrWhiteSpace(PipeName))
-                PipeName = WatchdogController.ResolvePipeNameForTarget(full);
+            {
+                var exeName = Path.GetFileNameWithoutExtension(TargetPath);
+                PipeName = $"NekoLib.Watchdog.{exeName}";
+            }
 
             if (RestartDelayMs < 200)
                 RestartDelayMs = 200;

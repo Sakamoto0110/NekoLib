@@ -15,18 +15,31 @@ namespace NekoLib.Watchdog.Tests.Unit
         {
             return new WatchdogOptions
             {
-                TargetPath = CmdPath,
+                // The watchdog derives its pipe + Global\ single-instance semaphore name
+                // from a hash of the target path (Normalize, by design, ignores any
+                // explicit PipeName). Tests all driving the same cmd.exe would therefore
+                // share one OS kernel object and collide — especially since net481 and
+                // net9.0-windows test runs execute as parallel processes. Give each test
+                // its own private copy of cmd.exe so the derived identity is unique.
+                TargetPath = MakePrivateCmd(workingDirectory),
                 TargetArguments = args,
                 WorkingDirectory = workingDirectory,
-                // Unique name per test instance so parallel TFM runs (net481 / net9.0-windows)
-                // don't compete for the same named OS kernel object.
-                PipeName = "NekoLib.Watchdog.Test." + Guid.NewGuid().ToString("N"),
                 RestartDelayMs = 500,
                 MonitorPollMs = 50,
                 HeartbeatIntervalMs = 0,
                 GracefulKillTimeoutMs = 100,
                 ForceKillTimeoutMs = 1000
             };
+        }
+
+        // Copies cmd.exe to a uniquely-named file under the test's working directory.
+        // cmd.exe is self-contained, so the copy interprets the same "/c ..." arguments.
+        private static string MakePrivateCmd(string workingDirectory)
+        {
+            var target = Path.Combine(
+                workingDirectory, "wd-" + Guid.NewGuid().ToString("N") + ".exe");
+            File.Copy(CmdPath, target);
+            return target;
         }
 
         public static PipeMessage Send(string pipeName, string command, object payload = null)
