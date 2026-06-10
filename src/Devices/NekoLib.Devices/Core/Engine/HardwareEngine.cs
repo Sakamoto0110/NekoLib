@@ -62,8 +62,8 @@ namespace NekoLib.Devices.Core.Engine
         /// <param name="protocol">Protocol implementation for the target controller.</param>
         public HardwareEngine(ICommTransport transport, IHardwareProtocol protocol)
         {
-            _transport = transport;
-            _protocol = protocol;
+            _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            _protocol = protocol ?? throw new ArgumentNullException(nameof(protocol));
 
             // forward logs by default (engine logs everything)
             _transport.Log = (lvl, msg) => Log?.Invoke(lvl, msg);
@@ -84,6 +84,12 @@ namespace NekoLib.Devices.Core.Engine
             int timeout,
             CancellationToken ct = default)
         {
+            if(op == null)
+                throw new ArgumentNullException(nameof(op));
+
+            if(timeout < 0)
+                throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout cannot be negative.");
+
             var cfg = _protocol.PortConfig;
 
             var sw = Stopwatch.StartNew();
@@ -108,7 +114,12 @@ namespace NekoLib.Devices.Core.Engine
                 if(!_transport.IsOpen)
                 {
                     await _transport.Open(cfg.PortName, ct);
-                }else Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Port is already open '{cfg.PortName}'");
+                }
+                else
+                {
+                    EnsureTransportOpenOnExpectedPort(cfg.PortName);
+                    Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Port is already open '{cfg.PortName}'");
+                }
 
                 // ----------------------------------------
                 // 3. Build protocol-specific frame
@@ -140,12 +151,22 @@ namespace NekoLib.Devices.Core.Engine
                 // 6. Let protocol parse it
                 // ----------------------------------------
                 var parsed = _protocol.ParseResponse(rspBytes, op);
+                if(parsed == null)
+                    throw new InvalidOperationException(
+                        $"Protocol {_protocol.Model} returned a null response.");
+
+                parsed.Request = parsed.Request ?? op;
                 parsed.Elapsed = sw.Elapsed;
 
                 Log?.Invoke(LogLevel.Info,
                     $"[{_protocol.Model}] Completed → Status={parsed.Status}, Success={parsed.Success}");
 
                 return parsed;
+            }
+            catch(OperationCanceledException)
+            {
+                Log?.Invoke(LogLevel.Error, $"[{_protocol.Model}] CANCELED");
+                throw;
             }
             catch(Exception ex)
             {
@@ -155,6 +176,7 @@ namespace NekoLib.Devices.Core.Engine
                 {
                     Success = false,
                     Status = ex.Message,
+                    Request = op,
                     Elapsed = sw.Elapsed
                 };
             }
@@ -175,6 +197,15 @@ namespace NekoLib.Devices.Core.Engine
             int timeout,
             CancellationToken ct = default)
         {
+            if(string.IsNullOrWhiteSpace(port))
+                throw new ArgumentException("Port name is required.", nameof(port));
+
+            if(op == null)
+                throw new ArgumentNullException(nameof(op));
+
+            if(timeout < 0)
+                throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout cannot be negative.");
+
             var cfg = _protocol.PortConfig;
 
             var sw = Stopwatch.StartNew();
@@ -221,12 +252,22 @@ namespace NekoLib.Devices.Core.Engine
                 // 5. Parse via protocol
                 // ----------------------------------------
                 var parsed = _protocol.ParseResponse(rspBytes, op);
+                if(parsed == null)
+                    throw new InvalidOperationException(
+                        $"Protocol {_protocol.Model} returned a null response.");
+
+                parsed.Request = parsed.Request ?? op;
                 parsed.Elapsed = sw.Elapsed;
 
                 Log?.Invoke(LogLevel.Info,
                     $"[{_protocol.Model}] Completed → Status={parsed.Status}, Success={parsed.Success}");
 
                 return parsed;
+            }
+            catch(OperationCanceledException)
+            {
+                Log?.Invoke(LogLevel.Error, $"[{_protocol.Model}] CANCELED");
+                throw;
             }
             catch(Exception ex)
             {
@@ -236,9 +277,19 @@ namespace NekoLib.Devices.Core.Engine
                 {
                     Success = false,
                     Status = ex.Message,
+                    Request = op,
                     Elapsed = sw.Elapsed
                 };
             }
+        }
+
+        private void EnsureTransportOpenOnExpectedPort(string expectedPortName)
+        {
+            if(string.Equals(_transport.PortName, expectedPortName, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            throw new InvalidOperationException(
+                $"Transport is already open as '{_transport.PortName}' and cannot execute on '{expectedPortName}'.");
         }
     }
 }

@@ -21,12 +21,25 @@ namespace NekoLib.Devices.Core.Transport
     {
         private readonly SerialPort _port = new SerialPort();
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
+        private bool _hasExplicitPortName;
+        private bool _disposed;
 
         /// <inheritdoc/>
         public HardwareLogHandler Log { get; set; }
 
         /// <inheritdoc/>
-        public string PortName { get => _port.PortName; set => _port.PortName = value; }
+        public string PortName
+        {
+            get => _port.PortName;
+            set
+            {
+                if(string.IsNullOrWhiteSpace(value))
+                    throw new ArgumentException("Port name is required.", nameof(value));
+
+                _port.PortName = value;
+                _hasExplicitPortName = true;
+            }
+        }
 
         /// <inheritdoc/>
         public bool IsOpen => _port.IsOpen;
@@ -38,7 +51,7 @@ namespace NekoLib.Devices.Core.Transport
         public SerialCommTransport(string portName = null)
         {
             if(!string.IsNullOrWhiteSpace(portName))
-                _port.PortName = portName;
+                PortName = portName;
         }
 
         /// <inheritdoc/>
@@ -58,9 +71,19 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public void Configure(SerialConfig cfg)
         {
+            if(cfg == null)
+                throw new ArgumentNullException(nameof(cfg));
+
             if(_port.IsOpen)
             {
-                if(!string.IsNullOrEmpty(_port.PortName)) cfg.PortName = _port.PortName; 
+                if(!string.IsNullOrWhiteSpace(cfg.PortName) &&
+                   !string.Equals(_port.PortName, cfg.PortName, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Port is already open as '{_port.PortName}' and cannot be reconfigured to '{cfg.PortName}'.");
+
+                if(string.IsNullOrWhiteSpace(cfg.PortName))
+                    cfg.PortName = _port.PortName;
+
                 return;
             }
            
@@ -69,10 +92,20 @@ namespace NekoLib.Devices.Core.Transport
             _port.Parity = cfg.Parity;
             _port.DataBits = cfg.DataBits;
             _port.StopBits = cfg.StopBits;
-            _port.NewLine = string.IsNullOrWhiteSpace(cfg.NewLine) ? "\r\n" : cfg.NewLine;
+            _port.NewLine = string.IsNullOrEmpty(cfg.NewLine) ? "\r\n" : cfg.NewLine;
             _port.ReadTimeout = cfg.ReadTimeout;
             _port.WriteTimeout = cfg.WriteTimeout;
-            if(!string.IsNullOrEmpty(_port.PortName)) cfg.PortName = _port.PortName;
+
+            if(!string.IsNullOrWhiteSpace(cfg.PortName))
+            {
+                _port.PortName = cfg.PortName;
+                _hasExplicitPortName = true;
+            }
+            else if(_hasExplicitPortName)
+            {
+                cfg.PortName = _port.PortName;
+            }
+
             Log?.Invoke(LogLevel.Info,
                 $"[Transport] Config applied: {cfg.BaudRate}/{cfg.DataBits}/{cfg.Parity}/{cfg.StopBits}, NL='{cfg.NewLine}'");
         }
@@ -80,8 +113,29 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<ICommTransport> Open(string portName, CancellationToken ct = default)
         {
-            _port.PortName = portName;
-            return await Open(ct).ConfigureAwait(false);
+            if(string.IsNullOrWhiteSpace(portName))
+                throw new ArgumentException("Port name is required.", nameof(portName));
+
+            await _gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if(_port.IsOpen &&
+                   !string.Equals(_port.PortName, portName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Port is already open as '{_port.PortName}' and cannot be reopened as '{portName}'.");
+                }
+
+                _port.PortName = portName;
+                _hasExplicitPortName = true;
+                await OpenCore(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+
+            return this;
         }
 
         /// <inheritdoc/>
@@ -90,24 +144,10 @@ namespace NekoLib.Devices.Core.Transport
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if(_port.IsOpen)
-                {
-                    Log?.Invoke(LogLevel.Debug, $"[Transport] Port already open: {PortName}");
-                    return this;
-                }
+                if(!_hasExplicitPortName)
+                    throw new InvalidOperationException("Port name is required before opening the transport.");
 
-                Log?.Invoke(LogLevel.Info, $"[Transport] Opening {PortName}");
-
-                try
-                {
-                    await Task.Run(() => _port.Open(), ct).ConfigureAwait(false);
-                    Log?.Invoke(LogLevel.Info, $"[Transport] OPEN OK");
-                }
-                catch(Exception ex)
-                {
-                    Log?.Invoke(LogLevel.Error, $"[Transport] OPEN FAIL: {ex.Message}");
-                    throw;
-                }
+                await OpenCore(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -136,6 +176,9 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task Write(string text, CancellationToken ct = default)
         {
+            if(text == null)
+                throw new ArgumentNullException(nameof(text));
+
             var bytes = Encoding.ASCII.GetBytes(text);
             await Write(bytes, 0, bytes.Length, ct);
         }
@@ -143,6 +186,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task Write(byte[] data, int offset = 0, int count = -1, CancellationToken ct = default)
         {
+            ValidateBufferRange(data, offset, count);
+
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -165,6 +210,9 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default)
         {
+            ValidateTimeout(timeoutMs, nameof(timeoutMs));
+            ValidateTimeout(quietPeriodMs, nameof(quietPeriodMs));
+
             await _gate.WaitAsync(ct).ConfigureAwait(false);
 
             try
@@ -217,6 +265,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
         {
+            ValidateTimeout(timeoutMs, nameof(timeoutMs));
+
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -259,6 +309,11 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<byte[]> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default)
         {
+            if(length < 0)
+                throw new ArgumentOutOfRangeException(nameof(length), "Length cannot be negative.");
+
+            ValidateTimeout(timeoutMs, nameof(timeoutMs));
+
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -297,14 +352,78 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            if(_disposed)
+                return;
+
             await Close().ConfigureAwait(false);
             _port.Dispose();
+            _gate.Dispose();
+            _disposed = true;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            _port.Dispose();
+            if(_disposed)
+                return;
+
+            try
+            {
+                if(_port.IsOpen)
+                    _port.Close();
+            }
+            finally
+            {
+                _port.Dispose();
+                _gate.Dispose();
+                _disposed = true;
+            }
+        }
+
+        private async Task OpenCore(CancellationToken ct)
+        {
+            if(_port.IsOpen)
+            {
+                Log?.Invoke(LogLevel.Debug, $"[Transport] Port already open: {PortName}");
+                return;
+            }
+
+            Log?.Invoke(LogLevel.Info, $"[Transport] Opening {PortName}");
+
+            try
+            {
+                await Task.Run(() => _port.Open(), ct).ConfigureAwait(false);
+                Log?.Invoke(LogLevel.Info, $"[Transport] OPEN OK");
+            }
+            catch(Exception ex)
+            {
+                Log?.Invoke(LogLevel.Error, $"[Transport] OPEN FAIL: {ex.Message}");
+                throw;
+            }
+        }
+
+        private static void ValidateBufferRange(byte[] data, int offset, int count)
+        {
+            if(data == null)
+                throw new ArgumentNullException(nameof(data));
+
+            if(offset < 0 || offset > data.Length)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+
+            if(count < -1)
+                throw new ArgumentOutOfRangeException(nameof(count));
+
+            if(count == -1)
+                return;
+
+            if(count > data.Length - offset)
+                throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        private static void ValidateTimeout(int timeoutMs, string paramName)
+        {
+            if(timeoutMs < 0)
+                throw new ArgumentOutOfRangeException(paramName, "Timeout cannot be negative.");
         }
     }
 }
