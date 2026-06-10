@@ -1,0 +1,12 @@
+# From within your NekoLib directory:
+Copy-Item .gitignore .gitignore.bak
+Clear-Content .gitignore
+git add .
+git commit -m "backup: stage all local files including ignored dirs"
+git push origin master
+
+# Restore:
+Copy-Item .gitignore.bak .gitignore -Force
+git add .gitignore
+git commit -m "restore: re-apply .gitignore"
+git push origin master
