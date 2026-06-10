@@ -111,11 +111,22 @@
 - [x] ⏳ Confirmar que build não quebra (warnings são aceitáveis; validação Windows)
 - [ ] Anotar APIs públicas críticas nos módulos mais usados (Navigation, Diagnostics, Data) — incremental
 
-### A8 — Validação ⏳ (pendente máquina Windows)
+### A8 — Validação ✅ (Windows / VS26, SDK net9 + net10)
 
-- [x] `dotnet build NekoLib.sln` — 0 erros (net9.0 pode gerar nullable warnings; net481 requer Windows)
-- [x] `dotnet test` — todos os testes passando
+- [x] `dotnet build NekoLib.sln` — 0 erros nos dois targets (net481 + net9.0/-windows)
+- [x] `dotnet test` — **358/358 verdes** em net481 e net9.0-windows
 - [x] Confirmar targets finais de cada projeto (ver tabela abaixo)
+
+> **Bug pré-existente encontrado na validação** (não causado pela Fase A):
+> guard de instância única do Watchdog usava `Mutex` (thread-afim) liberado de
+> uma thread do ThreadPool via RPC `stop` → `ReleaseMutex` lançava, era engolido,
+> e o mutex nunca era liberado → próximos testes "already running". Corrigido em
+> 2 frentes: (1) `Mutex` → `Semaphore` nomeado (libera de qualquer thread —
+> correção de produto); (2) isolamento de teste via **target único** (cada teste
+> copia cmd.exe pra um path próprio; a identidade do pipe/semaphore é hash do
+> target, então target único ⇒ kernel object único — evita colisão entre os
+> processos paralelos net481 / net9.0). `WatchdogOptions.Normalize()` mantido
+> intacto (deriva o pipe do hash do target — contrato `WatchdogOptionsTests`).
 
 | Projeto | Target esperado |
 |---|---|
