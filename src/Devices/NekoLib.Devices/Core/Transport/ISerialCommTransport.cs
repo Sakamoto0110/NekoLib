@@ -69,7 +69,8 @@ namespace NekoLib.Devices.Core.Transport
         Task Write(byte[] data, int offset = 0, int count = -1, CancellationToken ct = default);
 
         /// <summary>
-        /// Reads a line terminated by <see cref="SerialConfig.NewLine"/>.
+        /// Reads a line terminated by <see cref="SerialConfig.NewLine"/>, or returns
+        /// <c>null</c> if no line was received before <paramref name="timeoutMs"/> elapses.
         /// </summary>
         Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default);
 

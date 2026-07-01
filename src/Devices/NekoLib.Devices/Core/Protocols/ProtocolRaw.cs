@@ -35,6 +35,10 @@ namespace NekoLib.Devices.Core.Protocols
     ///
     /// It performs no output interpretation and simply wraps the raw response
     /// into a <see cref="HardwareResponse"/>.
+    ///
+    /// "RawText" is always encoded/decoded as ASCII (v1). Binary or non-ASCII
+    /// payloads must use "RawBytes" instead — this protocol does not offer a
+    /// configurable text encoding.
     /// </summary>
     public sealed class ProtocolRaw : IHardwareProtocol, IProtocolWithLogging
     {

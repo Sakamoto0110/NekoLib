@@ -103,6 +103,85 @@ namespace NekoLib.Devices.Tests.Unit
             }
         }
 
+        [Fact]
+        public void Configure_InvalidBaudRate_Throws()
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.BaudRate = 0;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Theory]
+        [InlineData(4)]
+        [InlineData(9)]
+        public void Configure_InvalidDataBits_Throws(int dataBits)
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.DataBits = dataBits;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Fact]
+        public void Configure_StopBitsNone_Throws()
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.StopBits = StopBits.None;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Fact]
+        public void Configure_ReadTimeoutBelowInfinite_Throws()
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.ReadTimeout = -2;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Fact]
+        public void Configure_WriteTimeoutBelowInfinite_Throws()
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.WriteTimeout = -2;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Fact]
+        public async Task Disposed_MethodsThrowObjectDisposedException()
+        {
+            var transport = new SerialCommTransport();
+            transport.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => transport.Configure(BasicConfig()));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.Open("COM1"));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.Open());
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.Close());
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.Write("x"));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.Write(new byte[] { 1 }));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.ReadAll());
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.ReadLine());
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => transport.ReadExact(1));
+        }
+
         private static SerialConfig BasicConfig()
         {
             return new SerialConfig

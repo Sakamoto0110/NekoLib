@@ -71,6 +71,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public void Configure(SerialConfig cfg)
         {
+            ThrowIfDisposed();
+
             if(cfg == null)
                 throw new ArgumentNullException(nameof(cfg));
 
@@ -86,7 +88,8 @@ namespace NekoLib.Devices.Core.Transport
 
                 return;
             }
-           
+
+            ValidateSerialConfig(cfg);
 
             _port.BaudRate = cfg.BaudRate;
             _port.Parity = cfg.Parity;
@@ -113,6 +116,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<ICommTransport> Open(string portName, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             if(string.IsNullOrWhiteSpace(portName))
                 throw new ArgumentException("Port name is required.", nameof(portName));
 
@@ -141,6 +146,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<ICommTransport> Open(CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -160,6 +167,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task Close()
         {
+            ThrowIfDisposed();
+
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -176,6 +185,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task Write(string text, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             if(text == null)
                 throw new ArgumentNullException(nameof(text));
 
@@ -186,6 +197,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task Write(byte[] data, int offset = 0, int count = -1, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             ValidateBufferRange(data, offset, count);
 
             await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -210,6 +223,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             ValidateTimeout(timeoutMs, nameof(timeoutMs));
             ValidateTimeout(quietPeriodMs, nameof(quietPeriodMs));
 
@@ -265,6 +280,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             ValidateTimeout(timeoutMs, nameof(timeoutMs));
 
             await _gate.WaitAsync(ct).ConfigureAwait(false);
@@ -278,6 +295,7 @@ namespace NekoLib.Devices.Core.Transport
                 return await Task.Run(() => {
                     var sb = new StringBuilder();
                     var sw = Stopwatch.StartNew();
+                    var receivedLine = false;
 
                     while(sw.ElapsedMilliseconds < timeoutMs)
                     {
@@ -287,6 +305,7 @@ namespace NekoLib.Devices.Core.Transport
                         {
                             var line = _port.ReadLine();
                             sb.Append(line);
+                            receivedLine = true;
                             break;
                         }
                         catch(TimeoutException)
@@ -295,8 +314,11 @@ namespace NekoLib.Devices.Core.Transport
                         }
                     }
 
-                    var result = sb.ToString();
-                    Log?.Invoke(LogLevel.Raw, $"[Transport] ReadLine DONE: {LogUtil.Clean(result)}");
+                    var result = receivedLine ? sb.ToString() : null;
+                    Log?.Invoke(LogLevel.Raw,
+                        result != null
+                            ? $"[Transport] ReadLine DONE: {LogUtil.Clean(result)}"
+                            : "[Transport] ReadLine DONE: <null>");
                     return result;
                 }, ct).ConfigureAwait(false);
             }
@@ -309,6 +331,8 @@ namespace NekoLib.Devices.Core.Transport
         /// <inheritdoc/>
         public async Task<byte[]> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default)
         {
+            ThrowIfDisposed();
+
             if(length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), "Length cannot be negative.");
 
@@ -424,6 +448,30 @@ namespace NekoLib.Devices.Core.Transport
         {
             if(timeoutMs < 0)
                 throw new ArgumentOutOfRangeException(paramName, "Timeout cannot be negative.");
+        }
+
+        private static void ValidateSerialConfig(SerialConfig cfg)
+        {
+            if(cfg.BaudRate <= 0)
+                throw new ArgumentOutOfRangeException(nameof(cfg.BaudRate), cfg.BaudRate, "BaudRate must be greater than zero.");
+
+            if(cfg.DataBits < 5 || cfg.DataBits > 8)
+                throw new ArgumentOutOfRangeException(nameof(cfg.DataBits), cfg.DataBits, "DataBits must be between 5 and 8.");
+
+            if(!Enum.IsDefined(typeof(StopBits), cfg.StopBits) || cfg.StopBits == StopBits.None)
+                throw new ArgumentOutOfRangeException(nameof(cfg.StopBits), cfg.StopBits, "StopBits must be a defined value other than None.");
+
+            if(cfg.ReadTimeout < -1)
+                throw new ArgumentOutOfRangeException(nameof(cfg.ReadTimeout), cfg.ReadTimeout, "ReadTimeout must be -1 (infinite) or greater.");
+
+            if(cfg.WriteTimeout < -1)
+                throw new ArgumentOutOfRangeException(nameof(cfg.WriteTimeout), cfg.WriteTimeout, "WriteTimeout must be -1 (infinite) or greater.");
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if(_disposed)
+                throw new ObjectDisposedException(nameof(SerialCommTransport));
         }
     }
 }
