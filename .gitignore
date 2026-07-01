@@ -32,12 +32,19 @@ NekoLib_Logo.png
 # Audit files
 audit.md
 *.pubxml
+*.pubxml.user
 /.resources
 /tools
 /tests/NekoLib.Data.Tests/Shared
 /tests/NekoLib.Data.Tests/WinFormsNet481
 /tests/NekoLib.Data.Tests/WinFormsNet9
 /apagar
+
+# .NET test/build tooling output
+TestResults/
+*.binlog
+packages/
+artifacts/
 
 # Claude context (local only)
 CLAUDE.md
