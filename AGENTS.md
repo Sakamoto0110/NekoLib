@@ -10,8 +10,26 @@ the handoff state and the rules that are easy to get wrong.
 |---|---|
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
-| Roadmap, phase plan, observability freeze | [`TODO.md`](TODO.md) |
-| Per-module audits and open items | [`docs/audit/`](docs/audit/), [`src/Data/NekoLib.Data/DataAudit.md`](src/Data/NekoLib.Data/DataAudit.md) |
+| Historical phase plan and the current observability freeze | [`TODO.md`](TODO.md) |
+| Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/), [`src/Data/NekoLib.Data/DataAudit.md`](src/Data/NekoLib.Data/DataAudit.md) |
+
+---
+
+## Durable product and architecture context
+
+- NekoLib targets small and medium PDV/DM applications: unattended,
+  touch-first, single-window shells that may remain on `net481` or run on
+  `net9.0`.
+- Navigation is the main product surface. Its public static
+  `NavigationService` facade is intentional for this application class, not a
+  legacy shim to remove. `PageNavBootstrap.Start()` mounts it; always
+  `await NavigationService.Shutdown()` before mounting a fresh context.
+- `NekoLib.Core` is a required foundation for Navigation, Logger, DebugUtils and
+  Watchdog. The other feature families are optional according to their actual
+  project references; "optional" never means "has no dependencies".
+- The source and the `*.csproj` files are authoritative. `TODO.md` and the audit
+  files preserve decision/history context and may describe findings that were
+  fixed later.
 
 ---
 
@@ -91,17 +109,17 @@ Recorded in full in the freeze section of [`TODO.md`](TODO.md). Summary:
 
 ## Open items elsewhere
 
-Pre-existing, not part of the observability work. Each audit has the detail; do
-not re-derive them.
+The audit files are dated snapshots, not a live issue tracker. The status below
+was reconciled against the current source and tests on 2026-07-26; reverify it
+before making a change.
 
-| Module | Open | Where |
+| Module | Current status | Historical detail |
 |---|---|---|
-| Watchdog | M5 (update mechanism — genuinely unimplemented), M8 (pipe-name hash collision), M9 (ring-buffer silent drop), L4, L5, L6. M7 + L7 deferred by decision | `docs/audit/watchdog-first-pass.md` |
-| Pipes | per-subscriber bounded event queue + drop policy, pipe ACL/security, graceful drain on `Dispose`. All H/M/L findings closed | `docs/audit/pipes-first-pass.md` |
-| Devices | `ReadLine` timeout semantics, `SerialConfig` validation, `ThrowIfDisposed()`, `RawText` ASCII decision — *some may be closed by `d352fa8`, verify* | `docs/audit/devices-first-pass.md` |
-| Data | next pass is verification-by-test: OleDb parameter order, `QueryBuilder.Build()` mutation on INSERT/UPDATE, `WhereExists` collision, telemetry masking decision | `src/Data/NekoLib.Data/DataAudit.md` |
-| Navigation | NEW-12, NEW-13 (cosmetic API smells); one manual probe in §2.8 | `docs/audit/navigation-audit.md` |
-| Navigation | `PageDescriptor.AllowAnonymous` is stored but **never consulted by the runtime** — guards on the descriptor always run | — |
+| Watchdog | Update orchestration is explicitly `not_implemented`; the truncated SHA1 pipe identity, silent 300-entry replay-buffer eviction, host `--args` parsing and relative fatal-log path remain. App-log forwarding (old M7) and bring-to-front (old L7) are implemented now. | `docs/audit/watchdog-first-pass.md` |
+| Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
+| Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The remaining gap is real serial I/O through a COM-port emulator/runtime scenario. | `docs/audit/devices-first-pass.md` |
+| Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `src/Data/NekoLib.Data/DataAudit.md` |
+| Navigation | NEW-12 namespace ergonomics and NEW-13 `PageMetadataBuilder.Register<T>` remain; the last interactive prompt-close probe is not automated. `PageDescriptor.AllowAnonymous` is still stored but not consulted by the runtime. | `docs/audit/navigation-audit.md` |
 
 ## Deleted on 2026-07-26 — do not resurrect
 
@@ -143,6 +161,12 @@ is why — **do not recreate them**:
 - `NekoLib.Data`, `NekoLib.Devices`, `NekoLib.Mvvm`, `NekoLib.Pipes` and
   `NekoLib.Diagnostics` reference **no other project at all** — in particular
   Data and Devices do not know `NekoLib.Core`.
+- `DebugUtilsNavigationObserver` receives `NavigationStarted` from
+  `NavigationService.Navigating`, which fires **after** guard evaluation. It can
+  expose a load/lifecycle hang after the guard succeeds, but it cannot diagnose
+  a guard that never returns. Guards themselves have a 30-second timeout.
+- Overlay teardown is intentionally asymmetric: Toast uses
+  `DismissCurrentToast()`; Dialog, Prompt and Popover use `CloseAll()`.
 
 ---
 
@@ -175,31 +199,42 @@ rather than reporting a partial build as green.
 
 `src/Tools/BundlerTool/` is not in the solution; build it directly.
 
-## Layering — enforced by project references
+## Layering and project references
 
-`Adapters` → `Runtime` → `Contracts`, downward only. Feature modules reference
-contracts, never runtime classes from sibling modules.
+Do not impose a repository-wide `Contracts` / `Runtime` / `Adapters` folder
+template. That three-part architecture belongs to the Navigation family:
+Navigation contains contracts and runtime, while the WinForms/WPF projects are
+its platform adapters. Other modules use structures suited to their own
+domains.
 
-- Feature modules may reference only `NekoLib.Core`. The one documented
-  exception is `NekoLib.Watchdog`, which also references `NekoLib.Pipes`.
-- Only the entrypoint/hosting project may reference the concrete
-  `NekoLib.Diagnostics` runtime. In practice nothing does today except
-  `NekoLib.Diagnostics.Windows`.
+The current cross-project graph is shallow and is the rule to preserve:
 
-Each module is `Contracts/` (pure interfaces and data-only types),
-`Runtime/` (implementations), and `Adapters/` (platform glue, Navigation
-platform projects only).
+- Navigation → Core; Navigation.WinForms/Wpf → Navigation.
+- Logger → Core; DebugUtils → Core.
+- Diagnostics.Windows → Diagnostics.
+- Watchdog → Core + Pipes; Watchdog.Host → Watchdog.
+- Data, Devices, Mvvm, Pipes, Diagnostics and the orphan Hosting project have no
+  project references.
+
+Read the relevant `*.csproj` before adding a cross-module dependency. Do not
+infer that every feature module must reference Core.
 
 ## Compile-time constants
 
-| Symbol | When active |
-|--------|-------------|
-| `NEKOLIB` | always |
-| `NETFRAMEWORK` | net481 only |
-| `NET_9` | net9.0 / net9.0-windows |
-| `WINFORMS` | any WinForms-enabled TFM |
-| `WINFORMS_NETFRAMEWORK` | WinForms + net481 |
-| `WINFORMS_NET_9` | WinForms + net9.0-windows |
+Custom constants are **not uniform**. Inspect the target project's csproj
+instead of copying a symbol from another module.
+
+- Core, Data, DebugUtils, Diagnostics, Logger, Mvvm, Navigation and Hosting
+  declare `NEKOLIB` plus their conditional `NETFRAMEWORK` / `NET_9` symbols.
+- Devices declares `NETFRAMEWORK` / `NET_9`, but not `NEKOLIB`.
+- Pipes uses `NET481` / `NET9`.
+- Watchdog uses `NETFRAMEWORK` on net481 and `NET_9;NET9` on net9; it does not
+  declare `NEKOLIB`. Watchdog.Host declares no custom symbols.
+- Navigation.WinForms has its own `WINFORMS_NETFRAMEWORK` and
+  `WINFORMS` / `WINFORMS_NET_9` split. Navigation.Wpf declares no custom
+  symbols.
+- Diagnostics.Windows has its own `WINFORMS` define in addition to its TFM
+  symbols.
 
 **Never use the `record` keyword** in types shared across targets — C# 9 `record`
 needs `System.Runtime.CompilerServices.IsExternalInit`, which net481 lacks
@@ -233,10 +268,14 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 - **Navigation** — the canonical lifecycle order is marked DO NOT CHANGE, and
   `NavigationContext`, `NavigationRuntime`, `PageRegistry` and `PageFactory` are
   FROZEN; extensions live outside `Core/`. **Read the Navigation README before
-  modifying the module.**
+  modifying the module.** Await `NavigationService.Shutdown()`. Navigation and
+  reset operations use the navigation gate; Dialog/Prompt/Popover deliberately
+  marshal to UI without taking that gate.
 - **Data** — on net481 with OleDb, parameter binding is position-dependent, not
-  name-dependent. Parameter name collisions between a subquery and its parent
-  can silently overwrite bindings.
+  name-dependent. `ApplyParameters` now activates the OleDb path with
+  `NETFRAMEWORK`, and `QueryBuilder` now isolates subquery parameters and builds
+  INSERT/UPDATE idempotently; keep the existing regression tests when changing
+  those paths.
 - **Diagnostics** — since A4 the `Application.ThreadException` hook is **no
   longer automatic**; a WinForms app must call `WindowsCrash.HookWinForms()` at
   startup.
