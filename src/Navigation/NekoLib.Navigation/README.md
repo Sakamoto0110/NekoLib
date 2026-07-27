@@ -23,35 +23,49 @@ It is **not** a UI framework, **not** a DI container, and **not** tied to ASP.NE
 
 ## 2. Canonical lifecycle order (DO NOT CHANGE)
 
+As implemented in `NavigationRuntime.SwitchInternalAsync`:
+
 ```
-Resolve target page instance
+Registry lookup (unregistered type ⇒ throw)
+↓
+Guard evaluation (30s cap; deny/redirect: depth ≤ 8, cycle detection)
+↓
+Capture FROM state (IPageStateful.CaptureState)
 ↓
 Navigating(from, toType, args)
 ↓
-Reset timeout
+Resolve TO instance (reuse-policy caches)
+↓
+[LoadBeforeShow only] load now (with loading mask)
 ↓
 FROM:
-  IPageView.OnNavigatedFromAsync()
-  IPageLifecycle.OnExitAsync()
+  IPageVisibility.HidePage()
+  IPageLifecycle.OnNavigatedFromAsync()
 ↓
-Detach + Cleanup (cache policy driven)
+Detach FROM + Cleanup (unless KeepAttachedWhenHidden; Transient ⇒ dispose)
 ↓
-Attach + BringToFront + Visible=true
+Attach TO + BringToFront + IPageVisibility.ShowPage()
 ↓
-TO:
-  IPageView.OnNavigatedToAsync(args)
+Current = to; CurrentChanged
 ↓
 Load strategy:
-  ShowImmediately | LoadBeforeShow | LoadInBackground
+  [ShowImmediately] load now | [LoadInBackground] fire-and-forget guarded load
 ↓
-IPageLifecycle.OnEnterAsync(args)
+[back-nav only] IPageStateful.RestoreState(state)
 ↓
-CurrentChanged + History.Record
+TO:
+  IPageLifecycle.OnNavigatedToAsync(args)
+↓
+History.Record(from) + HistoryChanged (forward navigation only)
 ↓
 Navigated(from, to, args)
 ```
 
-NavigationContext is the **only component allowed** to invoke lifecycle methods.
+`IPageLifecycle` has exactly two hooks: `OnNavigatedToAsync(NavigationArgs)` and
+`OnNavigatedFromAsync()`.
+
+NavigationRuntime (driven through the static `NavigationService` facade) is the
+**only component allowed** to invoke lifecycle methods.
 
 ---
 
@@ -86,9 +100,9 @@ Optional surface positioning abstractions (anchors). Not required by Core.
 Dialog is binary by definition; for 3+ outcomes use `IPromptView<TEnum>`.
 Popover stays open until the view calls its completion, OR — if it implements
 `IUnfocusAware` — the platform's `IFocusObserverAdapter` fires unfocus and the
-view's `OnUnfocusAsync` resolves the awaiter. WinForms ships
-`PopoverViewBase` (manual close only) and `AutoDismissPopoverBase` (auto-close
-on unfocus) so subclasses don't repeat the wiring.
+view's `OnUnfocusAsync` resolves the awaiter. Both platform projects (WinForms
+and WPF) ship `PopoverViewBase` (manual close only) and `AutoDismissPopoverBase`
+(auto-close on unfocus) so subclasses don't repeat the wiring.
 
 ---
 
@@ -97,9 +111,9 @@ on unfocus) so subclasses don't repeat the wiring.
 Do not casually modify:
 
 - NavigationContext
+- NavigationRuntime
 - PageRegistry
 - PageFactory
-- PageLifecycleCleanupService
 
 Extensions should live outside Core.
 
