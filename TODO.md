@@ -184,7 +184,7 @@ Interface criada como esqueleto na Fase A — revisada e confirmada idêntica ao
 
 > As etapas B3–B5 serão detalhadas após avaliação dos pontos de hook na pausa de B2.
 
-### B3 — Hooks em `NekoLib.Navigation` ✅ (piloto)
+### B3 — Hooks em `NekoLib.Navigation` ✅ (piloto + telemetria estendida)
 
 > **Decisão-chave**: `NavigationContext` é FROZEN (CLAUDE.md + README §5). Em vez de
 > instrumentar o ciclo de vida por dentro, o hook é um **subscriber puro** no
@@ -201,12 +201,82 @@ Interface criada como esqueleto na Fase A — revisada e confirmada idêntica ao
 - [x] Teste `DebugUtilsNavigationObserverTests` (6 casos) usando o `DebugUtilsRuntime`
   real (end-to-end): operações Navigated/Failed/GuardDenied, state pull, dispose
   desanexa, sink desabilitado é no-op. Refs Core + DebugUtils adicionadas ao csproj.
-- [ ] ⏳ Build/validação: pendente (Windows)
+- [x] Build/validação: 358/358 verdes na época (net481 + net9.0)
 
 > **Mental model**: a Navigation só conhece `IDebugUtils` (contrato no Core). Quem
 > hospeda o `DebugUtilsRuntime` consome via `GetOperations`/`CaptureState`. Nenhum
 > acoplamento ao runtime concreto; nenhuma dependência cíclica.
 
-### B4 — Hooks nos demais módulos *(pendente avaliação)*
+#### Hooks adicionais de telemetria (2026-07-26)
 
-### B5 — Validação *(pendente avaliação)*
+O observer passou a ter **dois níveis de fidelidade**, porque o hub público só tem
+2 eventos e ambos falam depois que a navegação resolveu:
+
+- [x] `Attach(NavigationEventHub, IDebugUtils)` — só o hub: `Navigated` /
+  `NavigationFailed` / `GuardDenied` + estado `Navigation::current` e
+  `Navigation::stats`. **Não** toca a facade estática, então é o caminho dos
+  testes paralelos.
+- [x] `Attach(NavigationContext, IDebugUtils)` — o caminho do bootstrap. Assina
+  também os eventos estáticos do `NavigationService`, único seam público que
+  carrega:
+  - `NavigationStarted` — a **intenção**, antes do resultado. Se a navegação
+    travar (guard que não retorna, `OnNavigatedToAsync` em deadlock), o hub fica
+    calado e o ring buffer não mostra nada; `NavigationStarted` sem desfecho é a
+    impressão digital desse freeze.
+  - `FirstPageAttached` / `NoPageAttached` / `NoPageVisible` — transições de
+    attach/visibilidade, sintoma clássico de leak de página ou shell em branco.
+  Registra também `Navigation::history` (pilhas back/forward) e
+  `Navigation::session` (auth/roles/permissions como os guards veem).
+- [x] `Navigation::stats` — contadores agregados
+  (started/navigated/failed/guardDenied/timeouts/backNavigations/blankShellEvents
+  + lastStarted). **Sobrevivem à rotação do ring buffer**: quando o buffer dá a
+  volta, os totais são a única evidência que resta. `started > navigated + failed`
+  ⇒ navegação entrou e nunca resolveu.
+- [x] 13 testes (6 originais + 7 novos). Os 3 que montam a facade estática vivem
+  em `DebugUtilsNavigationObserverFacadeTests` com
+  `[Collection("NavigationServiceFacade")]` e `Shutdown()` no `finally` — qualquer
+  teste futuro que monte o `NavigationService` entra nessa collection.
+- [x] Validação: **478/478 verdes** (net481 + net9.0), 0 erros, 0 warnings novos.
+
+> `NavigationHistory` é afim à UI thread e não tem sincronização interna, então o
+> snapshot de `Navigation::history` é best-effort: capturar de outra thread durante
+> uma navegação pode lançar. O `DebugUtilsRuntime` isola por provider e devolve um
+> placeholder em vez de falhar a captura toda.
+
+---
+
+## ❄ Congelamento temporário da observabilidade (2026-07-26)
+
+`NekoLib.Core.Observability` (`IDebugUtils`, `NullDebugUtils`), `NekoLib.DebugUtils`
+e o `DebugUtilsNavigationObserver` estão **congelados**. Não estender sem decisão
+explícita.
+
+O que fica **declaradamente incompleto** — dívida conhecida, não esquecimento:
+
+1. **B4 não foi feito.** Só a Navigation emite. `Data`, `Pipes`, `Watchdog`,
+   `Devices` e `Diagnostics` não conhecem `IDebugUtils`. Cuidado com a pegadinha:
+   o `IntegrationDemo_481` mostra operações `Data/*` e `Pipes/*` no ring buffer,
+   mas é **o app chamando `Record` à mão** (`PodRepository`, `PipeDemoService`) —
+   a lib não emite nada. Troque de app e a instrumentação vai embora.
+2. **Canal de comando morto.** `RegisterCommand` / `TryInvokeCommand` não têm um
+   único registro, invocação ou teste em todo o repo. Um terço da interface nunca
+   foi exercitado.
+3. **Sem superfície de consumo reutilizável.** Nenhum viewer, nenhum bridge para
+   `ILogSink`/arquivo, nada no crash bundle; o `NekoLib` (hosting) não conhece o
+   módulo. Cada app monta na mão (no demo é uma `ListBox` na `AdminPage`).
+4. **Sem projeto de testes próprio do `NekoLib.DebugUtils`.** A evicção do ring
+   buffer é coberta de raspão via observer; `ClearOperations`, `CommandKeys`, o
+   canal de comando e concorrência não são testados.
+5. `NoPageAttached` / `NoPageVisible` estão fiados mas sem teste — disparar de
+   forma determinística exige host real, não os fakes.
+
+Ao descongelar, a ordem recomendada: **bridge de consumo** (dump do ring buffer +
+`CaptureState()` dentro do crash bundle do `CrashHandler` — é o que transforma o
+módulo de "buffer que ninguém lê" em ferramenta de post-mortem) → **um caso real
+de comando** (valida o terço morto antes de replicar em 5 módulos) → **B4** por
+módulo, começando por Data (eventos do `QueryExecutionContext` já são o seam) e
+Pipes (`IPipeMetrics` já é o ponto de extensão).
+
+### B4 — Hooks nos demais módulos ⏸ **congelado** (ver acima)
+
+### B5 — Validação ⏸ **congelado** (ver acima)
