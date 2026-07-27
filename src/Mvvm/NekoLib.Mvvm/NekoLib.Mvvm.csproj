@@ -10,7 +10,11 @@
 		<AssemblyName>NekoLib.Mvvm</AssemblyName>
 		<RootNamespace>NekoLib.Mvvm</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Mvvm</PackageId>
+		<Title>NekoLib MVVM</Title>
 		<Description>Minimal, opt-in MVVM helpers (ViewModelBase, RelayCommand, RelayCommand&lt;T&gt;) — sibling to NekoLib.Navigation and independent of it. Use with WinForms, WPF, or any UI that consumes System.Windows.Input.ICommand and System.ComponentModel.INotifyPropertyChanged.</Description>
+		<PackageTags>nekolib;mvvm;winforms;wpf;desktop</PackageTags>
 
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
 	</PropertyGroup>

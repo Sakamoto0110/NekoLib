@@ -12,6 +12,12 @@
 		<AssemblyName>NekoLib.Navigation</AssemblyName>
 		<RootNamespace>NekoLib.Navigation</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Navigation</PackageId>
+		<Title>NekoLib Navigation</Title>
+		<Description>Deterministic page lifecycle, history, guards, sessions, idle behavior and overlays for single-window desktop applications.</Description>
+		<PackageTags>nekolib;navigation;kiosk;pos;desktop</PackageTags>
+
 		<!-- Identity -->
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
 	</PropertyGroup>
@@ -37,7 +43,7 @@
 	  <None Remove="old\**" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
 	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
 	</ItemGroup>
 

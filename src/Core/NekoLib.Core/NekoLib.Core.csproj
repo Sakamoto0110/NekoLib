@@ -10,6 +10,12 @@
 		<AssemblyName>NekoLib.Core</AssemblyName>
 		<RootNamespace>NekoLib.Core</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Core</PackageId>
+		<Title>NekoLib Core</Title>
+		<Description>Shared logging, telemetry, diagnostics and observability contracts for NekoLib, with null implementations and no package dependencies.</Description>
+		<PackageTags>nekolib;contracts;logging;telemetry;desktop</PackageTags>
+
 		<!-- Assembly metadata: generated ONCE -->
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 

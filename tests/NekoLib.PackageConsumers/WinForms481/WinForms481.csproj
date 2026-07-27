@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net481</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\WinFormsSmokeProgram.cs" Link="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NekoLib.Data" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.DebugUtils" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Devices" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Diagnostics.Windows" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Logger" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Mvvm" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Navigation.WinForms" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" />
+  </ItemGroup>
+</Project>

@@ -7,10 +7,57 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>false</ImplicitUsings>
+
+    <!-- This is a deployment package, not a library package. The local pack
+         script supplies pre-published, RID-specific payloads. -->
+    <IsPackable Condition="'$(NekoLibWatchdogHostPayloadRoot)' != ''">true</IsPackable>
+    <PackageId>NekoLib.Watchdog.Host</PackageId>
+    <Title>NekoLib Watchdog Host</Title>
+    <Description>Deployable sidecar host for NekoLib.Watchdog, with isolated .NET Framework, win-x86 and win-x64 payloads.</Description>
+    <PackageTags>nekolib;watchdog;sidecar;process-supervision;kiosk</PackageTags>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <EnablePackageValidation>false</EnablePackageValidation>
+    <!-- Intentional tools/build deployment package: it has dependency groups
+         but must not expose the Host executable as a compile-time lib asset. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0-windows'">
+    <RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NekoLib.Watchdog\NekoLib.Watchdog.csproj" />
   </ItemGroup>
 
-</Project>  
+  <ItemGroup Condition="'$(NekoLibWatchdogHostPayloadRoot)' != ''">
+    <None Include="$(NekoLibWatchdogHostPayloadRoot)\net481\**\*"
+          Pack="true"
+          PackagePath="tools\net481\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="$(NekoLibWatchdogHostPayloadRoot)\net9.0-windows\win-x86\**\*"
+          Pack="true"
+          PackagePath="tools\net9.0-windows7.0\win-x86\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="$(NekoLibWatchdogHostPayloadRoot)\net9.0-windows\win-x64\**\*"
+          Pack="true"
+          PackagePath="tools\net9.0-windows7.0\win-x64\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="NekoLib.Watchdog.Host.Package.targets"
+          Pack="true"
+          PackagePath="build\NekoLib.Watchdog.Host.targets" />
+    <None Include="buildTransitive\NekoLib.Watchdog.Host.targets"
+          Pack="true"
+          PackagePath="buildTransitive\NekoLib.Watchdog.Host.targets" />
+  </ItemGroup>
+
+  <Target Name="ValidateWatchdogHostPayload"
+          BeforeTargets="Pack"
+          Condition="'$(IsPackable)' == 'true'">
+    <Error Condition="!Exists('$(NekoLibWatchdogHostPayloadRoot)\net481\NekoLib.Watchdog.Host.exe')"
+           Text="Missing net481 Watchdog Host payload. Run eng\pack-local.ps1 or publish it before packing." />
+    <Error Condition="!Exists('$(NekoLibWatchdogHostPayloadRoot)\net9.0-windows\win-x86\NekoLib.Watchdog.Host.exe')"
+           Text="Missing win-x86 Watchdog Host payload. Run eng\pack-local.ps1 or publish it before packing." />
+    <Error Condition="!Exists('$(NekoLibWatchdogHostPayloadRoot)\net9.0-windows\win-x64\NekoLib.Watchdog.Host.exe')"
+           Text="Missing win-x64 Watchdog Host payload. Run eng\pack-local.ps1 or publish it before packing." />
+  </Target>
+
+</Project>

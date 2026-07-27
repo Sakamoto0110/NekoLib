@@ -10,6 +10,12 @@
 
 		<AssemblyName>NekoLib.Devices</AssemblyName>
 		<RootNamespace>NekoLib.Devices</RootNamespace>
+
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Devices</PackageId>
+		<Title>NekoLib Devices</Title>
+		<Description>Serial-port transport and hardware protocol abstractions for desktop and embedded applications.</Description>
+		<PackageTags>nekolib;devices;serial-port;hardware;embedded</PackageTags>
 	</PropertyGroup>
 
 	<!-- Framework flags -->
@@ -25,7 +31,7 @@
 	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
 		<PackageReference Include="System.IO.Ports" Version="9.0.0" />
 	</ItemGroup>
-	<ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
 	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
 	</ItemGroup>
 

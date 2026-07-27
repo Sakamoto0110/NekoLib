@@ -10,6 +10,12 @@
 		<AssemblyName>NekoLib.Diagnostics</AssemblyName>
 		<RootNamespace>NekoLib.Diagnostics</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Diagnostics</PackageId>
+		<Title>NekoLib Diagnostics</Title>
+		<Description>Cross-platform crash orchestration and crash-bundle generation with pluggable dump writing.</Description>
+		<PackageTags>nekolib;diagnostics;crash-reporting;logging;desktop</PackageTags>
+
 		<!-- Assembly metadata: generated ONCE -->
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 

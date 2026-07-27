@@ -20,6 +20,12 @@
 		<AssemblyName>NekoLib.Navigation.WinForms</AssemblyName>
 		<RootNamespace>NekoLib.Navigation.WinForms</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Navigation.WinForms</PackageId>
+		<Title>NekoLib Navigation for WinForms</Title>
+		<Description>WinForms host and platform adapters for NekoLib.Navigation.</Description>
+		<PackageTags>nekolib;navigation;winforms;kiosk;pos</PackageTags>
+
 		<!-- Identity -->
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
 		<!-- WinForms -->

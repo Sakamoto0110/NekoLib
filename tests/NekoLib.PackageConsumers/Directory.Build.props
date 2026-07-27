@@ -1,0 +1,9 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <!-- Smoke runs redirect bin/obj outside the project tree. Keep any outputs
+         from manual IDE/CLI builds excluded from the SDK compile globs. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

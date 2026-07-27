@@ -1,0 +1,96 @@
+<Project>
+  <PropertyGroup>
+    <NekoLibWatchdogHostTargetsImported>true</NekoLibWatchdogHostTargetsImported>
+    <NekoLibWatchdogHostDeploy Condition="'$(NekoLibWatchdogHostDeploy)' == ''">true</NekoLibWatchdogHostDeploy>
+
+    <_NekoLibWatchdogHostTfm Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">net481</_NekoLibWatchdogHostTfm>
+    <_NekoLibWatchdogHostTfm Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp'">net9.0-windows</_NekoLibWatchdogHostTfm>
+
+    <_NekoLibWatchdogHostRuntimeRidRecognized Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win')) and ($([System.String]::Copy('$(RuntimeIdentifier)').EndsWith('-x86')) or $([System.String]::Copy('$(RuntimeIdentifier)').EndsWith('-x64')))">true</_NekoLibWatchdogHostRuntimeRidRecognized>
+    <_NekoLibWatchdogHostUnsupportedRid Condition="'$(NekoLibWatchdogHostRid)' == '' and '$(RuntimeIdentifier)' != '' and '$(_NekoLibWatchdogHostRuntimeRidRecognized)' != 'true'">$(RuntimeIdentifier)</_NekoLibWatchdogHostUnsupportedRid>
+    <_NekoLibWatchdogHostUnsupportedRid Condition="'$(_NekoLibWatchdogHostUnsupportedRid)' == '' and ('$(PlatformTarget)' == 'ARM64' or '$(Platform)' == 'ARM64')">ARM64</_NekoLibWatchdogHostUnsupportedRid>
+
+    <_NekoLibWatchdogHostRid Condition="'$(NekoLibWatchdogHostRid)' != ''">$(NekoLibWatchdogHostRid)</_NekoLibWatchdogHostRid>
+    <_NekoLibWatchdogHostRid Condition="'$(_NekoLibWatchdogHostRid)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').EndsWith('-x86'))">win-x86</_NekoLibWatchdogHostRid>
+    <_NekoLibWatchdogHostRid Condition="'$(_NekoLibWatchdogHostRid)' == '' and $([System.String]::Copy('$(RuntimeIdentifier)').EndsWith('-x64'))">win-x64</_NekoLibWatchdogHostRid>
+    <_NekoLibWatchdogHostRid Condition="'$(_NekoLibWatchdogHostRid)' == '' and ('$(PlatformTarget)' == 'x86' or '$(Platform)' == 'x86' or '$(Prefer32Bit)' == 'true')">win-x86</_NekoLibWatchdogHostRid>
+    <_NekoLibWatchdogHostRid Condition="'$(_NekoLibWatchdogHostRid)' == ''">win-x64</_NekoLibWatchdogHostRid>
+
+    <_NekoLibWatchdogHostToolsPath Condition="'$(_NekoLibWatchdogHostTfm)' == 'net481'">$(MSBuildThisFileDirectory)..\tools\net481\</_NekoLibWatchdogHostToolsPath>
+    <_NekoLibWatchdogHostToolsPath Condition="'$(_NekoLibWatchdogHostTfm)' == 'net9.0-windows'">$(MSBuildThisFileDirectory)..\tools\net9.0-windows7.0\$(_NekoLibWatchdogHostRid)\</_NekoLibWatchdogHostToolsPath>
+  </PropertyGroup>
+
+  <Target Name="_NekoLibValidateWatchdogHostDeployment"
+          BeforeTargets="_NekoLibDeployWatchdogHostToBuildOutput;_NekoLibDeployWatchdogHostToPublishOutput"
+          Condition="'$(NekoLibWatchdogHostDeploy)' == 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Error Condition="'$(_NekoLibWatchdogHostTfm)' == ''"
+           Text="NekoLib.Watchdog.Host supports .NET Framework 4.8.1 and .NET 9 Windows consumers only." />
+    <Error Condition="'$(_NekoLibWatchdogHostTfm)' == 'net9.0-windows' and '$(_NekoLibWatchdogHostUnsupportedRid)' != ''"
+           Text="NekoLib.Watchdog.Host does not contain a $(_NekoLibWatchdogHostUnsupportedRid) payload. Use win-x86 or win-x64." />
+    <Error Condition="'$(_NekoLibWatchdogHostTfm)' == 'net9.0-windows' and '$(_NekoLibWatchdogHostRid)' != 'win-x86' and '$(_NekoLibWatchdogHostRid)' != 'win-x64'"
+           Text="NekoLib.Watchdog.Host contains win-x86 and win-x64 payloads only. Set NekoLibWatchdogHostRid explicitly to one of those values." />
+    <Error Condition="!Exists('$(_NekoLibWatchdogHostToolsPath)NekoLib.Watchdog.Host.exe')"
+           Text="The NekoLib.Watchdog.Host package does not contain the selected $(_NekoLibWatchdogHostTfm)/$(_NekoLibWatchdogHostRid) payload." />
+  </Target>
+
+  <Target Name="_NekoLibDeployWatchdogHostToBuildOutput"
+          AfterTargets="Build"
+          Condition="'$(NekoLibWatchdogHostDeploy)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <PropertyGroup>
+      <_NekoLibWatchdogHostBuildDestination>$(TargetDir)NekoLib.Watchdog.Host\</_NekoLibWatchdogHostBuildDestination>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NekoLibWatchdogHostPayload Remove="@(_NekoLibWatchdogHostPayload)" />
+      <_NekoLibWatchdogHostPayload Include="$(_NekoLibWatchdogHostToolsPath)**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_NekoLibWatchdogHostBuildDestination)" />
+    <MakeDir Directories="@(_NekoLibWatchdogHostPayload->'$(_NekoLibWatchdogHostBuildDestination)%(RecursiveDir)')" />
+    <Copy SourceFiles="@(_NekoLibWatchdogHostPayload)"
+          DestinationFiles="@(_NekoLibWatchdogHostPayload->'$(_NekoLibWatchdogHostBuildDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="_NekoLibDeployWatchdogHostToPublishOutput"
+          AfterTargets="Publish"
+          Condition="'$(NekoLibWatchdogHostDeploy)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(PublishDir)' != ''">
+    <PropertyGroup>
+      <_NekoLibWatchdogHostPublishDestination>$(PublishDir)NekoLib.Watchdog.Host\</_NekoLibWatchdogHostPublishDestination>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NekoLibWatchdogHostPublishPayload Remove="@(_NekoLibWatchdogHostPublishPayload)" />
+      <_NekoLibWatchdogHostPublishPayload Include="$(_NekoLibWatchdogHostToolsPath)**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_NekoLibWatchdogHostPublishDestination)" />
+    <MakeDir Directories="@(_NekoLibWatchdogHostPublishPayload->'$(_NekoLibWatchdogHostPublishDestination)%(RecursiveDir)')" />
+    <Copy SourceFiles="@(_NekoLibWatchdogHostPublishPayload)"
+          DestinationFiles="@(_NekoLibWatchdogHostPublishPayload->'$(_NekoLibWatchdogHostPublishDestination)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="_NekoLibRemoveDisabledWatchdogHostFromBuildOutput"
+          AfterTargets="Build"
+          Condition="'$(NekoLibWatchdogHostDeploy)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <PropertyGroup>
+      <_NekoLibWatchdogHostDisabledBuildDestination>$(TargetDir)NekoLib.Watchdog.Host\</_NekoLibWatchdogHostDisabledBuildDestination>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_NekoLibWatchdogHostDisabledBuildDestination)" />
+  </Target>
+
+  <Target Name="_NekoLibRemoveDisabledWatchdogHostFromPublishOutput"
+          AfterTargets="Publish"
+          Condition="'$(NekoLibWatchdogHostDeploy)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(PublishDir)' != ''">
+    <PropertyGroup>
+      <_NekoLibWatchdogHostDisabledPublishDestination>$(PublishDir)NekoLib.Watchdog.Host\</_NekoLibWatchdogHostDisabledPublishDestination>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_NekoLibWatchdogHostDisabledPublishDestination)" />
+  </Target>
+
+  <Target Name="_NekoLibCleanWatchdogHostBuildOutput"
+          AfterTargets="Clean"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <PropertyGroup>
+      <_NekoLibWatchdogHostCleanDestination>$(TargetDir)NekoLib.Watchdog.Host\</_NekoLibWatchdogHostCleanDestination>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_NekoLibWatchdogHostCleanDestination)" />
+  </Target>
+</Project>

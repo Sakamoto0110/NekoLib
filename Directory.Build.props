@@ -1,0 +1,29 @@
+<Project>
+  <PropertyGroup>
+    <!-- Packaging is opt-in. This keeps tests, tools, runtime scenarios and the
+         constants-only Hosting project out of solution-level pack operations. -->
+    <IsPackable Condition="'$(IsPackable)' == ''">false</IsPackable>
+
+    <!-- One coordinated family version. Override NekoLibPackageVersion at pack
+         time instead of overwriting an already-published local package. -->
+    <NekoLibPackageVersion Condition="'$(NekoLibPackageVersion)' == ''">1.0.0-local.3</NekoLibPackageVersion>
+    <Version Condition="'$(Version)' == ''">$(NekoLibPackageVersion)</Version>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(NekoLibPackageVersion)</PackageVersion>
+
+    <Authors>Rafael Sakamoto</Authors>
+    <Company>NekoLib</Company>
+    <Copyright>Copyright © 2026 Rafael Sakamoto</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Sakamoto0110/NekoLib</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Sakamoto0110/NekoLib</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages</PackageOutputPath>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+</Project>

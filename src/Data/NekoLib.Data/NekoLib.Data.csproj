@@ -12,6 +12,12 @@
 		<!-- Assembly info -->
 		<AssemblyName>NekoLib.Data</AssemblyName>
 		<RootNamespace>NekoLib.Data</RootNamespace>
+
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Data</PackageId>
+		<Title>NekoLib Data</Title>
+		<Description>Provider-neutral database gateway with fluent SQL building, typed and dynamic reads, streaming and transactions.</Description>
+		<PackageTags>nekolib;data;database;sql;ado-net</PackageTags>
  
 		<!-- Identity -->
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
@@ -25,7 +31,7 @@
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 	</PropertyGroup>
 
-	<ItemGroup>
-	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
 	</ItemGroup>
 </Project>

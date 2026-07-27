@@ -5,6 +5,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>NekoLib.Pipes</PackageId>
+    <Title>NekoLib Pipes</Title>
+    <Description>Named-pipe IPC with framed request-response RPC, pub-sub events and optional metrics.</Description>
+    <PackageTags>nekolib;ipc;named-pipes;rpc;desktop</PackageTags>
   </PropertyGroup>
 
   <!-- Newtonsoft only for 481 -->

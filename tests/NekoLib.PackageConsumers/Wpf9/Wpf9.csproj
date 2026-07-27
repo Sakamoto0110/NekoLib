@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NekoLib.Mvvm" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Navigation.Wpf" Version="$(NekoLibPackageVersion)" />
+  </ItemGroup>
+</Project>

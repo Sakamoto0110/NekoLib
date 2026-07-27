@@ -12,6 +12,12 @@
 		<AssemblyName>NekoLib.Navigation.Wpf</AssemblyName>
 		<RootNamespace>NekoLib.Navigation.Wpf</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Navigation.Wpf</PackageId>
+		<Title>NekoLib Navigation for WPF</Title>
+		<Description>WPF host and platform adapters for NekoLib.Navigation.</Description>
+		<PackageTags>nekolib;navigation;wpf;kiosk;pos</PackageTags>
+
 		<UseWPF>true</UseWPF>
 	</PropertyGroup>
 

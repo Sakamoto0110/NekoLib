@@ -10,6 +10,12 @@
 		<AssemblyName>NekoLib.Diagnostics.Windows</AssemblyName>
 		<RootNamespace>NekoLib.Diagnostics.Windows</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Diagnostics.Windows</PackageId>
+		<Title>NekoLib Diagnostics for Windows</Title>
+		<Description>Windows minidumps, WER suppression and WinForms exception integration for NekoLib.Diagnostics.</Description>
+		<PackageTags>nekolib;diagnostics;windows;minidump;winforms</PackageTags>
+
 		<!-- Assembly metadata: generated ONCE -->
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 

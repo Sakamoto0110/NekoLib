@@ -69,11 +69,12 @@ adapters, and the frozen components.
 
 ## Optional modules
 
-Pick what you need; none of these are required by Navigation.
+Pick what you need. Navigation requires `NekoLib.Core`; the other modules are
+optional unless one of their documented dependents brings them transitively.
 
 | Module | What it gives you |
 |---|---|
-| `NekoLib.Core` | The shared contracts — `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `IDebugUtils` — plus null objects. Zero dependencies. Feature modules depend on this and nothing else. |
+| `NekoLib.Core` | Shared contracts — `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `IDebugUtils` — plus null objects. Zero dependencies. |
 | `NekoLib.Logger` | Concrete logging: `Logger`, `Diagnostics` context, `DebugLogSink`, `MemoryTelemetrySink`. |
 | `NekoLib.Diagnostics` | Crash orchestration: `CrashHandler` hooks AppDomain and TaskScheduler and writes a crash bundle with `crash.txt` and log tails. Dump writing is pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
@@ -90,7 +91,7 @@ Pick what you need; none of these are required by Navigation.
 |---|---|
 | Targets | `net481` and `net9.0` (`net9.0-windows` for the UI and Win32 modules) |
 | Language | C# `latest`; **no `record`** in types shared across targets — net481 lacks `IsExternalInit` |
-| Nullable | Enabled across `src/` |
+| Nullable | Configured per module; preserve the existing setting documented in `AGENTS.md` |
 | Tooling | Visual Studio 2022 or the `dotnet` CLI. No CI/CD — builds are manual |
 | Platform | `net481` and every `-windows` target build on Windows only |
 
@@ -98,6 +99,66 @@ Pick what you need; none of these are required by Navigation.
 dotnet build NekoLib.sln
 dotnet test NekoLib.sln
 ```
+
+## Local NuGet packages
+
+Package production is opt-in: the 13 library projects and the Watchdog sidecar
+are packages; tests, runtime scenarios, `BundlerTool`, and the constants-only
+`src/Hosting/NekoLib` project are not.
+
+Use the packaging entry point instead of packing individual projects:
+
+```powershell
+.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.3
+```
+
+The command requires a clean Git worktree, builds and tests the solution,
+publishes the Watchdog Host payloads, packs the whole family, validates package
+structure and cross-TFM compatibility, restores clean PackageReference-only
+consumers, and finally copies the verified artifacts to
+`artifacts/local-feed/`. Main packages and `.snupkg` symbol packages are
+retained. Package versions are immutable: after publishing `local.3`, use
+`local.4` for changed bits.
+
+Use `-AllowDirty` only for a disposable validation version; a package produced
+from uncommitted sources cannot carry exact Git/Source Link provenance.
+
+Register the generated folder as a source on a consumer machine:
+
+```powershell
+dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
+dotnet add package NekoLib.Navigation.WinForms --version 1.0.0-local.3
+```
+
+The same verified `.nupkg` files can be pushed to an authenticated private
+NuGet v3 feed; no package or consumer project changes are required.
+
+Project references become NuGet dependencies, so an application normally
+references only its top-level modules. For example,
+`NekoLib.Navigation.WinForms` brings Navigation and Core transitively.
+
+`NekoLib.Watchdog.Host` is a deployment package rather than a compile-time
+library. Reference it directly from the executable project. On build and
+publish it copies an isolated sidecar to:
+
+```text
+<application output>/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.exe
+```
+
+That subdirectory is owned by the package and replaced on each build/publish so
+obsolete files from an older Host payload cannot survive an upgrade.
+
+The package carries an AnyCPU `net481` payload plus framework-dependent
+`win-x86` and `win-x64` .NET 9 payloads. Selection follows
+`NekoLibWatchdogHostRid`, `RuntimeIdentifier`, then `PlatformTarget`, defaulting
+to `win-x64`. Set `NekoLibWatchdogHostDeploy=false` to disable deployment. A
+.NET 9 Host still requires the corresponding x86 or x64 .NET 9 Runtime on the
+target machine.
+
+The package-consumer probes live under `tests/NekoLib.PackageConsumers/` and
+cover single- and multi-target WinForms plus WPF without any `ProjectReference`.
+They are not part of `NekoLib.sln`, because a normal source build must not
+require packages to have been produced first.
 
 ## Module map
 
@@ -119,9 +180,11 @@ dotnet test NekoLib.sln
 | `NekoLib.Watchdog.Host` | `src/Watchdog/NekoLib.Watchdog.Host/` | net481, net9.0-windows | Watchdog |
 | `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | — (version/ID constants; not in the solution) |
 
-Dependencies flow one way: `Adapters` → `Runtime` → `Contracts`. Feature modules
-reference `NekoLib.Core` and nothing else — the one documented exception is
-`NekoLib.Watchdog`, which also references `NekoLib.Pipes` for its IPC channel.
+Inside Navigation, dependencies flow one way:
+`Adapters` → `Runtime` → `Contracts`. Across packages, dependencies follow the
+`References` column above: platform adapters depend on Navigation,
+Diagnostics.Windows depends on Diagnostics, and Watchdog depends on Core and
+Pipes. The graph has no cycles.
 
 `src/Tools/BundlerTool/` is a standalone dev utility and is not part of
 `NekoLib.sln`.

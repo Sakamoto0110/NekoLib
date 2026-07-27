@@ -10,6 +10,12 @@
 		<AssemblyName>NekoLib.Logger</AssemblyName>
 		<RootNamespace>NekoLib.Logger</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Logger</PackageId>
+		<Title>NekoLib Logger</Title>
+		<Description>Concrete NekoLib logging and diagnostics context with debug and in-memory telemetry sinks.</Description>
+		<PackageTags>nekolib;logging;telemetry;diagnostics;desktop</PackageTags>
+
 		<!-- Assembly metadata: generated ONCE -->
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 

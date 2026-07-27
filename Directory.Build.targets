@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup Condition="'$(IsPackable)' == 'true' and '$(EnablePackageValidation)' == ''">
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md"
+          Pack="true"
+          PackagePath="\"
+          Link="README.md"
+          Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE.txt"
+          Pack="true"
+          PackagePath="\"
+          Link="LICENSE.txt"
+          Visible="false" />
+  </ItemGroup>
+
+  <Target Name="ValidateNekoLibPackageMetadata"
+          BeforeTargets="Pack"
+          Condition="'$(IsPackable)' == 'true'">
+    <Error Condition="'$(PackageId)' == ''"
+           Text="$(MSBuildProjectName) must declare PackageId before it can be packed." />
+    <Error Condition="'$(Title)' == ''"
+           Text="$(MSBuildProjectName) must declare Title before it can be packed." />
+    <Error Condition="'$(Description)' == ''"
+           Text="$(MSBuildProjectName) must declare Description before it can be packed." />
+    <Error Condition="'$(PackageTags)' == ''"
+           Text="$(MSBuildProjectName) must declare PackageTags before it can be packed." />
+  </Target>
+</Project>

@@ -10,6 +10,12 @@
 		<AssemblyName>NekoLib.DebugUtils</AssemblyName>
 		<RootNamespace>NekoLib.DebugUtils</RootNamespace>
 
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.DebugUtils</PackageId>
+		<Title>NekoLib DebugUtils</Title>
+		<Description>Opt-in in-process observability with an operation ring buffer, state providers and command hooks.</Description>
+		<PackageTags>nekolib;observability;debugging;diagnostics;desktop</PackageTags>
+
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
 	</PropertyGroup>
 

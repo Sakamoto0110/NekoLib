@@ -87,6 +87,10 @@ Do not extend observability without an explicit decision to unfreeze.
 - **Documentation restructure (2026-07-26)** — `README.md` became the central
   doc, the Navigation README became the full technical reference, and three
   obsolete files were deleted (see below).
+- **Local NuGet distribution (2026-07-26)** — the 13 library modules now pack
+  independently under one coordinated version. `NekoLib.Watchdog.Host` is a
+  tools/build deployment package with isolated net481, win-x86, and win-x64
+  payloads. PackageReference-only WinForms/WPF consumers verify the graph.
 
 ## What is deliberately incomplete (the freeze)
 
@@ -178,6 +182,20 @@ is why — **do not recreate them**:
 dotnet build NekoLib.sln
 dotnet test NekoLib.sln
 ```
+
+Create and verify a new immutable local package version:
+
+```powershell
+.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.3
+```
+
+Do not overwrite a version already present in `artifacts/local-feed`. The script
+requires a clean Git worktree so package provenance matches the commit. It is
+the canonical pack entry point because it publishes the RID-specific Watchdog
+Host payloads before packing and runs clean package-consumer probes. Use
+`-AllowDirty` only for disposable validation versions. Direct
+`dotnet pack NekoLib.sln` intentionally omits the Host unless
+`NekoLibWatchdogHostPayloadRoot` is supplied.
 
 Single project, single TFM, single test:
 

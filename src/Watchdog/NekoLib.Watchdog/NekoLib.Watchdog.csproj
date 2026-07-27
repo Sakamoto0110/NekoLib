@@ -7,6 +7,12 @@
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
 
+    <IsPackable>true</IsPackable>
+    <PackageId>NekoLib.Watchdog</PackageId>
+    <Title>NekoLib Watchdog</Title>
+    <Description>Process supervision, restart orchestration, crash bundling and RPC control for unattended applications.</Description>
+    <PackageTags>nekolib;watchdog;process-supervision;kiosk;pos</PackageTags>
+
   </PropertyGroup>
 
 	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-windows'">
@@ -18,8 +24,9 @@
 		<NoWarn>$(NoWarn);1591</NoWarn>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />	</ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)'=='net481'">
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	</ItemGroup>
 
 	<ItemGroup>
 	  <ProjectReference Include="..\..\Core\NekoLib.Core\NekoLib.Core.csproj" />
