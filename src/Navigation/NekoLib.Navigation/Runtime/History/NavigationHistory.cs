@@ -45,6 +45,28 @@ namespace NekoLib.Navigation.Runtime.History
             entry = _back.Pop();
             return true;
         }
+
+        /// <summary>
+        /// Commits a previously inspected back entry only when it is still the
+        /// current stack head. Lifecycle callbacks can reach this public history
+        /// object, so the navigation gate alone cannot guarantee that the entry
+        /// has not changed while a back navigation was in progress.
+        /// </summary>
+        internal bool TryPopExpectedBack(
+            PageHistoryEntry expected,
+            out PageHistoryEntry entry)
+        {
+            if (_back.Count == 0 ||
+                !ReferenceEquals(_back.Peek(), expected))
+            {
+                entry = null!;
+                return false;
+            }
+
+            entry = _back.Pop();
+            return true;
+        }
+
         public void PushForward(PageHistoryEntry entry)
         {
             if (entry != null)

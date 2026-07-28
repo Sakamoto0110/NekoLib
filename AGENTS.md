@@ -33,40 +33,43 @@ the handoff state and the rules that are easy to get wrong.
 
 ---
 
-# ⚠ HANDOFF — state as of 2026-07-26
+# ⚠ HANDOFF — state as of 2026-07-27
 
 A point-in-time snapshot written at handover. If it contradicts the code, the
 code wins — and please correct it here.
 
 ## Verified at handoff
 
-`dotnet test NekoLib.sln`, Windows, 2026-07-26:
+`dotnet test NekoLib.sln`, Windows, 2026-07-27:
 
-- **478/478 passing**, 0 failures, across `net481` and `net9.0`/`net9.0-windows`.
-- **665 build warnings, all pre-existing nullable (CS86xx)** — counted across
-  both TFMs, so roughly half that per target. Concentrated in
-  `NekoLib.Navigation` (304), `NekoLib.Watchdog` (140),
-  `NekoLib.Navigation.WinForms` (80). **Do not add new ones.**
+- **836/836 passing**, 0 failures and 0 skipped, across `net481` and
+  `net9.0`/`net9.0-windows`.
+- **553 build warnings, all pre-existing identities and predominantly nullable
+  (CS86xx)** — counted by a full `-t:Rebuild` across both TFMs. A clean detached
+  `HEAD` rebuild produced the former 665-warning baseline; the 2026-07-27 work
+  removed 112 occurrences, and normalized warning comparison confirmed zero new
+  identities. **Do not add new ones.**
 
 ## Local commits are NOT pushed
 
-`master` was level with `origin/master` at `d352fa8`; everything since sits
-locally only. **Run `git log --oneline origin/master..HEAD` first.** If you are
-working from a fresh clone of the remote you do not have any of it — you have a
-pre-2026-07-26 repo without the extended observability hooks, without the freeze
-record, and without the documentation restructure.
+At the start of the 2026-07-27 task, `master` was level with `origin/master` and
+the worktree was clean. The Watchdog attach/bootstrap and process-wide
+DebugUtils changes from that task are uncommitted at handoff. **Run
+`git log --oneline origin/master..HEAD` and `git status --short` first.**
 
 ## Where the work was heading
 
-The observability module is **frozen**, deliberately, not abandoned. When it is
-unfrozen, the recommended order is:
+The minimal process-wide observability foundation was explicitly unfrozen and
+completed on 2026-07-27. Broad module instrumentation remains **frozen**,
+deliberately, not abandoned. When the next layer is unfrozen, the recommended
+order is:
 
 1. **Consumer bridge** — dump the ring buffer + `CaptureState()` into the
    `CrashHandler` crash bundle. This is what turns the module from "a buffer
    nobody reads" into a post-mortem tool, and it is the highest-value step.
-2. **One real command case** — `RegisterCommand`/`TryInvokeCommand` is a third of
-   the interface and has never been exercised. Validate it once before
-   replicating the pattern across five modules.
+2. **One real command case** — `RegisterCommand`/`TryInvokeCommand` has direct
+   infrastructure tests but no feature-module registration. Validate one
+   operational case before replicating the pattern across five modules.
 3. **B4 per module** — start with `Data` (the `QueryExecutionContext` events are
    already the seam) and `Pipes` (`IPipeMetrics` is already the extension point).
 
@@ -80,9 +83,12 @@ Do not extend observability without an explicit decision to unfreeze.
   `net9.0` on the modules that do not need Windows. Inverted the `CrashHandler`
   dump writer to avoid a Diagnostics ↔ Diagnostics.Windows cycle.
 - **B1/B2/B3** — `IDebugUtils` in Core, `DebugUtilsRuntime` in
-  `NekoLib.DebugUtils`, and the Navigation observer pilot.
-- **Extended Navigation telemetry (2026-07-26)** — the observer now has two
-  fidelity levels; see the Diagnostics section of the Navigation README.
+  `NekoLib.DebugUtils`, and correlated Navigation observability.
+- **Navigation lifecycle/trace correction (2026-07-27)** — an explicit limited
+  unfreeze added pre-dispatch request tracing, linked guard attempts, monotonic
+  stage timing, page/cache/background/surface/idle/runtime mirrors, and corrected
+  history, lifecycle, teardown and concurrent-shutdown behavior. The stability-
+  sensitive components are frozen again; see the Navigation README.
 - **Devices audit closed** (`d352fa8`) — remaining `SerialCommTransport` items.
 - **Documentation restructure (2026-07-26)** — `README.md` became the central
   doc, the Navigation README became the full technical reference, and three
@@ -91,6 +97,13 @@ Do not extend observability without an explicit decision to unfreeze.
   independently under one coordinated version. `NekoLib.Watchdog.Host` is a
   tools/build deployment package with isolated net481, win-x86, and win-x64
   payloads. PackageReference-only WinForms/WPF consumers verify the graph.
+- **Watchdog self-bootstrap/attach (2026-07-27)** — an application can start the
+  deployed Host, hand off its current PID, verify a bounded PID/token handshake,
+  and let the existing restart path supervise later child instances.
+- **Process-wide DebugUtils foundation (2026-07-27)** — Core owns the NO-OP
+  default slot, `DebugUtilsRuntime.EnableGlobal()` owns deterministic singleton
+  activation/teardown, Navigation can opt into the slot, and DebugUtils now has
+  direct dual-target tests.
 
 ## What is deliberately incomplete (the freeze)
 
@@ -101,15 +114,14 @@ Recorded in full in the freeze section of [`TODO.md`](TODO.md). Summary:
    the `IntegrationDemo_481` runtime app shows `Data/*` and `Pipes/*` operations
    in the ring buffer — that is *the app* calling `Record` by hand, not the
    libraries emitting. Swap the app and the instrumentation is gone.
-2. **The command channel is dead.** `RegisterCommand`/`TryInvokeCommand` have
-   zero registrations, invocations or tests in the whole repo.
+2. **No feature module uses the command channel.**
+   `RegisterCommand`/`TryInvokeCommand` now have direct infrastructure tests, but
+   there is still no real module registration.
 3. **No reusable consumer surface.** No viewer, no `ILogSink`/file bridge,
    nothing in the crash bundle. Every app wires its own.
-4. **`NekoLib.DebugUtils` has no test project.** Ring-buffer eviction is covered
-   only indirectly via the Navigation observer; `ClearOperations`, `CommandKeys`,
-   the command channel and concurrency are untested.
-5. **`NoPageAttached`/`NoPageVisible` are wired but untested** — firing them
-   deterministically needs a real host, not the test fakes.
+4. **Navigation exposes no DebugUtils commands.** That is deliberate until an
+   async/cancellation/timeout/UI-marshalling command contract exists. Page
+   presence events and transient-blank suppression now have headless regressions.
 
 ## Open items elsewhere
 
@@ -119,11 +131,11 @@ before making a change.
 
 | Module | Current status | Historical detail |
 |---|---|---|
-| Watchdog | Update orchestration is explicitly `not_implemented`; the truncated SHA1 pipe identity, silent 300-entry replay-buffer eviction, host `--args` parsing and relative fatal-log path remain. App-log forwarding (old M7) and bring-to-front (old L7) are implemented now. | `docs/audit/watchdog-first-pass.md` |
+| Watchdog | Update orchestration is explicitly `not_implemented`; the truncated SHA1 pipe identity, silent 300-entry replay-buffer eviction and relative fatal-log path remain. Application bootstrap/attach and Host argument preservation are implemented. App-log forwarding (old M7) and bring-to-front (old L7) are implemented now. | `docs/audit/watchdog-first-pass.md` |
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The remaining gap is real serial I/O through a COM-port emulator/runtime scenario. | `docs/audit/devices-first-pass.md` |
 | Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `src/Data/NekoLib.Data/DataAudit.md` |
-| Navigation | NEW-12 namespace ergonomics and NEW-13 `PageMetadataBuilder.Register<T>` remain; the last interactive prompt-close probe is not automated. `PageDescriptor.AllowAnonymous` is still stored but not consulted by the runtime. | `docs/audit/navigation-audit.md` |
+| Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/audit/navigation-audit.md` |
 
 ## Deleted on 2026-07-26 — do not resurrect
 
@@ -165,10 +177,12 @@ is why — **do not recreate them**:
 - `NekoLib.Data`, `NekoLib.Devices`, `NekoLib.Mvvm`, `NekoLib.Pipes` and
   `NekoLib.Diagnostics` reference **no other project at all** — in particular
   Data and Devices do not know `NekoLib.Core`.
-- `DebugUtilsNavigationObserver` receives `NavigationStarted` from
-  `NavigationService.Navigating`, which fires **after** guard evaluation. It can
-  expose a load/lifecycle hang after the guard succeeds, but it cannot diagnose
-  a guard that never returns. Guards themselves have a 30-second timeout.
+- `DebugUtilsNavigationObserver` receives `NavigationStarted` at API entry,
+  **before** UI dispatch and navigation-gate waiting. Public
+  `NavigationService.Navigating` fires after descriptor lookup, with effective
+  args, **before** guard evaluation. Redirects are child attempts under one
+  request; one request terminal follows the full lifecycle. Subscriber exceptions
+  are isolated and guards retain their 30-second timeout.
 - Overlay teardown is intentionally asymmetric: Toast uses
   `DismissCurrentToast()`; Dialog, Prompt and Popover use `CloseAll()`.
 
@@ -283,12 +297,13 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 
 ## Module gotchas
 
-- **Navigation** — the canonical lifecycle order is marked DO NOT CHANGE, and
+- **Navigation** — the canonical lifecycle order is marked DO NOT CHANGE.
   `NavigationContext`, `NavigationRuntime`, `PageRegistry` and `PageFactory` are
-  FROZEN; extensions live outside `Core/`. **Read the Navigation README before
-  modifying the module.** Await `NavigationService.Shutdown()`. Navigation and
-  reset operations use the navigation gate; Dialog/Prompt/Popover deliberately
-  marshal to UI without taking that gate.
+  stability-sensitive and frozen again after the explicit 2026-07-27
+  lifecycle/trace correction. **Read the Navigation README before modifying the
+  module.** Await `NavigationService.Shutdown()`. Navigation and reset operations
+  use the navigation gate; Dialog/Prompt/Popover deliberately marshal to UI
+  without taking that gate.
 - **Data** — on net481 with OleDb, parameter binding is position-dependent, not
   name-dependent. `ApplyParameters` now activates the OleDb path with
   `NETFRAMEWORK`, and `QueryBuilder` now isolates subquery parameters and builds

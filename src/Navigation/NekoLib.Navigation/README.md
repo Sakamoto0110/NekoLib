@@ -60,21 +60,27 @@ throws.
 
 | Component | Role |
 |---|---|
-| `NavigationContext` (public, FROZEN) | Navigation-scoped **state bag**: Host, Services (locked `ServiceLocator`), Registry, History, Session, Platform, Diagnostics/Events. No navigation logic. Created by `PageNavBootstrap.Start()`. |
+| `NavigationContext` (public, stability-sensitive) | Navigation-scoped **state bag**: Host, Services (locked `ServiceLocator`), Registry, History, Session, Platform, Diagnostics/Events. No navigation logic. Created by `PageNavBootstrap.Start()`. |
 | `NavigationRuntime` (internal) | The actual **engine**. Owns `Current`, the strong/weak page caches, attached/visible page sets, and the navigation gate. One per mounted context. |
 | `NavigationService` (public static facade) | The application-facing API. `UseContext` is internal; `Start()` auto-mounts. |
 
 ## Execution model
 
-Every public entry point runs through `ExecuteAsync` = **marshal to the UI
-thread** (`IEventDispatcherAdapter.BeginInvoke`) **then serialize** on a
+The runtime accepts and correlates a request first, then **marshals to the UI
+thread** (`IEventDispatcherAdapter.BeginInvoke`) and **serializes** mutation on a
 `SemaphoreSlim(1,1)` navigation gate. Consequences:
 
+- `NavigationStarted` diagnostics are observable at API entry, including time
+  spent waiting for UI dispatch and the navigation gate.
 - All lifecycle methods run on the UI thread. Never `ConfigureAwait(false)`
   inside the runtime's UI path.
 - Guards run **inside** the gate, bounded by a 30 s timeout
   (`GuardEvaluationTimeoutMs`) — a hung guard denies the navigation and releases
   the gate instead of deadlocking every future navigation.
+- Navigation events and the internal diagnostics hub invoke subscribers inline.
+  Exceptions are isolated per subscriber, but latency is not: subscribers must
+  be fast and non-blocking. In particular, the 30 s guard timeout starts when
+  `EvaluateAsync` is invoked, after `Navigating` subscribers return.
 - Dialog/Prompt/Popover calls marshal to the UI thread but deliberately do
   **not** take the gate: a modal awaits user input, and holding the gate would
   freeze navigation.
@@ -86,26 +92,46 @@ thread** (`IEventDispatcherAdapter.BeginInvoke`) **then serialize** on a
 As implemented in `NavigationRuntime.SwitchInternalAsync`:
 
 ```
-Registry lookup (unregistered type ⇒ throw)
+Internal NavigationStarted diagnostic (API request received)
+→ UI dispatch
+→ navigation-gate wait
+→ Registry lookup (unregistered type ⇒ NavigationFailed + throw)
+→ resolve descriptor-effective NavigationArgs
+→ Navigating(from, toType, effectiveArgs) (processing signal; subscriber-safe)
 → Guard evaluation (30s cap; deny/redirect: depth ≤ 8, cycle detection)
 → Capture FROM state early (IPageStateful.CaptureState)
-→ Navigating(from, toType, args)
 → Resolve TO instance (reuse-policy caches)
 → [LoadBeforeShow only] load now (with loading mask)
 → FROM: IPageVisibility.HidePage() → IPageLifecycle.OnNavigatedFromAsync()
-→ Detach FROM + Cleanup (unless KeepAttachedWhenHidden; Transient ⇒ dispose)
+→ Detach FROM (unless KeepAttachedWhenHidden)
 → Attach TO + BringToFront + IPageVisibility.ShowPage()
 → Current = to; CurrentChanged
 → [ShowImmediately] load now / [LoadInBackground] fire-and-forget guarded load
 → [back-nav only] IPageStateful.RestoreState(state) — BEFORE the enter hook
 → TO: IPageLifecycle.OnNavigatedToAsync(args)
+→ Cleanup detached FROM (Transient ⇒ dispose)
 → History.Record(from) + HistoryChanged (forward navigation only)
 → Navigated(from, to, args) + diagnostics EmitSuccess
+→ correlated request terminal
 ```
 
-On failure: the `NavigationFailed` event plus `EmitFailure` with the stage
-recorded as a `NavigationFailureKind` (`PageNotRegistered` →
-`PageCreationFailed` → `LoadFailed` → `LifecycleFailed`), then rethrow.
+Guard denial/timeout closes the attempt as `GuardDenied`; a redirect closes the
+parent attempt and links a child attempt to the same request. Runtime failures
+raise `NavigationFailed`, emit a `NavigationFailureKind`
+(`PageNotRegistered` → `PageCreationFailed` → `LoadFailed` →
+`LifecycleFailed`), close the request as failed, then rethrow. A
+`LoadInBackground` failure has its own terminal and does not retroactively turn
+a completed page navigation into a failure.
+
+Once the old page starts leaving, a later attach/show/load/restore/enter failure
+is rolled back best-effort: only that target's background work is discarded, a newly
+attached target is removed (and disposed when transient), and the prior page is
+reattached, brought forward, shown and restored as `Current`. The old transient
+is therefore disposed only after the target enter hook succeeds. Page lifecycle
+callbacks themselves are not replayed during rollback—their application-side
+effects remain the page author's responsibility. If reattach, bring-to-front or
+show itself fails, the runtime does not publish the prior page as current/visible;
+the corresponding terminal blank-state event remains observable instead.
 
 `NavigationRuntime`, driven through the static facade, is the **only component
 allowed** to invoke lifecycle methods. `IPageLifecycle` has exactly two hooks.
@@ -117,7 +143,7 @@ allowed** to invoke lifecycle methods. `IPageLifecycle` has exactly two hooks.
 Every navigable view implements `IPageView`. Platform projects supply base
 classes: `NekoLib.Navigation.WinForms.Hosting.PageView` and
 `NekoLib.Navigation.Wpf.Hosting.PageView` (designer-safe; implement `IPageView` +
-`IPageLifecycle`).
+`IPageLifecycle` + `IPageVisibility`).
 
 Page-side contracts are opt-in — a page implements only what it needs:
 
@@ -130,6 +156,13 @@ Page-side contracts are opt-in — a page implements only what it needs:
 | `IBackgroundLoadable` | `LoadInBackgroundAsync(args)` / `ApplyBackgroundResultAsync()` |
 | `IHostAttachable` | `OnAttach(host)` / `OnDetach()` |
 | `IUnfocusAware` | `OnUnfocusAsync()` for light-dismiss surfaces |
+
+`IPageResources` and `IPageInteraction` are legacy compatibility contracts and
+are not invoked by the runtime. The `AllowBackNavigation` property retained by
+the WinForms/WPF base pages is likewise inert; history policy must not depend on
+it. `IPageOverlay` is consumed by the built-in runtime only for a registered
+`IGlobalLoadingMask`; toast, dialog, prompt and popover use their dedicated
+contracts.
 
 ## Registration and metadata precedence
 
@@ -156,9 +189,9 @@ duplicate page **type** or **name** (case-insensitive) throws at bootstrap.
 (`AllowUnregisteredPages` defaults to `true`; the fallback raises the internal
 `Warn` event).
 
-> **Known gap:** `PageDescriptor.AllowAnonymous` (set by `[AllowAnonymous]`) is
-> stored but **never consulted by the runtime** — guards on the descriptor always
-> run.
+`PageDescriptor.AllowAnonymous` (set by `[AllowAnonymous]`) bypasses the
+descriptor guard. This is evaluated before calling the guard, so an anonymous
+page does not accidentally invoke authentication/authorization work.
 
 ## Reuse policies
 
@@ -170,7 +203,9 @@ duplicate page **type** or **name** (case-insensitive) throws at bootstrap.
 
 `KeepAttachedWhenHidden` (`[KeepAttached]`) keeps the page in the visual tree
 when hidden — honored only when the policy is **not** `Transient` and the page is
-not disposed.
+not disposed. The page must also implement `IPageVisibility`; otherwise the
+runtime falls back to detaching it because it cannot truthfully make the native
+view hidden.
 
 ## Load modes and the loading mask
 
@@ -183,6 +218,11 @@ attach:
   `ApplyBackgroundResultAsync` **only if** the page is still `Current` and not
   disposed; failures are logged to diagnostics, never thrown.
 
+The registered descriptor is authoritative. `NavigationArgs.Preload()` and
+`.Background()` describe the caller's requested mode for diagnostics; after
+registry lookup, `Navigating`, `Navigated` and page lifecycle hooks receive an
+effective `NavigationArgs` whose `LoadMode` matches the descriptor.
+
 `LoadInBackgroundAsync` runs via `Task.Run` and must not touch the UI;
 `ApplyBackgroundResultAsync` runs on the UI thread. During a load the runtime
 shows the registered `IGlobalLoadingMask` page, driven directly through
@@ -194,8 +234,14 @@ auto-registered at bootstrap **unless** the scanned assemblies contain a custom
 
 - `NavigationHistory` is a back stack plus a forward stack. Forward navigation
   records the **from** page (`Record` pushes back and clears forward).
-  `GoBackAsync` pops back, pushes the current page onto forward, and navigates
-  with `NavigationArgs.Back(state)`.
+  History entries use the descriptor's logical name.
+- `GoBackAsync` first inspects the entry and navigates with
+  `NavigationArgs.Back(state)`. It commits the pop/push only after the requested
+  target succeeds; denial, redirect and pre-show failure preserve both stacks.
+- Lifecycle/event callbacks can reach the public history object reentrantly. If
+  they replace its top entry during a successful back switch, the runtime leaves
+  that externally changed history untouched and does not push a synthetic
+  forward entry.
 - Back-navigation **skips** `History.Record` inside the switch — the back path
   manages both stacks itself — and fires `HistoryChanged` once from
   `GoBackInternalAsync`.
@@ -242,7 +288,13 @@ page throws at bootstrap.
 Wiring is automatic in `Start()`: the platform `IInteractionObserverService`
 resets the timer on any input; on tick the timer stops, `Session.SignOut()` runs,
 then `GoIdleAsync()`. The timer starts immediately, so an unattended boot also
-lands on the idle page.
+lands on the idle page. The bootstrap lifetime stops and detaches the idle
+callbacks before runtime teardown, preventing a timer tick from enqueueing new
+work during shutdown. An interaction invalidates a stale tick before it can
+start navigation; a denied/failed idle navigation rearms a fresh interval, while
+`StopIdle()` prevents both rearming and new requests. If the platform has no
+interaction observer, navigation still starts and the DebugUtils idle snapshot
+reports `Unavailable`.
 
 ## Overlays
 
@@ -261,16 +313,30 @@ always non-blocking — blocking variants go through Dialog.
 Semantics worth knowing:
 
 - Dialogs and prompts **stack**: the first open engages the
-  `IInteractionBlocker`, the last close releases it.
+  `IInteractionBlocker`, the last close releases it. Bootstrap wraps custom
+  platform blockers with reference counting, so overlapping dialog and prompt
+  stacks cannot unblock each other prematurely. The optional
+  `IPageAwareInteractionBlocker` extension also tracks pages and overlays added
+  while blocked: background views remain disabled and only the top modal stays
+  interactive. Ownership is published before calling a platform blocker, so a
+  synchronous/reentrant UI callback cannot corrupt the modal depth.
 - View pattern: the service creates the view via `PageFactory`, adds it through
   `IViewHost`, calls `OnShownAsync(payload)`, and completion flows back through
   `BindCompletion(callback)`.
 - `PopoverService` wires the focus observer **after** focusing the view, so the
   focus switch itself does not insta-dismiss, and only for views implementing
   `IUnfocusAware`.
-- `CloseAll()` on every service — invoked by `ResetAsync`/`DisposeAsync` —
-  resolves pending awaiters with `false`/default, so callers are never left
-  hanging.
+- Runtime teardown calls `DismissCurrentToast()` for Toast and `CloseAll()` for
+  Dialog, Prompt and Popover. Pending awaiters resolve with `false`/default, so
+  callers are never left hanging. Teardown then runs best-effort across every
+  owned view and blocker; its first cleanup failure is traced and rethrown to
+  the reset/shutdown caller after the remaining resources have been reclaimed.
+- Setup is transactional: a synchronous completion, `Bind*`, host, focus or
+  `OnShown*` failure reclaims the partially opened view and releases its blocker
+  or focus subscription. Normal dialog/prompt/popover completion faults its
+  awaiter if native cleanup fails, but the UI callback itself contains that
+  exception. Toast dismiss callbacks also contain cleanup failures and are bound
+  to their own instance, so a stale callback cannot dismiss its replacement.
 
 Both platform projects ship `ToastViewBase`, `DialogViewBase`,
 `PromptViewBase<TResult>`, `PopoverViewBase` and `AutoDismissPopoverBase` so
@@ -284,9 +350,9 @@ subclasses skip the wiring.
 |---|---|
 | `CreateHost` | `IPageHost` |
 | `CreateEventDispatcher` | UI-thread marshaling |
-| `CreateInteractionBlocker` | modal input blocking |
+| `CreateInteractionBlocker` | modal input blocking; built-in adapters also implement the page-aware extension |
 | `CreateTimerAdapter` | idle timer |
-| `CreateInteractionObserverAdapter` | nullable — idle timeout silently unavailable |
+| `CreateInteractionObserverAdapter` | nullable — idle timeout remains inactive and diagnostics report it unavailable |
 | `CreateFocusObserver` | nullable — popovers just will not auto-dismiss |
 | `GetDefaultLoadingMaskType` | nullable |
 
@@ -310,82 +376,138 @@ z-order (`SendToBack`) and surfaces stay above.
    `IEventDispatcherAdapter`, `IInteractionBlocker`, `ITimerAdapter`,
    `PageFactory`, the optional observers, and the four overlay services; then
    runs the `ConfigureServices(...)` callback.
-4. **Create the `NavigationContext`** — attach `DebugUtilsNavigationObserver` if
-   `UseDebugUtils` was called; register the context, `NavigationSession` and
-   `IUserContext`.
+4. **Create the `NavigationContext`** — resolve and attach
+   `DebugUtilsNavigationObserver` if `UseDebugUtils` was called; register the
+   context, `NavigationSession` and `IUserContext`.
 5. **`services.Lock()`** — registration after this throws.
 6. **Wire the idle timer**, then mount the context (throws if already mounted).
 
 ## Reset vs Shutdown
 
 - `ResetAsync()` — tears down the current page, cached pages and all overlays
-  (resolving awaiters), and clears history. Context, session and adapter stay
-  alive; navigation can continue.
-- `Shutdown()` — full teardown: disposes the runtime, unmounts the facade, and
-  clears all static event subscribers. Required before a fresh `Start()`.
+  (resolving awaiters), and clears history. The active page receives
+  `HidePage → OnNavigatedFromAsync → Detach → Dispose`; hidden keep-attached
+  pages are detached/disposed without receiving their exit hooks twice.
+  Context, session and adapter stay alive; navigation can continue.
+- `Shutdown()` — first stops idle callbacks, then performs the same page/surface
+  teardown, emits teardown diagnostics while the observer is still attached,
+  unregisters its state providers, disposes native bootstrap resources,
+  unmounts the facade, and clears all static event subscribers. Concurrent
+  callers share the same shutdown operation, and a new context cannot mount
+  until it completes. Work accepted before the shutdown cutoff holds an
+  operation lease through its UI admission. Modal leases end after the owning
+  service has registered the surface—not after user completion—so teardown can
+  close the modal without deadlocking and no queued surface can appear after the
+  runtime is gone. Required before a fresh `Start()`.
 
 ## Diagnostics and observability
 
 `NavigationDiagnostics` emits `PageLogEntry` (success/failure, presentation, load
-mode, reuse policy, failure kind, error) and `GuardDeniedEvent` into the
-context's `NavigationEventHub`, surfaced as the `NavigationLogged` and
-`GuardDenied` events. Subscriber exceptions are swallowed — diagnostics never
-break navigation. The runtime shares the **context's** hub, so
-`NavigationService.Events` and `context.Events` both see all activity.
+mode, reuse policy, failure kind, error, correlation and duration) and
+`GuardDeniedEvent` into the context's `NavigationEventHub`, surfaced as
+`NavigationLogged` and `GuardDenied`. Subscriber exceptions are isolated
+individually — diagnostics never break navigation or suppress later
+subscribers. The runtime shares the **context's** hub, so
+`NavigationService.Events` and `context.Events` see the same outcomes.
+
+These are synchronous observation points, not a worker queue. A custom
+`IDebugUtils` implementation and public event handlers must return promptly;
+blocking one delays dispatch/lifecycle work. The built-in `DebugUtilsRuntime`
+only captures a bounded in-memory entry under a short lock.
 
 `NavigationService` also exposes static events: `Navigating`, `Navigated`,
 `NavigationFailed`, `CurrentChanged`, `HistoryChanged`, `OnFirstPageAttached`,
 `OnNoPageAttached`, `OnNoPageVisible`. Static events root their subscribers, so
 `Shutdown()` nulls all of them.
 
-Two optional bridges:
+Three diagnostics layers coexist:
 
 - **`UseDiagnostics(IDiagnosticsContext)`** — bridges entries into
   `NekoLib.Core.Diagnostics` via `DiagnosticsNavigationSink`. Local hub events
   keep flowing regardless.
-- **`UseDebugUtils(IDebugUtils)`** — attaches `DebugUtilsNavigationObserver`, a
-  *pure subscriber* that forwards events to `IDebugUtils.Record(...)` and exposes
-  pull-based state **without touching the frozen core**. A disabled sink
-  (`NullDebugUtils`) subscribes to nothing and returns `Disposable.Empty`. This
-  is the template for hooking other modules: subscribe to an existing event seam,
-  never instrument frozen core.
+- The runtime's internal scalar trace describes requests, attempts, stages,
+  pages, background loads, surfaces, idle and runtime teardown. It never carries
+  a page instance, user payload, captured state, roles or permissions.
+- **`UseDebugUtils(IDebugUtils)`** projects that trace into
+  `IDebugUtils.Record(...)` plus pull-based state. A disabled sink
+  (`NullDebugUtils`) subscribes to nothing and allocates no request/surface trace
+  scopes.
+- **`UseDebugUtils()`** — resolves `DebugUtilsProvider.Current` at `Start()`.
+  This keeps the integration fully opt-in while allowing one explicitly enabled
+  `DebugUtilsRuntime` to serve the whole process. If the slot still contains
+  `NullDebugUtils.Instance`, no observer is allocated or attached.
 
-The observer has **two fidelity levels**, because the hub has only two events and
-both fire *after* a navigation resolves:
+One API call owns a `RuntimeId` + `RequestId`. Guard redirects create linked
+attempts with `AttemptId`, `ParentAttemptId` and `RedirectDepth`; a background
+load receives its own `BackgroundOperationId`. Durations use a monotonic
+`Stopwatch`, while UTC timestamps are only wall-clock labels. The order is:
 
-| Overload | Records | State keys |
-|---|---|---|
-| `Attach(NavigationEventHub, debug)` | `Navigated`, `NavigationFailed`, `GuardDenied` | `Navigation::current`, `Navigation::stats` |
-| `Attach(NavigationContext, debug)` (bootstrap path) | the above **+** `NavigationStarted`, `FirstPageAttached`, `NoPageAttached`, `NoPageVisible` | the above **+** `Navigation::history`, `Navigation::session` |
+```
+RequestStarted (before UI dispatch)
+→ Dispatch → GateWait → Processing
+→ AttemptStarted → RegistryLookup → Navigating → GuardEvaluation
+→ page/load/lifecycle stages
+→ AttemptCompleted
+→ RequestCompleted (exactly once)
+```
 
-The extra signals come from the static `NavigationService` events, the only
-public seam carrying them. `NavigationStarted` is the navigation *intent*: when a
-navigation hangs — a guard that never returns, a deadlocked
-`OnNavigatedToAsync` — the hub stays silent, so a `NavigationStarted` with no
-matching outcome is the fingerprint of that freeze. `NoPageAttached` and
-`NoPageVisible` mean the shell went blank, the classic page-leak symptom.
+A redirect closes its parent attempt and continues under the same request.
+`Navigated` means the full synchronous page lifecycle completed, not merely that
+the guard allowed it. `NoHistory` is a normal back-navigation terminal, not a
+failure. Background completion/discard/failure is independent of the already
+completed request.
 
-`Navigation::stats` carries aggregate counters that **outlive the ring buffer**:
-once it wraps, the totals are the only surviving evidence.
-`started > navigated + failed` means a navigation was entered and never resolved.
+The observer registers these state providers:
 
-Two consequences of the static subscription: `Shutdown()` nulls those events and
-silently drops the handlers (harmless — the next bootstrap attaches a fresh
-observer), and `Navigation::history` is best-effort, because `NavigationHistory`
-is UI-thread-affine with no internal locking, so capturing from another thread
-during a navigation can throw (the sink isolates per provider and yields a
-placeholder).
+| Key | Snapshot |
+|---|---|
+| `runtime` | runtime id/status, current type, attached/visible totals, last runtime decision |
+| `inFlight`, `activeAttempts`, `queue` | request/attempt correlation, current stage, duration and gate depth |
+| `current`, `currentPage` | aliases for the actual current page and descriptor name |
+| `lastNavigation` | last request terminal, correlation, outcome, failure stage and duration |
+| `registry` | scalar descriptor metadata and registered-page count |
+| `pages`, `cache` | logical page decisions, attached/visible totals, strong/weak cache totals |
+| `backgroundLoads` | active correlated loads and aggregate terminals |
+| `overlays` | opening/open surfaces and last terminal, with kind/depth/reason/duration |
+| `idle` | armed/unavailable/elapsed/disposed state, interval and last interaction |
+| `history` | immutable mirrored names/counts for both stacks |
+| `session` | authenticated flag plus role/permission **counts only** |
+| `stats` | request/attempt/redirect/guard/background/blank-shell aggregate counters |
 
-> **The observability module is frozen.** See the freeze section in
-> [`TODO.md`](../../../TODO.md) for what is deliberately incomplete. Do not
-> extend it without an explicit decision.
+The hub-only overload registers the 13 common keys; the bootstrap/context
+overload adds `registry`, `history` and `session` for 16 total. Providers read
+only observer-owned copies under a lock. `CaptureState()` therefore never walks
+the UI, runtime caches or live `NavigationHistory` from a consumer thread.
+
+The operation ring records meaningful transitions and terminals:
+`NavigationStarted`, `Navigating`, `Navigated`, `NavigationFailed`,
+`GuardDenied`, `GuardRedirected`, `NavigationNoHistory`, slow/failing stages,
+background terminals, surface open/close/failure, idle configuration/elapsed/
+failure/disposal and terminal blank-shell detection. High-frequency idle input
+updates state but deliberately does not flood the ring.
+
+`OnFirstPageAttached` fires once per runtime. `OnNoPageAttached` and
+`OnNoPageVisible` describe an explicit terminal blank state (for example reset
+or a failed switch that lost its former page); the transient zero between detach
+and attach during a successful replacement is not published as a blank shell.
+
+`NavigationService.Shutdown()` keeps the observer alive through runtime teardown,
+then disposes it and unregisters all providers, including delegates that capture
+the context. Navigation deliberately registers **no DebugUtils commands** yet:
+an async/cancellation/timeout/UI-marshalling command contract must be decided
+before exposing state-changing runtime actions.
+
+> The 2026-07-27 lifecycle/trace work was an explicit, limited unfreeze of
+> Navigation. Broad B4 instrumentation in Data, Pipes, Watchdog, Devices and
+> Diagnostics, plus reusable consumer surfaces, remains frozen; see
+> [`TODO.md`](../../../TODO.md).
 
 ---
 
-## FROZEN components
+## Stability-sensitive components
 
-Do not modify without strong justification; extensions must live outside
-`Core/`:
+The lifecycle/observability correction above is complete. Treat these types as
+frozen again unless a future task explicitly reopens them:
 
 - `NavigationContext.cs`
 - `NavigationRuntime.cs`
@@ -411,14 +533,17 @@ dotnet test tests/NekoLib.Navigation.Tests/Unit/NekoLib.Navigation.Tests.Unit.cs
 Tests use the fakes in `tests/NekoLib.Navigation.Tests/Unit/Fakes/`:
 `RuntimeTestFixture` wires a full in-memory runtime with `FakePlatformAdapter`,
 `FakePageHost`, `StubPageViews` and a `SyncEventDispatcherAdapter` that runs "UI"
-work inline. Naming follows `MethodName_Condition_ExpectedResult`.
+work inline. `DeferredEventDispatcherAdapter` covers the pre-dispatch boundary.
+Canonical-order tests cover every load mode, keep-attached reuse, reset/shutdown,
+surface rollback, idle ownership and correlated request terminals. Naming follows
+`MethodName_Condition_ExpectedResult`.
 
 **Tests that mount the static facade** touch process-wide state: they must carry
 `[Collection("NavigationServiceFacade")]` so xunit serializes them, and
 `await NavigationService.Shutdown()` in a `finally`.
-`DebugUtilsNavigationObserverFacadeTests` is the reference. Everything else stays
-parallel — the bootstrap tests never complete `Start()`, because
-`FakePlatformAdapter` throws on `CreateHost`, so they never mount the facade.
+`DebugUtilsNavigationObserverFacadeTests` and
+`NavigationServiceLifecycleTests` are references. Tests that do not mount the
+facade stay parallel.
 
 `InternalsVisibleTo("NekoLib.Navigation.Tests.Unit")` is set in the Navigation
 project.

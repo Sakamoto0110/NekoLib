@@ -9,6 +9,13 @@ namespace NekoLib.DebugUtils
     /// </summary>
     public sealed class DebugOperation
     {
+        /// <summary>
+        /// Monotonically increasing sequence assigned by the owning
+        /// <see cref="DebugUtilsRuntime"/>. A value of zero identifies an
+        /// operation created through the legacy public constructor.
+        /// </summary>
+        public long Sequence { get; }
+
         public DateTime TimestampUtc { get; }
         public string Module { get; }
         public string Operation { get; }
@@ -20,7 +27,18 @@ namespace NekoLib.DebugUtils
         public object? Payload { get; }
 
         public DebugOperation(DateTime timestampUtc, string module, string operation, object? payload)
+            : this(0, timestampUtc, module, operation, payload)
         {
+        }
+
+        public DebugOperation(
+            long sequence,
+            DateTime timestampUtc,
+            string module,
+            string operation,
+            object? payload)
+        {
+            Sequence = sequence;
             TimestampUtc = timestampUtc;
             Module = module;
             Operation = operation;
@@ -28,7 +46,22 @@ namespace NekoLib.DebugUtils
         }
 
         public override string ToString()
-            => $"[{TimestampUtc:O}] {Module}/{Operation}"
-               + (Payload != null ? $" | {Payload}" : string.Empty);
+        {
+            var text = $"[{TimestampUtc:O}] {Module}/{Operation}";
+            if (Payload == null)
+                return text;
+
+            string payloadText;
+            try
+            {
+                payloadText = Payload.ToString() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                payloadText = "<payload ToString threw: " + ex.GetType().Name + ">";
+            }
+
+            return text + " | " + payloadText;
+        }
     }
 }

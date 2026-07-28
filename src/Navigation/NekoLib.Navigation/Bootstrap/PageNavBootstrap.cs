@@ -37,6 +37,7 @@ namespace NekoLib.Navigation.Bootstrap
 
         private IDiagnosticsContext _diagnostics;
         private IDebugUtils? _debugUtils;
+        private bool _useGlobalDebugUtils;
 
         private int _idleTimeoutMs;
 
@@ -110,7 +111,20 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         public PageNavBootstrap UseDebugUtils(IDebugUtils debug)
         {
-            _debugUtils = debug;
+            _debugUtils = debug ?? throw new ArgumentNullException(nameof(debug));
+            _useGlobalDebugUtils = false;
+            return this;
+        }
+
+        /// <summary>
+        /// Resolve the opt-in process-wide observability hub from
+        /// <see cref="DebugUtilsProvider.Current"/> when <see cref="Start"/> runs.
+        /// If the current hub is the no-op implementation, no observer is attached.
+        /// </summary>
+        public PageNavBootstrap UseDebugUtils()
+        {
+            _debugUtils = null;
+            _useGlobalDebugUtils = true;
             return this;
         }
 
@@ -320,26 +334,43 @@ namespace NekoLib.Navigation.Bootstrap
             services.Register(typeof(IEventDispatcherAdapter),
                 _platform.CreateEventDispatcher(_nativeHost));
 
-            services.Register(typeof(IInteractionBlocker),
-                _platform.CreateInteractionBlocker(_nativeHost));
+            var platformBlocker = _platform.CreateInteractionBlocker(_nativeHost);
+            if (platformBlocker != null)
+            {
+                services.Register(
+                    typeof(IInteractionBlocker),
+                    new ReferenceCountedInteractionBlocker(platformBlocker));
+            }
 
             var observer = _platform.CreateInteractionObserverAdapter(_nativeHost);
             if (observer != null)
                 services.Register(typeof(IInteractionObserverService), observer);
 
-            var subscriber = _platform.CreateEventSubscriber(_nativeHost);
-            if (subscriber != null)
-                services.Register(typeof(IEventSubscriptionAdapter), subscriber);
+            ITimerAdapter timerAdapter;
+            try
+            {
+                timerAdapter = _platform.CreateTimerAdapter();
+            }
+            catch
+            {
+                if (observer is IDisposable disposableObserver)
+                    disposableObserver.Dispose();
+                throw;
+            }
 
-            var focusObserver = _platform.CreateFocusObserver(_nativeHost);
-            if (focusObserver != null)
-                services.Register(typeof(IFocusObserverAdapter), focusObserver);
+            var bootstrapLifetime = new NavigationBootstrapLifetime(observer, timerAdapter);
 
-           
-             
+            try
+            {
+                var subscriber = _platform.CreateEventSubscriber(_nativeHost);
+                if (subscriber != null)
+                    services.Register(typeof(IEventSubscriptionAdapter), subscriber);
 
-            services.Register(typeof(ITimerAdapter),
-                _platform.CreateTimerAdapter());
+                var focusObserver = _platform.CreateFocusObserver(_nativeHost);
+                if (focusObserver != null)
+                    services.Register(typeof(IFocusObserverAdapter), focusObserver);
+
+                services.Register(typeof(ITimerAdapter), timerAdapter);
 
             // ------------------------------------------------------------
             // 6) Runtime services
@@ -348,7 +379,9 @@ namespace NekoLib.Navigation.Bootstrap
             services.Register(typeof(PageFactory), pageFactory);
 
             // Replaces the legacy OverlayService with three ISP-friendly services.
-            var viewHost = host as IViewHost;
+            var viewHost = host as IViewHost
+                ?? throw new InvalidOperationException(
+                    "The platform page host must also implement IViewHost.");
 
             IInteractionBlocker modalBlocker = null;
             if (services.CanResolve(typeof(IInteractionBlocker)))
@@ -369,6 +402,18 @@ namespace NekoLib.Navigation.Bootstrap
 
             var popoverService = new PopoverService(viewHost, pageFactory, focusObserver);
             services.Register(typeof(IPopoverService), popoverService);
+
+            if (modalBlocker is IPageAwareInteractionBlocker pageAwareBlocker)
+            {
+                ((INavigationInteractionBlockerAware)toastService)
+                    .AttachInteractionBlocker(pageAwareBlocker);
+                ((INavigationInteractionBlockerAware)dialogService)
+                    .AttachInteractionBlocker(pageAwareBlocker);
+                ((INavigationInteractionBlockerAware)promptService)
+                    .AttachInteractionBlocker(pageAwareBlocker);
+                ((INavigationInteractionBlockerAware)popoverService)
+                    .AttachInteractionBlocker(pageAwareBlocker);
+            }
             // --- SAFE FALLBACK INJECTION ---
            
 
@@ -392,10 +437,11 @@ namespace NekoLib.Navigation.Bootstrap
             // 7) Diagnostics bridge (optional)
             // ------------------------------------------------------------
 
-            // Opt-in observability: pure subscriber on the context event hub, so the
-            // frozen NavigationContext lifecycle is untouched. No-op when disabled.
-            if (_debugUtils != null)
-                DebugUtilsNavigationObserver.Attach(context, _debugUtils);
+            // Opt-in observability: the observer projects the runtime's internal
+            // scalar trace without retaining pages or payloads. No-op when disabled.
+            var resolvedDebugUtils = _useGlobalDebugUtils
+                ? DebugUtilsProvider.Current
+                : _debugUtils;
 
             services.Register(context);
 
@@ -428,42 +474,43 @@ namespace NekoLib.Navigation.Bootstrap
             if (idleDescriptor?.IdleTimeoutSeconds is int idleSeconds && idleSeconds > 0)
                 effectiveIdleMs = idleSeconds * 1000;
 
-            if (effectiveIdleMs > 0 &&
-                services.CanResolve(typeof(IInteractionObserverService)))
-            {
-                var idleObserver = (IInteractionObserverService)services.Get(typeof(IInteractionObserverService));
-                var idleTimer = _platform.CreateTimerAdapter();
-                idleTimer.IntervalMilliseconds = effectiveIdleMs;
-
-                idleObserver.InteractionDetected += () =>
-                {
-                    idleTimer.Stop();
-                    idleTimer.Start();
-                };
-
-                idleTimer.Tick += async () =>
-                {
-                    idleTimer.Stop();
-                    context.Session.SignOut();
-                    try { await NavigationService.GoIdleAsync(); }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            "[PageNavBootstrap] Idle timeout navigation failed: " + ex);
-                    }
-                };
-
-                // Start immediately so an unattended boot also lands on the idle page.
-                idleTimer.Start();
-            }
-
             // Auto-mount on the facade so consumers don't need a second
             // NavigationService.UseContext(ctx) step. Tests of the bootstrap
             // itself MUST call NavigationService.Shutdown() in teardown so the
             // next test starts clean (UseContext throws on double-mount).
-            NavigationService.UseContext(context);
+            var debugUtilsObserver = resolvedDebugUtils != null && resolvedDebugUtils.IsEnabled
+                ? DebugUtilsNavigationObserver.Attach(context, resolvedDebugUtils)
+                : NekoLib.Core.Disposable.Empty;
+
+            try
+            {
+                // Attach diagnostics before idle configuration so the initial
+                // Configured/Unavailable state is visible in the debug snapshot.
+                if (effectiveIdleMs > 0)
+                    bootstrapLifetime.ConfigureIdle(effectiveIdleMs, context);
+
+                NavigationService.UseContext(
+                    context,
+                    debugUtilsObserver,
+                    bootstrapLifetime);
+            }
+            catch
+            {
+                try { debugUtilsObserver.Dispose(); }
+                catch { }
+                throw;
+            }
 
             return context;
+            }
+            catch
+            {
+                // Also covers failures before ownership is transferred to the
+                // facade. Dispose is idempotent, so a rejected double-mount can
+                // safely clean up in UseContext and again here.
+                bootstrapLifetime.Dispose();
+                throw;
+            }
         }
 
 

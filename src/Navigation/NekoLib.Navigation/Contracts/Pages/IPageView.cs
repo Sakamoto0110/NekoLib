@@ -11,7 +11,11 @@ namespace NekoLib.Navigation.Contracts.Pages
     /// </summary>
     public interface IPageView : IDisposable
     {
-        /// <summary>Logical name used for registration/navigation/debug.</summary>
+        /// <summary>
+        /// Page-provided display name used as a fallback. The immutable
+        /// <c>PageDescriptor.Name</c> is authoritative for registration, history,
+        /// and runtime diagnostics.
+        /// </summary>
         string Name { get;       }
 
         /// <summary>Native UI object, for example a WinForms <c>Control</c> or WPF <c>FrameworkElement</c>.</summary>

@@ -58,6 +58,23 @@ namespace NekoLib.Watchdog.Tests.Unit
             Assert.Throws<FileNotFoundException>(() => o.Normalize());
         }
 
+        [Fact]
+        public void Normalize_AttachTokenWithoutInitialProcessId_Throws()
+        {
+            using var ws = new TempWorkspace();
+            var target = ws.WriteFile("app.exe");
+            var o = new WatchdogOptions
+            {
+                TargetPath = target,
+                AttachToken = "orphan-token"
+            };
+
+            var error = Assert.Throws<InvalidOperationException>(
+                () => o.Normalize());
+
+            Assert.Contains("InitialProcessId", error.Message);
+        }
+
         // -----------------------------------------------------------------
         // Pipe identity (SHA1 of full lowercased path, first 16 hex chars)
         // -----------------------------------------------------------------

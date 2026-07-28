@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NekoLib.Navigation.Contracts.Pages;
 
@@ -17,24 +18,56 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
         public List<object> AddedViews   { get; } = new();
         public List<object> RemovedViews { get; } = new();
 
+        public Exception AddViewException { get; set; }
+        public Exception RemoveViewException { get; set; }
+        public Exception BringViewToFrontException { get; set; }
+        public Exception FocusException { get; set; }
+        public Action<string, IPageView> OperationObserved { get; set; }
+
         public void Attach(IPageView page)
         {
             Attached.Add(page);
+            OperationObserved?.Invoke("attach", page);
         }
 
         public void Detach(IPageView page)
         {
             Detached.Add(page);
+            OperationObserved?.Invoke("detach", page);
         }
 
         public void BringToFront(IPageView page)
         {
             Fronted.Add(page);
+            OperationObserved?.Invoke("front", page);
         }
 
-        public void AddView(object view)         => AddedViews.Add(view);
-        public void RemoveView(object view)      => RemovedViews.Add(view);
-        public void BringToFront(object view)    { /* no-op */ }
-        public void Focus(object view)           { /* no-op */ }
+        public void AddView(object view)
+        {
+            if (AddViewException != null)
+                throw AddViewException;
+
+            AddedViews.Add(view);
+        }
+
+        public void RemoveView(object view)
+        {
+            RemovedViews.Add(view);
+
+            if (RemoveViewException != null)
+                throw RemoveViewException;
+        }
+
+        public void BringToFront(object view)
+        {
+            if (BringViewToFrontException != null)
+                throw BringViewToFrontException;
+        }
+
+        public void Focus(object view)
+        {
+            if (FocusException != null)
+                throw FocusException;
+        }
     }
 }

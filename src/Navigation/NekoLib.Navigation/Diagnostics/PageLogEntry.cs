@@ -1,4 +1,5 @@
-﻿using NekoLib.Core.Diagnostics;
+#nullable enable
+using NekoLib.Core.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime;
 using System;
@@ -6,71 +7,45 @@ using System;
 namespace NekoLib.Navigation.Diagnostics
 {
     /// <summary>
-    /// Immutable navigation log entry used for diagnostics and tracing.
-    /// This is NOT a general-purpose logger entry.
+    /// Immutable navigation outcome used for diagnostics and tracing.
+    /// This is not a general-purpose logger entry.
     /// </summary>
-    public   class PageLogEntry : LogEntry
+    public class PageLogEntry : LogEntry
     {
-        // --------------------------------------------------------------------
-        // Identity
-        // --------------------------------------------------------------------
-
-        /// <summary>Source page type (null for first navigation).</summary>
-        public Type FromPageType { get; }
-
-        /// <summary>Source page logical name.</summary>
-        public string FromPageName { get; }
-
-        /// <summary>Target page type.</summary>
+        public Type? FromPageType { get; }
+        public string? FromPageName { get; }
         public Type ToPageType { get; }
-
-        /// <summary>Target page logical name.</summary>
         public string ToPageName { get; }
 
-        // --------------------------------------------------------------------
-        // Context
-        // --------------------------------------------------------------------
-
-        /// <summary>UTC timestamp when navigation was initiated.</summary>
-        public DateTime TimestampUtc { get; }
-
-        /// <summary>Navigation behavior flags.</summary>
+        /// <summary>UTC timestamp at which the correlated request began.</summary>
+        public new DateTime TimestampUtc { get; }
         public PagePresentationMode Presentation { get; }
-        /// <summary>Load mode used for navigation.</summary>
         public NavigationLoadMode LoadMode { get; }
         public PageReusePolicy ReusePolicy { get; }
-
-        /// <summary>
-        /// True if this navigation was triggered by timeout logic.
-        /// </summary>
         public bool IsTimeout { get; }
-
-        /// <summary>
-        /// True if this navigation represents a backward navigation.
-        /// </summary>
         public bool IsBackNavigation { get; }
-
-        /// <summary>
-        /// True if navigation completed successfully.
-        /// </summary>
         public bool Success { get; }
-
-        /// <summary>
-        /// Optional error message if navigation failed.
-        /// </summary>
-        public string Error { get; }
-
+        public string? Error { get; }
         public NavigationFailureKind FailureKind { get; }
 
-        // --------------------------------------------------------------------
-        // Constructor
-        // --------------------------------------------------------------------
+        /// <summary>Correlation is null for entries built through the legacy constructor.</summary>
+        public string? RuntimeId { get; }
+        public string? RequestId { get; }
+        public string? AttemptId { get; }
+        public string? ParentAttemptId { get; }
+        public int RedirectDepth { get; }
+        public string? Trigger { get; }
+        public long DurationMilliseconds { get; }
 
+        /// <summary>
+        /// Existing public constructor retained unchanged for source and binary API
+        /// compatibility. Runtime-created entries use an internal correlated overload.
+        /// </summary>
         public PageLogEntry(
-            Type fromType,
-            string fromName,
+            Type? fromType,
+            string? fromName,
             Type toType,
-            string toName,
+            string? toName,
             NavigationArgs args,
             bool success,
             PagePresentationMode navigationBehavior,
@@ -79,41 +54,126 @@ namespace NekoLib.Navigation.Diagnostics
             NavigationFailureKind failureKind = NavigationFailureKind.None,
             bool isTimeout = false,
             bool isBackNavigation = false,
-            string error = null
-            
-            ) :
-            base(DateTime.UtcNow, success? LogLevel.Info:LogLevel.Error, "",null)
+            string? error = null)
+            : this(
+                fromType,
+                fromName,
+                toType,
+                toName,
+                success,
+                navigationBehavior,
+                navigationLoadMode,
+                reusePolicy,
+                failureKind,
+                isTimeout,
+                isBackNavigation,
+                error,
+                DateTime.UtcNow,
+                null,
+                null,
+                null,
+                null,
+                0,
+                null,
+                0)
+        {
+        }
+
+        internal PageLogEntry(
+            Type? fromType,
+            string? fromName,
+            Type toType,
+            string? toName,
+            bool success,
+            PagePresentationMode navigationBehavior,
+            NavigationLoadMode navigationLoadMode,
+            PageReusePolicy reusePolicy,
+            NavigationFailureKind failureKind,
+            bool isTimeout,
+            bool isBackNavigation,
+            string? error,
+            NavigationAttemptTraceScope? trace)
+            : this(
+                fromType,
+                fromName,
+                toType,
+                toName,
+                success,
+                navigationBehavior,
+                navigationLoadMode,
+                reusePolicy,
+                failureKind,
+                isTimeout,
+                isBackNavigation,
+                error,
+                trace?.RequestStartedUtc ?? DateTime.UtcNow,
+                trace?.RuntimeId,
+                trace?.RequestId,
+                trace?.AttemptId,
+                trace?.ParentAttemptId,
+                trace?.RedirectDepth ?? 0,
+                trace?.Trigger.ToString(),
+                trace?.ElapsedMilliseconds ?? 0)
+        {
+        }
+
+        private PageLogEntry(
+            Type? fromType,
+            string? fromName,
+            Type toType,
+            string? toName,
+            bool success,
+            PagePresentationMode navigationBehavior,
+            NavigationLoadMode navigationLoadMode,
+            PageReusePolicy reusePolicy,
+            NavigationFailureKind failureKind,
+            bool isTimeout,
+            bool isBackNavigation,
+            string? error,
+            DateTime timestampUtc,
+            string? runtimeId,
+            string? requestId,
+            string? attemptId,
+            string? parentAttemptId,
+            int redirectDepth,
+            string? trigger,
+            long durationMilliseconds)
+            : base(
+                timestampUtc,
+                success ? LogLevel.Info : LogLevel.Error,
+                string.Empty,
+                null)
         {
             FromPageType = fromType;
             FromPageName = fromName;
             ToPageType = toType ?? throw new ArgumentNullException(nameof(toType));
             ToPageName = toName ?? toType.Name;
-             
-            TimestampUtc = DateTime.UtcNow;
-
-            ReusePolicy = reusePolicy;
+            TimestampUtc = timestampUtc;
             Presentation = navigationBehavior;
             LoadMode = navigationLoadMode;
-
+            ReusePolicy = reusePolicy;
             FailureKind = failureKind;
-
             IsTimeout = isTimeout;
             IsBackNavigation = isBackNavigation;
             Success = success;
             Error = error;
+            RuntimeId = runtimeId;
+            RequestId = requestId;
+            AttemptId = attemptId;
+            ParentAttemptId = parentAttemptId;
+            RedirectDepth = redirectDepth;
+            Trigger = trigger;
+            DurationMilliseconds = durationMilliseconds;
         }
-
-        // --------------------------------------------------------------------
-        // Debug helpers
-        // --------------------------------------------------------------------
 
         public override string ToString()
         {
-            var dir = IsBackNavigation ? "BACK" : "NAV";
+            var direction = IsBackNavigation ? "BACK" : "NAV";
             var status = Success ? "OK" : "FAIL";
 
-            return $"[{TimestampUtc:HH:mm:ss}] {dir} {FromPageName ?? "<null>"} -> {ToPageName} " +
-                   $"({status}, {Presentation} |, {LoadMode} | {ReusePolicy})";
+            return $"[{TimestampUtc:HH:mm:ss}] {direction} " +
+                   $"{FromPageName ?? "<null>"} -> {ToPageName} " +
+                   $"({status}, {Presentation} | {LoadMode} | {ReusePolicy})";
         }
     }
 }

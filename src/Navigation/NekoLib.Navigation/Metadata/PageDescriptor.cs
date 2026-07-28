@@ -50,7 +50,8 @@ namespace NekoLib.Navigation.Metadata
 
         /// <summary>
         /// When true, the runtime hides the page but keeps it attached when another
-        /// page replaces it, provided the page is reusable and not disposed.
+        /// page replaces it, provided the page is reusable, not disposed, and
+        /// implements <c>IPageVisibility</c>. Otherwise it is detached.
         /// </summary>
         public bool KeepAttachedWhenHidden { get; }  
         internal PageDescriptor(

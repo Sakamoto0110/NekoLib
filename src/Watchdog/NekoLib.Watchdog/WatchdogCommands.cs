@@ -15,5 +15,6 @@ namespace NekoLib.Watchdog
         public const string Stop = "stop";
         public const string LogHistory = "log_history";
         public const string ExceptionNotify = "exception_notify";
+        public const string AttachStatus = "attach_status";
     }
 }

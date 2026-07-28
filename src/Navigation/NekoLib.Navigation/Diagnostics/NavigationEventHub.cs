@@ -2,6 +2,8 @@
 
 // FILE: NekoLib.Navigation/Diagnostics/NavigationEventHub.cs
 #nullable enable
+using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Metadata;
 
 namespace NekoLib.Navigation.Diagnostics
 {
@@ -13,19 +15,59 @@ namespace NekoLib.Navigation.Diagnostics
     {
         public event Action<PageLogEntry>? NavigationLogged;
         public event Action<GuardDeniedEvent>? GuardDenied;
+        internal event Action<NavigationStartedEvent>? NavigationStarted;
+        internal event Action<NavigationTraceEvent>? NavigationTrace;
+
+        internal bool HasAnySubscribers =>
+            NavigationLogged != null ||
+            GuardDenied != null ||
+            NavigationStarted != null ||
+            NavigationTrace != null;
+
+        internal bool HasTraceSubscribers => NavigationTrace != null;
+
+        internal void PublishStarted(
+            IPageView? from,
+            Type target,
+            NavigationArgs? args)
+            => PublishStarted(new NavigationStartedEvent(from, target, args));
+
+        internal void PublishStarted(NavigationStartedEvent e)
+        {
+            var subscribers = NavigationStarted;
+            if (subscribers is null) return;
+
+            PublishToEach(subscribers, e);
+        }
+
+        internal void PublishTrace(NavigationTraceEvent e)
+        {
+            if (e is null) return;
+            PublishToEach(NavigationTrace, e);
+        }
 
         public void Publish(PageLogEntry entry)
         {
             if (entry is null) return;
-            try { NavigationLogged?.Invoke(entry); }
-            catch { /* never break navigation */ }
+            PublishToEach(NavigationLogged, entry);
         }
 
         public void Publish(GuardDeniedEvent e)
         {
             if (e is null) return;
-            try { GuardDenied?.Invoke(e); }
-            catch { /* never break navigation */ }
+            PublishToEach(GuardDenied, e);
+        }
+
+        private static void PublishToEach<T>(Action<T>? subscribers, T value)
+        {
+            if (subscribers is null)
+                return;
+
+            foreach (Action<T> subscriber in subscribers.GetInvocationList())
+            {
+                try { subscriber(value); }
+                catch { /* never break navigation or later subscribers */ }
+            }
         }
     }
 }

@@ -61,6 +61,49 @@ namespace NekoLib.Watchdog.Tests.Unit
         }
 
         [Fact]
+        public void Runtime_TargetTemporarilyMissing_RetriesUntilSpawnSucceeds()
+        {
+            var root = NewTempRoot();
+            try
+            {
+                var marker = Path.Combine(root, "spawn-recovered.txt");
+                var options = WatchdogTestUtil.NewOptions(
+                    root,
+                    "/d /c echo recovered>" +
+                    WatchdogBootstrap.QuoteArgument(marker) +
+                    " & ping -n 30 127.0.0.1 > nul");
+                options.RestartDelayMs = 200;
+
+                using (var runtime = new WatchdogRuntime(options))
+                {
+                    File.Delete(options.TargetPath);
+                    runtime.Start();
+
+                    Assert.True(WatchdogTestUtil.WaitUntil(
+                        () => FileContains(
+                            options.LogPath,
+                            "[child_start_failed]")));
+
+                    var restoredTarget = Path.Combine(root, "restored-cmd.exe");
+                    File.Copy(WatchdogTestUtil.CmdPath, restoredTarget);
+                    File.Move(restoredTarget, options.TargetPath);
+
+                    Assert.True(
+                        WatchdogTestUtil.WaitUntil(
+                            () => File.Exists(marker),
+                            timeoutMs: 8000),
+                        File.Exists(options.LogPath)
+                            ? File.ReadAllText(options.LogPath)
+                            : "Watchdog log was not created.");
+                }
+            }
+            finally
+            {
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
         public void Runtime_ReplaysLogHistory_AndPublishesLiveLogEvents()
         {
             var root = NewTempRoot();
@@ -114,6 +157,19 @@ namespace NekoLib.Watchdog.Tests.Unit
             var root = Path.Combine(Path.GetTempPath(), "nekolib-watchdog-test-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             return root;
+        }
+
+        private static bool FileContains(string path, string value)
+        {
+            try
+            {
+                return File.Exists(path) &&
+                       File.ReadAllText(path).Contains(value);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
         }
 
         private static void TryDelete(string path)

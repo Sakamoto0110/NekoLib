@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>NekoLib.Navigation.Tests.Unit</RootNamespace>
@@ -22,6 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation\NekoLib.Navigation.csproj" />
+    <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
+    <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation.Wpf\NekoLib.Navigation.Wpf.csproj" />
     <ProjectReference Include="..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
     <ProjectReference Include="..\..\..\src\DebugUtils\NekoLib.DebugUtils\NekoLib.DebugUtils.csproj" />
   </ItemGroup>

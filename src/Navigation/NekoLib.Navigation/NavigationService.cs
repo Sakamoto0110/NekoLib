@@ -7,6 +7,7 @@ using NekoLib.Navigation.Runtime.History;
 using NekoLib.Navigation.Runtime.Session;
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation 
@@ -21,6 +22,13 @@ namespace NekoLib.Navigation
     {
         private static NavigationContext _context;
         private static NavigationRuntime _runtime;
+        private static IDisposable? _debugUtilsObserver;
+        private static IDisposable? _bootstrapLifetime;
+        private static readonly object _lifecycleSync = new object();
+        private static Task? _shutdownTask;
+        private static int _shuttingDown;
+        private static int _activeRuntimeOperations;
+        private static TaskCompletionSource<bool>? _runtimeOperationsDrained;
         // -------------------------------------------------------------------------
         // PUBLIC STATE
         // -------------------------------------------------------------------------
@@ -80,43 +88,217 @@ namespace NekoLib.Navigation
         // -------------------------------------------------------------------------
 
         internal static void UseContext(NavigationContext context)
+            => UseContext(context, null, null);
+
+        internal static void UseContext(
+            NavigationContext context,
+            IDisposable? debugUtilsObserver)
+            => UseContext(context, debugUtilsObserver, null);
+
+        internal static void UseContext(
+            NavigationContext context,
+            IDisposable? debugUtilsObserver,
+            IDisposable? bootstrapLifetime)
         {
+            Exception? mountError = null;
+
             // Release-safe guards (S-2). Initializing twice without Shutdown() would
             // leak the previous runtime's event subscriptions and services, so this
             // must throw in Release as well as Debug.
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            if (_context != null)
-                throw new InvalidOperationException(
-                    "NavigationService.UseContext called twice without Shutdown().");
-
-            _context = context;
-            _runtime = new NavigationRuntime(context);
-
-            WireRuntimeEvents();
-        }
-     
-        public static async Task Shutdown()
-        {
-            if (_runtime != null)
+            lock (_lifecycleSync)
             {
-                UnwireRuntimeEvents();
-                await _runtime.DisposeAsync();
-                _runtime = null;
+                if (context == null)
+                {
+                    mountError = new ArgumentNullException(nameof(context));
+                }
+                else if (_shuttingDown != 0 || _shutdownTask != null)
+                {
+                    mountError = new InvalidOperationException(
+                        "NavigationService cannot mount a context while shutdown is in progress.");
+                }
+                else if (_context != null)
+                {
+                    mountError = new InvalidOperationException(
+                        "NavigationService.UseContext called twice without Shutdown().");
+                }
+                else
+                {
+                    try
+                    {
+                        _context = context;
+                        _runtime = new NavigationRuntime(context);
+                        _debugUtilsObserver = debugUtilsObserver;
+                        _bootstrapLifetime = bootstrapLifetime;
+                        WireRuntimeEvents(_runtime);
+                    }
+                    catch (Exception ex)
+                    {
+                        _context = null!;
+                        _runtime = null!;
+                        _debugUtilsObserver = null;
+                        _bootstrapLifetime = null;
+                        mountError = ex;
+                    }
+                }
             }
 
-            _context = null;
+            if (mountError == null)
+                return;
 
-            // Release all external subscribers so they are not kept alive past this
-            // session. A subsequent UseContext() starts with a clean slate (L-4).
-            Navigating = null;
-            Navigated = null;
-            NavigationFailed = null;
-            CurrentChanged = null;
-            HistoryChanged = null;
-            OnFirstPageAttached = null;
-            OnNoPageAttached = null;
-            OnNoPageVisible = null;
+            // The caller has already created context-scoped native resources and
+            // observability subscriptions. A rejected mount still owns those
+            // arguments and must release them, but never while holding the
+            // lifecycle lock because disposal may call back into the facade.
+            DisposeMountHandles(debugUtilsObserver, bootstrapLifetime);
+            throw mountError;
+        }
+     
+        public static Task Shutdown()
+        {
+            TaskCompletionSource<bool> completion;
+            Task sharedTask;
+            NavigationContext context;
+            NavigationRuntime runtime;
+            IDisposable? debugUtilsObserver;
+            IDisposable? bootstrapLifetime;
+            Task runtimeOperationsDrained;
+
+            lock (_lifecycleSync)
+            {
+                if (_shutdownTask != null)
+                    return _shutdownTask;
+
+                Volatile.Write(ref _shuttingDown, 1);
+                completion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                sharedTask = completion.Task;
+                _shutdownTask = sharedTask;
+
+                context = _context;
+                runtime = _runtime;
+                debugUtilsObserver = _debugUtilsObserver;
+                bootstrapLifetime = _bootstrapLifetime;
+
+                if (_activeRuntimeOperations == 0)
+                {
+                    runtimeOperationsDrained = Task.CompletedTask;
+                    _runtimeOperationsDrained = null;
+                }
+                else
+                {
+                    _runtimeOperationsDrained = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    runtimeOperationsDrained = _runtimeOperationsDrained.Task;
+                }
+            }
+
+            _ = CompleteShutdownAsync(
+                context,
+                runtime,
+                debugUtilsObserver,
+                bootstrapLifetime,
+                runtimeOperationsDrained,
+                completion);
+
+            return sharedTask;
+        }
+
+        private static async Task CompleteShutdownAsync(
+            NavigationContext context,
+            NavigationRuntime runtime,
+            IDisposable? debugUtilsObserver,
+            IDisposable? bootstrapLifetime,
+            Task runtimeOperationsDrained,
+            TaskCompletionSource<bool> completion)
+        {
+            Exception? shutdownError = null;
+
+            try
+            {
+                // Stop idle callbacks before disposing the runtime. The full
+                // lifetime stays alive until afterwards because the runtime still
+                // owns a subscription to the shared interaction observer.
+                if (bootstrapLifetime is Bootstrap.NavigationBootstrapLifetime lifetime)
+                    lifetime.StopIdle();
+            }
+            catch (Exception ex)
+            {
+                shutdownError = ex;
+            }
+
+            try
+            {
+                // An operation admitted before Shutdown owns a lease on this exact
+                // runtime. Let it finish before teardown; admission is already closed.
+                await runtimeOperationsDrained.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                shutdownError ??= ex;
+            }
+
+            try
+            {
+                // Keep the facade forwarding and DebugUtils subscriptions alive for
+                // the runtime teardown itself. This lets teardown diagnostics reach
+                // the same consumers as ordinary navigation operations.
+                if (runtime != null)
+                    await runtime.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                shutdownError ??= ex;
+            }
+
+            lock (_lifecycleSync)
+            {
+                try
+                {
+                    if (runtime != null && ReferenceEquals(_runtime, runtime))
+                        UnwireRuntimeEvents(runtime);
+                }
+                catch (Exception ex)
+                {
+                    shutdownError ??= ex;
+                }
+
+                if (ReferenceEquals(_runtime, runtime))
+                    _runtime = null!;
+                if (ReferenceEquals(_context, context))
+                    _context = null!;
+                if (ReferenceEquals(_debugUtilsObserver, debugUtilsObserver))
+                    _debugUtilsObserver = null;
+                if (ReferenceEquals(_bootstrapLifetime, bootstrapLifetime))
+                    _bootstrapLifetime = null;
+
+                // Release all external subscribers so they are not kept alive past
+                // this session. A subsequent UseContext() starts clean (L-4).
+                Navigating = null;
+                Navigated = null;
+                NavigationFailed = null;
+                CurrentChanged = null;
+                HistoryChanged = null;
+                OnFirstPageAttached = null;
+                OnNoPageAttached = null;
+                OnNoPageVisible = null;
+            }
+
+            // Dispose the bootstrap observer/timer only after the runtime has
+            // unsubscribed from it. Both handles are idempotent.
+            DisposeMountHandles(debugUtilsObserver, bootstrapLifetime);
+
+            lock (_lifecycleSync)
+            {
+                Volatile.Write(ref _shuttingDown, 0);
+                if (ReferenceEquals(_shutdownTask, completion.Task))
+                    _shutdownTask = null;
+                _runtimeOperationsDrained = null;
+
+                if (shutdownError == null)
+                    completion.TrySetResult(true);
+                else
+                    completion.TrySetException(shutdownError);
+            }
         }
 
         // -------------------------------------------------------------------------
@@ -124,27 +306,37 @@ namespace NekoLib.Navigation
         // -------------------------------------------------------------------------
 
         /// <summary>Navigate to a registered page and pass an optional payload.</summary>
-        public static Task SwitchPage<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Default(args));
+        public static Task SwitchPage<T>(object args = null) where T : IPageView =>
+            InvokeRuntimeAsync(runtime =>
+                runtime.NavigateAsync(typeof(T), NavigationArgs.Default(args)));
 
         /// <summary>Navigate to a registered page type and pass an optional payload.</summary>
-        public static Task SwitchPage(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Default(args));
+        public static Task SwitchPage(Type type, object args = null) =>
+            InvokeRuntimeAsync(runtime =>
+                runtime.NavigateAsync(type, NavigationArgs.Default(args)));
 
         /// <summary>
         /// Navigate through the transient entrypoint. The target page lifetime is
         /// still controlled by the registered page reuse policy.
         /// </summary>
-        public static Task SwitchTransient<T>(object args = null) where T : IPageView => EnsureRuntime().NavigateAsync(typeof(T), NavigationArgs.Transient(args));
+        public static Task SwitchTransient<T>(object args = null) where T : IPageView =>
+            InvokeRuntimeAsync(runtime =>
+                runtime.NavigateAsync(typeof(T), NavigationArgs.Transient(args)));
 
         /// <summary>Navigate through the transient entrypoint using a runtime page type.</summary>
-        public static Task SwitchTransient(Type type, object args = null) => EnsureRuntime().NavigateAsync(type, NavigationArgs.Transient(args));
+        public static Task SwitchTransient(Type type, object args = null) =>
+            InvokeRuntimeAsync(runtime =>
+                runtime.NavigateAsync(type, NavigationArgs.Transient(args)));
 
 
 
         /// <summary>Navigate to the configured idle page if one can be resolved.</summary>
-        public async static Task GoIdleAsync() => await EnsureRuntime().GoIdleAsync();
+        public async static Task GoIdleAsync() =>
+            await InvokeRuntimeAsync(runtime => runtime.GoIdleAsync());
 
         /// <summary>Navigate to the most recent back-stack entry, if any.</summary>
-        public async static Task<bool> GoBackAsync() => await EnsureRuntime().GoBackAsync();
+        public async static Task<bool> GoBackAsync() =>
+            await InvokeRuntimeAsync(runtime => runtime.GoBackAsync());
 
         /// <summary>
         /// Tears down every page (current, cached, overlays), clears history, and
@@ -152,7 +344,8 @@ namespace NekoLib.Navigation
         /// adapter stay alive; use <see cref="Shutdown"/> if you want a full
         /// teardown.
         /// </summary>
-        public static Task ResetAsync() => EnsureRuntime().ResetAsync();
+        public static Task ResetAsync() =>
+            InvokeRuntimeAsync(runtime => runtime.ResetAsync());
 
         // ------------------------------------------------------------
         // Toast (fire-and-forget, ephemeral)
@@ -162,13 +355,18 @@ namespace NekoLib.Navigation
         public static void ShowToast<TToast>(object payload = null, int durationMs = 3000)
             where TToast : class, IToastView
         {
-            EnsureRuntime().ShowToast<TToast>(payload, durationMs);
+            AdmitRuntimeAction((runtime, admissionCompleted) =>
+                runtime.ShowToast<TToast>(
+                    payload,
+                    durationMs,
+                    admissionCompleted));
         }
 
         /// <summary>Dismiss the current toast, if one is visible.</summary>
         public static void DismissCurrentToast()
         {
-            EnsureRuntime().DismissCurrentToast();
+            AdmitRuntimeAction((runtime, admissionCompleted) =>
+                runtime.DismissCurrentToast(admissionCompleted));
         }
 
         // ------------------------------------------------------------
@@ -179,7 +377,10 @@ namespace NekoLib.Navigation
         public static Task<bool> ShowDialogAsync<TDialog>(object payload = null)
             where TDialog : class, IDialogView
         {
-            return EnsureRuntime().ShowDialogAsync<TDialog>(payload);
+            return AdmitRuntimeTask((runtime, admissionCompleted) =>
+                runtime.ShowDialogAsync<TDialog>(
+                    payload,
+                    admissionCompleted));
         }
 
         // ------------------------------------------------------------
@@ -190,7 +391,10 @@ namespace NekoLib.Navigation
         public static Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
             where TPrompt : class, IPromptView<TResult>
         {
-            return EnsureRuntime().ShowPromptAsync<TPrompt, TResult>(payload);
+            return AdmitRuntimeTask((runtime, admissionCompleted) =>
+                runtime.ShowPromptAsync<TPrompt, TResult>(
+                    payload,
+                    admissionCompleted));
         }
 
         // ------------------------------------------------------------
@@ -201,7 +405,10 @@ namespace NekoLib.Navigation
         public static Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
             where TPopover : class, IPopoverView
         {
-            return EnsureRuntime().ShowPopoverAsync<TPopover>(payload);
+            return AdmitRuntimeTask((runtime, admissionCompleted) =>
+                runtime.ShowPopoverAsync<TPopover>(
+                    payload,
+                    admissionCompleted));
         }
 
 
@@ -217,62 +424,268 @@ namespace NekoLib.Navigation
         // INTERNALS
         // -------------------------------------------------------------------------
 
-        private static NavigationRuntime EnsureRuntime()
+        private static RuntimeLease AcquireRuntimeLease()
         {
-            if (_runtime == null)
-                throw new InvalidOperationException(
-                    "NavigationService.Initialize must be called first.");
+            lock (_lifecycleSync)
+            {
+                if (_shuttingDown != 0 || _shutdownTask != null)
+                    throw new InvalidOperationException(
+                        "NavigationService is shutting down and cannot accept new operations.");
 
-            return _runtime;
+                if (_runtime == null)
+                    throw new InvalidOperationException(
+                        "NavigationService.Initialize must be called first.");
+
+                _activeRuntimeOperations++;
+                return new RuntimeLease(_runtime);
+            }
         }
 
-        private static void WireRuntimeEvents()
+        private static Task InvokeRuntimeAsync(
+            Func<NavigationRuntime, Task> operation)
         {
-            _runtime.Navigating += OnNavigating;
-            _runtime.Navigated += OnNavigated;
-            _runtime.NavigationFailed += OnNavigationFailed;
-            _runtime.CurrentChanged += OnCurrentChanged;
-            _runtime.HistoryChanged += OnHistoryChanged;
-            _runtime.OnFirstPageAttached += OnFirstPageAttachedInternal;
-            _runtime.OnNoPageAttached += OnNoPageAttachedInternal;
-            _runtime.OnNoPageVisible += OnNoPageVisibleInternal;
+            var lease = AcquireRuntimeLease();
+            try
+            {
+                return AwaitRuntimeOperationAsync(operation(lease.Runtime), lease);
+            }
+            catch
+            {
+                lease.Dispose();
+                throw;
+            }
         }
 
-        private static void UnwireRuntimeEvents()
+        private static Task<TResult> InvokeRuntimeAsync<TResult>(
+            Func<NavigationRuntime, Task<TResult>> operation)
         {
-            _runtime.Navigating -= OnNavigating;
-            _runtime.Navigated -= OnNavigated;
-            _runtime.NavigationFailed -= OnNavigationFailed;
-            _runtime.CurrentChanged -= OnCurrentChanged;
-            _runtime.HistoryChanged -= OnHistoryChanged;
-            _runtime.OnFirstPageAttached -= OnFirstPageAttachedInternal;
-            _runtime.OnNoPageAttached -= OnNoPageAttachedInternal;
-            _runtime.OnNoPageVisible -= OnNoPageVisibleInternal;
+            var lease = AcquireRuntimeLease();
+            try
+            {
+                return AwaitRuntimeOperationAsync(operation(lease.Runtime), lease);
+            }
+            catch
+            {
+                lease.Dispose();
+                throw;
+            }
+        }
+
+        private static async Task AwaitRuntimeOperationAsync(
+            Task operation,
+            RuntimeLease lease)
+        {
+            try
+            {
+                await operation.ConfigureAwait(false);
+            }
+            finally
+            {
+                lease.Dispose();
+            }
+        }
+
+        private static async Task<TResult> AwaitRuntimeOperationAsync<TResult>(
+            Task<TResult> operation,
+            RuntimeLease lease)
+        {
+            try
+            {
+                return await operation.ConfigureAwait(false);
+            }
+            finally
+            {
+                lease.Dispose();
+            }
+        }
+
+        private static void AdmitRuntimeAction(
+            Action<NavigationRuntime, Action> operation)
+        {
+            var lease = AcquireRuntimeLease();
+            try
+            {
+                operation(lease.Runtime, lease.Dispose);
+            }
+            catch
+            {
+                lease.Dispose();
+                throw;
+            }
+        }
+
+        private static Task<TResult> AdmitRuntimeTask<TResult>(
+            Func<NavigationRuntime, Action, Task<TResult>> operation)
+        {
+            var lease = AcquireRuntimeLease();
+            try
+            {
+                return operation(lease.Runtime, lease.Dispose);
+            }
+            catch
+            {
+                lease.Dispose();
+                throw;
+            }
+        }
+
+        private static void ReleaseRuntimeLease()
+        {
+            TaskCompletionSource<bool>? drained = null;
+
+            lock (_lifecycleSync)
+            {
+                if (_activeRuntimeOperations <= 0)
+                    throw new InvalidOperationException(
+                        "NavigationService runtime lease accounting underflow.");
+
+                _activeRuntimeOperations--;
+                if (_activeRuntimeOperations == 0 && _shuttingDown != 0)
+                    drained = _runtimeOperationsDrained;
+            }
+
+            drained?.TrySetResult(true);
+        }
+
+        internal static bool IsCurrentContext(NavigationContext context)
+            => context != null &&
+               Volatile.Read(ref _shuttingDown) == 0 &&
+               ReferenceEquals(_context, context);
+
+        private static void DisposeMountHandles(
+            IDisposable? debugUtilsObserver,
+            IDisposable? bootstrapLifetime)
+        {
+            try { debugUtilsObserver?.Dispose(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[NavigationService] DebugUtils observer disposal failed: " + ex);
+            }
+
+            try { bootstrapLifetime?.Dispose(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[NavigationService] Bootstrap lifetime disposal failed: " + ex);
+            }
+        }
+
+        private sealed class RuntimeLease : IDisposable
+        {
+            private NavigationRuntime? _runtime;
+
+            internal RuntimeLease(NavigationRuntime runtime)
+            {
+                _runtime = runtime ??
+                    throw new ArgumentNullException(nameof(runtime));
+            }
+
+            internal NavigationRuntime Runtime =>
+                _runtime ??
+                throw new ObjectDisposedException(nameof(RuntimeLease));
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _runtime, null) != null)
+                    ReleaseRuntimeLease();
+            }
+        }
+
+        private static void WireRuntimeEvents(NavigationRuntime runtime)
+        {
+            runtime.Navigating += OnNavigating;
+            runtime.Navigated += OnNavigated;
+            runtime.NavigationFailed += OnNavigationFailed;
+            runtime.CurrentChanged += OnCurrentChanged;
+            runtime.HistoryChanged += OnHistoryChanged;
+            runtime.OnFirstPageAttached += OnFirstPageAttachedInternal;
+            runtime.OnNoPageAttached += OnNoPageAttachedInternal;
+            runtime.OnNoPageVisible += OnNoPageVisibleInternal;
+        }
+
+        private static void UnwireRuntimeEvents(NavigationRuntime runtime)
+        {
+            runtime.Navigating -= OnNavigating;
+            runtime.Navigated -= OnNavigated;
+            runtime.NavigationFailed -= OnNavigationFailed;
+            runtime.CurrentChanged -= OnCurrentChanged;
+            runtime.HistoryChanged -= OnHistoryChanged;
+            runtime.OnFirstPageAttached -= OnFirstPageAttachedInternal;
+            runtime.OnNoPageAttached -= OnNoPageAttachedInternal;
+            runtime.OnNoPageVisible -= OnNoPageVisibleInternal;
         }
 
         private static void OnNavigating(IPageView from, Type to, NavigationArgs args)
-            => Navigating?.Invoke(from, to, args);
+            => InvokeSubscribers(
+                Navigating,
+                nameof(Navigating),
+                subscriber => ((Action<IPageView, Type, NavigationArgs>)subscriber)(from, to, args));
 
         private static void OnNavigated(IPageView from, IPageView to, NavigationArgs args)
-            => Navigated?.Invoke(from, to, args);
+            => InvokeSubscribers(
+                Navigated,
+                nameof(Navigated),
+                subscriber => ((Action<IPageView, IPageView, NavigationArgs>)subscriber)(from, to, args));
 
         private static void OnNavigationFailed(IPageView from, Type to, Exception ex)
-            => NavigationFailed?.Invoke(from, to, ex);
+            => InvokeSubscribers(
+                NavigationFailed,
+                nameof(NavigationFailed),
+                subscriber => ((Action<IPageView, Type, Exception>)subscriber)(from, to, ex));
 
         private static void OnCurrentChanged(IPageView current)
-            => CurrentChanged?.Invoke(current);
+            => InvokeSubscribers(
+                CurrentChanged,
+                nameof(CurrentChanged),
+                subscriber => ((Action<IPageView>)subscriber)(current));
 
         private static void OnHistoryChanged()
-            => HistoryChanged?.Invoke();
+            => InvokeSubscribers(
+                HistoryChanged,
+                nameof(HistoryChanged),
+                subscriber => ((Action)subscriber)());
 
         private static void OnFirstPageAttachedInternal(IPageView page)
-            => OnFirstPageAttached?.Invoke(page);
+            => InvokeSubscribers(
+                OnFirstPageAttached,
+                nameof(OnFirstPageAttached),
+                subscriber => ((Action<IPageView>)subscriber)(page));
 
         private static void OnNoPageAttachedInternal()
-            => OnNoPageAttached?.Invoke();
+            => InvokeSubscribers(
+                OnNoPageAttached,
+                nameof(OnNoPageAttached),
+                subscriber => ((Action)subscriber)());
 
         private static void OnNoPageVisibleInternal()
-            => OnNoPageVisible?.Invoke();
+            => InvokeSubscribers(
+                OnNoPageVisible,
+                nameof(OnNoPageVisible),
+                subscriber => ((Action)subscriber)());
+
+        private static void InvokeSubscribers(
+            Delegate? subscribers,
+            string eventName,
+            Action<Delegate> invoke)
+        {
+            if (subscribers == null)
+                return;
+
+            foreach (var subscriber in subscribers.GetInvocationList())
+            {
+                try
+                {
+                    invoke(subscriber);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[NavigationService] " + eventName +
+                        " subscriber failed: " + ex);
+                }
+            }
+        }
     
     }
 }

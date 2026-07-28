@@ -8,9 +8,10 @@ using Xunit;
 namespace NekoLib.Navigation.Tests.Unit
 {
     /// <summary>
-    /// Covers the full-fidelity observability bridge: the signals that only exist on
-    /// the static <see cref="NavigationService"/> facade (navigation intent,
-    /// attach/visibility) plus the context-backed history/session snapshots.
+    /// Covers the full-fidelity observability bridge: the public processing and
+    /// attach/visibility signals from the static
+    /// <see cref="NavigationService"/> facade, the internal request/outcome
+    /// signals, and the context-backed history/session snapshots.
     ///
     /// <para>
     /// These tests mount the static facade, which is process-wide state — hence the
@@ -39,13 +40,15 @@ namespace NekoLib.Navigation.Tests.Unit
 
                     var ops = debug.GetOperations().Select(o => o.Operation).ToList();
 
-                    // The intent hook is the whole point of the static subscription:
-                    // the hub only speaks once navigation has resolved.
                     Assert.Contains("NavigationStarted", ops);
+                    Assert.Contains("Navigating", ops);
                     Assert.Contains("Navigated", ops);
                     Assert.True(
-                        ops.IndexOf("NavigationStarted") < ops.IndexOf("Navigated"),
-                        "intent must be recorded before the outcome");
+                        ops.IndexOf("NavigationStarted") <
+                        ops.IndexOf("Navigating") &&
+                        ops.IndexOf("Navigating") <
+                        ops.IndexOf("Navigated"),
+                        "request, processing and outcome must be recorded in order");
                 }
             }
             finally
@@ -55,7 +58,116 @@ namespace NekoLib.Navigation.Tests.Unit
         }
 
         [Fact]
-        public async Task ContextAttach_ExposesCurrentStatsHistoryAndSession()
+        public async Task GuardDenied_RecordsStartedAndNavigatingBeforeGuardOutcome()
+        {
+            var fixture = RuntimeTestFixture.Build<StubIdle>(typeof(StubAuthenticated));
+            var debug = new DebugUtilsRuntime();
+            var publicNavigatingCalls = 0;
+
+            NavigationService.UseContext(fixture.Context);
+            try
+            {
+                using (DebugUtilsNavigationObserver.Attach(fixture.Context, debug))
+                {
+                    NavigationService.Navigating += (_, _, _) => publicNavigatingCalls++;
+
+                    await NavigationService.SwitchPage<StubAuthenticated>();
+
+                    Assert.Equal(
+                        new[]
+                        {
+                            "NavigationStarted",
+                            "Navigating",
+                            "GuardDenied",
+                            "ShellBlankDetected"
+                        },
+                        debug.GetOperations().Select(o => o.Operation).ToArray());
+                    Assert.Equal(1, publicNavigatingCalls);
+                    Assert.Null(NavigationService.Current);
+
+                    var stats = debug.CaptureState()["Navigation::stats"];
+                    Assert.Equal(1, Prop(stats, "started"));
+                    Assert.Equal(1, Prop(stats, "guardDenied"));
+                    Assert.Equal(0, Prop(stats, "navigated"));
+                    Assert.Equal(0, Prop(stats, "failed"));
+                }
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task NavigatingSubscriberThrows_NavigationStillCompletes()
+        {
+            var fixture = RuntimeTestFixture.Build<StubIdle>(typeof(StubA));
+            var debug = new DebugUtilsRuntime();
+
+            NavigationService.UseContext(fixture.Context);
+            try
+            {
+                using (DebugUtilsNavigationObserver.Attach(fixture.Context, debug))
+                {
+                    NavigationService.Navigating += (_, _, _) =>
+                        throw new System.InvalidOperationException("observer failure");
+
+                    await NavigationService.SwitchPage<StubA>();
+
+                    Assert.IsType<StubA>(NavigationService.Current);
+                    var operations = debug.GetOperations()
+                        .Select(o => o.Operation)
+                        .ToArray();
+                    Assert.Contains("NavigationStarted", operations);
+                    Assert.Contains("Navigating", operations);
+                    Assert.Contains("Navigated", operations);
+                    Assert.DoesNotContain("NavigationFailed", operations);
+                }
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task UnregisteredTarget_RecordsStartedThenNavigationFailed()
+        {
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            var debug = new DebugUtilsRuntime();
+
+            NavigationService.UseContext(fixture.Context);
+            try
+            {
+                using (DebugUtilsNavigationObserver.Attach(fixture.Context, debug))
+                {
+                    await Assert.ThrowsAsync<System.InvalidOperationException>(
+                        () => NavigationService.SwitchPage(typeof(string)));
+
+                    Assert.Equal(
+                        new[]
+                        {
+                            "NavigationStarted",
+                            "StageFailed",
+                            "NavigationFailed",
+                            "ShellBlankDetected"
+                        },
+                        debug.GetOperations().Select(o => o.Operation).ToArray());
+                    Assert.Null(NavigationService.Current);
+
+                    var stats = debug.CaptureState()["Navigation::stats"];
+                    Assert.Equal(1, Prop(stats, "started"));
+                    Assert.Equal(1, Prop(stats, "failed"));
+                }
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task ContextAttach_ExposesFullProjectionWithoutRawSessionClaims()
         {
             var fixture = RuntimeTestFixture.Build<StubIdle>(typeof(StubA), typeof(StubB));
             var debug = new DebugUtilsRuntime();
@@ -68,14 +180,44 @@ namespace NekoLib.Navigation.Tests.Unit
                     Assert.Equal(
                         new[]
                         {
+                            "Navigation::activeAttempts",
+                            "Navigation::backgroundLoads",
+                            "Navigation::cache",
                             "Navigation::current",
+                            "Navigation::currentPage",
                             "Navigation::history",
+                            "Navigation::idle",
+                            "Navigation::inFlight",
+                            "Navigation::lastNavigation",
+                            "Navigation::overlays",
+                            "Navigation::pages",
+                            "Navigation::queue",
+                            "Navigation::registry",
+                            "Navigation::runtime",
                             "Navigation::session",
                             "Navigation::stats"
                         },
                         debug.StateKeys().OrderBy(k => k).ToArray());
 
-                    NavigationService.Session.SignIn("admin");
+                    NavigationService.Session.SignIn(
+                        new[] { "admin" },
+                        new[] { "edit-sales" });
+
+                    // Session.Changed refreshes the immutable mirror immediately;
+                    // a navigation is not required to make authentication visible.
+                    var sessionBeforeNavigation =
+                        debug.CaptureState()["Navigation::session"];
+                    Assert.True((bool)Prop(
+                        sessionBeforeNavigation,
+                        "authenticated"));
+                    Assert.Equal(1, Prop(sessionBeforeNavigation, "roleCount"));
+                    Assert.Equal(
+                        1,
+                        Prop(sessionBeforeNavigation, "permissionCount"));
+                    Assert.DoesNotContain(
+                        "edit-sales",
+                        sessionBeforeNavigation.ToString());
+
                     await NavigationService.SwitchPage<StubA>();
                     await NavigationService.SwitchPage<StubB>();
 
@@ -85,16 +227,39 @@ namespace NekoLib.Navigation.Tests.Unit
                     // navigation (from nothing) records nothing.
                     var history = state["Navigation::history"];
                     Assert.True((bool)Prop(history, "canGoBack"));
-                    Assert.Contains(nameof(StubA), (System.Collections.Generic.List<string>)Prop(history, "back"));
+                    Assert.Contains(
+                        nameof(StubA),
+                        (System.Collections.Generic.IEnumerable<string>)
+                            Prop(history, "back"));
 
                     var session = state["Navigation::session"];
                     Assert.True((bool)Prop(session, "authenticated"));
-                    Assert.Contains("admin", (System.Collections.Generic.List<string>)Prop(session, "roles"));
+                    Assert.Equal(1, Prop(session, "roleCount"));
+                    Assert.Equal(1, Prop(session, "permissionCount"));
+                    Assert.Null(session.GetType().GetProperty("roles"));
+                    Assert.Null(session.GetType().GetProperty("permissions"));
+                    Assert.DoesNotContain("admin", session.ToString());
+
+                    var current = state["Navigation::current"];
+                    var last = state["Navigation::lastNavigation"];
+                    Assert.Equal(nameof(StubB), Prop(current, "name"));
+                    Assert.Equal(nameof(StubB), Prop(last, "to"));
+                    Assert.NotNull(Prop(last, "requestId"));
+                    Assert.True((long)Prop(last, "durationMs") >= 0);
 
                     var stats = state["Navigation::stats"];
                     Assert.Equal(2, Prop(stats, "started"));
                     Assert.Equal(2, Prop(stats, "navigated"));
-                    Assert.Equal(nameof(StubB), Prop(stats, "lastStarted"));
+                    Assert.Equal(typeof(StubB).FullName, Prop(stats, "lastStarted"));
+                    Assert.Equal(2, Prop(stats, "requestsCompleted"));
+
+                    // CaptureState can run from a diagnostics worker. It returns the
+                    // history mirror updated by HistoryChanged, never the live
+                    // UI-thread-affine NavigationHistory object.
+                    var workerState = await Task.Run(() => debug.CaptureState());
+                    var workerHistory = workerState["Navigation::history"];
+                    Assert.True((bool)Prop(workerHistory, "canGoBack"));
+                    Assert.Equal(1, Prop(workerHistory, "backCount"));
                 }
             }
             finally

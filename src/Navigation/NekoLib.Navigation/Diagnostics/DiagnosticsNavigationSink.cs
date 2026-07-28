@@ -30,7 +30,7 @@ namespace NekoLib.Navigation.Diagnostics
 
             try
             {
-                var data = new Dictionary<string, object?>
+                var data = new Dictionary<string, object>
                 {
                     ["From"] = entry.FromPageName ?? "<null>",
                     ["To"] = entry.ToPageName ?? "<null>",
@@ -40,7 +40,7 @@ namespace NekoLib.Navigation.Diagnostics
                     ["Timeout"] = entry.IsTimeout,
                     ["Back"] = entry.IsBackNavigation,
                     ["FailureKind"] = entry.FailureKind.ToString(),
-                    ["Error"] = entry.Error
+                    ["Error"] = entry.Error ?? string.Empty
                 };
 
                 _ctx.Telemetry?.Track(new TelemetryEvent(

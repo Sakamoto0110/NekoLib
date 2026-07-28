@@ -28,6 +28,18 @@ namespace NekoLib.Watchdog
         public string TargetArguments { get; set; } = "";
 
         /// <summary>
+        /// Optional PID of an already-running first instance. The runtime attaches
+        /// to it instead of launching a second process.
+        /// </summary>
+        public int? InitialProcessId { get; set; }
+
+        /// <summary>
+        /// One-time identity echoed by the attach handshake. Required whenever
+        /// <see cref="InitialProcessId"/> is set.
+        /// </summary>
+        public string AttachToken { get; set; } = "";
+
+        /// <summary>
         /// Named pipe identity for RPC + events.
         /// </summary>
         public string PipeName { get; set; } = "NekoLib.Watchdog";
@@ -107,6 +119,20 @@ namespace NekoLib.Watchdog
         {
             if (string.IsNullOrWhiteSpace(TargetPath))
                 throw new InvalidOperationException("TargetPath is required.");
+
+            if (InitialProcessId.HasValue)
+            {
+                if (InitialProcessId.Value < 1)
+                    throw new InvalidOperationException("InitialProcessId must be positive.");
+                if (string.IsNullOrWhiteSpace(AttachToken))
+                    throw new InvalidOperationException(
+                        "AttachToken is required when InitialProcessId is set.");
+            }
+            else if (!string.IsNullOrWhiteSpace(AttachToken))
+            {
+                throw new InvalidOperationException(
+                    "InitialProcessId is required when AttachToken is set.");
+            }
 
             var full = Path.GetFullPath(TargetPath);
             TargetPath = full;

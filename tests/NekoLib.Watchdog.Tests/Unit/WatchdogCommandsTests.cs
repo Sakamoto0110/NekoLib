@@ -19,6 +19,7 @@ namespace NekoLib.Watchdog.Tests.Unit
         [InlineData("stop", "Stop")]
         [InlineData("log_history", "LogHistory")]
         [InlineData("exception_notify", "ExceptionNotify")]
+        [InlineData("attach_status", "AttachStatus")]
         public void Command_HasExpectedWireValue(string expected, string member)
         {
             var field = typeof(WatchdogCommands).GetField(member);

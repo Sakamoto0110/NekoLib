@@ -23,7 +23,7 @@ The Watchdog module is a process supervisor for desktop applications. It monitor
 NekoLib.Watchdog.Host
   └─ NekoLib.Watchdog
        ├─ NekoLib.Pipes        (PipeServer, PipeClient, PipeEventClient)
-       ├─ NekoLib.Diagnostics  (ILogSink, LogEntry)
+       ├─ NekoLib.Core         (ILogSink, LogEntry, ITelemetrySink)
        └─ Newtonsoft.Json 13.0.3  (net481 only; net9 uses System.Text.Json)
 ```
 
@@ -63,6 +63,9 @@ The largest and most critical file. Manages the full lifecycle of the supervised
 | `"stop"` | Calls `Stop(true)` |
 | `"log_history"` | Returns ring buffer contents |
 | `"exception_notify"` | Logs a crash report from the supervised app |
+| `"attach_status"` | After startup readiness, returns the currently supervised PID + Host-session token identity |
+| `"log_write"` / `"log_write_batch"` | Receives application logs into the structured watchdog stream |
+| `"update"` | Returns explicit `not_implemented` (or `updates_disabled`) |
 
 **Kill sequence** (`TryKill`): graceful via `CloseMainWindow()` → wait `GracefulKillTimeoutMs` → force via `taskkill /PID {n} /T /F` with hardcoded 5 s wait.
 
@@ -111,7 +114,8 @@ All configuration for `WatchdogRuntime`. Validated and defaults applied by `Norm
 
 #### `CrashBundler.cs` — 206 lines — Post-mortem bundle finalizer
 
-Static utility. Not called from `WatchdogRuntime` — caller must invoke it (e.g., in `exception_notify` handler or after child exit).
+Static utility invoked by `WatchdogRuntime` after each non-shutdown child exit
+when `EnableCrashBundling` is enabled.
 
 **`TryFinalizeLatestCrashBundle()`:**
 1. Finds newest `crash-*` folder under `PendingCrashRoot`
@@ -122,7 +126,9 @@ Static utility. Not called from `WatchdogRuntime` — caller must invoke it (e.g
 6. Deletes pending folder
 7. Enforces `MaxBundles` by deleting oldest `bundle-*` dirs
 
-**Note:** `CrashBundler` is never actually called by `WatchdogRuntime`. The integration is the caller's responsibility.
+`exception_notify` records the richer restart reason; finalization occurs from
+the monitor loop after the process exits, with a fallback exit reason when no
+notification arrived.
 
 ---
 
@@ -146,15 +152,20 @@ The actual hotkey registration in `WatchdogRuntime` does **not** use `WatchdogHo
 
 ---
 
-#### `WatchdogLogPipeServer.cs` — 157 lines — Named-pipe log streaming server
+#### `WatchdogLogPipeServer.cs` — Legacy named-pipe log streaming server
 
-Separate from the main RPC pipe. Accepts log line connections, dispatches from a `BlockingCollection<string>` (max 2048). Two threads: `WDG-LogPipe-Accept` and `WDG-LogPipe-Dispatch`. `Enqueue()` drops silently when full. **Not used by `WatchdogRuntime`** — caller must wire it up manually.
+Obsolete compatibility type for the superseded raw-text side pipe. New code
+uses the main RPC/event pipe and `WatchdogController.SubscribeLogs`.
 
 ---
 
-#### `WatchdogPipeLogSink.cs` — 71 lines — `ILogSink` push adapter
+#### `WatchdogPipeLogSink.cs` — Buffered `ILogSink` push adapter
 
-Implements `ILogSink` (from `NekoLib.Diagnostics`). Connects to a named pipe and writes log lines. Reconnects on failure with a 200 ms timeout. Default pipe name `"NekoLib.Watchdog.logs"` does **not** match the auto-generated pipe name format used by `WatchdogRuntime` — needs manual coordination.
+Implements Core's `ILogSink`, queues without blocking the application and sends
+batches through `WatchdogController`, which resolves the same target-derived
+control-pipe identity as the runtime. The runtime maps `log_write_batch`, adds
+received entries to history/live events and deliberately does not forward them
+back into pipe sinks, preventing a feedback loop.
 
 ---
 
@@ -172,13 +183,20 @@ Differences vs `Win32` nested class:
 
 ### `NekoLib.Watchdog.Host` (Standalone WinExe)
 
-#### `Program.cs` — 29 lines — Entry point
+#### `Program.cs` — Entry point
 
-Minimal. Parses args → creates `WatchdogRuntime` → `Start()` → `WaitForExit()`. Fatal exceptions written to `watchdog_host_fatal.log` (relative path — lands in CWD).
+Minimal. Parses args → creates `WatchdogRuntime` → `Start()` → `WaitForExit()`.
+Fatal exceptions are written best-effort to `watchdog_host_fatal.log` (relative
+path — lands in CWD) and return exit code 1. A log-write failure is contained so
+it cannot replace the original startup failure.
 
-#### `HostArgumentParser.cs` — 46 lines — CLI argument parser
+#### `HostArgumentParser.cs` — CLI argument parser
 
-Accepts `--target <path>` and `--args <args>`. Validates the target file exists. Returns a `WatchdogOptions` with only `TargetPath` and `TargetArguments` set — all other options use defaults from `Normalize()`.
+Accepts `--target <path>`, `--args <args>`, `--workdir <path>`,
+`--attach-pid <pid>` and `--attach-token <token>`. It validates the target,
+positive PID and attach token pairing, then maps the values into
+`WatchdogOptions`. Unknown and duplicate flags are rejected; remaining policy
+uses defaults from `Normalize()`.
 
 ---
 
@@ -186,10 +204,12 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 
 | Location | Type | Status |
 |----------|------|--------|
-| `tests/NekoLib.Watchdog.Tests/Watchdog/` | WinForms runtime sim app (`WatchdogQuickTests`) — **not xUnit** | Misplaced in tests/; should be under `runtime_tests/` |
-| xUnit unit tests | — | **None exist** |
+| `tests/NekoLib.Watchdog.Tests/Unit/` | xUnit | 81/81 passing per target (`net481`, `net9.0-windows`) on 2026-07-27 |
+| `runtime_tests/Supervisor_481/` | Interactive WinForms scenario | Runtime-only, intentionally outside `NekoLib.sln` |
 
-`WatchdogQuickTests` is a WinForms app (`DummyForm`) that exercises the watchdog integration scenario (crash handler → notify watchdog → supervised launch). It is a scenario runner, not an assertion harness.
+The old misplaced `WatchdogQuickTests` project was removed. Runtime-only
+coverage lives under the ignored `runtime_tests/` tree; unit and RPC/child
+process integration coverage lives in the dual-target xUnit project.
 
 ---
 
@@ -199,7 +219,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 
 | # | Issue | Location |
 |---|-------|----------|
-| H1 | 🟡 **PARTIAL** — **Zero xUnit unit tests** → now 52 tests (Options/CrashBundler/Hotkeys/LogFile) + a supervisor runtime app. Runtime supervision paths (restart loop, taskkill, hotkeys) still only manually exercised. | — |
+| H1 | 🟡 **PARTIAL** — **Zero xUnit unit tests** → now 81 tests per target. Options, bundling, hotkeys, logs, RPC, initial attach, bootstrap identity/budget, restart/environment handoff and spawn retry are automated on both targets; taskkill and interactive hotkey behavior still rely on runtime scenarios. | — |
 | H2 | ✅ **FIXED** — **`NativeMethods.cs` is dead code** — removed (commit `4e1a664`). | `NativeMethods.cs` |
 | H3 | 🟡 **MOSTLY ADDRESSED** — critical paths now surface failures: `StartChild` logs + retries instead of killing the monitor thread; `TryKill` logs graceful/taskkill failures (commit `b8d0f06`). Shutdown-cleanup and logging-path catches are intentionally left silent (the latter to avoid log-recursion). | `WatchdogRuntime.cs` |
 
@@ -213,7 +233,7 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | M4 | ✅ **FIXED** — hotkeys now configurable via `WatchdogOptions` (`EnableHotkeys` + `WatchdogHotkey` bindings); defaults preserve Ctrl+Alt+P/R/Q. Registration failures logged (commit `ffccc68`). | `WatchdogRuntime.cs`, `WatchdogOptions.cs`, `WatchdogHotkeys.cs` |
 | M5 | `EnableUpdates` / `UpdateStagingRoot` / `UseAtomicDirectorySwap` defined but no RPC handler or implementation exists | `WatchdogOptions.cs:80-97` |
 | M6 | ✅ **FIXED** — `WatchdogRuntime` now calls `CrashBundler` after each non-shutdown child exit (gated on `EnableCrashBundling`); verified end-to-end (commit `f084cd7`). | `CrashBundler.cs`, `WatchdogRuntime.cs` |
-| M7 | ⚠️ **NEEDS DECISION** — `WatchdogLogPipeServer` (raw-text log fan-out server) + `WatchdogPipeLogSink` (app-side `ILogSink`) form a half-built app-log-forwarding feature: (1) the runtime never starts the server, (2) the sink's default pipe name `NekoLib.Watchdog.logs` doesn't match the runtime's `NekoLib.Watchdog.<hash>` identity, (3) received lines don't feed the watchdog's own structured log/event stream. Distinct from the RPC `"log"` events (which already stream the *watchdog's* logs). Either complete it (define a consumer + pipe naming) or remove both types. | `WatchdogLogPipeServer.cs`, `WatchdogPipeLogSink.cs` |
+| M7 | ✅ **FIXED** — application logs now flow through the target-derived control pipe in buffered batches, enter the watchdog history/live stream, expose drop counts and cannot loop back into `WatchdogPipeLogSink`. The old raw-text server is obsolete. | `WatchdogPipeLogSink.cs`, `WatchdogController.cs`, `WatchdogRuntime.cs` |
 | M8 | Pipe name SHA1 truncated to 16 hex chars — theoretical collision for paths that share a common prefix after lowercasing | `WatchdogController.cs:47`, `WatchdogOptions.cs:169` |
 | M9 | Ring buffer silently drops oldest entries at 300 with no log warning | `WatchdogRuntime.cs:480-482` |
 | M10 | ✅ **FIXED** — misplaced `WatchdogQuickTests` sim removed from `tests/` (commit `877d502`); supervision scenario now covered by `runtime_tests/Supervisor_481`. | `tests/NekoLib.Watchdog.Tests/Watchdog/` |
@@ -225,10 +245,10 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | L1 | ✅ **FIXED** — RPC command names centralized in `WatchdogCommands` constants; wire values pinned by a test (commit `35a749a`). | `WatchdogCommands.cs` |
 | L2 | ✅ **FIXED** — duplicate `MOD_ALT`/`MOD_CONTROL` removed from the nested `Win32` class; `WatchdogHotkeys` is the single source (commit `ffccc68`). | `WatchdogRuntime.cs` |
 | L3 | `Dispose()` calls `Stop(true)` which is idempotent via `_stopped` flag — but only if `_stopped` is set before any error path; double-dispose is safe in practice but fragile | `WatchdogRuntime.cs:537-539` |
-| L4 | `HostArgumentParser` accepts `--args` as a single quoted string — no support for per-argument arrays; multi-word arguments require quoting workarounds | `HostArgumentParser.cs` |
+| L4 | ✅ **FIXED** — application bootstrap now re-encodes the original argument array with Windows command-line quoting; the Host parser preserves the resulting `--args` value and explicitly accepts `--workdir`, `--attach-pid` and `--attach-token`. | `WatchdogBootstrap.cs`, `HostArgumentParser.cs` |
 | L5 | `watchdog_host_fatal.log` uses a relative path in `Program.Main` — lands in CWD, not a predictable log directory | `Program.cs:24` |
-| L6 | `WatchdogPipeLogSink` default pipe name `"NekoLib.Watchdog.logs"` does not match the auto-generated `NekoLib.Watchdog.<hash>` format — callers must pass the correct name manually | `WatchdogPipeLogSink.cs:18` |
-| L7 | ⚠️ **DEFERRED** — `BringToFrontOnStartIfRunning` unused. Implementing means cross-process window focus of the already-running instance's child (fiddly, low value); removing is a breaking API change. Decide implement vs remove (same posture as M7). | `WatchdogOptions.cs` |
+| L6 | ✅ **FIXED** — `WatchdogPipeLogSink` delegates to `WatchdogController`, so pipe identity is derived from the current target consistently and no pipe-name argument exists. | `WatchdogPipeLogSink.cs`, `WatchdogController.cs` |
+| L7 | ✅ **FIXED** — when the named single-instance guard is already held and the option is enabled, startup restores and foregrounds the existing target window before reporting the duplicate-host error. | `WatchdogRuntime.cs` |
 
 ---
 
@@ -240,19 +260,26 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 - Dual-JSON support handled consistently with `#if NET9` blocks
 - Log ring buffer + replay-on-subscribe is a useful operational feature
 - `Normalize()` eagerly validates and fills defaults — fails fast at startup, not mid-run
-- Global mutex (`Global\NekoLib.Watchdog::<pipename>`) prevents duplicate watchdog instances per target
+- A one-permit named `Semaphore` (`Global\NekoLib.Watchdog::<pipename>`) prevents
+  duplicate watchdog instances per target. A `Mutex` is intentionally not used:
+  shutdown may release the permit from a different thread, while mutex ownership
+  is thread-affine.
 
 ---
 
 ## 6. Missing Pieces (Summary)
 
-- ~~xUnit unit tests (zero coverage)~~ → ✅ 52 tests added (pure-logic surface)
+- ~~xUnit unit tests (zero coverage)~~ → ✅ 81 tests per target now cover pure logic plus RPC, attach/bootstrap/restart and spawn-retry runtime paths
 - ~~File log rotation (`MaxLogBytes` is a stub)~~ → ✅ implemented
 - ~~`ForceKillTimeoutMs` respected in kill sequence~~ → ✅ wired
 - ~~`CrashBundler` integration into `WatchdogRuntime`~~ → ✅ wired
+- The bootstrap protocol is covered component by component, but executing
+  `WatchdogBootstrap.EnsureStarted` against the packaged/deployed sidecar and
+  proving forced termination after a failed handshake remains a package/runtime
+  scenario; no ignored `runtime_tests/` app was recreated for this audit.
 - Update mechanism (options exist, no implementation)
-- `WatchdogLogPipeServer`/`WatchdogPipeLogSink` app-log forwarding (half-built — see M7)
-- Configurable hotkeys
+- ~~Application-log forwarding~~ → ✅ buffered RPC batches feed history/live events without feedback loops
+- ~~Configurable hotkeys~~ → ✅ `WatchdogOptions` bindings preserve the original defaults
 - Self-restart for the watchdog host process itself
 
 ---
@@ -270,5 +297,11 @@ Accepts `--target <path>` and `--args <args>`. Validates the target file exists.
 | 2026-06-04 | L1 | RPC command names centralized in `WatchdogCommands` constants | `35a749a` |
 | 2026-06-04 | H3 | Spawn + kill paths now log failures (and `StartChild` retries instead of crashing the monitor thread) | `b8d0f06` |
 | 2026-06-04 | M2 | Implemented `HeartbeatIntervalMs` (periodic beat + telemetry) | `42e3c67` |
+| 2026-07-27 | Bootstrap/attach, L4 | Added `WatchdogBootstrap.EnsureStarted`, bounded PID/token handshake, initial-process attach in `WatchdogRuntime`, parser support and dual-target regression tests. The first process is monitored in place; later restarts keep the existing `StartChild` flow and receive `NEKO_UNDER_WATCHDOG=1`. | uncommitted |
+| 2026-07-27 | Bootstrap preflight | Existing-host detection now requires `attach_status` identity for the current PID (a mere `ping` is insufficient), reports target/PID conflicts clearly, serializes concurrent in-process bootstrap calls and treats `handshakeTimeoutMs` as one total budget across preflight, launch and cancellable handshake I/O. `attach_status` is exposed only after runtime startup and follows the currently supervised PID across restarts while retaining the host-session token. | uncommitted |
+| 2026-07-27 | M7, L6, L7, guard docs | Reconciled the audit with implemented application-log forwarding, target-window activation and the intentionally cross-thread-safe named `Semaphore`. | uncommitted |
 
-**Still open:** M5 (update mechanism — large, genuinely unimplemented), M8 (pipe-name hash length / collision), M9 (ring-buffer silent drop), L4 (host `--args` parsing), L5 (`watchdog_host_fatal.log` relative path), L6 (`WatchdogPipeLogSink` pipe-name mismatch). **Deferred by decision (implement vs remove public API):** M7 (app-log forwarding), L7 (`BringToFrontOnStartIfRunning`).
+**Still open:** M5 (update mechanism — large, genuinely unimplemented), M8
+(pipe-name hash length / collision), M9 (the 300-entry replay buffer evicts its
+oldest entry without a dedicated counter) and L5 (`watchdog_host_fatal.log`
+relative path).

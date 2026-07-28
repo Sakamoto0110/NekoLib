@@ -65,6 +65,8 @@ namespace NekoLib.Watchdog
         private volatile bool _exiting;
         private volatile bool _started;
         private volatile bool _stopped;
+        private volatile bool _attachStatusReady;
+        private int? _attachedInitialProcessId;
 
         // Buffered structured log entries (replay on subscribe)
         private readonly Queue<LogEntry> _logBuffer = new Queue<LogEntry>(MaxBufferedLogs);
@@ -112,40 +114,56 @@ namespace NekoLib.Watchdog
                     $"Watchdog already running for target: {_o.TargetPath}");
             }
 
-            _rpc = new PipeServer(new PipeServerOptions
+            try
             {
-                PipeName = _o.PipeName,
-                EnableEvents = true,
-                MaxClients = 8,
-                MaxEventSubscribers = 16,
-                Metrics = _pipeMetrics
-            });
+                AttachInitialProcess();
 
-            RegisterRpcHandlers();
-            _rpc.Start();
+                _rpc = new PipeServer(new PipeServerOptions
+                {
+                    PipeName = _o.PipeName,
+                    EnableEvents = true,
+                    MaxClients = 8,
+                    MaxEventSubscribers = 16,
+                    Metrics = _pipeMetrics
+                });
 
-            _eventThread = new Thread(EventLoop)
+                RegisterRpcHandlers();
+                _rpc.Start();
+
+                _eventThread = new Thread(EventLoop)
+                {
+                    IsBackground = true,
+                    Name = "WDG-Events"
+                };
+                _eventThread.Start();
+
+                LogInfo("[watchdog_start]", new
+                {
+                    target = _o.TargetPath,
+                    pipe = _o.PipeName,
+                    attachedPid = _attachedInitialProcessId
+                });
+
+                _monitorThread = new Thread(MonitorLoop)
+                {
+                    IsBackground = false,
+                    Name = "WDG-Monitor"
+                };
+                _monitorThread.Start();
+
+                _hotkeyThread = new Thread(HotkeyLoop)
+                {
+                    IsBackground = true,
+                    Name = "WDG-Hotkeys"
+                };
+                _hotkeyThread.Start();
+                _attachStatusReady = true;
+            }
+            catch
             {
-                IsBackground = true,
-                Name = "WDG-Events"
-            };
-            _eventThread.Start();
-
-            LogInfo("[watchdog_start]", new { target = _o.TargetPath, pipe = _o.PipeName });
-
-            _monitorThread = new Thread(MonitorLoop)
-            {
-                IsBackground = false,
-                Name = "WDG-Monitor"
-            };
-            _monitorThread.Start();
-
-            _hotkeyThread = new Thread(HotkeyLoop)
-            {
-                IsBackground = true,
-                Name = "WDG-Hotkeys"
-            };
-            _hotkeyThread.Start();
+                CleanupAfterStartFailure();
+                throw;
+            }
         }
 
         public void WaitForExit()
@@ -166,6 +184,7 @@ namespace NekoLib.Watchdog
 
                 _stopped = true;
                 _shutdownRequested = true;
+                _attachStatusReady = false;
                 if (exitHost)
                     _exiting = true;
 
@@ -219,6 +238,47 @@ namespace NekoLib.Watchdog
 
             _rpc.Map("status", async (req, ct) =>
                 PipeOk(BuildTelemetry()));
+
+            _rpc.Map(WatchdogCommands.AttachStatus, async (req, ct) =>
+            {
+                if (!_attachedInitialProcessId.HasValue)
+                    return PipeErrorResponse(
+                        "attach_not_requested",
+                        "This Watchdog Host was not started in attach mode.");
+
+                if (!_attachStatusReady)
+                    return PipeErrorResponse(
+                        "attach_not_ready",
+                        "The Watchdog Host has not completed startup.");
+
+                int currentPid;
+                lock (_childLock)
+                {
+                    if (_child == null)
+                        return PipeErrorResponse(
+                            "attach_not_active",
+                            "No target process is currently supervised.");
+
+                    try
+                    {
+                        if (_child.HasExited)
+                            return PipeErrorResponse(
+                                "attach_not_active",
+                                "The supervised target process has exited.");
+                        currentPid = _child.Id;
+                    }
+                    catch
+                    {
+                        return PipeErrorResponse(
+                            "attach_not_active",
+                            "The supervised target process is unavailable.");
+                    }
+                }
+
+                return PipeOk(WatchdogBootstrap.FormatAttachmentStatus(
+                    currentPid,
+                    _o.AttachToken));
+            });
 
             _rpc.Map("pause", async (req, ct) =>
             {
@@ -387,6 +447,7 @@ namespace NekoLib.Watchdog
                 restartReason = _lastRestartReason,
                 eventsDropped = Interlocked.Read(ref _eventsDropped),
                 childPid = (_child != null && !_child.HasExited) ? _child.Id : (int?)null,
+                attachedInitialProcessId = _attachedInitialProcessId,
                 lastExitCode = _lastExitCode,
                 updates = new
                 {
@@ -443,6 +504,81 @@ namespace NekoLib.Watchdog
         // MONITOR LOOP
         // ============================================================
 
+        private void AttachInitialProcess()
+        {
+            if (!_o.InitialProcessId.HasValue)
+                return;
+
+            Process? process = null;
+            try
+            {
+                process = Process.GetProcessById(_o.InitialProcessId.Value);
+                if (process.HasExited)
+                    throw new InvalidOperationException("The initial process has already exited.");
+
+                var actualPath = process.MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(actualPath) ||
+                    !string.Equals(
+                        Path.GetFullPath(actualPath),
+                        _o.TargetPath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "The initial process executable does not match TargetPath.");
+                }
+
+                lock (_childLock)
+                {
+                    _child = process;
+                    _childUptime = Stopwatch.StartNew();
+                    _attachedInitialProcessId = process.Id;
+                    process = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to attach Watchdog to initial PID {_o.InitialProcessId.Value}.",
+                    ex);
+            }
+            finally
+            {
+                try { process?.Dispose(); } catch { }
+            }
+        }
+
+        private void CleanupAfterStartFailure()
+        {
+            _shutdownRequested = true;
+            _exiting = true;
+            _stopped = true;
+            _attachStatusReady = false;
+
+            try { _eventQueue.CompleteAdding(); } catch { }
+            try { _rpc?.Dispose(); } catch { }
+            try { _eventThread?.Join(1000); } catch { }
+            try { _monitorThread?.Join(1000); } catch { }
+
+            lock (_childLock)
+            {
+                try { _child?.Dispose(); } catch { }
+                _child = null!;
+                _childUptime = null!;
+            }
+
+            try
+            {
+                if (_ownsInstanceLock)
+                {
+                    _ownsInstanceLock = false;
+                    _instanceLock?.Release();
+                }
+
+                _instanceLock?.Dispose();
+            }
+            catch { }
+        }
+
         private void MonitorLoop()
         {
             LogInfo("[monitor] started");
@@ -457,7 +593,11 @@ namespace NekoLib.Watchdog
                     continue;
                 }
 
-                StartChild();
+                if (!StartChild())
+                {
+                    SleepWithShutdown(_o.RestartDelayMs);
+                    continue;
+                }
 
                 var start = DateTime.UtcNow;
                 var nextHeartbeat = _o.HeartbeatIntervalMs > 0
@@ -493,7 +633,8 @@ namespace NekoLib.Watchdog
 
                 var runtime = DateTime.UtcNow - start;
 
-                _lastExitCode = _child?.ExitCode;
+                try { _lastExitCode = _child?.ExitCode; }
+                catch { _lastExitCode = null; }
 
                 LogWarn("[child_exit]", new
                 {
@@ -598,29 +739,50 @@ namespace NekoLib.Watchdog
             }
         }
 
-        private void StartChild()
+        private bool StartChild()
         {
             lock (_childLock)
             {
                 if (_child != null && !_child.HasExited)
-                    return;
+                    return true;
 
-                var psi = new ProcessStartInfo
+                try
                 {
-                    FileName = _o.TargetPath,
-                    Arguments = _o.TargetArguments,
-                    WorkingDirectory = _o.WorkingDirectory,
-                    UseShellExecute = false,
-                    CreateNoWindow = false
-                };
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = _o.TargetPath,
+                        Arguments = _o.TargetArguments,
+                        WorkingDirectory = _o.WorkingDirectory,
+                        UseShellExecute = false,
+                        CreateNoWindow = false
+                    };
 
-                psi.Environment["NEKO_UNDER_WATCHDOG"] = "1";
+                    psi.Environment[WatchdogBootstrap.UnderWatchdogEnvironmentVariable] = "1";
 
-                _child = Process.Start(psi);
-                _childUptime = Stopwatch.StartNew();
-                _restartCount++;
+                    var child = Process.Start(psi);
+                    if (child == null)
+                        throw new InvalidOperationException(
+                            "The target process did not start.");
 
-                LogInfo("[child_start]", new { pid = _child.Id });
+                    _child = child;
+                    _childUptime = Stopwatch.StartNew();
+                    _restartCount++;
+
+                    LogInfo("[child_start]", new { pid = child.Id });
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    try { _child?.Dispose(); } catch { }
+                    _child = null!;
+                    _childUptime = null!;
+                    LogError("[child_start_failed]", new
+                    {
+                        target = _o.TargetPath,
+                        error = ex.Message
+                    });
+                    return false;
+                }
             }
         }
 

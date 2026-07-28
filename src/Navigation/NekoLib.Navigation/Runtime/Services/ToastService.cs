@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
+using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Runtime.Factories;
 
 namespace NekoLib.Navigation.Runtime.Services
@@ -12,56 +13,188 @@ namespace NekoLib.Navigation.Runtime.Services
     /// Fire-and-forget toast service. Keeps at most one toast on screen.
     /// New calls cancel the previous timer and replace the live view to avoid leaks.
     /// </summary>
-    public sealed class ToastService : IToastService
+    public sealed class ToastService :
+        IToastService,
+        INavigationDiagnosticsAware,
+        INavigationRuntimeTeardownAware,
+        INavigationInteractionBlockerAware
     {
         private readonly IViewHost _viewHost;
         private readonly PageFactory _factory;
-        private readonly IEventDispatcherAdapter _dispatcher;
+        private readonly IEventDispatcherAdapter? _dispatcher;
         private readonly object _sync = new object();
 
-        private IToastView _currentToast;
-        private CancellationTokenSource _currentCts;
+        private IToastView? _currentToast;
+        private CancellationTokenSource? _currentCts;
+        private SurfaceTraceScope? _currentTrace;
+        private NavigationDiagnostics? _diagnostics;
+        private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
+        private bool _currentBlockerTracked;
 
-        public ToastService(IViewHost viewHost, PageFactory factory, IEventDispatcherAdapter dispatcher = null)
+        public ToastService(
+            IViewHost viewHost,
+            PageFactory factory,
+            IEventDispatcherAdapter? dispatcher = null)
         {
             _viewHost = viewHost ?? throw new ArgumentNullException(nameof(viewHost));
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _dispatcher = dispatcher;
         }
 
-        public void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+        public void ShowToast<TToast>(
+            object? payload = null,
+            int durationMs = 3000)
             where TToast : class, IToastView
         {
-            IToastView nextToast;
-            CancellationTokenSource nextCts;
+            if (durationMs < Timeout.Infinite)
+                throw new ArgumentOutOfRangeException(nameof(durationMs));
+
+            var nextToast = _factory.Create<TToast>();
+            var nextCts = new CancellationTokenSource();
+            var nextToken = nextCts.Token;
+            SurfaceTraceScope? nextTrace;
+            Exception? replacementError;
 
             lock (_sync)
             {
-                DismissCurrentInternal();
+                replacementError = DismissCurrentInternal(
+                    NavigationTraceCloseReasons.Replaced);
 
-                nextToast = _factory.Create<TToast>();
-                nextCts = new CancellationTokenSource();
-
-                _currentToast = nextToast;
-                _currentCts = nextCts;
+                if (replacementError != null)
+                {
+                    nextTrace = null;
+                }
+                else
+                {
+                    nextTrace = SurfaceTraceScope.Begin(
+                        _diagnostics,
+                        NavigationTraceSurfaceKinds.Toast,
+                        typeof(TToast),
+                        1);
+                    _currentToast = nextToast;
+                    _currentCts = nextCts;
+                    _currentTrace = nextTrace;
+                    _currentBlockerTracked = false;
+                }
             }
 
-            nextToast.BindDismiss(DismissCurrentToast);
+            if (replacementError != null)
+            {
+                try { nextCts.Dispose(); } catch { }
+                if (!nextToast.IsDisposed)
+                {
+                    try { nextToast.Dispose(); } catch { }
+                }
 
-            _viewHost.AddView(nextToast.NativeView);
-            _viewHost.BringToFront(nextToast.NativeView);
+                SurfaceCleanup.Rethrow(replacementError);
+            }
 
-            nextToast.OnShown(payload);
+            try
+            {
+                // Bind the callback to this concrete instance. A delayed callback
+                // from a toast that has already been replaced must not dismiss the
+                // newer toast.
+                nextToast.BindDismiss(() => DismissIfCurrentSafely(
+                    nextToast,
+                    NavigationTraceCloseReasons.DismissedByView));
 
-            // Fire-and-forget auto-dismiss timer.
-            _ = RunDismissTimerAsync(nextToast, nextCts.Token, durationMs);
+                // A custom BindDismiss implementation may invoke the callback
+                // synchronously. In that case the toast has already been reclaimed
+                // and must not subsequently be added to the host.
+                if (!IsCurrent(nextToast))
+                    return;
+
+                _viewHost.AddView(nextToast.NativeView);
+
+                if (!IsCurrent(nextToast))
+                    return;
+
+                TrackCurrentView(nextToast, isModalSurface: false);
+
+                if (!IsCurrent(nextToast))
+                    return;
+
+                _viewHost.BringToFront(nextToast.NativeView);
+
+                nextToast.OnShown(payload!);
+
+                // OnShown is allowed to dismiss synchronously. In that case its CTS
+                // has already been reclaimed and there is no timer left to start.
+                if (!IsCurrent(nextToast))
+                    return;
+
+                nextTrace?.Opened();
+
+                // Fire-and-forget auto-dismiss timer.
+                _ = RunDismissTimerAsync(nextToast, nextToken, durationMs);
+            }
+            catch (Exception ex)
+            {
+                // AddView/BringToFront/OnShown may fail after partially mutating the
+                // native host. Reclaim only this toast; a concurrent replacement
+                // remains owned by the service.
+                var cleanupError = DismissIfCurrentInternal(
+                    nextToast,
+                    NavigationTraceCloseReasons.SetupFailed,
+                    ex);
+                nextTrace?.Failed(NavigationTraceCloseReasons.SetupFailed, ex);
+                if (cleanupError != null)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[ToastService] Setup rollback failed: " +
+                        cleanupError);
+                }
+                throw;
+            }
         }
 
         public void DismissCurrentToast()
         {
+            Exception? cleanupError;
             lock (_sync)
             {
-                DismissCurrentInternal();
+                cleanupError = DismissCurrentInternal(
+                    NavigationTraceCloseReasons.DismissedByService);
+            }
+
+            SurfaceCleanup.Rethrow(cleanupError);
+        }
+
+        void INavigationDiagnosticsAware.AttachDiagnostics(NavigationDiagnostics diagnostics)
+        {
+            if (diagnostics == null)
+                throw new ArgumentNullException(nameof(diagnostics));
+
+            lock (_sync)
+            {
+                _diagnostics = diagnostics;
+            }
+        }
+
+        void INavigationRuntimeTeardownAware.TeardownForRuntime(string closeReason)
+        {
+            if (closeReason == null)
+                throw new ArgumentNullException(nameof(closeReason));
+
+            Exception? cleanupError;
+            lock (_sync)
+            {
+                cleanupError = DismissCurrentInternal(closeReason);
+            }
+
+            SurfaceCleanup.Rethrow(cleanupError);
+        }
+
+        void INavigationInteractionBlockerAware.AttachInteractionBlocker(
+            IPageAwareInteractionBlocker interactionBlocker)
+        {
+            if (interactionBlocker == null)
+                throw new ArgumentNullException(nameof(interactionBlocker));
+
+            lock (_sync)
+            {
+                if (_pageAwareInteractionBlocker == null)
+                    _pageAwareInteractionBlocker = interactionBlocker;
             }
         }
 
@@ -86,41 +219,127 @@ namespace NekoLib.Navigation.Runtime.Services
             // The timer continuation runs on the thread pool; RemoveView/Dispose touch
             // native UI, so marshal the dismissal back to the UI thread (A-2).
             if (_dispatcher != null)
-                _dispatcher.BeginInvoke(() => DismissIfCurrent(toast));
+            {
+                _dispatcher.BeginInvoke(() => DismissIfCurrentSafely(
+                    toast,
+                    NavigationTraceCloseReasons.Timeout));
+            }
             else
-                DismissIfCurrent(toast);
+            {
+                DismissIfCurrentSafely(
+                    toast,
+                    NavigationTraceCloseReasons.Timeout);
+            }
         }
 
-        private void DismissIfCurrent(IToastView toast)
+        private void DismissIfCurrentSafely(
+            IToastView toast,
+            string closeReason)
+        {
+            var cleanupError = DismissIfCurrentInternal(
+                toast,
+                closeReason);
+            if (cleanupError != null)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[ToastService] Timed dismissal failed: " +
+                    cleanupError);
+            }
+        }
+
+        private Exception? DismissIfCurrentInternal(
+            IToastView toast,
+            string closeReason,
+            Exception? terminalError = null)
         {
             lock (_sync)
             {
                 if (!ReferenceEquals(_currentToast, toast))
-                    return;
+                    return null;
 
-                DismissCurrentInternal();
+                return DismissCurrentInternal(
+                    closeReason,
+                    terminalError);
             }
         }
 
-        private void DismissCurrentInternal()
+        private bool IsCurrent(IToastView toast)
+        {
+            lock (_sync)
+            {
+                return ReferenceEquals(_currentToast, toast);
+            }
+        }
+
+        private Exception? DismissCurrentInternal(
+            string closeReason,
+            Exception? terminalError = null)
         {
             if (_currentToast == null)
-                return;
+                return null;
 
             var toRemove = _currentToast;
             var cts = _currentCts;
+            var trace = _currentTrace;
+            var blockerTracked = _currentBlockerTracked;
 
             _currentToast = null;
             _currentCts = null;
+            _currentTrace = null;
+            _currentBlockerTracked = false;
 
-            try { cts?.Cancel(); } catch { }
-            try { cts?.Dispose(); } catch { }
+            Exception? cleanupError = null;
+            cleanupError = SurfaceCleanup.Run(
+                cleanupError,
+                () => cts?.Cancel());
+            cleanupError = SurfaceCleanup.Run(
+                cleanupError,
+                () => cts?.Dispose());
 
-            try { _viewHost.RemoveView(toRemove.NativeView); } catch { }
+            cleanupError = SurfaceCleanup.Run(
+                cleanupError,
+                () => _viewHost.RemoveView(toRemove.NativeView));
+
+            if (blockerTracked)
+            {
+                cleanupError = SurfaceCleanup.Run(
+                    cleanupError,
+                    () => _pageAwareInteractionBlocker?.OnViewRemoved(
+                        toRemove.NativeView));
+            }
 
             if (!toRemove.IsDisposed)
             {
-                try { toRemove.Dispose(); } catch { }
+                cleanupError = SurfaceCleanup.Run(
+                    cleanupError,
+                    toRemove.Dispose);
+            }
+
+            var traceError = terminalError ?? cleanupError;
+            if (traceError == null)
+                trace?.Closed(closeReason);
+            else
+                trace?.Failed(closeReason, traceError);
+
+            return cleanupError;
+        }
+
+        private void TrackCurrentView(
+            IToastView toast,
+            bool isModalSurface)
+        {
+            lock (_sync)
+            {
+                if (!ReferenceEquals(_currentToast, toast) ||
+                    _pageAwareInteractionBlocker == null)
+                {
+                    return;
+                }
+
+                _currentBlockerTracked = true;
+                _pageAwareInteractionBlocker.OnViewAdded(
+                    toast.NativeView,
+                    isModalSurface);
             }
         }
     }

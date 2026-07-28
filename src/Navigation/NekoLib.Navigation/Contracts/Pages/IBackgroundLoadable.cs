@@ -4,8 +4,9 @@ namespace NekoLib.Navigation.Contracts.Pages
 {
     /// <summary>
     /// Indicates that a page has load work that can be separated from UI attach.
-    /// The active <c>NavigationLoadMode</c> decides whether this work runs before
-    /// show, immediately after show, or in a guarded background path.
+    /// The target descriptor's <c>NavigationLoadMode</c> decides whether this work
+    /// completes before show, immediately after show, or continues in a guarded
+    /// background path.
     /// </summary>
     public interface IBackgroundLoadable
     {
@@ -15,7 +16,9 @@ namespace NekoLib.Navigation.Contracts.Pages
         Task LoadInBackgroundAsync(object args);
 
         /// <summary>
-        /// Executed on the UI thread after background load completes. Safe to update UI.
+        /// Executed on the UI thread after background load completes. In
+        /// <c>LoadInBackground</c> mode it is skipped if the page is no longer the
+        /// live destination or has already been disposed.
         /// </summary>
         Task ApplyBackgroundResultAsync();
     }

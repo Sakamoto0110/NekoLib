@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NekoLib.Navigation.Contracts.Guards;
 
@@ -19,6 +20,8 @@ namespace NekoLib.Navigation.Runtime.Session
     {
         private static readonly string[] Empty = new string[0];
 
+        internal event Action? Changed;
+
         public bool IsAuthenticated { get; private set; }
         public IReadOnlyCollection<string> Roles { get; private set; } = Empty;
         public IReadOnlyCollection<string> Permissions { get; private set; } = Empty;
@@ -27,8 +30,12 @@ namespace NekoLib.Navigation.Runtime.Session
         public void SignIn(params string[] roles)
         {
             IsAuthenticated = true;
-            Roles = roles != null && roles.Length > 0 ? (IReadOnlyCollection<string>)roles : Empty;
+            Roles = roles != null && roles.Length > 0
+                ? (IReadOnlyCollection<string>)Array.AsReadOnly(
+                    (string[])roles.Clone())
+                : Empty;
             Permissions = Empty;
+            RaiseChanged();
         }
 
         /// <summary>Mark the session authenticated with explicit roles + permissions.</summary>
@@ -37,6 +44,7 @@ namespace NekoLib.Navigation.Runtime.Session
             IsAuthenticated = true;
             Roles = roles != null ? new List<string>(roles).AsReadOnly() : (IReadOnlyCollection<string>)Empty;
             Permissions = permissions != null ? new List<string>(permissions).AsReadOnly() : (IReadOnlyCollection<string>)Empty;
+            RaiseChanged();
         }
 
         /// <summary>Clear authentication state.</summary>
@@ -45,6 +53,23 @@ namespace NekoLib.Navigation.Runtime.Session
             IsAuthenticated = false;
             Roles = Empty;
             Permissions = Empty;
+            RaiseChanged();
+        }
+
+        private void RaiseChanged()
+        {
+            var subscribers = Changed;
+            if (subscribers == null)
+                return;
+
+            foreach (Action subscriber in subscribers.GetInvocationList())
+            {
+                try { subscriber(); }
+                catch
+                {
+                    // Session diagnostics/observers must never alter auth state.
+                }
+            }
         }
     }
 }

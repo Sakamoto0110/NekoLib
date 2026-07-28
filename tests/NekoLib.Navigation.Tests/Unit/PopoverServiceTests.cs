@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Services;
@@ -106,6 +107,92 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.False(await t2);
             Assert.Equal(0, focus.SubscriptionCount);
             Assert.Equal(2, host.RemovedViews.Count);
+        }
+
+        [Fact]
+        public async Task CloseAll_DisposeInvokesCompletion_CancellationStillWins()
+        {
+            var host = new FakePageHost();
+            var factory = new PageFactory();
+            factory.Register(
+                typeof(DisposeCompletingPopoverView),
+                () => new DisposeCompletingPopoverView());
+            var service = new PopoverService(host, factory);
+
+            var task =
+                service.ShowPopoverAsync<DisposeCompletingPopoverView>();
+            var view = Assert.IsType<DisposeCompletingPopoverView>(
+                Assert.Single(host.AddedViews));
+
+            service.CloseAll();
+
+            Assert.False(await task);
+            Assert.True(view.IsDisposed);
+            Assert.Single(host.RemovedViews);
+        }
+
+        [Fact]
+        public async Task ShowPopover_OnShownFailure_RollsBackView()
+        {
+            var host = new FakePageHost();
+            var factory = new PageFactory();
+            factory.Register(typeof(ThrowingPopoverView), () => new ThrowingPopoverView());
+            var svc = new PopoverService(host, factory, new FakeFocusObserverAdapter());
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => svc.ShowPopoverAsync<ThrowingPopoverView>());
+
+            var view = Assert.IsType<ThrowingPopoverView>(Assert.Single(host.AddedViews));
+            Assert.Same(view, Assert.Single(host.RemovedViews));
+            Assert.True(view.IsDisposed);
+        }
+
+        [Fact]
+        public async Task CloseAll_DisposeFails_CancelsAwaiterAndPropagatesCleanup()
+        {
+            var host = new FakePageHost();
+            var factory = new PageFactory();
+            factory.Register(
+                typeof(ThrowingDisposePopoverView),
+                () => new ThrowingDisposePopoverView());
+            var service = new PopoverService(host, factory);
+
+            var task =
+                service.ShowPopoverAsync<ThrowingDisposePopoverView>();
+            var view = Assert.IsType<ThrowingDisposePopoverView>(
+                Assert.Single(host.AddedViews));
+
+            var error = Assert.Throws<InvalidOperationException>(
+                service.CloseAll);
+
+            Assert.Equal("popover dispose failed", error.Message);
+            Assert.False(await task);
+            Assert.True(view.IsDisposed);
+        }
+
+        [Fact]
+        public async Task Completion_CleanupFails_CallbackDoesNotThrowAndAwaiterFaults()
+        {
+            var host = new FakePageHost();
+            var factory = new PageFactory();
+            factory.Register(
+                typeof(ThrowingDisposePopoverView),
+                () => new ThrowingDisposePopoverView());
+            var service = new PopoverService(host, factory);
+
+            var task =
+                service.ShowPopoverAsync<ThrowingDisposePopoverView>();
+            var view = Assert.IsType<ThrowingDisposePopoverView>(
+                Assert.Single(host.AddedViews));
+
+            var callbackError = Record.Exception(
+                () => view.CompletionCallback(true));
+            var taskError = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await task);
+
+            Assert.Null(callbackError);
+            Assert.Equal("popover dispose failed", taskError.Message);
+            Assert.True(view.IsDisposed);
         }
     }
 }

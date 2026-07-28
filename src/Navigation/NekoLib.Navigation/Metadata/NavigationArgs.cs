@@ -2,10 +2,11 @@ namespace NekoLib.Navigation.Metadata;
 
 /// <summary>
 /// Immutable navigation request passed from a call site to the runtime.
-/// Carries the optional user <see cref="Payload"/>, the <see cref="LoadMode"/>
-/// that controls when the target page is shown relative to its load work, and the
-/// <see cref="IsBackNavigation"/> flag the runtime sets when this request is a
-/// history back-step.
+/// Carries the optional user <see cref="Payload"/>, the requested
+/// <see cref="LoadMode"/>, and the <see cref="IsBackNavigation"/> flag the
+/// runtime sets when this request is a history back-step. Once the target is
+/// resolved, its immutable <c>PageDescriptor.LoadMode</c> is authoritative; the
+/// runtime passes an effective copy of these arguments to events and page hooks.
 /// Instances are created via the static factories and are never mutated after
 /// construction, so they are safe to share across threads.
 /// </summary>
@@ -23,6 +24,10 @@ public sealed class NavigationArgs
     /// </summary>
     public object Payload { get; }
 
+    /// <summary>
+    /// Requested load mode before registry lookup, and the descriptor-effective
+    /// mode on arguments delivered by the runtime to events and lifecycle hooks.
+    /// </summary>
     public NavigationLoadMode LoadMode { get; }
 
     /// <summary>
@@ -41,7 +46,10 @@ public sealed class NavigationArgs
 
     // Factories
 
-    /// <summary>Standard navigation: show the page immediately.</summary>
+    /// <summary>
+    /// Requests immediate display. Registered descriptor metadata remains
+    /// authoritative after the target is resolved.
+    /// </summary>
     public static NavigationArgs Default(object payload = null)
         => new(payload, NavigationLoadMode.ShowImmediately);
 
@@ -53,11 +61,17 @@ public sealed class NavigationArgs
     public static NavigationArgs Transient(object payload = null)
         => new(payload, NavigationLoadMode.ShowImmediately);
 
-    /// <summary>Load the page fully before it becomes visible.</summary>
+    /// <summary>
+    /// Requests loading before display. Registered descriptor metadata remains
+    /// authoritative after the target is resolved.
+    /// </summary>
     public static NavigationArgs Preload(object payload = null)
         => new(payload, NavigationLoadMode.LoadBeforeShow);
 
-    /// <summary>Show the page first, then continue loading in the background.</summary>
+    /// <summary>
+    /// Requests background loading after display. Registered descriptor metadata
+    /// remains authoritative after the target is resolved.
+    /// </summary>
     public static NavigationArgs Background(object payload = null)
         => new(payload, NavigationLoadMode.LoadInBackground);
 
@@ -69,4 +83,13 @@ public sealed class NavigationArgs
     /// </summary>
     public static NavigationArgs Back(object state = null)
         => new(state, NavigationLoadMode.ShowImmediately, isBackNavigation: true);
+
+    /// <summary>
+    /// Creates the runtime-effective arguments after descriptor resolution while
+    /// preserving the caller payload and the back-navigation marker.
+    /// </summary>
+    internal NavigationArgs WithLoadMode(NavigationLoadMode loadMode)
+        => LoadMode == loadMode
+            ? this
+            : new NavigationArgs(Payload, loadMode, IsBackNavigation);
 }

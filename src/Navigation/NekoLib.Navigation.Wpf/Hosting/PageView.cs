@@ -8,9 +8,10 @@ namespace NekoLib.Navigation.Wpf.Hosting
 {
     /// <summary>
     /// WPF base class for navigated pages. Mirrors the WinForms PageView: implements
-    /// IPageView + IPageLifecycle and exposes a design-time-safe DesignMode check.
+    /// IPageView + IPageLifecycle + IPageVisibility and exposes a design-time-safe
+    /// DesignMode check.
     /// </summary>
-    public class PageView : UserControl, IPageView, IPageLifecycle
+    public class PageView : UserControl, IPageView, IPageLifecycle, IPageVisibility
     {
         public object NativeView => this;
         public bool IsDisposed { get; private set; }
@@ -19,7 +20,9 @@ namespace NekoLib.Navigation.Wpf.Hosting
             base.GetValue(DesignerProperties.IsInDesignModeProperty) is bool b && b;
 
         /// <summary>
-        /// Lets individual pages opt out of the back-stack. Default: true.
+        /// Compatibility property retained from the original base class. The
+        /// navigation runtime does not currently consult it; back/history policy
+        /// must not depend on this value.
         /// </summary>
         public virtual bool AllowBackNavigation => true;
 
@@ -30,6 +33,10 @@ namespace NekoLib.Navigation.Wpf.Hosting
 
         public virtual Task OnNavigatedToAsync(NavigationArgs args) => Task.CompletedTask;
         public virtual Task OnNavigatedFromAsync() => Task.CompletedTask;
+
+        public virtual void ShowPage() => Visibility = System.Windows.Visibility.Visible;
+
+        public virtual void HidePage() => Visibility = System.Windows.Visibility.Collapsed;
 
         public virtual void Dispose()
         {

@@ -65,7 +65,7 @@ public sealed class AdminPage : PageView { }
 **→ Full technical reference:
 [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md)**
 — lifecycle order, guards, reuse policies, load modes, overlays, platform
-adapters, and the frozen components.
+adapters, observability, and the stability-sensitive components.
 
 ## Optional modules
 
@@ -74,16 +74,38 @@ optional unless one of their documented dependents brings them transitively.
 
 | Module | What it gives you |
 |---|---|
-| `NekoLib.Core` | Shared contracts — `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `IDebugUtils` — plus null objects. Zero dependencies. |
+| `NekoLib.Core` | Shared contracts — `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `IDebugUtils` — plus null objects and the process-wide `DebugUtilsProvider` slot. Zero dependencies. |
 | `NekoLib.Logger` | Concrete logging: `Logger`, `Diagnostics` context, `DebugLogSink`, `MemoryTelemetrySink`. |
 | `NekoLib.Diagnostics` | Crash orchestration: `CrashHandler` hooks AppDomain and TaskScheduler and writes a crash bundle with `crash.txt` and log tails. Dump writing is pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
 | `NekoLib.Data` | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, streaming, and transactions. |
 | `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
-| `NekoLib.Watchdog` | Process supervision — restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
+| `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | `NekoLib.Devices` | Serial port and hardware protocol abstraction. |
-| `NekoLib.DebugUtils` | Opt-in observability hub: operation ring buffer, pull-based state providers, invokable commands. No-op when disabled. **Currently frozen** — see [`TODO.md`](TODO.md). |
+| `NekoLib.DebugUtils` | Process-wide, singleton, opt-in observability hub: sequenced operation ring buffer, pull-based state providers, runtime diagnostics, and command infrastructure. No-op when disabled. Broad module instrumentation remains frozen — see [`TODO.md`](TODO.md). |
+
+Enable hard diagnostics explicitly in the application process:
+
+```csharp
+using var debug = DebugUtilsRuntime.EnableGlobal();
+
+PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(mainPanel)
+    .UseDebugUtils()
+    // page registration/configuration
+    .Start();
+```
+
+`DebugUtilsProvider.Current` lives in Core and defaults to
+`NullDebugUtils.Instance`; modules keep working normally when the hub is absent.
+Only one global runtime may be active. Disposing it restores the NO-OP and clears
+operations, state providers and commands. The overload
+`UseDebugUtils(IDebugUtils)` remains available for an explicit non-global sink.
+Navigation projects correlated request/attempt/page/background/surface/idle
+telemetry and 16 context-backed snapshots; the exact keys and lifecycle are in
+the [Navigation diagnostics reference](src/Navigation/NekoLib.Navigation/README.md#diagnostics-and-observability).
+No feature module registers a DebugUtils command yet.
 
 ## Compatibility
 
@@ -154,6 +176,28 @@ The package carries an AnyCPU `net481` payload plus framework-dependent
 to `win-x64`. Set `NekoLibWatchdogHostDeploy=false` to disable deployment. A
 .NET 9 Host still requires the corresponding x86 or x64 .NET 9 Runtime on the
 target machine.
+
+Call the application-side bootstrap near the beginning of `Main`, passing the
+original arguments:
+
+```csharp
+static void Main(string[] args)
+{
+    WatchdogBootstrap.EnsureStarted(args);
+    // normal application startup
+}
+```
+
+The first call starts the deployed sidecar, attaches it to the current PID, and
+waits for a bounded PID/token handshake over the target-specific pipe. The first
+application process keeps its existing parent; after it exits, the Host uses the
+normal restart path and becomes the parent of subsequent instances. Restarted
+instances receive `NEKO_UNDER_WATCHDOG=1`, so the bootstrap returns immediately
+instead of recursively starting another Host. If a Watchdog already answers on
+the same target pipe and confirms the current PID, no second Host is started. A
+conflicting supervised PID fails clearly instead of being mistaken for a valid
+handoff. Lock wait, preflight, pipe I/O and readiness confirmation share the one
+bounded timeout supplied to `EnsureStarted`.
 
 The package-consumer probes live under `tests/NekoLib.PackageConsumers/` and
 cover single- and multi-target WinForms plus WPF without any `ProjectReference`.

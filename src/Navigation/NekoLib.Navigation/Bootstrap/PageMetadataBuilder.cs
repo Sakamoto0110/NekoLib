@@ -66,7 +66,7 @@ namespace NekoLib.Navigation.Bootstrap
                 }
             }
         }
-        public void RegisterType(Type type, Action<PageDescriptorBuilder>  configure = null)
+        public void RegisterType(Type type, Action<PageDescriptorBuilder>? configure = null)
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
             if (!IsPageType(type)) throw new InvalidOperationException($"Not a valid page: {type.FullName}");
@@ -82,7 +82,7 @@ namespace NekoLib.Navigation.Bootstrap
         public void Register<TPage>(Action<PageDescriptorBuilder>? configure = null)
             where TPage : IPageView
         {
-            _manual[typeof(TPage)] = configure ?? (_ => { });
+            RegisterType(typeof(TPage), configure);
         }
 
         internal IEnumerable<PageDescriptor> Build()

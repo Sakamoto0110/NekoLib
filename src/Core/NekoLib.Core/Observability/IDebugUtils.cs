@@ -22,6 +22,9 @@ namespace NekoLib.Core.Observability
         /// <summary>
         /// Records a single operation. <paramref name="payload"/> is only invoked
         /// when <see cref="IsEnabled"/> is true, so it costs nothing when disabled.
+        /// Implementations are called inline by feature modules and must return
+        /// promptly; long-running transport or persistence belongs in a consumer-
+        /// owned queue.
         /// </summary>
         void Record(string module, string operation, Func<object>? payload = null);
 

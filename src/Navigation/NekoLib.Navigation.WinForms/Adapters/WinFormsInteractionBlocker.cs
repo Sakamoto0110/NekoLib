@@ -10,11 +10,14 @@ namespace NekoLib.Navigation.WinForms.Adapters
     /// Only controls that were enabled when blocking began are restored on unblock, so
     /// controls that were already disabled keep their original state.
     /// </summary>
-    public sealed class WinFormsInteractionBlocker : IInteractionBlocker
+    public sealed class WinFormsInteractionBlocker :
+        IPageAwareInteractionBlocker
     {
         private readonly Control _root;
-        private readonly List<Control> _disabled = new List<Control>();
-        private bool _blocked;
+        private readonly Dictionary<Control, bool> _originalStates =
+            new Dictionary<Control, bool>();
+        private readonly List<Control> _modalStack = new List<Control>();
+        private int _blockDepth;
 
         public static explicit operator Control(WinFormsInteractionBlocker host) => host._root;
 
@@ -25,44 +28,115 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
         public void Block()
         {
-            if (_blocked)
+            _blockDepth++;
+            if (_blockDepth != 1)
                 return;
 
-            _blocked = true;
-            _disabled.Clear();
+            _originalStates.Clear();
+            _modalStack.Clear();
 
-            // Disable the entire subtree (not just the direct children) so inputs nested
-            // inside panels / group boxes are also blocked (D-2). Remember only the
-            // controls we actually toggled so Unblock can restore the prior state.
-            DisableSubtree(_root);
+            // Disabling each direct child disables its effective subtree too.
+            // Remember only controls we actually toggle so descendants do not
+            // accidentally persist an inherited disabled state as a local one.
+            try
+            {
+                DisableSubtree(_root);
+            }
+            catch
+            {
+                RestoreDisabledControls();
+                _blockDepth = 0;
+                throw;
+            }
         }
 
         public void Unblock()
         {
-            if (!_blocked)
+            if (_blockDepth == 0)
                 return;
 
-            foreach (var control in _disabled)
+            _blockDepth--;
+            if (_blockDepth != 0)
+                return;
+
+            RestoreDisabledControls();
+        }
+
+        public void OnViewAdded(object view, bool isModalSurface)
+        {
+            if (_blockDepth == 0 || !(view is Control control))
+                return;
+
+            CaptureState(control);
+
+            if (!isModalSurface)
             {
-                try { control.Enabled = true; } catch { }
+                _modalStack.Remove(control);
+                Disable(control);
+                return;
             }
 
-            _disabled.Clear();
-            _blocked = false;
+            if (_modalStack.Count > 0)
+                Disable(_modalStack[_modalStack.Count - 1]);
+
+            _modalStack.Remove(control);
+            _modalStack.Add(control);
+            Restore(control);
+        }
+
+        public void OnViewRemoved(object view)
+        {
+            if (!(view is Control control))
+                return;
+
+            var wasTop =
+                _modalStack.Count > 0 &&
+                ReferenceEquals(_modalStack[_modalStack.Count - 1], control);
+
+            _modalStack.Remove(control);
+            Restore(control);
+            _originalStates.Remove(control);
+
+            if (_blockDepth > 0 && wasTop && _modalStack.Count > 0)
+                Restore(_modalStack[_modalStack.Count - 1]);
+        }
+
+        private void RestoreDisabledControls()
+        {
+            foreach (var pair in _originalStates)
+            {
+                try { pair.Key.Enabled = pair.Value; } catch { }
+            }
+
+            _originalStates.Clear();
+            _modalStack.Clear();
         }
 
         private void DisableSubtree(Control parent)
         {
             foreach (Control child in parent.Controls)
             {
-                if (child.Enabled)
-                {
-                    child.Enabled = false;
-                    _disabled.Add(child);
-                }
-
-                DisableSubtree(child);
+                CaptureState(child);
+                Disable(child);
             }
+        }
+
+        private void CaptureState(Control control)
+        {
+            if (!_originalStates.ContainsKey(control))
+                _originalStates.Add(control, control.Enabled);
+        }
+
+        private static void Disable(Control control)
+        {
+            if (control.Enabled)
+                control.Enabled = false;
+        }
+
+        private void Restore(Control control)
+        {
+            if (_originalStates.TryGetValue(control, out var enabled))
+                control.Enabled = enabled;
         }
     }
 }

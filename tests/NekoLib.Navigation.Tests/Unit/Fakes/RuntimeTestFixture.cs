@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NekoLib.Navigation.Bootstrap;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
@@ -24,6 +25,7 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
         public NavigationContext Context { get; }
         public NavigationRuntime Runtime { get; }
         public PageFactory Factory { get; }
+        public IReadOnlyList<IPageView> CreatedPages { get; }
 
         private RuntimeTestFixture(
             FakePageHost host,
@@ -31,7 +33,8 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
             PageRegistry registry,
             PageFactory factory,
             NavigationContext context,
-            NavigationRuntime runtime)
+            NavigationRuntime runtime,
+            IReadOnlyList<IPageView> createdPages)
         {
             Host = host;
             Services = services;
@@ -39,6 +42,7 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
             Factory = factory;
             Context = context;
             Runtime = runtime;
+            CreatedPages = createdPages;
         }
 
         /// <summary>
@@ -48,15 +52,74 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
         /// </summary>
         public static RuntimeTestFixture Build<TIdle>(params Type[] otherPageTypes)
             where TIdle : StubPageView, new()
+            => BuildCore<TIdle>(
+                new SyncEventDispatcherAdapter(),
+                null,
+                null,
+                null,
+                otherPageTypes);
+
+        public static RuntimeTestFixture BuildWithDispatcher<TIdle>(
+            IEventDispatcherAdapter dispatcher,
+            params Type[] otherPageTypes)
+            where TIdle : StubPageView, new()
+            => BuildCore<TIdle>(
+                dispatcher ?? throw new ArgumentNullException(nameof(dispatcher)),
+                null,
+                null,
+                null,
+                otherPageTypes);
+
+        public static RuntimeTestFixture BuildWithPageCreated<TIdle>(
+            Action<IPageView> pageCreated,
+            params Type[] otherPageTypes)
+            where TIdle : StubPageView, new()
+            => BuildCore<TIdle>(
+                new SyncEventDispatcherAdapter(),
+                pageCreated ?? throw new ArgumentNullException(nameof(pageCreated)),
+                null,
+                null,
+                otherPageTypes);
+
+        public static RuntimeTestFixture BuildWithInteractionBlocker<TIdle>(
+            IInteractionBlocker interactionBlocker,
+            params Type[] otherPageTypes)
+            where TIdle : StubPageView, new()
+            => BuildCore<TIdle>(
+                new SyncEventDispatcherAdapter(),
+                null,
+                interactionBlocker ??
+                    throw new ArgumentNullException(
+                        nameof(interactionBlocker)),
+                null,
+                otherPageTypes);
+
+        public static RuntimeTestFixture BuildWithServices<TIdle>(
+            Action<ServiceLocator, FakePageHost, PageFactory> configure,
+            params Type[] otherPageTypes)
+            where TIdle : StubPageView, new()
+            => BuildCore<TIdle>(
+                new SyncEventDispatcherAdapter(),
+                null,
+                null,
+                configure ??
+                    throw new ArgumentNullException(nameof(configure)),
+                otherPageTypes);
+
+        private static RuntimeTestFixture BuildCore<TIdle>(
+            IEventDispatcherAdapter dispatcher,
+            Action<IPageView> pageCreated,
+            IInteractionBlocker interactionBlocker,
+            Action<ServiceLocator, FakePageHost, PageFactory> configure,
+            Type[] otherPageTypes)
+            where TIdle : StubPageView, new()
         {
             var host = new FakePageHost();
 
             var registry = PageRegistry.Create(builder =>
             {
-                // Use RegisterType (not Register<T>) so the type lands in the
-                // builder's _explicitTypes set — Register<T> only attaches a
-                // configurator, which never runs unless the type is already
-                // being built from an assembly scan.
+                // Runtime fixtures use the Type overload because the additional
+                // page set is discovered dynamically by each test.
                 builder.RegisterType(typeof(TIdle), d => d.Role = PageRole.Idle);
                 foreach (var t in otherPageTypes)
                     builder.RegisterType(t);
@@ -64,21 +127,43 @@ namespace NekoLib.Navigation.Tests.Unit.Fakes
 
             // Each registered stub page is wired with an explicit default-ctor
             // factory so the runtime's ResolvePage doesn't fall back to reflection.
-            var factory = PageFactory.AutoWireFromRegistry(EnumerateRegisteredTypes<TIdle>(otherPageTypes));
+            var createdPages = new List<IPageView>();
+            var factory = PageFactory.AutoWireFromRegistry(
+                EnumerateRegisteredTypes<TIdle>(otherPageTypes),
+                type =>
+                {
+                    var page = (IPageView)Activator.CreateInstance(type);
+                    createdPages.Add(page);
+                    pageCreated?.Invoke(page);
+                    return page;
+                });
 
             // The runtime pulls IEventDispatcherAdapter AND PageFactory from the
             // ServiceLocator (see NavigationRuntime.EnsureRuntimeServices); register
             // both before Lock().
             var services = new ServiceLocator();
-            services.Register<IEventDispatcherAdapter>(new SyncEventDispatcherAdapter());
+            services.Register<IEventDispatcherAdapter>(dispatcher);
             services.Register<PageFactory>(factory);
+            if (interactionBlocker != null)
+            {
+                services.Register<IInteractionBlocker>(
+                    interactionBlocker);
+            }
+            configure?.Invoke(services, host, factory);
             services.Lock();
 
             var platform = new FakePlatformAdapter();
             var ctx = new NavigationContext(host, services, registry, platform);
             var runtime = new NavigationRuntime(ctx);
 
-            return new RuntimeTestFixture(host, services, registry, factory, ctx, runtime);
+            return new RuntimeTestFixture(
+                host,
+                services,
+                registry,
+                factory,
+                ctx,
+                runtime,
+                createdPages);
         }
 
         private static Type[] EnumerateRegisteredTypes<TIdle>(Type[] others)

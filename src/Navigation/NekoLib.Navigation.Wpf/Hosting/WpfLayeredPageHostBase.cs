@@ -35,7 +35,8 @@ namespace NekoLib.Navigation.Wpf.Hosting
             if (page?.NativeView is not UIElement element)
                 throw new InvalidOperationException("Page NativeView must be a WPF UIElement.");
 
-            if (!Root.Children.Contains(element))
+            var added = !Root.Children.Contains(element);
+            if (added)
                 Root.Children.Add(element);
 
             if (element is FrameworkElement fe)
@@ -47,16 +48,18 @@ namespace NekoLib.Navigation.Wpf.Hosting
             element.Visibility = Visibility.Visible;
             Panel.SetZIndex(element, PageZIndex);
 
-            if (page is IHostAttachable attachable)
+            if (added && page is IHostAttachable attachable)
                 attachable.OnAttach(this);
         }
 
         public virtual void Detach(IPageView page)
         {
-            if (page?.NativeView is UIElement element && Root.Children.Contains(element))
-                Root.Children.Remove(element);
+            if (page?.NativeView is not UIElement element || !Root.Children.Contains(element))
+                return;
 
-            if (page is IHostAttachable attachable)
+            Root.Children.Remove(element);
+
+            if (!Root.Children.Contains(element) && page is IHostAttachable attachable)
                 attachable.OnDetach();
         }
 
