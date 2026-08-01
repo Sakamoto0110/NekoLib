@@ -5,7 +5,8 @@ using Xunit;
 namespace NekoLib.Data.Tests.Unit.Query
 {
     /// <summary>
-    /// Regression locks for QueryBuilder behavior previously flagged in DataAudit.md
+    /// Regression locks for QueryBuilder behavior previously flagged in
+    /// docs/audit/data-first-pass.md
     /// (findings #5 subquery parameter collision and #6 Build idempotency for
     /// INSERT/UPDATE). These tests assert the current, intended behavior.
     /// </summary>

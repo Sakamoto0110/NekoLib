@@ -1,10 +1,24 @@
-# Data Module Audit - Pass 1
+# Data Module Audit — Historical Pass 1 Snapshot
+
+**Kind:** audit
+
+**Lifecycle:** historical
+
+**Subject:** Data first-pass review
+
+**Reference date:** 2026-05-29, with pass 1.5 on 2026-05-31
+
+**Reference commit:** not recorded
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
 
 Date: 2026-05-29
 Scope: `src/Data/NekoLib.Data`
 Constraint: source code was read only. This file is the only intended audit artifact.
 
-## Pass 1 Status
+## Pass 1 Snapshot Status
 
 This pass focused on code comprehension plus first-order async, performance,
 resource lifetime, and data leakage risks. It did not attempt fixes.
@@ -433,3 +447,22 @@ inside the Data module:
   the obsolete `IDatabaseGatewayPrototype` / `IDatabaseGateway0` were removed.
 - Decide whether raw SQL/result telemetry should be masked, disabled by
   default, or documented as sensitive.
+
+## Reconciliation — 2026-08-01
+
+This audit moved from the Data source tree to `docs/audit/` so historical review
+state cannot be mistaken for module-owned technical documentation. Current
+source and tests confirm these later outcomes:
+
+- Finding #1 is closed: the net481 project defines `NETFRAMEWORK`, and the
+  OleDb parameter path compiles under that symbol.
+- Finding #5 is closed with subquery-parameter isolation and focused
+  `WhereExists`/`WhereNotExists` regression tests.
+- Finding #6 is closed with idempotent INSERT/UPDATE builds and focused
+  regression tests.
+- Finding #21 is closed: event clearing is conditional on
+  `ClearEventsOnContextDispose`.
+
+Every other original finding must be reverified against current code and tests
+before it can be considered open. This audit no longer owns a live work list;
+accepted work belongs only in `TODO.md`.

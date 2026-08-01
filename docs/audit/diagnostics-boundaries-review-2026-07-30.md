@@ -4,15 +4,21 @@
 
 **Lifecycle:** current
 
+**Subject:** Diagnostics-sector boundaries and naming
+
 **Status:** in progress; core boundary decisions promoted to the roadmap
 
-**Review date:** 2026-07-30
+**Reference date:** 2026-07-30
 
 **Decision promotion date:** 2026-08-01
 
 **Reference ref:** `master` / `HEAD`
 
 **Reference commit:** `1727a1cac3f66666b2df02bc618ad6ab45807a49`
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`TODO.md`](../../TODO.md) and [`README.md`](../../README.md)
 
 **Product-code coverage:** reviewed source matches the reference commit
 

@@ -1,5 +1,19 @@
 # Watchdog Module — First-Pass Audit
 
+**Kind:** audit
+
+**Lifecycle:** historical
+
+**Subject:** Watchdog first-pass review
+
+**Reference date:** 2026-06-04
+
+**Reference commit:** not recorded
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
+
 **Branch:** `watchdog/audit/first-pass`  
 **Date:** 2026-06-04  
 **Scope:** `src/Watchdog/NekoLib.Watchdog/` + `src/Watchdog/NekoLib.Watchdog.Host/`
@@ -305,3 +319,11 @@ process integration coverage lives in the dual-target xUnit project.
 (pipe-name hash length / collision), M9 (the 300-entry replay buffer evicts its
 oldest entry without a dedicated counter) and L5 (`watchdog_host_fatal.log`
 relative path).
+
+## Reconciliation — 2026-08-01
+
+The three remediation-log rows dated 2026-07-27 and labeled `uncommitted`
+landed in commit `1727a1c`. Their original labels remain part of the historical
+log; this reconciliation records the later Git outcome. Items named "Still
+open" above are historical leads, not an independent roadmap. Only verified and
+accepted entries in `TODO.md` are current work.

@@ -11,7 +11,8 @@ the handoff state and the rules that are easy to get wrong.
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Historical phase plan and the current observability freeze | [`TODO.md`](TODO.md) |
-| Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/), [`src/Data/NekoLib.Data/DataAudit.md`](src/Data/NekoLib.Data/DataAudit.md) |
+| Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
+| Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 
 ---
 
@@ -158,7 +159,7 @@ before making a change.
 | Watchdog | Update orchestration is explicitly `not_implemented`; the truncated SHA1 pipe identity, silent 300-entry replay-buffer eviction and relative fatal-log path remain. Application bootstrap/attach and Host argument preservation are implemented. App-log forwarding (old M7) and bring-to-front (old L7) are implemented now. | `docs/audit/watchdog-first-pass.md` |
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The remaining gap is real serial I/O through a COM-port emulator/runtime scenario. | `docs/audit/devices-first-pass.md` |
-| Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `src/Data/NekoLib.Data/DataAudit.md` |
+| Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |
 | Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/audit/navigation-audit.md` |
 
 ## Deleted on 2026-07-26 — do not resurrect

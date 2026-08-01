@@ -4,13 +4,19 @@
 
 **Lifecycle:** historical
 
+**Subject:** Phase C repository-hygiene readiness
+
 **Status:** complete; Phase C is ready to start
 
-**Review date:** 2026-08-01
+**Reference date:** 2026-08-01
 
 **Reference ref:** `master` / `HEAD`
 
 **Reference commit:** `88b07d83f037db6bf13eab34ac3f5abafba787b1`
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`TODO.md`](../../TODO.md)
 
 **Coverage:** committed `HEAD` plus a read-only inventory of ignored local
 `runtime_tests/`, `tools/`, and `artifacts/`

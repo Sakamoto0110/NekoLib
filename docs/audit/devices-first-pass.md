@@ -1,6 +1,18 @@
-# Devices Module Audit - Latest
+# Devices Module Audit — Historical Snapshot
 
-Date: 2026-06-10
+**Kind:** audit
+
+**Lifecycle:** historical
+
+**Subject:** Devices first-pass review
+
+**Reference date:** 2026-06-10
+
+**Reference commit:** not recorded
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
 
 ## Scope
 
@@ -129,6 +141,20 @@ Recommended scenarios:
 
 Place live serial/emulator scenarios under `runtime_tests/`, not xUnit unit tests, unless the emulator is fully in-process and hardware-independent.
 
-## Current Status
+## Snapshot Status at 2026-06-10
 
 The `Devices` module is now in a much safer baseline state for unit-level behavior. The main remaining risk is real serial I/O behavior, which should be validated with a COM-port emulator because the current unit tests intentionally avoid physical or virtual serial hardware.
+
+## Reconciliation — 2026-08-01
+
+This section records later outcomes without rewriting the 2026-06-10 snapshot:
+
+- Commit `d352fa8` closed all four items under "Remaining Review Items":
+  nullable `ReadLine` timeout behavior, `SerialConfig` validation,
+  `ThrowIfDisposed()`, and the documented text-encoding boundary.
+- Commit `ddd09d3` later added TCP and named-pipe stream transports, serialized
+  complete `HardwareEngine` operations, and allowed `ProtocolRaw` callers to
+  select a text encoding while preserving ASCII as the default.
+- Real COM-port behavior remains an unexecuted validation gap. It is not an
+  independently active task merely because it appears in this historical
+  audit; current work is authoritative only when listed in `TODO.md`.

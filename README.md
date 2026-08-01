@@ -278,8 +278,8 @@ has no cycles.
 |---|---|
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Roadmap, phase plan, and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
-| Per-module audits and their open items | [`docs/audit/`](docs/audit/) |
-| Data module audit | [`src/Data/NekoLib.Data/DataAudit.md`](src/Data/NekoLib.Data/DataAudit.md) |
+| Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
+| Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |
 
 Unit tests live in `tests/NekoLib.{Module}.Tests/Unit/`. `runtime_tests/` holds

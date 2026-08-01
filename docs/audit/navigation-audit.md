@@ -1,10 +1,24 @@
-# NekoLib.Navigation — Audit (Passes 1–6)
+# NekoLib.Navigation — Historical Audit (Passes 1–6)
+
+**Kind:** audit
+
+**Lifecycle:** historical
+
+**Subject:** Navigation audit passes 1-6
+
+**Reference date:** 2026-05-28 to 2026-06-03
+
+**Reference commit:** not recorded
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [Navigation technical reference](../../src/Navigation/NekoLib.Navigation/README.md) and [`TODO.md`](../../TODO.md)
 
 **Auditor:** Claude (Sonnet 4.6, later Opus 4.7/4.8)
 **Started:** 2026-05-28 · **Last updated:** 2026-06-03
 **Scope:** `src/Navigation/**`, `tests/NekoLib.Navigation.Tests/**`, `runtime_tests/WinForms_481/**`. Pass 6 also touches the sibling `src/Mvvm/NekoLib.Mvvm/**` (extracted from `NekoLib.Navigation`) and `tests/NekoLib.Mvvm.Tests/**`.
 
-**Status (current):** all static-analysis findings (Passes 1–4) and runtime-repro findings (Pass 5: NEW-7..10, plus NEW-11 caught during the §2.12 walkthrough) are closed. Pass 6 added two minor API-smell findings (NEW-12, NEW-13) plus a body of structural work — automated test coverage, MVVM helpers extracted into a sibling project, and the runtime-sim demo moved out of `tests/` into a dedicated `runtime_tests/` tree.
+**Snapshot status at 2026-06-03:** all static-analysis findings (Passes 1–4) and runtime-repro findings (Pass 5: NEW-7..10, plus NEW-11 caught during the §2.12 walkthrough) are closed. Pass 6 added two minor API-smell findings (NEW-12, NEW-13) plus a body of structural work — automated test coverage, MVVM helpers extracted into a sibling project, and the runtime-sim demo moved out of `tests/` into a dedicated `runtime_tests/` tree.
 
 | Pass | Phase | Output |
 |---|---|---|
@@ -1040,3 +1054,18 @@ Branch was renamed `navigation/runtime-tests` → `navigation/feat/audit-and-mvv
 - §2.8 Run #3 — the last manual probe (`Form.Close()` with prompt open). Single scenario; no code change expected.
 - NEW-12, NEW-13 — cosmetic API-shape smells, low priority.
 - API delta / migration notes section — useful if any external consumer attaches to the library.
+
+## Reconciliation — 2026-08-01
+
+- NEW-13 is closed: `PageMetadataBuilder.Register<TPage>(...)` delegates to
+  `RegisterType(typeof(TPage), configure)`, and
+  `PageMetadataBuilderRegistrationTests` covers registration without an
+  assembly scan.
+- NEW-12 became obsolete after the Diagnostics boundary migration removed the
+  colliding `NekoLib.Diagnostics.Diagnostics` class. Navigation keeps its
+  descriptive `NekoLib.Navigation.Diagnostics` namespace.
+- The last interactive prompt-close probe remains historical validation context,
+  not live roadmap work unless explicitly accepted into `TODO.md`.
+
+The current Navigation contract is maintained in the linked technical
+reference. This audit no longer owns open work.

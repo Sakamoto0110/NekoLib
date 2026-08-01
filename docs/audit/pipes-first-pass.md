@@ -1,5 +1,19 @@
 # Pipes Module — First-Pass Audit
 
+**Kind:** audit
+
+**Lifecycle:** historical
+
+**Subject:** Pipes first-pass review
+
+**Reference date:** 2026-06-04
+
+**Reference commit:** not recorded
+
+**Last reconciliation:** 2026-08-01
+
+**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
+
 **Branch:** `pipes/audit/first-pass`  
 **Date:** 2026-06-04  
 **Scope:** `src/Pipes/NekoLib.Pipes/`
@@ -17,7 +31,7 @@
 
 Messages are length-prefixed JSON frames (`PipeFraming`). An optional metrics sink (`IPipeMetrics`) records connect/request/latency/error counters.
 
-**Targets:** `net481` + `net9.0-windows`. **Nullable:** enabled. **ImplicitUsings:** enabled. **LangVersion:** latest.
+**Targets at the snapshot:** `net481` + `net9.0-windows`. **Nullable:** enabled. **ImplicitUsings:** enabled. **LangVersion:** latest.
 
 **Dual JSON:** `System.Text.Json` on net9, `Newtonsoft.Json` on net481.
 
@@ -108,7 +122,8 @@ NekoLib.Watchdog ──> NekoLib.Pipes
 - Event backpressure handling (per-subscriber **bounded queue + drop policy**) — M3 parallelized delivery but did not add per-subscriber queues.
 - Pipe ACL/security configuration (created with default security).
 - Graceful drain of in-flight client tasks on `Dispose`.
-- `_handlers` thread-safety / freeze-after-Start (M2, open).
+- Dynamic handler registration remains allowed; `_handlers` thread safety was
+  closed by M2 through `ConcurrentDictionary`.
 
 ---
 
@@ -149,3 +164,11 @@ instead of throwing `EndOfStreamException`; the strict `ReadAsync` is now a thin
 **Watchdog compatibility:** every change is internal or additive — no public Pipes API touched (new options default to prior behavior). After the full set, Watchdog was rebuilt against modified Pipes and verified end-to-end: RPC `ping→pong` + `status` + `pause`, **and** live event delivery to a `PipeEventClient` subscriber. All green.
 
 **Still open / future hardening:** per-subscriber bounded event queue with a drop policy (beyond the M3 parallelization); pipe ACL/security configuration; graceful drain of in-flight client tasks on `Dispose`. No known correctness/threading bugs remain in the request/response or event paths.
+
+## Reconciliation — 2026-08-01
+
+The current project targets `net481;net9.0`; the Windows-specific net9 target
+above records the original snapshot. The contradictory M2 summary was corrected
+to agree with the remediation log and current `ConcurrentDictionary`
+implementation. The remaining hardening ideas are not live work unless they are
+verified and accepted into `TODO.md`.

@@ -313,15 +313,15 @@ sem ampliar B4 e sem criar host de módulos, DI, service registry ou message bus
 
 ### C1 — Definir autoridade e ciclo de vida da documentação
 
-- [ ] Criar `docs/README.md` como índice e classificar cada documento em dois
+- [x] Criar `docs/README.md` como índice e classificar cada documento em dois
   eixos:
   - **kind** — `reference`, `guide`, `roadmap/status` ou `audit`;
   - **lifecycle** — `current`, `frozen` ou `historical`.
   Um guide também pode ser current; `frozen` é contexto vivo, não histórico.
-- [ ] Definir metadados mínimos em formato estável e verificável pelo C9:
+- [x] Definir metadados mínimos em formato estável e verificável pelo C9:
   kind, lifecycle, assunto/dono, commit ou data de referência e, quando
   aplicável, link para o estado atual.
-- [ ] Registrar autoridade por tipo de fato, não como uma precedência linear
+- [x] Registrar autoridade por tipo de fato, não como uma precedência linear
   universal:
   - targets, referências e propriedades de build vêm dos `*.csproj` e dos
     arquivos `Directory.Build.*`;
@@ -330,11 +330,11 @@ sem ampliar B4 e sem criar host de módulos, DI, service registry ou message bus
     evidência verificável desse comportamento;
   - trabalho aberto, decisões em vigor e congelamentos vêm do roadmap/status;
   - auditorias descrevem somente o estado no commit auditado.
-- [ ] Declarar que `AGENTS.md` e arquivos locais de orientação de assistentes
+- [x] Declarar que `AGENTS.md` e arquivos locais de orientação de assistentes
   não substituem documentação pública ou técnica.
-- [ ] Cada fato mutável deve ter um único dono. Outros documentos podem resumir
+- [x] Cada fato mutável deve ter um único dono. Outros documentos podem resumir
   ou apontar para esse fato, mas não manter uma segunda lista independente.
-- [ ] Não manter contagens correntes de testes, warnings ou projetos em vários
+- [x] Não manter contagens correntes de testes, warnings ou projetos em vários
   documentos. Quando o número for histórico, registrar data, comando e commit.
 
 ### C2 — Reconciliar a documentação atual contra o repositório
@@ -363,17 +363,17 @@ sem ampliar B4 e sem criar host de módulos, DI, service registry ou message bus
 
 ### C3 — Transformar auditorias em snapshots históricos
 
-- [ ] Criar um índice em `docs/audit/` com módulo, data, commit auditado,
+- [x] Criar um índice em `docs/audit/` com módulo, data, commit auditado,
   escopo, última reconciliação e link para o estado atual.
-- [ ] Remover dos títulos e cabeçalhos termos ambíguos como `Latest`,
+- [x] Remover dos títulos e cabeçalhos termos ambíguos como `Latest`,
   `Current Status` e `Status (current)`; substituir por
   `Historical snapshot at <commit>`.
-- [ ] Não reescrever o corpo histórico para simular que a descoberta original
+- [x] Não reescrever o corpo histórico para simular que a descoberta original
   já conhecia correções posteriores. Manter a reconciliação no cabeçalho/índice
   ou em uma seção curta claramente posterior ao snapshot original.
-- [ ] Mover `src/Data/NekoLib.Data/DataAudit.md` para `docs/audit/`, preservando
+- [x] Mover `src/Data/NekoLib.Data/DataAudit.md` para `docs/audit/`, preservando
   histórico e links via `git mv`.
-- [ ] Reconciliar as divergências já identificadas:
+- [x] Reconciliar as divergências já identificadas:
   - Devices ainda lista como pendentes itens encerrados por `d352fa8`;
   - Pipes declara `_handlers` corrigido e aberto no mesmo arquivo, além de
     registrar o TFM antigo `net9.0-windows`;
@@ -381,7 +381,7 @@ sem ampliar B4 e sem criar host de módulos, DI, service registry ou message bus
     `RegisterType`;
   - Watchdog chama de `uncommitted` trabalho presente em `1727a1c`;
   - Data ainda carrega como abertas correções já implementadas/testadas.
-- [ ] Itens realmente abertos devem existir em um único roadmap/status; a
+- [x] Itens realmente abertos devem existir em um único roadmap/status; a
   auditoria apenas aponta para ele.
 
 ### C4 — Reduzir o `TODO.md` ao trabalho vivo

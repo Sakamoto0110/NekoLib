@@ -14,7 +14,7 @@ provider-specific assumptions explicitly.
 2. Inspect `../../../src/Data/NekoLib.Data/NekoLib.Data.csproj`.
 3. Read the affected implementation and its existing tests before proposing or
    making a change.
-4. Consult `../../../src/Data/NekoLib.Data/DataAudit.md` only for historical
+4. Consult `../../../docs/audit/data-first-pass.md` only for historical
    leads. Reverify every finding against current source and tests before
    treating it as open.
 
