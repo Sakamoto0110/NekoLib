@@ -594,7 +594,7 @@ reference concrete Logging, Telemetry, or Inspection implementations. The
 
 ### D1 — Correct and separate the Core contracts
 
-- [ ] Make telemetry data independent from `LogEntry`; remove the invalid
+- [x] Make telemetry data independent from `LogEntry`; remove the invalid
   `TelemetryEvent : LogEntry` inheritance and add direct regression coverage.
 - [ ] Align `LogEntry`, `ILogger`, category support, constructors, and
   `ToString()` semantics with the minimum accepted logging model.

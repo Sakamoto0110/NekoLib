@@ -14,7 +14,9 @@ namespace NekoLib.Core.Diagnostics
         public string Message { get; } = string.Empty;
         public Exception? Exception { get; }
         public LogEntry() { }
-        public virtual new string ToString() => $"[{TimestampUtc:O}] {Level}: {Message} {(Exception != null ? $"| Exception: {Exception}" : "")}";
+
+        public override string ToString()
+            => $"[{TimestampUtc:O}] {Level}: {Message} {(Exception != null ? $"| Exception: {Exception}" : "")}";
         public LogEntry(
             DateTime timestampUtc,
             LogLevel level,

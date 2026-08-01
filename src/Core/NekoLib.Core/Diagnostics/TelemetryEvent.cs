@@ -3,9 +3,12 @@ using System.Collections.Generic;
 
 namespace NekoLib.Core.Diagnostics
 {
-    public sealed class TelemetryEvent : LogEntry
+    /// <summary>
+    /// Represents a structured telemetry event independently from logging.
+    /// </summary>
+    public sealed class TelemetryEvent
     {
-        public new DateTime TimestampUtc { get; }
+        public DateTime TimestampUtc { get; }
         public string Name { get; }
         public TimeSpan? Duration { get; }
         public IReadOnlyDictionary<string, object> Data { get; }
