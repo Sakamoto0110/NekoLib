@@ -295,6 +295,34 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 - `runtime_tests/` holds runnable `.exe` scenario apps — launch them directly,
   never via `dotnet test`.
 
+## Reviews and audit artifacts
+
+- Treat a review, audit or assessment as read-only with respect to product code
+  unless the request explicitly includes fixes. Creating a requested review
+  artifact is allowed; silently implementing its recommendations is not.
+- State the exact baseline before reporting findings: commit/ref, scope, and
+  whether the review covers `HEAD`, the working tree, or both. If the tree is
+  dirty, distinguish pre-existing changes from the reviewed change set.
+- Verify findings against current source, project files and executable tests.
+  Historical documents provide leads and decision context, not current facts.
+- Separate observed facts, risks/hypotheses, accepted decisions and rejected
+  alternatives. Prioritize actionable findings by impact and cite tight
+  file/line evidence; if no findings remain, say so and identify residual
+  validation gaps.
+- When a durable module or architecture review is requested, write it in
+  English under `docs/audit/` with its date, reference commit, scope, evidence
+  and validation. The review is a snapshot, never the live issue tracker.
+- Use this promotion flow:
+  **review/audit → accepted decisions → `TODO.md` → implementation → current
+  technical documentation**. During investigation, `TODO.md` may track the
+  review itself, but must not list speculative fixes as confirmed work.
+- Promote a finding to `TODO.md` only after the code confirms it, a direction is
+  chosen and the work is actually intended. Keep rejected alternatives and
+  their rationale in the review; keep open work authoritative in one roadmap.
+- Once a review is complete, mark it historical and preserve its original
+  findings. Record later outcomes in a short reconciliation section or index
+  instead of rewriting the snapshot as though it knew later fixes.
+
 ## Module gotchas
 
 - **Navigation** — the canonical lifecycle order is marked DO NOT CHANGE.

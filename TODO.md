@@ -305,3 +305,456 @@ Pipes (`IPipeMetrics` já é o ponto de extensão).
 ### B4 — Hooks nos demais módulos ⏸ **congelado** (ver acima)
 
 ### B5 — Validação ⏸ **congelado** (ver acima)
+
+---
+
+## Fase C — Governança documental e organização do repositório
+
+> Objetivo: tornar a documentação precisa, navegável e verificável; separar
+> claramente testes automatizados, cenários manuais, código-fonte de ferramentas,
+> executáveis locais e artefatos gerados; eliminar fontes de verdade concorrentes.
+>
+> Esta fase é estrutural. Ela não autoriza mudanças de comportamento nos módulos,
+> no grafo de dependências ou no congelamento de observabilidade.
+
+### C1 — Definir autoridade e ciclo de vida da documentação
+
+- [ ] Criar `docs/README.md` como índice e classificar cada documento em dois
+  eixos:
+  - **kind** — `reference`, `guide`, `roadmap/status` ou `audit`;
+  - **lifecycle** — `current`, `frozen` ou `historical`.
+  Um guide também pode ser current; `frozen` é contexto vivo, não histórico.
+- [ ] Definir metadados mínimos em formato estável e verificável pelo C9:
+  kind, lifecycle, assunto/dono, commit ou data de referência e, quando
+  aplicável, link para o estado atual.
+- [ ] Registrar autoridade por tipo de fato, não como uma precedência linear
+  universal:
+  - targets, referências e propriedades de build vêm dos `*.csproj` e dos
+    arquivos `Directory.Build.*`;
+  - participação na solution vem de `NekoLib.sln`;
+  - comportamento e superfície pública vêm do código; testes executáveis são
+    evidência verificável desse comportamento;
+  - trabalho aberto, decisões em vigor e congelamentos vêm do roadmap/status;
+  - auditorias descrevem somente o estado no commit auditado.
+- [ ] Declarar que `AGENTS.md` e arquivos locais de orientação de assistentes
+  não substituem documentação pública ou técnica.
+- [ ] Cada fato mutável deve ter um único dono. Outros documentos podem resumir
+  ou apontar para esse fato, mas não manter uma segunda lista independente.
+- [ ] Não manter contagens correntes de testes, warnings ou projetos em vários
+  documentos. Quando o número for histórico, registrar data, comando e commit.
+
+### C2 — Reconciliar a documentação atual contra o repositório
+
+- [ ] Revisar cada afirmação factual, comando e link do `README.md` contra os
+  `*.csproj`, `NekoLib.sln`, empacotamento e APIs públicas.
+- [ ] Corrigir afirmações amplas que escondem dependências ou TFMs específicos;
+  o mapa de módulos deve ser a descrição curta autoritativa do grafo atual.
+- [ ] Reconciliar fatos operacionais em orientações versionadas como
+  `AGENTS.md`; quando possível, substituir cópias de fatos públicos por links.
+  Em particular, rever a afirmação de fixtures reais de Data em
+  `tests/NekoLib.Data.Tests/Shared/`, que está ignorada e não é referenciada
+  pelos testes versionados atuais.
+- [ ] Preservar
+  `src/Navigation/NekoLib.Navigation/README.md` como referência técnica
+  próxima ao módulo e indexá-la em `docs/README.md`.
+- [ ] Definir, para cada módulo sem referência técnica própria, o mínimo
+  necessário: propósito, targets, dependências, superfície pública principal,
+  limitações conhecidas e comandos de validação. Não criar documentação extensa
+  por simetria quando uma página curta resolver.
+- [ ] Separar instrução durável de registros de execução. Resultados como
+  “N/N testes” e “X warnings” pertencem a um snapshot de validação, não à
+  descrição permanente do produto.
+- [ ] Verificar todos os links e remover referências a arquivos ausentes em um
+  clone limpo.
+
+### C3 — Transformar auditorias em snapshots históricos
+
+- [ ] Criar um índice em `docs/audit/` com módulo, data, commit auditado,
+  escopo, última reconciliação e link para o estado atual.
+- [ ] Remover dos títulos e cabeçalhos termos ambíguos como `Latest`,
+  `Current Status` e `Status (current)`; substituir por
+  `Historical snapshot at <commit>`.
+- [ ] Não reescrever o corpo histórico para simular que a descoberta original
+  já conhecia correções posteriores. Manter a reconciliação no cabeçalho/índice
+  ou em uma seção curta claramente posterior ao snapshot original.
+- [ ] Mover `src/Data/NekoLib.Data/DataAudit.md` para `docs/audit/`, preservando
+  histórico e links via `git mv`.
+- [ ] Reconciliar as divergências já identificadas:
+  - Devices ainda lista como pendentes itens encerrados por `d352fa8`;
+  - Pipes declara `_handlers` corrigido e aberto no mesmo arquivo, além de
+    registrar o TFM antigo `net9.0-windows`;
+  - Navigation mantém NEW-13 aberto embora `Register<T>` já encaminhe para
+    `RegisterType`;
+  - Watchdog chama de `uncommitted` trabalho presente em `1727a1c`;
+  - Data ainda carrega como abertas correções já implementadas/testadas.
+- [ ] Itens realmente abertos devem existir em um único roadmap/status; a
+  auditoria apenas aponta para ele.
+
+### C4 — Reduzir o `TODO.md` ao trabalho vivo
+
+> Regra: `frozen` não significa concluído ou histórico. Um bloco congelado é
+> contexto vivo para a futura retomada e permanece íntegro no `TODO.md` enquanto
+> o congelamento estiver em vigor.
+>
+> Um descongelamento temporário explicitamente autorizado suspende o bloqueio
+> somente para o objetivo e o escopo declarados. Dentro desse limite, nenhum
+> agente deve tratar o estado normalmente congelado como impedimento, hesitar
+> por esse motivo ou pedir uma segunda autorização equivalente. Continuam
+> valendo as regras normais de segurança, arquitetura, testes e preservação de
+> mudanças alheias.
+>
+> Concluído o escopo autorizado, o estado congelado volta a valer
+> automaticamente. Ampliar o escopo, prolongar o descongelamento ou alterar
+> outra área congelada exige uma nova decisão explícita.
+
+- [ ] Mover somente os relatos efetivamente concluídos das Fases A/B para um
+  documento sob `docs/history/`, preservando decisões arquiteturais, commits e
+  validações relevantes. Não mover junto seções que contenham trabalho
+  congelado.
+- [ ] Remover instruções específicas de um ambiente antigo, como SDK ausente,
+  execução remota bloqueada e pausas ligadas ao fluxo de um assistente.
+- [ ] Manter no `TODO.md` somente trabalho pendente/congelado, decisões em vigor,
+  dependências entre etapas e critérios de conclusão.
+- [ ] Todo bloco congelado deve preservar: motivação do congelamento, estado
+  implementado, lacunas conhecidas, armadilhas já descobertas, seams existentes,
+  ordem recomendada de retomada e condições para descongelar.
+- [ ] Ao concluir uma fase, arquivar apenas o log detalhado que não seja
+  necessário para retomar trabalho congelado e deixar um resumo com link; não
+  acumular indefinidamente work logs concluídos no roadmap.
+- [ ] Um bloco congelado só pode ser reduzido ou movido depois de uma decisão
+  explícita de descongelamento e da transferência integral do contexto relevante
+  para o novo plano ativo. O registro original do período congelado vai então
+  para o histórico.
+- [ ] Manter B4/B5 e todo o contexto do congelamento de observabilidade
+  explícitos e íntegros durante toda a Fase C.
+
+### C5 — Formalizar a taxonomia de testes
+
+- [ ] Definir `tests/` como raiz de **verificações automatizadas**, não como
+  sinônimo absoluto de unit tests.
+- [ ] Classificar verificações em eixos independentes: execução
+  (automatizada/manual), escopo (unit/integration/functional/package probe),
+  pré-requisitos e entrypoint. A classificação semântica não obriga por si só
+  uma mudança de pasta ou assembly.
+- [ ] Manter unit tests em `tests/NekoLib.{Module}.Tests/Unit/`.
+- [ ] Documentar que `tests/NekoLib.PackageConsumers/` contém probes de pacote,
+  fica fora de `NekoLib.sln` e é executado pelo fluxo de packaging.
+- [ ] Classificar como integration/functional qualquer teste automatizado que
+  use processos, IPC, banco real ou recursos do SO. Separar fisicamente quando
+  pré-requisitos, comandos, isolamento ou custo de execução justificarem uma
+  suíte distinta.
+- [ ] Documentar os comandos canônicos para solution, projeto, TFM, teste
+  individual e package-consumer probes.
+
+### C6 — Dar um contrato operacional a `runtime_tests/`
+
+> Decisão-alvo: um cenário usado como evidência compartilhada deve ser
+> versionado. Experimentos exclusivamente locais pertencem a `.local/` e não
+> podem ser citados como cobertura do repositório.
+
+- [ ] Não tratar os cenários atuais, reconhecidamente outdated, como evidência
+  de comportamento. Inventariar cada um e classificá-lo como reconstruir para
+  evidência compartilhada, manter como experimento local, arquivar ou remover.
+- [ ] Decidir a classe de cada cenário antes de alterar `.gitignore` ou
+  documentação. A decisão pode manter cenários compartilhados e locais em
+  paralelo, mas não pode citar os locais como cobertura.
+- [ ] Para cenários compartilhados, versionar `runtime_tests/README.md`, um
+  template mínimo, a fonte e as instruções necessárias; ignorar somente seus
+  outputs e dados temporários.
+- [ ] Cada cenário compartilhado ativo deve registrar: propósito, módulo, SO/TFM,
+  pré-requisitos, build, executável a iniciar, passos manuais, resultado
+  esperado, cleanup, data e commit da última verificação.
+- [ ] Organizar novos cenários primeiro pelo módulo/capacidade validada; manter
+  UI e TFM como metadados ou subnível, não como única identidade do cenário.
+- [ ] Cenários permanecem fora de `NekoLib.sln` por padrão e nunca são
+  executados via `dotnet test`; a operação é build + lançamento explícito do
+  executável.
+- [ ] Para experimentos locais, usar `.local/runtime-tests/`, manter a área
+  ignorada e remover referências a ela da documentação compartilhada.
+- [ ] Ajustar `.gitignore` depois da classificação: ignorar `bin/`, `obj/`,
+  logs, bancos temporários e outros outputs, sem esconder fonte ou instruções de
+  cenários compartilhados ativos.
+
+### C7 — Separar ferramentas, automação e artefatos
+
+- [ ] Adotar responsabilidades explícitas:
+  - `src/Tools/` — código-fonte versionado de executáveis próprios;
+  - `tools/` — payloads executáveis locais/restaurados, sem código-fonte;
+  - `eng/` — scripts versionados de build, validação e manutenção do repo;
+  - `artifacts/` — saídas geradas e descartáveis;
+  - `.local/` — experimentos, configuração e scratch exclusivos da máquina.
+- [ ] Nenhum teste pode depender de um `.exe` opaco copiado manualmente.
+  Executáveis mantidos pelo repositório devem ter build ou restore reproduzível,
+  versão e hash; binários do sistema operacional devem ser pré-requisitos
+  declarados e isolados, não payloads vendorizados.
+- [ ] Tornar `src/Tools/BundlerTool/` a fonte canônica do BundlerTool e definir
+  um build reproduzível cuja saída vá para `artifacts/`. Uma cópia ignorada em
+  `tools/BundlerTool.exe` é cache local, nunca autoridade.
+- [ ] Não criar uma pasta genérica `internal_tools/` inteira e invisível ao Git.
+  Versionar a fonte útil; ignorar somente outputs, caches, credenciais e scratch.
+
+O catalogador de código voltado a LLMs **não faz parte do critério de conclusão
+da Fase C**. Se for autorizado separadamente, deve:
+
+- reutilizar/extrair o scanner e o parsing Roslyn já presentes no
+  `BundlerTool`, evitando um segundo leitor independente da árvore;
+- preferir uma CLI determinística em `src/Tools/` ou orquestração em `eng/`;
+- gerar o catálogo sob `artifacts/`, com commit, hash da fonte, símbolo,
+  assinatura, arquivo/linha e documentação existente;
+- marcar intenção gerada por LLM como inferência, com evidência/confiança;
+- nunca inserir comentários inferidos automaticamente no código-fonte.
+
+### C8 — Eliminar duplicação física e divergência lógica
+
+- [ ] Remover, após verificar referências e packaging, as cópias idênticas
+  `src/Navigation/NekoLib.Navigation/LICENSE.txt` e
+  `src/Navigation/NekoLib.Navigation/.gitattributes` se continuarem redundantes
+  em relação aos arquivos raiz.
+- [ ] Manter duplicações necessárias por assembly, como os `AssemblyInfo.cs`
+  de Watchdog, mesmo quando o conteúdo coincidir.
+- [ ] Substituir repetição de explicações por links para a fonte autoritativa;
+  resumos podem existir, mas não carregar uma segunda lista independente de
+  estado ou itens abertos.
+- [ ] Executar uma busca por arquivos idênticos e por fatos divergentes antes de
+  concluir a fase. Examinar primeiro os arquivos retornados por `git ls-files`,
+  classificar ignorados separadamente e distinguir boilerplate legítimo de
+  cópia abandonada.
+
+### C9 — Automatizar a verificação documental
+
+- [ ] Criar uma verificação em `eng/` para links Markdown, caminhos ausentes,
+  referências a arquivos ignorados e metadados obrigatórios de classificação e
+  auditoria.
+- [ ] Validar automaticamente, sempre que viável, o mapa de projetos contra
+  `dotnet sln NekoLib.sln list` e os targets/referências contra os `*.csproj`.
+- [ ] A verificação deve falhar quando um documento “current” citar caminho
+  inexistente; documentos históricos podem citar caminhos removidos somente
+  quando estiverem marcados explicitamente como históricos.
+- [ ] Comparar warnings por identidade normalizada, não apenas por contagem,
+  preservando o baseline sem introduzir identidades novas.
+- [ ] Quando arquivos ou documentação de packaging forem afetados, executar o
+  fluxo canônico com uma versão local descartável e inédita; nunca sobrescrever
+  uma versão existente no feed.
+- [ ] Executar ao final:
+
+```powershell
+.\eng\verify-docs.ps1
+dotnet sln NekoLib.sln list
+dotnet build NekoLib.sln -t:Rebuild
+dotnet test NekoLib.sln
+git diff --check
+```
+
+- [ ] Registrar a validação final em um snapshot datado com o commit; não copiar
+  os números resultantes para múltiplos documentos duráveis.
+
+### Critério de conclusão da Fase C
+
+- [ ] Um clone limpo consegue descobrir, pelo `README.md` e `docs/README.md`,
+  onde está a referência atual, como validar o projeto e quais documentos são
+  apenas históricos.
+- [ ] Nenhum item aberto possui duas listas autoritativas.
+- [ ] Nenhum cenário ou ferramenta citado pela documentação depende de arquivos
+  locais invisíveis sem procedimento reproduzível.
+- [ ] Nenhum documento current depende de um caminho ignorado ou ausente em
+  clone limpo sem declará-lo explicitamente como pré-requisito local.
+- [ ] Build e testes permanecem verdes nos dois TFMs, sem nova identidade de
+  warning.
+
+---
+
+## Phase D — Logging, Telemetry, Diagnostics, and Inspection boundaries
+
+> Promoted on 2026-08-01 from the accepted decisions in the
+> [Diagnostics sector review](docs/audit/diagnostics-boundaries-review-2026-07-30.md).
+> This section is the authoritative implementation roadmap for those decisions;
+> the review preserves evidence and rationale only.
+>
+> This documentation promotion does not itself authorize product-code changes.
+> The broad observability freeze remains active. Before implementing any Phase D
+> item that extends observability or touches frozen Navigation behavior, define
+> an explicit limited unfreeze for that scope. D7 is marked frozen because every
+> item in it necessarily requires that decision.
+
+### Target capability boundaries
+
+| Target project | Responsibility |
+|---|---|
+| `NekoLib.Core` | Small producer and consumer contracts plus null implementations; no concrete pipeline ownership |
+| `NekoLib.Logging` | Severity-based logging pipeline, sink dispatch, recent entries, flush, and reusable bounded disk persistence |
+| `NekoLib.Telemetry` | Correlated operation timings, checkpoints, outcomes, snapshots, and optional persistence |
+| `NekoLib.Inspection` | Opt-in runtime operations, state snapshots, and explicitly registered intrusive actions |
+| `NekoLib.Diagnostics` | Incident/crash capture and evidence-bundle orchestration that consumes the other capabilities through abstractions |
+| `NekoLib.Diagnostics.Windows` | Windows-only crash hooks, WER behavior, and minidumps |
+
+Feature modules consume only the smallest contracts they need. Concrete
+packages are selected by the application composition root. Diagnostics must not
+reference concrete Logging, Telemetry, or Inspection implementations. The
+`.Windows` project remains the intentional platform-specific exception.
+
+### D1 — Correct and separate the Core contracts
+
+- [ ] Make telemetry data independent from `LogEntry`; remove the invalid
+  `TelemetryEvent : LogEntry` inheritance and add direct regression coverage.
+- [ ] Align `LogEntry`, `ILogger`, category support, constructors, and
+  `ToString()` semantics with the minimum accepted logging model.
+- [ ] Retire the logger-plus-telemetry `IDiagnosticsContext` container. Migrate
+  consumers to independent writer/read-side contracts rather than replacing it
+  with another broadly named context.
+- [ ] Keep Core limited to stable contracts and null implementations. Do not
+  move queues, file I/O, crash policy, Inspection storage, or composition into
+  Core.
+- [ ] Preserve `net481` and `net9.0` compatibility and use ordinary classes,
+  not records, for shared public data types.
+
+### D2 — Build the Logging pipeline
+
+- [ ] Rename `NekoLib.Logger` to the accepted `NekoLib.Logging` capability name
+  after deciding the public type and PackageId compatibility strategy.
+- [ ] Preserve the small feature-facing `ILogger` writer contract and define a
+  separate operational surface for composition/Diagnostics to flush and read a
+  bounded recent-entry snapshot.
+- [ ] Specify and implement ordered sink dispatch, bounded buffering or an
+  explicitly synchronous policy, sink-failure isolation, shutdown, and a
+  bounded flush operation.
+- [ ] Add a reusable rolling file sink. Define file location, encoding, maximum
+  size, retained-file count, concurrent-writer behavior, failure behavior, and
+  the persistence guarantee for `Error`/`Fatal` before implementation.
+- [ ] Keep debugger output as an optional sink; writing an ordinary `Info` entry
+  must not require Diagnostics or Inspection.
+- [ ] Add direct dual-target tests for severity filtering, sink fan-out,
+  ordering, failure isolation, recent snapshots, flush, rotation, retention,
+  and write failures.
+
+### D3 — Build the Telemetry pipeline
+
+- [ ] Create an independent `NekoLib.Telemetry` implementation over small Core
+  contracts; do not route telemetry through the logging pipeline or inherit log
+  models.
+- [ ] Define the minimum operation model: module, operation name, operation ID,
+  optional parent ID, outcome, dimensions, one UTC chronology timestamp, and
+  monotonic elapsed values for checkpoints and completion.
+- [ ] Treat operation timings as raw telemetry. Defer percentiles, counters, and
+  other metric aggregation until a concrete consumer requires them.
+- [ ] Provide bounded recent-operation snapshots for Diagnostics. Decide
+  separately whether v1 also persists raw telemetry to disk.
+- [ ] Add direct dual-target tests for correlation, checkpoints, monotonic
+  durations, terminal outcomes, bounded retention, and subscriber/sink failure
+  isolation.
+
+#### Initial Navigation timing semantics
+
+- [ ] Use Navigation as the first producer without changing its canonical
+  lifecycle order, redirect correlation, UI dispatch, navigation gate, or
+  existing terminal semantics.
+- [ ] Capture three meaningful milestones for the initial page-transition use
+  case: page switch started, authentication completed, and page ready.
+- [ ] Derive `page_switch.total_ms`,
+  `page_switch.time_to_authenticated_ms`, and
+  `page_switch.post_auth_to_ready_ms` from those milestones.
+- [ ] Do not label the latter two values as pure authentication or page-load
+  duration unless their exact start/end boundaries are instrumented.
+  `NavigationStarted` currently includes UI-dispatch and gate-wait time.
+- [ ] Keep authentication and catalog/API behavior outside Navigation. The
+  application supplies the authentication checkpoint and correlation; POST/GET
+  start/end timings are not required for the initial use case.
+- [ ] Define `page ready` precisely. Do not claim first paint or OS-level render
+  completion if the adapter only proves completion of the synchronous
+  Navigation lifecycle.
+
+### D4 — Rename DebugUtils to Inspection without broadening it
+
+- [ ] Rename the package/project to `NekoLib.Inspection` and establish the
+  public-type migration map before changing PackageIds.
+- [ ] Preserve the current opt-in, in-process, bounded, singleton-capable model.
+  Inspection remains more intrusive than logging and must not become a second
+  logger, a control bus, a DI container, or an exception-policy owner.
+- [ ] Separate the module-facing record/register capability from the read-only
+  snapshot capability. Diagnostics may consume snapshots but must never invoke
+  registered actions.
+- [ ] Preserve deterministic disable/dispose behavior, NO-OP defaults, bounded
+  payload construction, provider isolation, and existing dual-target tests
+  through the rename.
+- [ ] Decide whether `RegisterCommand` becomes `RegisterAction`; keep any action
+  surface explicitly operational and constrained rather than general-purpose.
+
+### D5 — Refocus Diagnostics on incident evidence
+
+- [ ] Keep `NekoLib.Diagnostics` focused on exception/incident capture and
+  evidence-bundle orchestration, not ordinary log emission or telemetry
+  production.
+- [ ] Define the incident sequence: record the fatal event, request a bounded
+  logging flush, capture recent logs, optionally capture recent telemetry and a
+  read-only Inspection snapshot, collect platform artifacts, write the bundle,
+  then notify the configured supervisor.
+- [ ] Consume all optional sources through abstractions supplied by the
+  composition root. Do not add concrete project references from Diagnostics to
+  Logging, Telemetry, or Inspection.
+- [ ] Add only the Core contract dependency required by the target Diagnostics
+  composition; do not use that dependency to pull unrelated contracts or policy
+  into the crash package.
+- [ ] Define bounded collection, timeouts, redaction, contributor-failure
+  isolation, and partial-bundle behavior so diagnostics cannot hang or replace
+  the original failure.
+- [ ] Keep `NekoLib.Diagnostics.Windows` as the Windows-only adapter. The
+  platform-neutral artifact contract, Watchdog notification policy, WinForms
+  hook lifecycle, and filename cleanup remain pending review decisions rather
+  than accepted Phase D work.
+
+### D6 — Migration, verification, and documentation
+
+- [ ] Decide clean breaking rename versus compatibility packages/types before
+  changing public namespaces, assembly names, or PackageIds.
+- [ ] Migrate Navigation and Watchdog composition away from
+  `IDiagnosticsContext` while preserving their Core-only product dependencies.
+- [ ] Split or rename test projects to mirror the accepted package boundaries;
+  add direct Windows adapter tests where automation is practical.
+- [ ] Update solution membership, package-consumer probes, packaging metadata,
+  README module maps, examples, and current technical documentation only after
+  the implementation becomes authoritative.
+- [ ] Validate both target frameworks on Windows, run package-consumer probes
+  with a new disposable version, compare warning identities, and run the full
+  solution tests before completing the phase.
+
+### D7 — Module rollout and consumer bridge ⏸ **frozen**
+
+- [ ] After an explicit limited unfreeze, connect the read-only Inspection
+  snapshot and bounded Telemetry/Logging snapshots to Diagnostics incident
+  bundles.
+- [ ] After an explicit limited unfreeze, implement the initial Navigation
+  operation timing without altering the frozen lifecycle-sensitive components.
+- [ ] Evaluate Data and Devices separately before adding telemetry contracts or
+  new Core references. If accepted, emit their own correlated operations (for
+  example query/transaction and command/round-trip) rather than Navigation-
+  specific metrics.
+- [ ] Keep the existing B4 Inspection instrumentation freeze and its preserved
+  context authoritative for broad module record/state/action hooks; telemetry
+  rollout does not silently authorize those hooks.
+
+### Phase D completion criteria
+
+- [ ] Ordinary logging, operation telemetry, runtime Inspection, and incident
+  Diagnostics have distinct public names and non-overlapping ownership.
+- [ ] An application can write `Info` through Logging and persist it to bounded
+  disk storage without enabling Diagnostics or Inspection.
+- [ ] Telemetry can represent the accepted Navigation timing scenario and later
+  correlate independent Data or Devices operations without module-to-module
+  dependencies.
+- [ ] Diagnostics can produce a bounded partial bundle from the sources supplied
+  by composition without referencing their concrete implementations.
+- [ ] Windows-specific behavior remains isolated, and both supported TFMs plus
+  package-consumer probes pass without new warning identities.
+
+---
+
+## Active architecture reviews
+
+- [ ] Complete the remaining Diagnostics sector boundary and naming decisions.
+  - Review artifact:
+    [`docs/audit/diagnostics-boundaries-review-2026-07-30.md`](docs/audit/diagnostics-boundaries-review-2026-07-30.md)
+  - Baseline: `master` / `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
+  - Promoted to Phase D: DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
+    TEST-01, and the frozen target direction of DBG-01.
+  - Remaining review-only decisions: CRASH-01, CRASH-02, WIN-01, rename
+    compatibility, exact persistence policies, and the concrete read-side
+    composition seam.
