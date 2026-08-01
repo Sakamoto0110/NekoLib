@@ -84,6 +84,6 @@ family, validates package structure, and restores/builds the consumer probes.
 ## Manual scenarios
 
 Manual or interactive evidence does not belong under `tests/`. Shared runnable
-scenarios use `runtime_tests/` and an explicit executable launch; machine-only
-experiments use `.local/runtime-tests/`. Neither is invoked by `dotnet test`.
-Their operational contract is completed separately by Phase C6.
+scenarios use [`runtime_tests/`](../runtime_tests/README.md) and an explicit
+executable launch; machine-only experiments use `.local/runtime-tests/`.
+Neither is invoked by `dotnet test`.

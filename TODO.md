@@ -95,22 +95,22 @@ dependency changes, or broad Inspection instrumentation.
 Shared evidence must be versioned. Machine-only experiments belong under
 `.local/` and cannot be cited as repository coverage.
 
-- [ ] Inventory each current ignored scenario and classify it as rebuild for
+- [x] Inventory each current ignored scenario and classify it as rebuild for
   shared evidence, retain as a local experiment, archive, or remove. Do not
   treat the outdated scenarios as current behavioral evidence.
-- [ ] Decide each scenario before changing `.gitignore` or shared docs.
-- [ ] For shared scenarios, version `runtime_tests/README.md`, a minimal
+- [x] Decide each scenario before changing `.gitignore` or shared docs.
+- [x] For shared scenarios, version `runtime_tests/README.md`, a minimal
   template, source, and instructions; ignore only outputs and temporary data.
-- [ ] Record purpose, module, OS/TFM, prerequisites, build, executable, manual
+- [x] Record purpose, module, OS/TFM, prerequisites, build, executable, manual
   steps, expected result, cleanup, and last verified date/commit for each active
   shared scenario.
-- [ ] Organize new scenarios first by validated module/capability; keep UI and
+- [x] Organize new scenarios first by validated module/capability; keep UI and
   TFM as metadata or a secondary level.
-- [ ] Keep scenarios outside `NekoLib.sln` by default. Run them through an
+- [x] Keep scenarios outside `NekoLib.sln` by default. Run them through an
   explicit build and executable launch, never `dotnet test`.
-- [ ] Move machine-only experiments to `.local/runtime-tests/` and remove
+- [x] Move machine-only experiments to `.local/runtime-tests/` and remove
   shared-document references to them.
-- [ ] Update `.gitignore` after classification so source and instructions for
+- [x] Update `.gitignore` after classification so source and instructions for
   active shared scenarios remain visible while outputs stay ignored.
 
 ### C7 — Separate tools, automation, and artifacts

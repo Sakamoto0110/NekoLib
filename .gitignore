@@ -49,6 +49,9 @@ artifacts/
 # Claude context (local only)
 CLAUDE.md
 
-# Runtime test apps (kept on disk, out of git for now)
-/runtime_tests/
+# Machine-only experiments and scratch data
+/.local/
+
+# Runtime scenario source and instructions are versioned. Global bin/obj/log
+# rules above keep their generated output out of Git.
 /.codex/environments

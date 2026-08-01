@@ -315,13 +315,15 @@ has no cycles.
 | Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |
+| Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
 | Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
 | Completed roadmap history | [`docs/history/README.md`](docs/history/README.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |
 
 Automated suites and package probes are classified in
 [`tests/README.md`](tests/README.md). Manual runtime scenarios are separate and
-are never launched through `dotnet test`.
+are versioned under [`runtime_tests/`](runtime_tests/README.md); build and launch
+them explicitly, never through `dotnet test`.
 
 ## License
 

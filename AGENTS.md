@@ -12,6 +12,7 @@ the handoff state and the rules that are easy to get wrong.
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
+| Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 | Completed roadmap history | [`docs/history/`](docs/history/) |
@@ -327,8 +328,9 @@ without an explicit shim. Use ordinary classes for multi-target data types.
   they must carry `[Collection("NavigationServiceFacade")]` and
   `await NavigationService.Shutdown()` in a `finally`.
   `InspectionNavigationObserverFacadeTests` is the reference.
-- `runtime_tests/` holds runnable `.exe` scenario apps — launch them directly,
-  never via `dotnet test`.
+- `runtime_tests/` holds versioned runnable scenario apps with procedures in
+  `runtime_tests/README.md`. Build and launch them explicitly, never through
+  `dotnet test`. Machine-only experiments belong under ignored `.local/`.
 
 ## Reviews and audit artifacts
 
