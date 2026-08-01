@@ -99,3 +99,21 @@ When an audit is complete, preserve its original evidence and mark it
 historical. Record later outcomes in a short reconciliation section or in the
 audit index. A finding becomes live work only after it is verified, a direction
 is accepted, and it is added to `TODO.md`.
+
+## Verification
+
+Run the repository documentation and topology checks from the root:
+
+```powershell
+.\eng\verify-docs.ps1
+```
+
+To compare a full rebuild against the normalized warning-identity baseline,
+capture its output and pass the log explicitly:
+
+```powershell
+.\eng\verify-docs.ps1 -BuildLogPath artifacts/validation/rebuild.log
+```
+
+`-UpdateWarningBaseline` is an intentional maintenance operation, not part of a
+normal verification run.

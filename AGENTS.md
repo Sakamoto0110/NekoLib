@@ -229,6 +229,10 @@ dotnet build NekoLib.sln
 dotnet test NekoLib.sln
 ```
 
+Validate documentation, links, project topology, and the warning baseline with
+`.\eng\verify-docs.ps1`; pass a captured rebuild log through `-BuildLogPath` to
+compare emitted warning identities.
+
 Create and verify a new immutable local package version:
 
 ```powershell

@@ -150,14 +150,14 @@ and never inject inferred comments into source code.
 
 ### C9 — Automate documentation verification
 
-- [ ] Add an `eng/` check for Markdown links, absent paths, references to
+- [x] Add an `eng/` check for Markdown links, absent paths, references to
   ignored files, and required classification/audit metadata.
-- [ ] When practical, compare the documented project map with
+- [x] When practical, compare the documented project map with
   `dotnet sln NekoLib.sln list` and targets/references from `*.csproj`.
-- [ ] Fail when a current document cites an absent path. Historical audits may
+- [x] Fail when a current document cites an absent path. Historical audits may
   cite removed paths only when their lifecycle and reference baseline are
   explicit.
-- [ ] Compare warnings by normalized identity rather than count so the baseline
+- [x] Compare warnings by normalized identity rather than count so the baseline
   cannot gain new warning identities silently.
 - [ ] When packaging files or docs change, use a fresh disposable local package
   version and never overwrite an existing feed version.

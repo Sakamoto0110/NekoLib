@@ -295,7 +295,7 @@ require packages to have been produced first.
 | `NekoLib.Pipes` | `src/Pipes/NekoLib.Pipes/` | net481, net9.0 | — |
 | `NekoLib.Watchdog` | `src/Watchdog/NekoLib.Watchdog/` | net481, net9.0-windows | Core, Pipes |
 | `NekoLib.Watchdog.Host` | `src/Watchdog/NekoLib.Watchdog.Host/` | net481, net9.0-windows | Watchdog |
-| `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | — (version/ID constants; not in the solution) |
+| `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | — |
 
 Inside Navigation, dependencies flow one way:
 `Adapters` → `Runtime` → `Contracts`. Across packages, dependencies follow the
