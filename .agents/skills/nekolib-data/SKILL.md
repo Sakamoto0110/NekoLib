@@ -58,8 +58,10 @@ wrapper when the shared core owns the behavior.
 
 - Mirror the source area under `../../../tests/NekoLib.Data.Tests/Unit/`.
 - Name tests `MethodName_Condition_ExpectedResult`.
-- Use the real fixtures in `../../../tests/NekoLib.Data.Tests/Shared/` for
-  database behavior. Do not replace the database layer with mocks.
+- The tracked `../../../tests/NekoLib.Data.Tests/Shared/` fixtures are legacy
+  assets and current tests do not reference them by name. Verify their schema
+  and deliberately wire them before citing real-database coverage. Do not infer
+  executed coverage from their presence.
 - Add regression coverage for parameter order, builder reuse, translation, and
   resource lifetime whenever those paths change.
 - Cover both target frameworks when conditional compilation or provider

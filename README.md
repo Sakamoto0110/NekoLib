@@ -1,13 +1,14 @@
 # NekoLib
 
-A family of independent, dual-target C# libraries for desktop and embedded
+A family of focused, dual-target C# libraries for desktop and embedded
 applications — built for **PDV/DM-class software**: kiosk and point-of-sale
 shells that run unattended for days, on hardware that ranges from current
 machines to boxes still pinned to .NET Framework.
 
-Every module targets **.NET Framework 4.8.1** and **.NET 9.0** side by side, and
-every module is usable on its own. There is no framework to buy into: reference
-the one you need and ignore the rest.
+Every shipped module supports **.NET Framework 4.8.1** and a **.NET 9.0** target
+side by side; UI and Win32 modules use `net9.0-windows`. The dependency graph is
+shallow rather than dependency-free: reference the feature package you need and
+NuGet brings its documented foundations transitively.
 
 ## Who this is for
 
@@ -144,6 +145,38 @@ var crashes = new CrashHandler(new CrashHandlerOptions
 crashes.Install();
 ```
 
+## Module entry points and limits
+
+The root module map below owns targets and project dependencies. This table is
+the compact operational reference for modules that do not need a dedicated
+technical manual.
+
+| Module | Main public entry points | Important boundary | Focused validation |
+|---|---|---|---|
+| Core | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
+| Logging | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition and disposal | `NekoLib.Logging.Tests.Unit` |
+| Telemetry | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1 | `NekoLib.Telemetry.Tests.Unit` |
+| Inspection | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; at most one global runtime; broad module rollout is frozen | `NekoLib.Inspection.Tests.Unit` |
+| Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production is injected and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
+| Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
+| Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
+| Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |
+| Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Framed JSON RPC/pub-sub; no service registry or process supervisor | `NekoLib.Pipes.Tests.Unit` |
+| Watchdog | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Windows process supervision plus an out-of-process Host; update orchestration is not implemented | `NekoLib.Watchdog.Tests.Unit` |
+| Devices | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
+
+Navigation and its adapters use their
+[dedicated technical reference](src/Navigation/NekoLib.Navigation/README.md).
+Run a focused suite with:
+
+```powershell
+dotnet test tests/NekoLib.<Module>.Tests/Unit/NekoLib.<Module>.Tests.Unit.csproj
+```
+
+Adapters and projects without a dedicated test assembly are built directly and
+covered through their owning module's tests. The complete validation taxonomy
+and package/runtime exceptions are documented in [`docs/README.md`](docs/README.md).
+
 ## Compatibility
 
 | | |
@@ -161,8 +194,9 @@ dotnet test NekoLib.sln
 
 ## Local NuGet packages
 
-Package production is opt-in: the 13 library projects and the Watchdog sidecar
-are packages; tests, runtime scenarios, `BundlerTool`, and the constants-only
+Package production is opt-in: the 14 library projects and the Watchdog Host
+deployment package are packaged together; tests, runtime scenarios,
+`BundlerTool`, and the constants-only
 `src/Hosting/NekoLib` project are not.
 
 Use the packaging entry point instead of packing individual projects:
@@ -277,9 +311,10 @@ has no cycles.
 | | |
 |---|---|
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
-| Roadmap, phase plan, and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
+| Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
+| Completed roadmap history | [`docs/history/README.md`](docs/history/README.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |
 
 Unit tests live in `tests/NekoLib.{Module}.Tests/Unit/`. `runtime_tests/` holds

@@ -67,6 +67,8 @@ reference commit.
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
+| [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
+| [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
 | [`AGENTS.md`](../AGENTS.md) | guide | current | Versioned agent workflow; not public product authority |
 | [`.agents/skills/nekolib/SKILL.md`](../.agents/skills/nekolib/SKILL.md) | guide | current | Repository-wide NekoLib routing |
 | [`.agents/skills/nekolib-data/SKILL.md`](../.agents/skills/nekolib-data/SKILL.md) | guide | current | Data workflow |

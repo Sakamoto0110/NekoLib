@@ -10,9 +10,10 @@ the handoff state and the rules that are easy to get wrong.
 |---|---|
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
-| Historical phase plan and the current observability freeze | [`TODO.md`](TODO.md) |
+| Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
+| Completed roadmap history | [`docs/history/`](docs/history/) |
 
 ---
 
@@ -62,6 +63,9 @@ the handoff state and the rules that are easy to get wrong.
 
 A point-in-time snapshot written at handover. If it contradicts the code, the
 code wins — and please correct it here.
+
+**Validation reference commit:** not recorded; the previously uncommitted
+product work described below later landed in `1727a1c`.
 
 ## Verified at handoff
 
@@ -270,7 +274,7 @@ The current cross-project graph is shallow and is the rule to preserve:
 - Logging → Core; Telemetry → Core; Inspection → Core.
 - Diagnostics → Core; Diagnostics.Windows → Diagnostics.
 - Watchdog → Core + Pipes; Watchdog.Host → Watchdog.
-- Data, Devices, Mvvm, Pipes, Diagnostics and the orphan Hosting project have no
+- Data, Devices, Mvvm, Pipes and the orphan Hosting project have no
   project references.
 
 Read the relevant `*.csproj` before adding a cross-module dependency. Do not
@@ -297,7 +301,7 @@ instead of copying a symbol from another module.
 needs `System.Runtime.CompilerServices.IsExternalInit`, which net481 lacks
 without an explicit shim. Use ordinary classes for multi-target data types.
 
-## Nullable & ImplicitUsings — read from the csproj files, 2026-07-26
+## Nullable & ImplicitUsings — read from the csproj files, 2026-08-01
 
 **Match a project's existing settings; never flip them.**
 
@@ -311,8 +315,10 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 
 - Unit tests mirror the source module: `tests/NekoLib.{Module}.Tests/Unit/`.
 - Names follow `MethodName_Condition_ExpectedResult`.
-- **Data tests use real database fixtures** in `tests/NekoLib.Data.Tests/Shared/`
-  — `Pods.db` (SQLite) and `PodsDB/` (Access). **Do not mock the database layer.**
+- `tests/NekoLib.Data.Tests/Shared/Pods.db` and `PodsDB` are tracked legacy
+  fixtures even though the directory also matches `.gitignore`. Current
+  versioned tests do not reference either fixture by name. Do not cite them as
+  executed database coverage until a test deliberately wires and verifies them.
 - **Navigation tests that mount the static facade** touch process-wide state:
   they must carry `[Collection("NavigationServiceFacade")]` and
   `await NavigationService.Shutdown()` in a `finally`.
