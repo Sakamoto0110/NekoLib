@@ -274,37 +274,25 @@ sem ampliar B4 e sem criar host de módulos, DI, service registry ou message bus
 
 ---
 
-## ❄ Congelamento da instrumentação ampla
+## Remarks — deferred Inspection rollout (B4/B5) ❄
 
-O que fica **declaradamente incompleto** — dívida conhecida, não esquecimento:
-
-1. **B4 não foi feito.** Só a Navigation emite. `Data`, `Pipes`, `Watchdog`,
-   `Devices` e `Diagnostics` não conhecem `IDebugUtils`. Cuidado com a pegadinha:
-   o `IntegrationDemo_481` mostra operações `Data/*` e `Pipes/*` no ring buffer,
-   mas é **o app chamando `Record` à mão** (`PodRepository`, `PipeDemoService`) —
-   a lib não emite nada. Troque de app e a instrumentação vai embora.
-2. **Sem caso real de comando em um módulo.** A infraestrutura
-   `RegisterCommand` / `TryInvokeCommand` agora tem testes diretos de
-   registro/invocação/remoção, mas nenhum módulo de feature registra um comando
-   operacional.
-3. **Sem superfície de consumo reutilizável.** Nenhum viewer, nenhum bridge para
-   `ILogSink`/arquivo, nada no crash bundle; o `NekoLib` (hosting) não conhece o
-   módulo. Cada app monta na mão (no demo é uma `ListBox` na `AdminPage`).
-4. **Sem commands de Navigation.** O trace e os providers são somente leitura;
-   operações mutáveis aguardam um contrato explícito de async, cancelamento,
-   timeout e marshaling para UI. `NoPageAttached` / `NoPageVisible` e a supressão
-   do vazio transitório durante replacement agora têm regressões headless.
-
-Ao descongelar a próxima camada, a ordem recomendada: **bridge de consumo** (dump do ring buffer +
-`CaptureState()` dentro do crash bundle do `CrashHandler` — é o que transforma o
-módulo de "buffer que ninguém lê" em ferramenta de post-mortem) → **um caso real
-de comando** (valida a integração de módulo antes de replicar em 5 módulos) → **B4** por
-módulo, começando por Data (eventos do `QueryExecutionContext` já são o seam) e
-Pipes (`IPipeMetrics` já é o ponto de extensão).
-
-### B4 — Hooks nos demais módulos ⏸ **congelado** (ver acima)
-
-### B5 — Validação ⏸ **congelado** (ver acima)
+- Broad feature-module Inspection instrumentation remains frozen. Navigation is
+  the only feature module that records Inspection operations. Phase D completed
+  the read-only Diagnostics consumer bridge; it did not authorize broad module
+  recording or new Core dependencies.
+- No feature module registers a real Inspection action. Navigation remains
+  read-only until an explicit async, cancellation, timeout, and UI-marshalling
+  action contract is accepted.
+- Existing seams for a future module-scoped rollout are
+  `QueryExecutionContext` in Data, `IPipeMetrics` in Pipes, and the serialized
+  `HardwareEngine.SendAsync` transaction in Devices. Watchdog and Diagnostics
+  require separate review because crash notification crosses IPC and
+  Diagnostics owns incident capture.
+- Resume only through an explicit module-scoped unfreeze. Validate the smallest
+  real producer first, preserve disabled/NO-OP behavior, cover both target
+  frameworks, and restore the broad freeze after the authorized scope.
+- These are architectural remarks, not active Phase C tasks. The superseded
+  DebugUtils-era implementation log may move to `docs/history/` during C4.
 
 ---
 
@@ -315,7 +303,13 @@ Pipes (`IPipeMetrics` já é o ponto de extensão).
 > executáveis locais e artefatos gerados; eliminar fontes de verdade concorrentes.
 >
 > Esta fase é estrutural. Ela não autoriza mudanças de comportamento nos módulos,
-> no grafo de dependências ou no congelamento de observabilidade.
+> no grafo de dependências ou no congelamento da instrumentação de Inspection.
+>
+> **Preparation status (2026-08-01): ready to start.** The evidence, corrected
+> premises, and recommended order are recorded in the
+> [Phase C readiness review](docs/audit/repository-hygiene-phase-c-readiness-2026-08-01.md).
+> No C1-C9 checklist item is complete yet. Start with C1 + C3, then reconcile
+> current documentation and the live roadmap through C2 + C4.
 
 ### C1 — Definir autoridade e ciclo de vida da documentação
 
@@ -351,9 +345,9 @@ Pipes (`IPipeMetrics` já é o ponto de extensão).
   o mapa de módulos deve ser a descrição curta autoritativa do grafo atual.
 - [ ] Reconciliar fatos operacionais em orientações versionadas como
   `AGENTS.md`; quando possível, substituir cópias de fatos públicos por links.
-  Em particular, rever a afirmação de fixtures reais de Data em
-  `tests/NekoLib.Data.Tests/Shared/`, que está ignorada e não é referenciada
-  pelos testes versionados atuais.
+  In particular, reconcile `tests/NekoLib.Data.Tests/Shared/`: its fixtures are
+  tracked even though the path also matches `.gitignore`, while current
+  versioned tests do not reference those fixtures by name.
 - [ ] Preservar
   `src/Navigation/NekoLib.Navigation/README.md` como referência técnica
   próxima ao módulo e indexá-la em `docs/README.md`.
@@ -425,8 +419,9 @@ Pipes (`IPipeMetrics` já é o ponto de extensão).
   explícita de descongelamento e da transferência integral do contexto relevante
   para o novo plano ativo. O registro original do período congelado vai então
   para o histórico.
-- [ ] Manter B4/B5 e todo o contexto do congelamento de observabilidade
-  explícitos e íntegros durante toda a Fase C.
+- [ ] When archiving the completed Phase A/B work log, keep a link to the
+  concise B4/B5 remarks and preserve their current freeze, remaining gaps,
+  seams, resume order, and validation conditions.
 
 ### C5 — Formalizar a taxonomia de testes
 
