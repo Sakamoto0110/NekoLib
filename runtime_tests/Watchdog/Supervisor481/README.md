@@ -11,9 +11,8 @@
 **Prerequisites:** .NET Framework 4.8.1 developer/runtime support, interactive
 desktop session, permission to start and terminate the selected target process
 
-**Last verification:** build-only on 2026-08-01 against repository baseline
-`c473966` plus the Phase C promotion working tree; interactive procedure not
-rerun
+**Last verification:** build-only on 2026-08-01 at scenario-source commit
+`32fc67e`; interactive procedure not rerun
 
 ## Purpose
 
@@ -56,6 +55,5 @@ File logging is disabled by the scenario. `bin/` and `obj/` are disposable.
 
 ## Verification record
 
-- 2026-08-01 / baseline `c473966` plus the Phase C promotion working tree:
-  project built successfully on Windows for `net481`; interactive process/RPC
-  behavior was not claimed.
+- 2026-08-01 / `32fc67e`: project built successfully on Windows for `net481`;
+  interactive process/RPC behavior was not claimed.

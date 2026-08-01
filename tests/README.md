@@ -48,6 +48,11 @@ not depend on packages that have not been produced yet. The canonical packaging
 workflow restores and builds those consumers after it validates package
 contents.
 
+Watchdog's controlled-process tests resolve the Windows system `cmd.exe` and
+copy it into an isolated temporary workspace to obtain a unique target path.
+That OS binary is a declared Windows prerequisite; it is not stored under
+`tools/` or treated as repository-owned payload.
+
 ## Canonical commands
 
 Whole solution:

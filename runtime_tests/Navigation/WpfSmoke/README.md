@@ -10,9 +10,8 @@
 
 **Prerequisites:** .NET 9 SDK and Desktop Runtime; interactive desktop session
 
-**Last verification:** build-only on 2026-08-01 against repository baseline
-`c473966` plus the Phase C promotion working tree; interactive procedure not
-rerun
+**Last verification:** build-only on 2026-08-01 at scenario-source commit
+`32fc67e`; interactive procedure not rerun
 
 ## Purpose
 
@@ -56,6 +55,5 @@ build output.
 
 ## Verification record
 
-- 2026-08-01 / baseline `c473966` plus the Phase C promotion working tree:
-  project built successfully on Windows for `net9.0-windows`; interactive
-  behavior was not claimed.
+- 2026-08-01 / `32fc67e`: project built successfully on Windows for
+  `net9.0-windows`; interactive behavior was not claimed.

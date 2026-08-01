@@ -13,6 +13,7 @@ the handoff state and the rules that are easy to get wrong.
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
+| Tools, automation, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 | Completed roadmap history | [`docs/history/`](docs/history/) |
@@ -260,7 +261,8 @@ dotnet msbuild src/Data/NekoLib.Data/NekoLib.Data.csproj -getProperty:DefineCons
 Windows only, so a Linux/container environment cannot validate this repo; say so
 rather than reporting a partial build as green.
 
-`src/Tools/BundlerTool/` is not in the solution; build it directly.
+`src/Tools/BundlerTool/` is not in the solution; build it through
+`.\eng\build-bundler.ps1` so output and provenance stay under `artifacts/`.
 
 ## Layering and project references
 

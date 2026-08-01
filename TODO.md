@@ -115,19 +115,19 @@ Shared evidence must be versioned. Machine-only experiments belong under
 
 ### C7 — Separate tools, automation, and artifacts
 
-- [ ] Establish these owners:
+- [x] Establish these owners:
   - `src/Tools/`: versioned source for repository-owned executables;
   - `tools/`: restored/local executable payloads, never source authority;
   - `eng/`: versioned build, validation, and maintenance automation;
   - `artifacts/`: disposable generated output;
   - `.local/`: machine-only experiments, configuration, and scratch data.
-- [ ] No test may depend on an opaque, manually copied executable. A
+- [x] No test may depend on an opaque, manually copied executable. A
   repository-owned executable needs a reproducible build or restore, version,
   and hash; OS binaries are declared prerequisites, not vendored payloads.
-- [ ] Keep `src/Tools/BundlerTool/` as the canonical BundlerTool source and
+- [x] Keep `src/Tools/BundlerTool/` as the canonical BundlerTool source and
   provide a reproducible build whose output goes to `artifacts/`.
   `tools/BundlerTool.exe` may exist only as an ignored local cache.
-- [ ] Do not create a broad Git-invisible `internal_tools/` tree. Version useful
+- [x] Do not create a broad Git-invisible `internal_tools/` tree. Version useful
   source; ignore only outputs, caches, credentials, and scratch data.
 
 An LLM-oriented code catalog is outside Phase C. If separately authorized, it
@@ -137,14 +137,14 @@ and never inject inferred comments into source code.
 
 ### C8 — Remove physical duplication and logical divergence
 
-- [ ] Remove the identical
+- [x] Remove the identical
   `src/Navigation/NekoLib.Navigation/LICENSE.txt` and `.gitattributes` only
   after references and packaging confirm that the root copies are authoritative.
-- [ ] Preserve assembly-required duplicates such as the two Watchdog
+- [x] Preserve assembly-required duplicates such as the two Watchdog
   `AssemblyInfo.cs` files even when their content is identical.
-- [ ] Replace repeated explanations with links to the authoritative owner;
+- [x] Replace repeated explanations with links to the authoritative owner;
   summaries must not carry a second list of current state or open work.
-- [ ] Before completing the phase, scan tracked files for identical content and
+- [x] Before completing the phase, scan tracked files for identical content and
   divergent facts. Classify ignored files separately and distinguish required
   boilerplate from abandoned copies.
 

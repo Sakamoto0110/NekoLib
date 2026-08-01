@@ -305,7 +305,9 @@ Diagnostics depend only on Core; Watchdog depends on Core and Pipes. The graph
 has no cycles.
 
 `src/Tools/BundlerTool/` is a standalone dev utility and is not part of
-`NekoLib.sln`.
+`NekoLib.sln`. Build it reproducibly through
+[`eng/build-bundler.ps1`](eng/build-bundler.ps1); generated output belongs under
+`artifacts/`.
 
 ## Where things are
 
@@ -316,6 +318,7 @@ has no cycles.
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
+| Tools, automation, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
 | Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
 | Completed roadmap history | [`docs/history/README.md`](docs/history/README.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |

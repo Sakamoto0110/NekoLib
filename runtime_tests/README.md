@@ -31,8 +31,8 @@ identity.
 
 | Scenario | Scope | Status at 2026-08-01 | Instructions |
 |---|---|---|---|
-| Navigation / WPF smoke | WPF page switching, idle, guards, overlays, reset, and shutdown | Build succeeds against baseline `c473966` plus the Phase C promotion working tree; interactive procedure not rerun | [`Navigation/WpfSmoke/README.md`](Navigation/WpfSmoke/README.md) |
-| Watchdog / Supervisor481 | In-process Watchdog supervision driven through real Pipes RPC/events | Build succeeds against baseline `c473966` plus the Phase C promotion working tree; interactive procedure not rerun | [`Watchdog/Supervisor481/README.md`](Watchdog/Supervisor481/README.md) |
+| Navigation / WPF smoke | WPF page switching, idle, guards, overlays, reset, and shutdown | Build succeeds at scenario-source commit `32fc67e`; interactive procedure not rerun | [`Navigation/WpfSmoke/README.md`](Navigation/WpfSmoke/README.md) |
+| Watchdog / Supervisor481 | In-process Watchdog supervision driven through real Pipes RPC/events | Build succeeds at scenario-source commit `32fc67e`; interactive procedure not rerun | [`Watchdog/Supervisor481/README.md`](Watchdog/Supervisor481/README.md) |
 
 Build success proves source compatibility only. It does not prove the manual
 expected results until a person performs the documented steps and updates the
