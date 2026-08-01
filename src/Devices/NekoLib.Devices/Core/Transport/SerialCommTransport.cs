@@ -62,6 +62,9 @@ namespace NekoLib.Devices.Core.Transport
                 Parity = _port.Parity,
                 DataBits = _port.DataBits,
                 StopBits = _port.StopBits,
+                Handshake = _port.Handshake,
+                DtrEnable = _port.DtrEnable,
+                RtsEnable = _port.RtsEnable,
                 ReadTimeout = _port.ReadTimeout,
                 WriteTimeout = _port.WriteTimeout,
                 NewLine = _port.NewLine,
@@ -95,6 +98,9 @@ namespace NekoLib.Devices.Core.Transport
             _port.Parity = cfg.Parity;
             _port.DataBits = cfg.DataBits;
             _port.StopBits = cfg.StopBits;
+            _port.Handshake = cfg.Handshake;
+            _port.DtrEnable = cfg.DtrEnable;
+            _port.RtsEnable = cfg.RtsEnable;
             _port.NewLine = string.IsNullOrEmpty(cfg.NewLine) ? "\r\n" : cfg.NewLine;
             _port.ReadTimeout = cfg.ReadTimeout;
             _port.WriteTimeout = cfg.WriteTimeout;
@@ -110,7 +116,8 @@ namespace NekoLib.Devices.Core.Transport
             }
 
             Log?.Invoke(LogLevel.Info,
-                $"[Transport] Config applied: {cfg.BaudRate}/{cfg.DataBits}/{cfg.Parity}/{cfg.StopBits}, NL='{cfg.NewLine}'");
+                $"[Transport] Config applied: {cfg.BaudRate}/{cfg.DataBits}/{cfg.Parity}/{cfg.StopBits}, " +
+                $"Handshake={cfg.Handshake}, DTR={cfg.DtrEnable}, RTS={cfg.RtsEnable}, NL='{cfg.NewLine}'");
         }
 
         /// <inheritdoc/>
@@ -296,22 +303,35 @@ namespace NekoLib.Devices.Core.Transport
                     var sb = new StringBuilder();
                     var sw = Stopwatch.StartNew();
                     var receivedLine = false;
+                    var configuredReadTimeout = _port.ReadTimeout;
 
-                    while(sw.ElapsedMilliseconds < timeoutMs)
+                    try
                     {
-                        ct.ThrowIfCancellationRequested();
+                        while(sw.ElapsedMilliseconds < timeoutMs)
+                        {
+                            ct.ThrowIfCancellationRequested();
 
-                        try
-                        {
-                            var line = _port.ReadLine();
-                            sb.Append(line);
-                            receivedLine = true;
-                            break;
+                            var remaining = timeoutMs - (int)sw.ElapsedMilliseconds;
+                            _port.ReadTimeout = Math.Max(1, Math.Min(50, remaining));
+
+                            try
+                            {
+                                var line = _port.ReadLine();
+                                sb.Append(line);
+                                receivedLine = true;
+                                break;
+                            }
+                            catch(TimeoutException)
+                            {
+                                // Use short bounded reads so the method-level timeout and
+                                // cancellation token remain authoritative even when the
+                                // configured SerialPort timeout is infinite.
+                            }
                         }
-                        catch(TimeoutException)
-                        {
-                            // Keep trying until total timeout
-                        }
+                    }
+                    finally
+                    {
+                        _port.ReadTimeout = configuredReadTimeout;
                     }
 
                     var result = receivedLine ? sb.ToString() : null;
@@ -460,6 +480,9 @@ namespace NekoLib.Devices.Core.Transport
 
             if(!Enum.IsDefined(typeof(StopBits), cfg.StopBits) || cfg.StopBits == StopBits.None)
                 throw new ArgumentOutOfRangeException(nameof(cfg.StopBits), cfg.StopBits, "StopBits must be a defined value other than None.");
+
+            if(!Enum.IsDefined(typeof(Handshake), cfg.Handshake))
+                throw new ArgumentOutOfRangeException(nameof(cfg.Handshake), cfg.Handshake, "Handshake must be a defined value.");
 
             if(cfg.ReadTimeout < -1)
                 throw new ArgumentOutOfRangeException(nameof(cfg.ReadTimeout), cfg.ReadTimeout, "ReadTimeout must be -1 (infinite) or greater.");

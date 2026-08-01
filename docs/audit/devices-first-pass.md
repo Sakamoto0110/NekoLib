@@ -155,6 +155,7 @@ This section records later outcomes without rewriting the 2026-06-10 snapshot:
 - Commit `ddd09d3` later added TCP and named-pipe stream transports, serialized
   complete `HardwareEngine` operations, and allowed `ProtocolRaw` callers to
   select a text encoding while preserving ASCII as the default.
-- Real COM-port behavior remains an unexecuted validation gap. It is not an
-  independently active task merely because it appears in this historical
-  audit; current work is authoritative only when listed in `TODO.md`.
+- The versioned `runtime_tests/Devices/Com0Com` scenario later closed the
+  virtual-COM execution gap on 2026-08-01 for both `net481` and `net9.0`. It
+  validates PCB-A and PCB-B through an independent emulator/protocol oracle;
+  physical UART and electrical behavior remain outside that evidence.

@@ -33,6 +33,9 @@ namespace NekoLib.Devices.Tests.Unit
                 cfg.Parity = Parity.Even;
                 cfg.DataBits = 7;
                 cfg.StopBits = StopBits.Two;
+                cfg.Handshake = Handshake.XOnXOff;
+                cfg.DtrEnable = true;
+                cfg.RtsEnable = true;
                 cfg.ReadTimeout = 123;
                 cfg.WriteTimeout = 456;
                 cfg.NewLine = "\n";
@@ -45,6 +48,9 @@ namespace NekoLib.Devices.Tests.Unit
                 Assert.Equal(Parity.Even, info.Parity);
                 Assert.Equal(7, info.DataBits);
                 Assert.Equal(StopBits.Two, info.StopBits);
+                Assert.Equal(Handshake.XOnXOff, info.Handshake);
+                Assert.True(info.DtrEnable);
+                Assert.True(info.RtsEnable);
                 Assert.Equal(123, info.ReadTimeout);
                 Assert.Equal(456, info.WriteTimeout);
                 Assert.Equal("\n", info.NewLine);
@@ -136,6 +142,18 @@ namespace NekoLib.Devices.Tests.Unit
             {
                 var cfg = BasicConfig();
                 cfg.StopBits = StopBits.None;
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
+            }
+        }
+
+        [Fact]
+        public void Configure_InvalidHandshake_Throws()
+        {
+            using (var transport = new SerialCommTransport())
+            {
+                var cfg = BasicConfig();
+                cfg.Handshake = (Handshake)int.MaxValue;
 
                 Assert.Throws<ArgumentOutOfRangeException>(() => transport.Configure(cfg));
             }

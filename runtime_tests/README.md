@@ -31,6 +31,7 @@ identity.
 
 | Scenario | Scope | Status at 2026-08-01 | Instructions |
 |---|---|---|---|
+| Devices / com0com serial parity | Real virtual-COM configuration, timeout/cancellation, read modes, reopen, PCB-A text and PCB-B binary protocol readiness | Interactive pass on `net481` and `net9.0` from working trees based on NekoLib `628442a` and emulator `9c9528f`; middleware behavior also confirmed visually by the user; repeat after immutable commits | [`Devices/Com0Com/README.md`](Devices/Com0Com/README.md) |
 | Navigation / WPF smoke | WPF page switching, idle, guards, overlays, reset, and shutdown | Build succeeds at scenario-source commit `32fc67e`; interactive procedure not rerun | [`Navigation/WpfSmoke/README.md`](Navigation/WpfSmoke/README.md) |
 | Watchdog / Supervisor481 | In-process Watchdog supervision driven through real Pipes RPC/events | Build succeeds at scenario-source commit `32fc67e`; interactive procedure not rerun | [`Watchdog/Supervisor481/README.md`](Watchdog/Supervisor481/README.md) |
 

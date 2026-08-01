@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Devices.RuntimeTests.Com0Com</RootNamespace>
+    <AssemblyName>NekoLib.Devices.RuntimeTests.Com0Com</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Devices\NekoLib.Devices\NekoLib.Devices.csproj" />
+  </ItemGroup>
+
+</Project>

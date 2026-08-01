@@ -131,6 +131,15 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>Number of stop bits.</summary>
         public StopBits StopBits;
 
+        /// <summary>Hardware/software flow-control mode.</summary>
+        public Handshake Handshake;
+
+        /// <summary>Whether the Data Terminal Ready line is enabled.</summary>
+        public bool DtrEnable;
+
+        /// <summary>Whether the Request To Send line is enabled.</summary>
+        public bool RtsEnable;
+
         /// <summary>Per-read timeout used by SerialPort.</summary>
         public int ReadTimeout = 50;
 

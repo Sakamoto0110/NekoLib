@@ -4,13 +4,68 @@
 
 **Lifecycle:** current
 
-**Subject:** open work, accepted decisions, freezes, and completion criteria
+**Subject:** current direction, live work, accepted future work, active freezes,
+phase gates, and completion criteria
 
-Completed architecture work through Phases A, B, and D is preserved in the
-[historical roadmap snapshot](docs/history/architecture-roadmap-through-phase-d-2026-08-01.md).
-Audit snapshots are indexed separately under [`docs/audit/`](docs/audit/README.md).
+**Direction decision date:** 2026-08-01
 
-## Frozen — deferred Inspection module rollout (B4/B5)
+Audit snapshots are indexed under [`docs/audit/`](docs/audit/README.md).
+Completed roadmap and validation history is indexed under
+[`docs/history/`](docs/history/README.md). Neither directory is a live issue
+tracker.
+
+## Current project direction
+
+> NekoLib is not feature-incomplete; it is confidence-incomplete in a few
+> areas.
+
+NekoLib has the feature families required for its current PDV/DM application
+scope. The active objective is to stabilize confidence in the existing
+framework through current reviews, real integration evidence, long-running
+scenarios, recovery validation, stability contracts, and targeted hardening.
+New feature families are not the current priority.
+
+**Current intention:** stabilize confidence in the existing framework.
+
+**Future intention:** prepare the stabilized framework to scale for larger and
+more critical consumer applications. This future intention is separate from
+confidence stabilization and does not imply fleet management, a central
+backend, or a universal application runtime.
+
+Future scale preparation is deliberately gated. No Phase F task may start
+until every Phase E exit criterion is complete, Phase E is archived, and Phase
+F is explicitly promoted.
+
+During confidence stabilization:
+
+- prefer evidence over new abstractions and narrow fixes over new modules;
+- keep project references shallow and preserve opt-in/NO-OP behavior;
+- preserve Logging, Telemetry, Inspection, Diagnostics, and
+  Diagnostics.Windows as distinct capabilities;
+- keep Windows-specific crash behavior isolated in Diagnostics.Windows;
+- keep Data, Devices, Mvvm, and Pipes independent of Core unless a separately
+  accepted, module-scoped decision changes that graph;
+- keep Watchdog a local process supervisor across a process/IPC boundary and
+  preserve its existing application-log forwarding and crash-notification
+  integration;
+- do not generalize application-specific infrastructure into the framework;
+- do not treat hypothetical fleet requirements as current product
+  requirements;
+- distinguish automated, build-only, manual, interactive, package, provider,
+  and hardware evidence truthfully;
+- do not treat a completed review, passing unit tests, a successful build, or
+  the absence of known findings as proof of real or long-running runtime
+  behavior.
+
+The current module map, targets, dependency graph, public entry points, and
+package overview remain owned by [`README.md`](README.md), current project
+files, and source. The coordinated package workflow uses immutable versions,
+package-consumer probes already exist, validation remains manually triggered,
+and Windows is required for full dual-target validation.
+
+## Active freezes
+
+### Deferred Inspection module rollout (B4/B5)
 
 **Freeze reason:** the Core contracts, global Inspection runtime, Navigation
 producer, and Diagnostics read-only consumer are proven, but broad module
@@ -26,19 +81,24 @@ value or a safe common contract. This is live context, not completed history.
   Inspection operations.
 - Diagnostics consumes only `IInspectionSnapshotSource`; incident collection
   cannot invoke Inspection actions.
-- Navigation telemetry owns the bounded page-switch timing producer accepted in
-  Phase D. That work does not authorize broader Inspection recording.
+- Navigation is the first accepted Phase D Telemetry producer and owns its
+  bounded page-switch timing. That work does not authorize broader Inspection
+  recording.
 
 **Known gaps and traps:**
 
-- Data, Pipes, Watchdog, Devices, and Diagnostics do not record feature-module
-  Inspection operations. A sample application calling `Record(...)` manually
-  is application instrumentation, not module instrumentation.
+- Data, Pipes, Devices, Watchdog, and Diagnostics do not automatically record
+  feature-module Inspection operations. A sample application calling
+  `Record(...)` manually is application instrumentation, not module
+  instrumentation.
 - No feature module registers a real Inspection action. Navigation stays
   read-only until async execution, cancellation, timeout, and UI-marshalling
   semantics are explicitly accepted.
 - Watchdog crash notification crosses IPC. Its log/crash integration must be
   designed separately from in-process module recording.
+- Passive instrumentation may remain an architectural concept, but it does not
+  require its own assembly. No action has demonstrated enough value to justify
+  an action rollout.
 
 **Existing seams:**
 
@@ -56,19 +116,514 @@ value or a safe common contract. This is live context, not completed history.
    Data or Pipes are the preferred first candidates.
 3. Preserve disabled/NO-OP behavior, module boundaries, and both supported
    target families.
-4. Restore the broad freeze after the authorized module scope is complete.
+4. Demonstrate any future action case first in a runtime scenario or an
+   application-owned test harness.
+5. Restore the broad freeze after the authorized module scope is complete.
 
-## Completed phases
+**Accepted deferral:** do not create an Instrumentation project family, a
+TestControl project, a plugin loader, a privileged IPC host, or a reflection
+activation system. Reflection is not a security boundary. Privileged remote
+control is unnecessary for confidence stabilization, and no implementation
+task for this idea is accepted by this roadmap.
 
-- Phase C repository documentation and organization completed on 2026-08-01.
-  See the commit-bound
-  [`completion and validation snapshot`](docs/history/phase-c-repository-hygiene-2026-08-01.md).
+### Navigation stability-sensitive core
 
-## Active architecture reviews
+The following components remain frozen after the accepted lifecycle and trace
+correction:
 
-- [ ] Complete the remaining Diagnostics-sector boundary and naming decisions.
-  - Review: [`docs/audit/diagnostics-boundaries-review-2026-07-30.md`](docs/audit/diagnostics-boundaries-review-2026-07-30.md)
-  - Baseline: `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
-  - Phase D implemented DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
-    TEST-01, and the accepted DBG-01 rename.
-  - Remaining review-only decisions: CRASH-01, CRASH-02, and WIN-01.
+- `NavigationContext`;
+- `NavigationRuntime`;
+- `PageRegistry`;
+- `PageFactory`.
+
+The WinForms/WPF adapter review does not authorize changes to these components.
+If an adapter finding appears to require a runtime change, it must first be
+confirmed by the review, record evidence, be promoted selectively to this
+roadmap, receive an explicit module-scoped unfreeze, and preserve the canonical
+lifecycle invariants. The freeze is restored after the authorized scope.
+
+## Phase E — Confidence stabilization
+
+**Status:** active.
+
+**Authorization:** active review and validation planning. This roadmap does not
+confirm speculative findings, start the listed reviews or scenarios merely by
+existing, or authorize product-code fixes before a finding is confirmed, its
+impact is understood, a direction is accepted, and implementation is genuinely
+intended. Phase E creates no new feature modules.
+
+Execute E1-E7 in order unless an explicitly recorded dependency justifies a
+different sequence.
+
+### E1 — NekoLib.Data review and accepted stabilization
+
+- [x] Complete a current, code-first, commit-bound review of `NekoLib.Data`.
+  The review and its executable evidence are preserved in the historical
+  [`Data stabilization review`](docs/audit/data-stabilization-review-2026-08-01.md)
+  against `master` at
+  `628442a58cdf2e2374cc7e48fa10d394d3fc3b87`. Both target frameworks built,
+  and the existing 23 tests passed on each target. No real provider execution
+  was claimed.
+
+**Promotion decision — 2026-08-01:** the confirmed findings below have accepted
+implementation directions and genuine implementation intent. They are now
+authoritative only in this roadmap; the historical review retains evidence,
+alternatives, provider research, and the complete reconciliation without
+owning implementation status. This promotion does not unfreeze broad Inspection
+instrumentation, add a Core reference to Data, add a provider package to the
+relational core, or authorize a MongoDB project.
+
+**Accepted audit conclusion:** the Data foundation is small and understandable,
+but its current confidence gaps are correctness, lifecycle, mapping, ownership,
+and executable provider evidence—not missing database brands. Phase E therefore
+stabilizes fail-closed query construction, authoritative operation outcomes, one
+typed-mapping contract, the minimum provider/session seam, dynamic-result
+lifetime, and contract tests. E4 owns real-provider execution and may promote
+only adaptations demonstrated by that evidence.
+
+#### E1.1 — Fail-closed query construction
+
+- [ ] **DATA-001 — Make collection predicates and DML fail closed.** Empty
+  `IN` produces a constant-false predicate; empty `NOT IN` produces a
+  constant-true predicate. Null collections and empty column names are caller
+  errors. Reject an `UPDATE` without a predicate unless the caller uses an
+  explicit all-rows opt-in. Cover empty, null, single, and multiple values and
+  the all-rows guard on both target frameworks.
+- [ ] **DATA-008 — Make QueryBuilder state transitions explicit.** Start with
+  an undefined query kind, preserve repeated `Build()` idempotence, and make
+  each query/projection mode replace or reject incompatible state rather than
+  retaining columns, `Distinct`, `Count`, `Top`, joins, or predicates from an
+  earlier statement.
+- [ ] **DATA-009 — Validate condition-template placeholders.** Require exact
+  placeholder arity, tokenize only the supported template grammar, and reject
+  missing or unused values before translation. Keep raw fragments explicitly
+  trusted; defer public member renames to the API-stability phase.
+- [ ] **DATA-010 — Fail fast for unsupported limited subqueries.** Until nested
+  query models are translated recursively, reject `Top` inside a subquery with
+  an actionable exception instead of silently dropping it. Preserve subquery
+  parameter isolation.
+- [ ] **DATA-020 — Make the raw-fragment trust boundary explicit.** Update
+  public XML documentation and tests so table, column, join, grouping,
+  ordering, and raw-condition strings are never described as protected by
+  value parameterization. Provider-specific identifier quoting remains part of
+  an accepted provider adapter, not one universal quoting rule.
+
+#### E1.2 — Authoritative operation and stream outcomes
+
+- [ ] **DATA-002 — Isolate query-event subscribers.** Keep event delivery
+  synchronous and ordered, invoke subscribers individually, and ensure a
+  throwing observer cannot prevent dispatch, turn a committed operation into a
+  failure, or mask the provider exception. Synchronous subscriber latency
+  remains part of the call and must be documented; this fix does not introduce
+  a background queue. Capture observer failures through a bounded,
+  non-recursive Data-local mechanism while preserving SQL and result redaction
+  defaults. Do not add Core or Inspection dependencies.
+- [ ] **DATA-011 — Give every stream exactly one terminal outcome.** Report
+  completed, failed, cancelled, or disposed-before-completion from the stream
+  lifetime, including early consumer disposal and empty-schema termination.
+  Resource cleanup and the database outcome remain authoritative even if a
+  terminal-outcome subscriber fails.
+
+#### E1.3 — One strict typed-mapping contract
+
+- [ ] **DATA-004 — Stop suppressing mapping failures.** Add a structured
+  mapping exception with column/property/source/target evidence and a
+  deliberate conversion matrix. Strict failure is the default; legacy lenient
+  behavior is available only through an explicit compatibility option.
+- [ ] **DATA-005 — Remove the invalid universal typed fallback.** Keep DTO,
+  `DynamicRow`, and raw paths separate; validate target construction and
+  delegate shape before opening a connection; never pass or cast a
+  `DynamicRow` as an unrelated DTO.
+- [ ] **DATA-006 — Use one reader-to-DTO pipeline.** Compile and reuse one
+  binding plan per schema and target type across buffered, callback, and
+  streaming APIs, with parity tests for nulls, enums, binary values, date/time,
+  numeric overflow, and unsupported conversions.
+
+**Accepted compatibility boundary:** DATA-017 does not redefine `RecordItem`.
+It remains an explicitly lossy display/export model. A separate lossless raw
+row type is not implementation work until a concrete consumer requires it.
+
+#### E1.4 — Provider, command, connection, and session seam
+
+- [ ] **DATA-003 — Bind positional providers by SQL occurrence.** Introduce a
+  small marker/binder seam; for OleDb, tokenize placeholders outside literals
+  and comments, render positional markers, and bind once per occurrence.
+  Reject missing parameters and define unused-value handling. Cover reversed,
+  repeated, quoted, commented, and prefix-colliding placeholders before the
+  real Access validation in E4.
+- [ ] **DATA-007 — Make synchronous fallback explicit.** Native async is the
+  default requirement. A provider that needs synchronous open/execute/read must
+  use an explicit opt-in policy, disabled by default, with cancellation checked
+  before the blocking call and its in-flight limitation documented. Do not use
+  `Task.Run` as a cancellation guarantee.
+- [ ] **DATA-013 — Add portable parameter and command policy.** Introduce a
+  multi-target ordinary-class parameter specification for `DbType`, size,
+  precision, scale, direction, and null value. Add explicit command-timeout
+  defaults and overrides. Keep all concrete provider packages outside
+  `NekoLib.Data`; introduce a provider-native hook only if E4 evidence proves
+  that the portable metadata cannot express an accepted provider requirement.
+- [ ] **DATA-014 — Make factory and session ownership explicit.** Support
+  explicit context-owned versus externally owned factories and validate session
+  connection state and affinity before command creation. Preserve the existing
+  generic string factory as a compatibility adapter. Add data-source-style or
+  cancellable create/open contracts only when an E4 provider demonstrates the
+  need and the ownership behavior is covered by provider-independent tests.
+- [ ] **DATA-015 — Make DML and transaction participation symmetric.** Add
+  session-aware QueryBuilder DML overloads, align concrete and interface
+  behavior without a namespace move, and allow a valid new transaction after
+  commit or rollback while preserving nested-depth rules. Defer new async
+  transaction APIs until real-provider evidence establishes a dual-target
+  contract.
+
+#### E1.5 — Dynamic-result stability
+
+- [ ] **DATA-012 — Align dynamic null and type-lifetime behavior.** Keep
+  Expando as the production default. Make IL and Expando null semantics
+  equivalent, replace eviction with a process-wide non-evicting schema cap so a
+  new schema falls back or fails after the cap instead of causing type
+  re-emission, and measure IL value before deciding whether the mode remains
+  supported. Per-context options must not pretend to own process-global emitted
+  types.
+
+#### E1.6 — Contract tests and source hygiene
+
+- [ ] **DATA-018 — Add provider-independent gateway contract tests.** Use fake
+  ADO.NET objects to cover connection/command/reader disposal, cancellation,
+  observer isolation, mapping, streaming, session affinity, transactions, and
+  failure paths on both target frameworks. These tests do not count as real
+  provider coverage.
+- [ ] **DATA-019 — Remove dead and mixed-language source material.** Delete the
+  fully commented duplicate `Connection/DbSession.cs` after a final reference
+  search and translate public Data XML documentation to English. Keep the
+  cleanup separate from behavioral commits where practical.
+- [ ] After E1.1-E1.5, run Data tests on both targets and the full solution,
+  compare warning identities, and append implementation reconciliation to the
+  dated Data stabilization review.
+
+#### E1.7 — Explicitly deferred or non-promoted review items
+
+- **DATA-016:** a namespace move, overload removal, and broad public API cleanup
+  are breaking-change work gated by F1. Only the non-breaking session parity in
+  DATA-015 is active now.
+- **DATA-017:** preserve the documented lossy `RecordItem` contract; no new raw
+  model is accepted without a consumer.
+- Relational provider candidates are a validation matrix, not support claims or
+  dependencies to add speculatively. E4 owns real-provider execution.
+- MongoDB remains an application-owned native-driver integration during Phase
+  E. Do not model it as `IDbQueryTranslator`, emulate SQL over it, or create
+  `NekoLib.Data.MongoDB` without a later explicit use-case decision.
+- Redis, LiteDB, Elasticsearch/OpenSearch, and specialized stores remain native
+  application capabilities, not interchangeable providers for this SQL gateway.
+
+Implementation order is E1.1, then E1.2/E1.3, E1.4, E1.5, and E1.6. A smaller
+regression may land independently only when it preserves the accepted shared
+seam and includes its dual-target tests.
+
+### E2 — Navigation WinForms/WPF adapter review
+
+- [ ] Complete a deep native-adapter review without automatically reopening
+  the Navigation core.
+
+WinForms scope:
+
+- UI-thread dispatch, `Control.Invoke`/`BeginInvoke`, handle creation and
+  destruction, host lifecycle, and page attach/detach;
+- overlay-host behavior for Dialog, Prompt, Toast, and Popover;
+- idle interaction tracking, including dynamically added and removed controls;
+- shutdown while surfaces are open, form-close behavior, and repeated
+  mount/shutdown;
+- DPI, resize, focus, multi-monitor positioning where applicable, disposed
+  controls, exception propagation, and designer/runtime interaction.
+
+WPF scope:
+
+- Dispatcher behavior, Window lifecycle, host and view attach/detach, overlays,
+  idle integration, shutdown, and repeated mounting;
+- focus, DPI/resize, exception propagation, parity with intended Navigation
+  contracts, and behavior that legitimately differs from WinForms.
+
+Validation requirements:
+
+- fake-based automated tests do not replace native interactive evidence;
+- build success does not equal runtime success;
+- create or refresh a versioned WinForms runtime scenario;
+- refresh and execute the versioned WPF smoke scenario;
+- record the last verified date and commit, distinguishing automated, manual,
+  build-only, and interactive evidence;
+- preserve lifecycle ordering, navigation-gate behavior, overlay teardown
+  asymmetry, and static-facade semantics;
+- keep any finding that requires a core change in the review until a separate
+  unfreeze decision is accepted.
+
+### E3 — Long-running and recovery confidence
+
+- [ ] Create small, specific, reproducible scenarios for unattended execution
+  over long periods without creating a new runtime framework.
+
+Required coverage:
+
+- **Navigation:** thousands of page switches; forward/back and login/logout
+  cycles; reset cycles; repeated `Start`/`Shutdown`; cache reuse; weak and
+  strong page lifetimes; background loading; redirects; guard rejection;
+  overlay repetition; idle-timeout cycles; memory growth; retained handlers;
+  disposal.
+- **Logging:** sustained writes at expected PDV volume; sink-failure isolation;
+  rolling-file rotation; retained-file count; flush during an incident;
+  shutdown/disposal; bounded recent snapshots.
+- **Telemetry:** bounded retention; operation completion; abandoned operations
+  if relevant; checkpoint ordering; correlation; snapshot behavior under
+  sustained activity.
+- **Inspection:** bounded operation retention; state-provider timeout; provider
+  failure isolation; enable/dispose cycles; no action rollout.
+- **Pipes:** sustained request/response; reconnect; subscriber churn; slow
+  subscribers; frame-size failures; timeouts; dispose while active;
+  memory/thread growth.
+- **Watchdog:** repeated child exit/restart; clean shutdown; fast crash loops;
+  attach/bootstrap; logging forwarding; crash-bundle finalization; Host restart
+  behavior; no duplicate supervision.
+- **Devices:** repeated timeout and recovery; reconnect; delayed responses;
+  endpoint-switching rules; serialized operations; transport disposal;
+  cancellation; late-response isolation.
+- **Data:** repeated connection/session use; disposal; transaction cycles;
+  streaming cleanup; provider failures; cancellation where supported.
+
+Measure success where practical: no unbounded memory or handler growth; no
+leaked process, thread, or pipe handles; no deadlock; no unreleased semaphore
+or gate; bounded queue behavior; deterministic cleanup; and expected terminal
+outcomes. Do not invent hard performance thresholds before measurements exist.
+
+### E4 — Real integration validation
+
+- [ ] Close the gap between in-process/fake evidence and external-system
+  behavior.
+
+Devices:
+
+- [x] validate real or emulated COM-port behavior while preserving an
+  independent emulator/test oracle and real protocol readiness checks. The
+  versioned [`Devices / com0com serial parity`](runtime_tests/Devices/Com0Com/README.md)
+  scenario passed on `net481` and `net9.0` on 2026-08-01;
+- do not infer physical serial correctness from TCP, named-pipe, stream, or
+  fake transports;
+- document prerequisites, cleanup, platform assumptions, and driver
+  assumptions.
+
+Data:
+
+- [ ] use SQLite as the local relational baseline for connection, transaction,
+  mapping, cancellation, streaming, and failure behavior with a deliberately
+  created fixture;
+- [ ] verify positional OleDb/Access binding and DML on `net481`, recording the
+  installed provider, architecture, fixture, and machine prerequisites;
+- [ ] select at most one initial server provider from SQL Server, PostgreSQL, or
+  MySQL based on an actual consumer, then validate pooling/data-source ownership,
+  network failure, cancellation, transactions, and mapping before claiming
+  support;
+- keep concrete provider packages outside the relational core and record exact
+  package, target, architecture, and server versions in validation evidence;
+- promote provider-native parameter hooks, data-source lifecycle adapters, or
+  cancellable factory expansion only from a concrete gap observed in this
+  provider evidence;
+- distinguish translator/build tests, fake ADO.NET contract tests, and real
+  command execution truthfully;
+- do not cite tracked-but-unused fixtures as coverage and do not include MongoDB
+  in the relational provider matrix.
+
+Navigation native WinForms/WPF interactive scenarios belong to E2, not generic
+unit coverage. Any Watchdog scenario that claims package behavior must use the
+deployed sidecar layout.
+
+### E5 — Pipes and IPC hardening review
+
+- [ ] Reverify the current IPC boundary before promoting hardening work.
+
+Historical leads include pipe ACL/security, a per-subscriber bounded queue, an
+explicit drop policy, and graceful drain of in-flight work during disposal.
+They are not automatically accepted tasks.
+
+The review must determine:
+
+- the current threat model and whether only same-user trusted processes are
+  supported;
+- whether Watchdog commands require stronger authorization, whether privileged
+  commands exist, and whether an untrusted local process can reach endpoints;
+- pipe-name predictability and squatting risk;
+- message-size and depth limits, error sanitization, and replay or duplicate
+  requests where relevant;
+- subscriber backpressure and shutdown behavior;
+- target-specific `net481`/`net9.0` differences.
+
+Only after confirmation and an accepted decision may hardening be promoted as
+implementation work. Rejected alternatives and rationale stay in the audit.
+Do not turn Pipes into a service bus or generic security framework. This phase
+does not authorize TestControl or Instrumentation IPC.
+
+### E6 — Complete the Diagnostics-sector review
+
+- [ ] Complete the remaining decisions in
+  [`docs/audit/diagnostics-boundaries-review-2026-07-30.md`](docs/audit/diagnostics-boundaries-review-2026-07-30.md).
+
+**Original review baseline:** `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
+
+Phase D already implemented DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
+TEST-01, and the accepted DBG-01 rename/boundary direction. The only remaining
+review-only decisions are CRASH-01, CRASH-02, and WIN-01:
+
+- **CRASH-01:** decide whether cross-platform Diagnostics should expose Windows
+  minidump vocabulary. Preserve current Windows behavior unless a migration is
+  accepted; do not build a Linux adapter merely to resolve vocabulary.
+- **CRASH-02:** decide whether Watchdog-specific notification policy remains in
+  `CrashHandler`; consider composition-root ownership while preserving the
+  working IPC integration. Do not break crash notification while cleaning the
+  architecture.
+- **WIN-01:** decide hook lifecycle, including one-shot versus reversible
+  installation, idempotence, duplicate handlers, physical filename cleanup,
+  and Windows-only validation.
+
+Completing the review does not authorize implementation. Accepted work is
+promoted selectively to this roadmap; rejected alternatives remain in the
+review. Mark the review historical only when every decision is resolved, and
+append reconciliation rather than rewriting the original snapshot.
+
+### E7 — Confidence stabilization closure
+
+- [ ] Close and archive Phase E after E1-E6 are complete or have an explicitly
+  accepted disposition.
+
+Closure work:
+
+- reconcile current documentation and remove duplicate active-work lists;
+- run documentation and solution-membership verification;
+- rebuild both target families on Windows and run the full solution tests;
+- run the relevant runtime scenarios and record the evidence type truthfully;
+- run package-consumer probes with a new immutable package version when package
+  inputs changed;
+- compare normalized warning identities rather than warning counts;
+- create a dated, commit-bound validation snapshot;
+- archive the completed Phase E work log and retain only live freezes and
+  remaining work in this file.
+
+## Phase E exit criteria
+
+Phase E may be marked complete only when:
+
+- [x] Data has a current commit-bound review.
+- [x] Every promoted Data finding was reverified against current code.
+- [ ] WinForms has a current adapter review.
+- [ ] WPF has a current adapter review.
+- [ ] A current versioned WinForms runtime scenario exists and has truthful
+  status.
+- [ ] The WPF runtime scenario has truthful build and interactive status.
+- [ ] Long-running/recovery scenarios are reproducible.
+- [ ] Results distinguish automated, build-only, manual, and interactive
+  evidence.
+- [ ] Data real-provider validation has a deliberate scope and outcome.
+- [x] Devices COM-port validation has an executed or explicitly accepted
+  disposition.
+- [ ] Pipes/IPC hardening leads have been reverified.
+- [ ] The Diagnostics-sector review is complete.
+- [x] No confirmed high-impact correctness issue lacks an accepted
+  disposition.
+- [ ] Both target families build successfully on Windows.
+- [ ] The full automated suite passes.
+- [ ] No new normalized warning identity exists.
+- [ ] Package-consumer probes pass when package inputs change.
+- [ ] The final state is recorded in a dated, commit-bound snapshot.
+- [ ] This roadmap contains no duplicate active-work list.
+- [ ] All live freezes retain their complete resume context.
+
+Completing these checkboxes does not automatically start Phase F. Phase F must
+be explicitly promoted after Phase E is archived.
+
+## Phase F — Scale preparation (gated)
+
+> **Status: GATED — NOT ACTIVE.** Do not implement, investigate incidentally,
+> or create files for these candidates. No Phase F work may start before Phase
+> E is complete and archived. Explicit promotion is required after Phase E
+> closure.
+
+### F1 — Public API and release stability
+
+**GATED — DO NOT START.** Define a SemVer policy; stable versus experimental
+APIs; coordinated package-family compatibility; changelog and real migration
+guidance; automated public API compatibility checks; breaking-change approval;
+deprecation policy; and a support window if multiple package versions are
+maintained.
+
+### F2 — Automated release confidence
+
+**GATED — DO NOT START.** Evaluate Windows CI by reusing the existing `eng/`
+scripts to build `net481` and `net9.0`/`net9.0-windows`, run full tests and
+documentation verification, compare warning identities, produce disposable
+package validation, run package-consumer probes, and verify Watchdog Host
+payloads. Do not create a second build/pack pipeline. CI would prepare for more
+consumers and contributors, not create an enterprise platform.
+
+### F3 — Measured performance and resource budgets
+
+**GATED — DO NOT START.** Derive budgets from Phase E measurements. Benchmark
+only confirmed hot paths and define evidence-based expectations for Navigation
+latency, Logging overhead, Telemetry/Inspection memory bounds, Pipes throughput
+relevant to actual use, meaningful Data mapping/query overhead, Watchdog
+recovery, and memory growth during unattended operation. Do not redesign
+synchronous Logging, Telemetry retention, or Navigation lifecycle without
+measured evidence.
+
+### F4 — Optional external evidence export
+
+**GATED — DO NOT START.** Only after a demonstrated deployment requirement,
+evaluate crash-bundle upload, log export, telemetry export, offline buffering,
+retry/backoff, redaction, application/device identity, and transport ownership.
+Keep boundaries small. Do not add a backend implementation to Core, dashboard
+implementation to Diagnostics, remote administration to Watchdog, cloud SDK
+dependency to feature modules, or an enterprise observability stack by
+default.
+
+### F5 — Fleet-management assessment
+
+**GATED — DO NOT START.** This is an assessment, not an assumed framework
+feature. If managing many installed terminals becomes an accepted product goal,
+evaluate a companion product or agent for installation/device identity,
+enrollment, authentication, remote configuration, update distribution,
+rollback, credential rotation, crash/log/telemetry collection, offline
+behavior, a central API, and an operator dashboard.
+
+NekoLib base remains a local application framework. Fleet management must not
+be forced into Core, Navigation, Diagnostics, or Watchdog. Watchdog remains a
+local supervisor unless a separate product direction is accepted. Update
+orchestration being `not_implemented` is not a confidence blocker for the
+current application-framework scope. A future fleet agent may consume NekoLib
+packages without becoming part of the base framework.
+
+### F6 — Intentional portability preparation
+
+**GATED — DO NOT START.** Only if Linux or another platform becomes an accepted
+target, preserve platform-neutral Core contracts, keep Diagnostics.Windows
+isolated, audit actual WinAPI use, and define a platform adapter only for a real
+runtime target. Do not dilute current Windows behavior prematurely or claim
+portability merely because a library targets plain `net9.0`.
+
+## Explicit non-goals
+
+During Phase E and while Phase F remains gated, do not create a generic
+application host, Neko-specific DI container, Microsoft DI wrapper, global
+service registry, message bus, event bus, universal exception policy, HTTP
+client abstraction, API gateway, ORM expansion, repository/unit-of-work
+framework, scheduler, job engine, distributed cache, configuration framework,
+secret manager, plugin platform, Instrumentation project family, TestControl
+project, generic remote debugger, cloud backend, dashboard, updater inside
+Watchdog, or fleet-control plane.
+
+These candidates require a real use case and an explicit decision before they
+may enter the roadmap.
+
+## Completed phases and history
+
+- Phases A, B, and D are complete and historical. See the
+  [`architecture roadmap through Phase D`](docs/history/architecture-roadmap-through-phase-d-2026-08-01.md).
+- Phase C repository hygiene is complete. Its commit-bound validation remains
+  historical evidence in the
+  [`Phase C completion snapshot`](docs/history/phase-c-repository-hygiene-2026-08-01.md).
+
+Historical test, warning, project, and package counts remain in their dated,
+commit-bound snapshots and are not repeated in this live roadmap.

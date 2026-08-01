@@ -14,6 +14,25 @@ namespace NekoLib.Devices.Tests.Unit
     public class StreamCommTransportTests
     {
         [Fact]
+        public void Configure_SerialOnlyFields_ArePreservedInSnapshot()
+        {
+            using (var transport = new TcpCommTransport("127.0.0.1", 5001))
+            {
+                var cfg = StreamConfig("\r\n");
+                cfg.Handshake = System.IO.Ports.Handshake.RequestToSend;
+                cfg.DtrEnable = true;
+                cfg.RtsEnable = true;
+
+                transport.Configure(cfg);
+                var snapshot = transport.PortInfo;
+
+                Assert.Equal(System.IO.Ports.Handshake.RequestToSend, snapshot.Handshake);
+                Assert.True(snapshot.DtrEnable);
+                Assert.True(snapshot.RtsEnable);
+            }
+        }
+
+        [Fact]
         public async Task TcpTransport_FragmentedExchange_PreservesFramingAndExcessBytes()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
