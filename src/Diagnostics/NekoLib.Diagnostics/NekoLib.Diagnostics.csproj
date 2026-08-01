@@ -34,4 +34,8 @@
 		<NoWarn>$(NoWarn);1591</NoWarn>
 	</PropertyGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\..\Core\NekoLib.Core\NekoLib.Core.csproj" />
+	</ItemGroup>
+
 </Project>

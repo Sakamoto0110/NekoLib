@@ -65,7 +65,7 @@ public sealed class AdminPage : PageView { }
 **→ Full technical reference:
 [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md)**
 — lifecycle order, guards, reuse policies, load modes, overlays, platform
-adapters, observability, and the stability-sensitive components.
+adapters, logging, telemetry, Inspection, and the stability-sensitive components.
 
 ## Optional modules
 
@@ -74,38 +74,75 @@ optional unless one of their documented dependents brings them transitively.
 
 | Module | What it gives you |
 |---|---|
-| `NekoLib.Core` | Shared contracts — `ILogger`, `ILogSink`, `ITelemetrySink`, `IDiagnosticsContext`, `IDebugUtils` — plus null objects and the process-wide `DebugUtilsProvider` slot. Zero dependencies. |
-| `NekoLib.Logger` | Concrete logging: `Logger`, `Diagnostics` context, `DebugLogSink`, `MemoryTelemetrySink`. |
-| `NekoLib.Diagnostics` | Crash orchestration: `CrashHandler` hooks AppDomain and TaskScheduler and writes a crash bundle with `crash.txt` and log tails. Dump writing is pluggable. |
+| `NekoLib.Core` | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
+| `NekoLib.Logging` | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
+| `NekoLib.Telemetry` | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
+| `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
 | `NekoLib.Data` | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, streaming, and transactions. |
 | `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
 | `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | `NekoLib.Devices` | Serial port and hardware protocol abstraction. |
-| `NekoLib.DebugUtils` | Process-wide, singleton, opt-in observability hub: sequenced operation ring buffer, pull-based state providers, runtime diagnostics, and command infrastructure. No-op when disabled. Broad module instrumentation remains frozen — see [`TODO.md`](TODO.md). |
+| `NekoLib.Inspection` | Opt-in in-process runtime inspection: a bounded operation buffer, pull-based state providers, runtime diagnostics, and constrained actions. No-op when disabled. Broad module instrumentation remains frozen — see [`TODO.md`](TODO.md). |
 
-Enable hard diagnostics explicitly in the application process:
+Ordinary logging does not require Diagnostics or Inspection:
 
 ```csharp
-using var debug = DebugUtilsRuntime.EnableGlobal();
+var fileSink = new RollingFileLogSink(new RollingFileLogSinkOptions
+{
+    FilePath = Path.Combine(AppContext.BaseDirectory, "logs", "app.log"),
+    MaximumFileBytes = 2 * 1024 * 1024,
+    RetainedFileCount = 4
+});
+using var logger = new Logger(LogLevel.Info, fileSink);
+logger.Info("Application started", category: "Startup");
+```
+
+Telemetry and Inspection are separate opt-in capabilities. Navigation accepts
+each Core contract independently:
+
+```csharp
+var telemetry = new TelemetryPipeline();
+using var inspection = InspectionRuntime.EnableGlobal();
 
 PageNavBootstrap
     .Use<WinFormsPlatformAdapter>(mainPanel)
-    .UseDebugUtils()
+    .UseLogging(logger)
+    .UseTelemetry(telemetry)
+    .UseInspection()
     // page registration/configuration
     .Start();
 ```
 
-`DebugUtilsProvider.Current` lives in Core and defaults to
-`NullDebugUtils.Instance`; modules keep working normally when the hub is absent.
-Only one global runtime may be active. Disposing it restores the NO-OP and clears
-operations, state providers and commands. The overload
-`UseDebugUtils(IDebugUtils)` remains available for an explicit non-global sink.
-Navigation projects correlated request/attempt/page/background/surface/idle
-telemetry and 16 context-backed snapshots; the exact keys and lifecycle are in
-the [Navigation diagnostics reference](src/Navigation/NekoLib.Navigation/README.md#diagnostics-and-observability).
-No feature module registers a DebugUtils command yet.
+`InspectionProvider.Current` lives in Core and defaults to
+`NullInspection.Instance`. Only one global runtime may be active. Disposing it
+restores the NO-OP and clears operations, state providers, and actions. The
+overload `UseInspection(IInspectionRecorder)` accepts an explicit non-global
+recorder. Diagnostics sees only `IInspectionSnapshotSource`, so it cannot invoke
+registered actions.
+
+Navigation telemetry creates one correlated `Navigation/page_switch` operation.
+It owns the page-switch start and synchronous lifecycle-completed `page_ready`
+boundaries; an application guard may report the intermediate authentication
+checkpoint through `NavigationArgs.WithTiming(...)`. This yields total,
+time-to-authenticated, and post-auth-to-ready measurements without claiming pure
+HTTP or first-paint timings.
+
+At the composition root, the same independent implementations can be supplied
+to incident capture without creating feature-module dependencies:
+
+```csharp
+var crashes = new CrashHandler(new CrashHandlerOptions
+{
+    CrashRootDirectory = Path.Combine(AppContext.BaseDirectory, "crash"),
+    Logger = logger,
+    TelemetrySnapshotSource = telemetry,
+    InspectionSnapshotSource = inspection,
+    EvidenceCollectionTimeout = TimeSpan.FromMilliseconds(250)
+});
+crashes.Install();
+```
 
 ## Compatibility
 
@@ -209,9 +246,10 @@ require packages to have been produced first.
 | Module | Path | Targets | References |
 |---|---|---|---|
 | `NekoLib.Core` | `src/Core/NekoLib.Core/` | net481, net9.0 | — |
-| `NekoLib.Logger` | `src/Diagnostics/NekoLib.Logger/` | net481, net9.0 | Core |
-| `NekoLib.DebugUtils` | `src/DebugUtils/NekoLib.DebugUtils/` | net481, net9.0 | Core |
-| `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | — |
+| `NekoLib.Logging` | `src/Logging/NekoLib.Logging/` | net481, net9.0 | Core |
+| `NekoLib.Telemetry` | `src/Telemetry/NekoLib.Telemetry/` | net481, net9.0 | Core |
+| `NekoLib.Inspection` | `src/Inspection/NekoLib.Inspection/` | net481, net9.0 | Core |
+| `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | Core |
 | `NekoLib.Diagnostics.Windows` | `src/Diagnostics/NekoLib.Diagnostics.Windows/` | net481, net9.0-windows | Diagnostics |
 | `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0 | Core |
 | `NekoLib.Navigation.WinForms` | `src/Navigation/NekoLib.Navigation.WinForms/` | net481, net9.0-windows | Navigation |
@@ -227,8 +265,9 @@ require packages to have been produced first.
 Inside Navigation, dependencies flow one way:
 `Adapters` → `Runtime` → `Contracts`. Across packages, dependencies follow the
 `References` column above: platform adapters depend on Navigation,
-Diagnostics.Windows depends on Diagnostics, and Watchdog depends on Core and
-Pipes. The graph has no cycles.
+Diagnostics.Windows depends on Diagnostics; Logging, Telemetry, Inspection, and
+Diagnostics depend only on Core; Watchdog depends on Core and Pipes. The graph
+has no cycles.
 
 `src/Tools/BundlerTool/` is a standalone dev utility and is not part of
 `NekoLib.sln`.
@@ -238,7 +277,7 @@ Pipes. The graph has no cycles.
 | | |
 |---|---|
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
-| Roadmap, phase plan, and the observability freeze | [`TODO.md`](TODO.md) |
+| Roadmap, phase plan, and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Per-module audits and their open items | [`docs/audit/`](docs/audit/) |
 | Data module audit | [`src/Data/NekoLib.Data/DataAudit.md`](src/Data/NekoLib.Data/DataAudit.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |

@@ -9,7 +9,7 @@ namespace NekoLib.PackageConsumers.Wpf9
         {
             var packageTypes = new[]
             {
-                typeof(NekoLib.Core.Diagnostics.ILogger),
+                typeof(NekoLib.Core.Logging.ILogger),
                 typeof(NekoLib.Mvvm.ViewModelBase),
                 typeof(NekoLib.Navigation.Contracts.Pages.IPageView),
                 typeof(NekoLib.Navigation.Wpf.Adapters.WpfPlatformAdapter)

@@ -1,6 +1,7 @@
-﻿
-using NekoLib.Core.Diagnostics;
-using NekoLib.Core.Observability;
+
+using NekoLib.Core.Inspection;
+using NekoLib.Core.Logging;
+using NekoLib.Core.Telemetry;
 using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
@@ -35,9 +36,10 @@ namespace NekoLib.Navigation.Bootstrap
         private Action<PageMetadataBuilder>? _pageConfig;
         private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
 
-        private IDiagnosticsContext _diagnostics;
-        private IDebugUtils? _debugUtils;
-        private bool _useGlobalDebugUtils;
+        private ILogger? _logger;
+        private ITelemetry? _telemetry;
+        private IInspectionRecorder? _inspection;
+        private bool _useGlobalInspection;
 
         private int _idleTimeoutMs;
 
@@ -95,36 +97,46 @@ namespace NekoLib.Navigation.Bootstrap
         }
 
         /// <summary>
-        /// Bridge navigation diagnostics into the provided diagnostics context.
-        /// Local navigation events are still available through the context/event hub.
+        /// Project navigation outcomes into the independent logging pipeline.
         /// </summary>
-        public PageNavBootstrap UseDiagnostics(IDiagnosticsContext diagnostics)
+        public PageNavBootstrap UseLogging(ILogger logger)
         {
-            _diagnostics = diagnostics;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            return this;
+        }
+
+        /// <summary>
+        /// Capture correlated page-switch operations in the independent telemetry
+        /// pipeline. Authentication remains application-owned and is reported
+        /// through <c>NavigationTimingContext</c> when supplied in the arguments.
+        /// </summary>
+        public PageNavBootstrap UseTelemetry(ITelemetry telemetry)
+        {
+            _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             return this;
         }
 
         /// <summary>
         /// Forward navigation events into an opt-in observability sink (debug builds).
-        /// A disabled sink (e.g. <see cref="NullDebugUtils"/>) is a no-op. Events stay
+        /// A disabled sink (e.g. <see cref="NullInspection"/>) is a no-op. Events stay
         /// available through the context event hub regardless.
         /// </summary>
-        public PageNavBootstrap UseDebugUtils(IDebugUtils debug)
+        public PageNavBootstrap UseInspection(IInspectionRecorder inspection)
         {
-            _debugUtils = debug ?? throw new ArgumentNullException(nameof(debug));
-            _useGlobalDebugUtils = false;
+            _inspection = inspection ?? throw new ArgumentNullException(nameof(inspection));
+            _useGlobalInspection = false;
             return this;
         }
 
         /// <summary>
         /// Resolve the opt-in process-wide observability hub from
-        /// <see cref="DebugUtilsProvider.Current"/> when <see cref="Start"/> runs.
+        /// <see cref="InspectionProvider.Current"/> when <see cref="Start"/> runs.
         /// If the current hub is the no-op implementation, no observer is attached.
         /// </summary>
-        public PageNavBootstrap UseDebugUtils()
+        public PageNavBootstrap UseInspection()
         {
-            _debugUtils = null;
-            _useGlobalDebugUtils = true;
+            _inspection = null;
+            _useGlobalInspection = true;
             return this;
         }
 
@@ -430,8 +442,8 @@ namespace NekoLib.Navigation.Bootstrap
                 host: host,
                 services: services,
                 registry: registry,
-                diagnosticsContext: _diagnostics,
-                platform: _platform
+                platform: _platform,
+                logger: _logger
             );
             // ------------------------------------------------------------
             // 7) Diagnostics bridge (optional)
@@ -439,9 +451,9 @@ namespace NekoLib.Navigation.Bootstrap
 
             // Opt-in observability: the observer projects the runtime's internal
             // scalar trace without retaining pages or payloads. No-op when disabled.
-            var resolvedDebugUtils = _useGlobalDebugUtils
-                ? DebugUtilsProvider.Current
-                : _debugUtils;
+            var resolvedInspection = _useGlobalInspection
+                ? InspectionProvider.Current
+                : _inspection;
 
             services.Register(context);
 
@@ -478,9 +490,15 @@ namespace NekoLib.Navigation.Bootstrap
             // NavigationService.UseContext(ctx) step. Tests of the bootstrap
             // itself MUST call NavigationService.Shutdown() in teardown so the
             // next test starts clean (UseContext throws on double-mount).
-            var debugUtilsObserver = resolvedDebugUtils != null && resolvedDebugUtils.IsEnabled
-                ? DebugUtilsNavigationObserver.Attach(context, resolvedDebugUtils)
+            var inspectionObserver = resolvedInspection != null && resolvedInspection.IsEnabled
+                ? InspectionNavigationObserver.Attach(context, resolvedInspection)
                 : NekoLib.Core.Disposable.Empty;
+            var telemetryObserver = _telemetry != null
+                ? NavigationTelemetryObserver.Attach(context.Events, _telemetry)
+                : NekoLib.Core.Disposable.Empty;
+            var observationLifetime = NavigationObservationLifetime.Combine(
+                inspectionObserver,
+                telemetryObserver);
 
             try
             {
@@ -491,12 +509,12 @@ namespace NekoLib.Navigation.Bootstrap
 
                 NavigationService.UseContext(
                     context,
-                    debugUtilsObserver,
+                    observationLifetime,
                     bootstrapLifetime);
             }
             catch
             {
-                try { debugUtilsObserver.Dispose(); }
+                try { observationLifetime.Dispose(); }
                 catch { }
                 throw;
             }

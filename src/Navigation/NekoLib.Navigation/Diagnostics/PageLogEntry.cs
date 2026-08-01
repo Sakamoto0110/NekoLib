@@ -1,5 +1,4 @@
 #nullable enable
-using NekoLib.Core.Diagnostics;
 using NekoLib.Navigation.Metadata;
 using NekoLib.Navigation.Runtime;
 using System;
@@ -10,7 +9,7 @@ namespace NekoLib.Navigation.Diagnostics
     /// Immutable navigation outcome used for diagnostics and tracing.
     /// This is not a general-purpose logger entry.
     /// </summary>
-    public class PageLogEntry : LogEntry
+    public sealed class PageLogEntry
     {
         public Type? FromPageType { get; }
         public string? FromPageName { get; }
@@ -18,7 +17,7 @@ namespace NekoLib.Navigation.Diagnostics
         public string ToPageName { get; }
 
         /// <summary>UTC timestamp at which the correlated request began.</summary>
-        public new DateTime TimestampUtc { get; }
+        public DateTime TimestampUtc { get; }
         public PagePresentationMode Presentation { get; }
         public NavigationLoadMode LoadMode { get; }
         public PageReusePolicy ReusePolicy { get; }
@@ -138,11 +137,6 @@ namespace NekoLib.Navigation.Diagnostics
             int redirectDepth,
             string? trigger,
             long durationMilliseconds)
-            : base(
-                timestampUtc,
-                success ? LogLevel.Info : LogLevel.Error,
-                string.Empty,
-                null)
         {
             FromPageType = fromType;
             FromPageName = fromName;

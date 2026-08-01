@@ -1,3 +1,5 @@
+using NekoLib.Navigation.Telemetry;
+
 namespace NekoLib.Navigation.Metadata;
 
 /// <summary>
@@ -37,11 +39,23 @@ public sealed class NavigationArgs
     /// </summary>
     public bool IsBackNavigation { get; }
 
-    private NavigationArgs(object payload, NavigationLoadMode loadMode, bool isBackNavigation = false)
+    /// <summary>
+    /// Optional application-owned timing correlation. Custom guards can report
+    /// authentication completion without exposing authentication or API details
+    /// to the Navigation runtime.
+    /// </summary>
+    public NavigationTimingContext? Timing { get; }
+
+    private NavigationArgs(
+        object payload,
+        NavigationLoadMode loadMode,
+        bool isBackNavigation = false,
+        NavigationTimingContext? timing = null)
     {
         Payload = payload;
         LoadMode = loadMode;
         IsBackNavigation = isBackNavigation;
+        Timing = timing;
     }
 
     // Factories
@@ -85,11 +99,22 @@ public sealed class NavigationArgs
         => new(state, NavigationLoadMode.ShowImmediately, isBackNavigation: true);
 
     /// <summary>
+    /// Returns a request copy correlated with application-supplied page-switch
+    /// timing checkpoints.
+    /// </summary>
+    public NavigationArgs WithTiming(NavigationTimingContext timing)
+        => new NavigationArgs(
+            Payload,
+            LoadMode,
+            IsBackNavigation,
+            timing ?? throw new System.ArgumentNullException(nameof(timing)));
+
+    /// <summary>
     /// Creates the runtime-effective arguments after descriptor resolution while
     /// preserving the caller payload and the back-navigation marker.
     /// </summary>
     internal NavigationArgs WithLoadMode(NavigationLoadMode loadMode)
         => LoadMode == loadMode
             ? this
-            : new NavigationArgs(Payload, loadMode, IsBackNavigation);
+            : new NavigationArgs(Payload, loadMode, IsBackNavigation, Timing);
 }

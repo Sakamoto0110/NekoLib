@@ -1,5 +1,5 @@
 ﻿using NekoLib.Pipes;
-using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

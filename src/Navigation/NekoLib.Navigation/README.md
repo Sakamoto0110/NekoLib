@@ -293,7 +293,7 @@ callbacks before runtime teardown, preventing a timer tick from enqueueing new
 work during shutdown. An interaction invalidates a stale tick before it can
 start navigation; a denied/failed idle navigation rearms a fresh interval, while
 `StopIdle()` prevents both rearming and new requests. If the platform has no
-interaction observer, navigation still starts and the DebugUtils idle snapshot
+interaction observer, navigation still starts and the Inspection idle snapshot
 reports `Unavailable`.
 
 ## Overlays
@@ -376,9 +376,9 @@ z-order (`SendToBack`) and surfaces stay above.
    `IEventDispatcherAdapter`, `IInteractionBlocker`, `ITimerAdapter`,
    `PageFactory`, the optional observers, and the four overlay services; then
    runs the `ConfigureServices(...)` callback.
-4. **Create the `NavigationContext`** — resolve and attach
-   `DebugUtilsNavigationObserver` if `UseDebugUtils` was called; register the
-   context, `NavigationSession` and `IUserContext`.
+4. **Create the `NavigationContext`** — attach the independently configured
+   Logging, Telemetry, and Inspection bridges; register the context,
+   `NavigationSession` and `IUserContext`.
 5. **`services.Lock()`** — registration after this throws.
 6. **Wire the idle timer**, then mount the context (throws if already mounted).
 
@@ -400,7 +400,7 @@ z-order (`SendToBack`) and surfaces stay above.
   close the modal without deadlocking and no queued surface can appear after the
   runtime is gone. Required before a fresh `Start()`.
 
-## Diagnostics and observability
+## Logging, telemetry, Inspection, and local diagnostics
 
 `NavigationDiagnostics` emits `PageLogEntry` (success/failure, presentation, load
 mode, reuse policy, failure kind, error, correlation and duration) and
@@ -411,31 +411,33 @@ subscribers. The runtime shares the **context's** hub, so
 `NavigationService.Events` and `context.Events` see the same outcomes.
 
 These are synchronous observation points, not a worker queue. A custom
-`IDebugUtils` implementation and public event handlers must return promptly;
-blocking one delays dispatch/lifecycle work. The built-in `DebugUtilsRuntime`
-only captures a bounded in-memory entry under a short lock.
+`IInspectionRecorder` implementation and public event handlers must return
+promptly; blocking one delays dispatch/lifecycle work. The built-in
+`InspectionRuntime` only captures a bounded in-memory entry under a short lock.
 
 `NavigationService` also exposes static events: `Navigating`, `Navigated`,
 `NavigationFailed`, `CurrentChanged`, `HistoryChanged`, `OnFirstPageAttached`,
 `OnNoPageAttached`, `OnNoPageVisible`. Static events root their subscribers, so
 `Shutdown()` nulls all of them.
 
-Three diagnostics layers coexist:
+Four independent observation layers coexist:
 
-- **`UseDiagnostics(IDiagnosticsContext)`** — bridges entries into
-  `NekoLib.Core.Diagnostics` via `DiagnosticsNavigationSink`. Local hub events
-  keep flowing regardless.
+- **`UseLogging(ILogger)`** — writes Navigation category entries through the
+  Core logging writer contract. Local hub events keep flowing regardless.
+- **`UseTelemetry(ITelemetry)`** — creates one correlated
+  `Navigation/page_switch` operation per request and records raw timing
+  checkpoints and terminal measurements.
 - The runtime's internal scalar trace describes requests, attempts, stages,
   pages, background loads, surfaces, idle and runtime teardown. It never carries
   a page instance, user payload, captured state, roles or permissions.
-- **`UseDebugUtils(IDebugUtils)`** projects that trace into
-  `IDebugUtils.Record(...)` plus pull-based state. A disabled sink
-  (`NullDebugUtils`) subscribes to nothing and allocates no request/surface trace
+- **`UseInspection(IInspectionRecorder)`** projects that trace into
+  `IInspectionRecorder.Record(...)` plus pull-based state. A disabled recorder
+  (`NullInspection`) subscribes to nothing and allocates no request/surface trace
   scopes.
-- **`UseDebugUtils()`** — resolves `DebugUtilsProvider.Current` at `Start()`.
+- **`UseInspection()`** — resolves `InspectionProvider.Current` at `Start()`.
   This keeps the integration fully opt-in while allowing one explicitly enabled
-  `DebugUtilsRuntime` to serve the whole process. If the slot still contains
-  `NullDebugUtils.Instance`, no observer is allocated or attached.
+  `InspectionRuntime` to serve the whole process. If the slot still contains
+  `NullInspection.Instance`, no observer is allocated or attached.
 
 One API call owns a `RuntimeId` + `RequestId`. Guard redirects create linked
 attempts with `AttemptId`, `ParentAttemptId` and `RedirectDepth`; a background
@@ -456,6 +458,33 @@ A redirect closes its parent attempt and continues under the same request.
 the guard allowed it. `NoHistory` is a normal back-navigation terminal, not a
 failure. Background completion/discard/failure is independent of the already
 completed request.
+
+### Initial page-switch timing
+
+`UseTelemetry(...)` emits these checkpoints and raw measurements without
+changing the canonical lifecycle order:
+
+| Boundary | Owner | Meaning |
+|---|---|---|
+| `page_switch_started` | Navigation | API request started, before UI dispatch and gate wait |
+| `authentication_completed` | application | the caller-defined authentication milestone was reached |
+| `page_ready` | Navigation | the synchronous Navigation lifecycle completed successfully |
+
+The completed operation contains `page_switch.total_ms`. When the application
+reports authentication completion it also contains
+`page_switch.time_to_authenticated_ms` and
+`page_switch.post_auth_to_ready_ms`. Those are milestone intervals, not pure
+authentication or page-load duration: the first interval includes dispatch and
+gate waiting, and `page_ready` does not claim first paint or completion of work
+started in the background.
+
+Create one `NavigationTimingContext`, pass it through
+`NavigationArgs.Default().WithTiming(timing)`, and call
+`context.Timing?.AuthenticationCompleted()` from the application guard after
+authentication succeeds. API POST/GET boundaries and catalog behavior remain
+application concerns. The telemetry operation ID is the Navigation request ID,
+so later Data or Devices operations can use it as a parent without those modules
+depending on Navigation.
 
 The observer registers these state providers:
 
@@ -491,22 +520,24 @@ updates state but deliberately does not flood the ring.
 or a failed switch that lost its former page); the transient zero between detach
 and attach during a successful replacement is not published as a blank shell.
 
-`NavigationService.Shutdown()` keeps the observer alive through runtime teardown,
-then disposes it and unregisters all providers, including delegates that capture
-the context. Navigation deliberately registers **no DebugUtils commands** yet:
+`NavigationService.Shutdown()` keeps the observation bridges alive through
+runtime teardown, then disposes them and unregisters all Inspection providers,
+including delegates that capture the context. Navigation deliberately registers
+**no Inspection actions** yet:
 an async/cancellation/timeout/UI-marshalling command contract must be decided
 before exposing state-changing runtime actions.
 
-> The 2026-07-27 lifecycle/trace work was an explicit, limited unfreeze of
-> Navigation. Broad B4 instrumentation in Data, Pipes, Watchdog, Devices and
-> Diagnostics, plus reusable consumer surfaces, remains frozen; see
+> Phase D explicitly unfroze the bounded Navigation timing producer and the
+> Diagnostics read-only snapshot bridge. Broad B4 Inspection instrumentation in
+> Data, Pipes, Watchdog, Devices, and other feature modules remains frozen; see
 > [`TODO.md`](../../../TODO.md).
 
 ---
 
 ## Stability-sensitive components
 
-The lifecycle/observability correction above is complete. Treat these types as
+The lifecycle/trace correction and bounded timing addition above are complete.
+Treat these types as
 frozen again unless a future task explicitly reopens them:
 
 - `NavigationContext.cs`
@@ -541,7 +572,7 @@ surface rollback, idle ownership and correlated request terminals. Naming follow
 **Tests that mount the static facade** touch process-wide state: they must carry
 `[Collection("NavigationServiceFacade")]` so xunit serializes them, and
 `await NavigationService.Shutdown()` in a `finally`.
-`DebugUtilsNavigationObserverFacadeTests` and
+`InspectionNavigationObserverFacadeTests` and
 `NavigationServiceLifecycleTests` are references. Tests that do not mount the
 facade stay parallel.
 

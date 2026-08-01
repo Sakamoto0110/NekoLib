@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Logging;
 using NekoLib.Pipes;
 using NekoLib.Watchdog;
 using Xunit;
@@ -23,7 +23,11 @@ namespace NekoLib.Watchdog.Tests.Unit
             try
             {
                 for (int i = 0; i < 5000; i++)
-                    sink.Write(new LogEntry(DateTime.UtcNow, LogLevel.Info, "test", "msg-" + i));
+                    sink.Write(new LogEntry(
+                        DateTime.UtcNow,
+                        LogLevel.Info,
+                        "msg-" + i,
+                        category: "test"));
 
                 Assert.True(sink.DroppedCount > 0, "expected drops under saturation");
             }

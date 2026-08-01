@@ -27,7 +27,8 @@
     <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
     <ProjectReference Include="..\..\..\src\Navigation\NekoLib.Navigation.Wpf\NekoLib.Navigation.Wpf.csproj" />
     <ProjectReference Include="..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
-    <ProjectReference Include="..\..\..\src\DebugUtils\NekoLib.DebugUtils\NekoLib.DebugUtils.csproj" />
+    <ProjectReference Include="..\..\..\src\Inspection\NekoLib.Inspection\NekoLib.Inspection.csproj" />
+    <ProjectReference Include="..\..\..\src\Telemetry\NekoLib.Telemetry\NekoLib.Telemetry.csproj" />
   </ItemGroup>
 
 </Project>

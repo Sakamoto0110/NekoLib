@@ -1024,7 +1024,10 @@ namespace NekoLib.Navigation.Runtime.Core
                 else if (guard != null)
                 {
                     attemptTrace?.SetStage(NavigationTraceStage.GuardEvaluation);
-                    var guardContext = new GuardContext(canonicalPageType, _ctx.User);
+                    var guardContext = new GuardContext(
+                        canonicalPageType,
+                        _ctx.User,
+                        effectiveArgs.Timing);
                     GuardResult guardResult;
 
                     try

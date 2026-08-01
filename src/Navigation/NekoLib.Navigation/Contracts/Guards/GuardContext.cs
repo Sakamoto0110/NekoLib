@@ -1,25 +1,28 @@
-﻿using System;
+using NekoLib.Navigation.Telemetry;
+using System;
 
-namespace NekoLib.Navigation.Contracts.Guards {
-
-    /// <summary>
-    /// Data passed to guards for a single navigation attempt.
-    /// </summary>
+namespace NekoLib.Navigation.Contracts.Guards
+{
+    /// <summary>Data passed to guards for a single navigation attempt.</summary>
     public sealed class GuardContext
     {
-        /// <summary>Page type the runtime is attempting to navigate to.</summary>
-        public Type TargetPage { get; }
-
-        /// <summary>Current user/session state used by built-in and custom guards.</summary>
-         public IUserContext User { get; }
-
-        public GuardContext(Type targetPage,
-                             
-                            IUserContext user)
+        public GuardContext(
+            Type targetPage,
+            IUserContext user,
+            NavigationTimingContext? timing = null)
         {
             TargetPage = targetPage;
-             User = user;
+            User = user;
+            Timing = timing;
         }
+
+        public Type TargetPage { get; }
+        public IUserContext User { get; }
+
+        /// <summary>
+        /// Optional timing correlation supplied with the navigation request.
+        /// Application guards may mark authentication completion through it.
+        /// </summary>
+        public NavigationTimingContext? Timing { get; }
     }
 }
- 

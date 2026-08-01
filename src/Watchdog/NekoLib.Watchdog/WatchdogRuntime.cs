@@ -5,7 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Logging;
+using NekoLib.Core.Telemetry;
 using NekoLib.Pipes;
 
  
@@ -955,11 +956,11 @@ namespace NekoLib.Watchdog
                 return;
 
             var level = ToLogLevel(sev);
-            var entry = new NekoLib.Core.Diagnostics.LogEntry(
+            var entry = new NekoLib.Core.Logging.LogEntry(
                 DateTime.UtcNow,
                 level,
-                "watchdog",
-                msg);
+                msg,
+                category: "Watchdog");
 
             for (int i = 0; i < sinks.Length; i++)
             {
@@ -991,8 +992,8 @@ namespace NekoLib.Watchdog
 
         private void TrackTelemetry(string name, object payload)
         {
-            var sink = _o.TelemetrySink;
-            if (sink == null)
+            var telemetry = _o.Telemetry;
+            if (telemetry == null)
                 return;
 
             try
@@ -1002,7 +1003,11 @@ namespace NekoLib.Watchdog
                     { "payload", payload }
                 };
 
-                sink.Track(new TelemetryEvent(DateTime.UtcNow, name, data: data));
+                var operation = telemetry.StartOperation(
+                    "Watchdog",
+                    name,
+                    dimensions: data);
+                operation.Complete(TelemetryOutcome.Succeeded);
             }
             catch { }
         }

@@ -563,18 +563,16 @@ git diff --check
 
 ---
 
-## Phase D — Logging, Telemetry, Diagnostics, and Inspection boundaries
+## Phase D — Logging, Telemetry, Diagnostics, and Inspection boundaries ✅
 
 > Promoted on 2026-08-01 from the accepted decisions in the
 > [Diagnostics sector review](docs/audit/diagnostics-boundaries-review-2026-07-30.md).
 > This section is the authoritative implementation roadmap for those decisions;
 > the review preserves evidence and rationale only.
 >
-> This documentation promotion does not itself authorize product-code changes.
-> The broad observability freeze remains active. Before implementing any Phase D
-> item that extends observability or touches frozen Navigation behavior, define
-> an explicit limited unfreeze for that scope. D7 is marked frozen because every
-> item in it necessarily requires that decision.
+> Implementation was authorized on 2026-08-01. The limited unfreeze covered the
+> D7 Diagnostics consumer bridge and Navigation timing producer; the broad B4
+> Inspection instrumentation freeze remains active.
 
 ### Target capability boundaries
 
@@ -596,153 +594,168 @@ reference concrete Logging, Telemetry, or Inspection implementations. The
 
 - [x] Make telemetry data independent from `LogEntry`; remove the invalid
   `TelemetryEvent : LogEntry` inheritance and add direct regression coverage.
-- [ ] Align `LogEntry`, `ILogger`, category support, constructors, and
+- [x] Align `LogEntry`, `ILogger`, category support, constructors, and
   `ToString()` semantics with the minimum accepted logging model.
-- [ ] Retire the logger-plus-telemetry `IDiagnosticsContext` container. Migrate
+- [x] Retire the logger-plus-telemetry `IDiagnosticsContext` container. Migrate
   consumers to independent writer/read-side contracts rather than replacing it
   with another broadly named context.
-- [ ] Keep Core limited to stable contracts and null implementations. Do not
+- [x] Keep Core limited to stable contracts and null implementations. Do not
   move queues, file I/O, crash policy, Inspection storage, or composition into
   Core.
-- [ ] Preserve `net481` and `net9.0` compatibility and use ordinary classes,
+- [x] Preserve `net481` and `net9.0` compatibility and use ordinary classes,
   not records, for shared public data types.
 
 ### D2 — Build the Logging pipeline
 
-- [ ] Rename `NekoLib.Logger` to the accepted `NekoLib.Logging` capability name
+- [x] Rename `NekoLib.Logger` to the accepted `NekoLib.Logging` capability name
   after deciding the public type and PackageId compatibility strategy.
-- [ ] Preserve the small feature-facing `ILogger` writer contract and define a
+- [x] Preserve the small feature-facing `ILogger` writer contract and define a
   separate operational surface for composition/Diagnostics to flush and read a
   bounded recent-entry snapshot.
-- [ ] Specify and implement ordered sink dispatch, bounded buffering or an
+- [x] Specify and implement ordered sink dispatch, bounded buffering or an
   explicitly synchronous policy, sink-failure isolation, shutdown, and a
   bounded flush operation.
-- [ ] Add a reusable rolling file sink. Define file location, encoding, maximum
+- [x] Add a reusable rolling file sink. Define file location, encoding, maximum
   size, retained-file count, concurrent-writer behavior, failure behavior, and
   the persistence guarantee for `Error`/`Fatal` before implementation.
-- [ ] Keep debugger output as an optional sink; writing an ordinary `Info` entry
+- [x] Keep debugger output as an optional sink; writing an ordinary `Info` entry
   must not require Diagnostics or Inspection.
-- [ ] Add direct dual-target tests for severity filtering, sink fan-out,
+- [x] Add direct dual-target tests for severity filtering, sink fan-out,
   ordering, failure isolation, recent snapshots, flush, rotation, retention,
   and write failures.
 
 ### D3 — Build the Telemetry pipeline
 
-- [ ] Create an independent `NekoLib.Telemetry` implementation over small Core
+- [x] Create an independent `NekoLib.Telemetry` implementation over small Core
   contracts; do not route telemetry through the logging pipeline or inherit log
   models.
-- [ ] Define the minimum operation model: module, operation name, operation ID,
+- [x] Define the minimum operation model: module, operation name, operation ID,
   optional parent ID, outcome, dimensions, one UTC chronology timestamp, and
   monotonic elapsed values for checkpoints and completion.
-- [ ] Treat operation timings as raw telemetry. Defer percentiles, counters, and
+- [x] Treat operation timings as raw telemetry. Defer percentiles, counters, and
   other metric aggregation until a concrete consumer requires them.
-- [ ] Provide bounded recent-operation snapshots for Diagnostics. Decide
+- [x] Provide bounded recent-operation snapshots for Diagnostics. Decide
   separately whether v1 also persists raw telemetry to disk.
-- [ ] Add direct dual-target tests for correlation, checkpoints, monotonic
+- [x] Add direct dual-target tests for correlation, checkpoints, monotonic
   durations, terminal outcomes, bounded retention, and subscriber/sink failure
   isolation.
 
 #### Initial Navigation timing semantics
 
-- [ ] Use Navigation as the first producer without changing its canonical
+- [x] Use Navigation as the first producer without changing its canonical
   lifecycle order, redirect correlation, UI dispatch, navigation gate, or
   existing terminal semantics.
-- [ ] Capture three meaningful milestones for the initial page-transition use
+- [x] Capture three meaningful milestones for the initial page-transition use
   case: page switch started, authentication completed, and page ready.
-- [ ] Derive `page_switch.total_ms`,
+- [x] Derive `page_switch.total_ms`,
   `page_switch.time_to_authenticated_ms`, and
   `page_switch.post_auth_to_ready_ms` from those milestones.
-- [ ] Do not label the latter two values as pure authentication or page-load
+- [x] Do not label the latter two values as pure authentication or page-load
   duration unless their exact start/end boundaries are instrumented.
   `NavigationStarted` currently includes UI-dispatch and gate-wait time.
-- [ ] Keep authentication and catalog/API behavior outside Navigation. The
+- [x] Keep authentication and catalog/API behavior outside Navigation. The
   application supplies the authentication checkpoint and correlation; POST/GET
   start/end timings are not required for the initial use case.
-- [ ] Define `page ready` precisely. Do not claim first paint or OS-level render
+- [x] Define `page ready` precisely. Do not claim first paint or OS-level render
   completion if the adapter only proves completion of the synchronous
   Navigation lifecycle.
 
 ### D4 — Rename DebugUtils to Inspection without broadening it
 
-- [ ] Rename the package/project to `NekoLib.Inspection` and establish the
+- [x] Rename the package/project to `NekoLib.Inspection` and establish the
   public-type migration map before changing PackageIds.
-- [ ] Preserve the current opt-in, in-process, bounded, singleton-capable model.
+- [x] Preserve the current opt-in, in-process, bounded, singleton-capable model.
   Inspection remains more intrusive than logging and must not become a second
   logger, a control bus, a DI container, or an exception-policy owner.
-- [ ] Separate the module-facing record/register capability from the read-only
+- [x] Separate the module-facing record/register capability from the read-only
   snapshot capability. Diagnostics may consume snapshots but must never invoke
   registered actions.
-- [ ] Preserve deterministic disable/dispose behavior, NO-OP defaults, bounded
+- [x] Preserve deterministic disable/dispose behavior, NO-OP defaults, bounded
   payload construction, provider isolation, and existing dual-target tests
   through the rename.
-- [ ] Decide whether `RegisterCommand` becomes `RegisterAction`; keep any action
+- [x] Decide whether `RegisterCommand` becomes `RegisterAction`; keep any action
   surface explicitly operational and constrained rather than general-purpose.
 
 ### D5 — Refocus Diagnostics on incident evidence
 
-- [ ] Keep `NekoLib.Diagnostics` focused on exception/incident capture and
+- [x] Keep `NekoLib.Diagnostics` focused on exception/incident capture and
   evidence-bundle orchestration, not ordinary log emission or telemetry
   production.
-- [ ] Define the incident sequence: record the fatal event, request a bounded
+- [x] Define the incident sequence: record the fatal event, request a bounded
   logging flush, capture recent logs, optionally capture recent telemetry and a
   read-only Inspection snapshot, collect platform artifacts, write the bundle,
   then notify the configured supervisor.
-- [ ] Consume all optional sources through abstractions supplied by the
+- [x] Consume all optional sources through abstractions supplied by the
   composition root. Do not add concrete project references from Diagnostics to
   Logging, Telemetry, or Inspection.
-- [ ] Add only the Core contract dependency required by the target Diagnostics
+- [x] Add only the Core contract dependency required by the target Diagnostics
   composition; do not use that dependency to pull unrelated contracts or policy
   into the crash package.
-- [ ] Define bounded collection, timeouts, redaction, contributor-failure
+- [x] Define bounded collection, timeouts, redaction, contributor-failure
   isolation, and partial-bundle behavior so diagnostics cannot hang or replace
   the original failure.
-- [ ] Keep `NekoLib.Diagnostics.Windows` as the Windows-only adapter. The
+- [x] Keep `NekoLib.Diagnostics.Windows` as the Windows-only adapter. The
   platform-neutral artifact contract, Watchdog notification policy, WinForms
   hook lifecycle, and filename cleanup remain pending review decisions rather
   than accepted Phase D work.
 
 ### D6 — Migration, verification, and documentation
 
-- [ ] Decide clean breaking rename versus compatibility packages/types before
+- [x] Decide clean breaking rename versus compatibility packages/types before
   changing public namespaces, assembly names, or PackageIds.
-- [ ] Migrate Navigation and Watchdog composition away from
+- [x] Migrate Navigation and Watchdog composition away from
   `IDiagnosticsContext` while preserving their Core-only product dependencies.
-- [ ] Split or rename test projects to mirror the accepted package boundaries;
+- [x] Split or rename test projects to mirror the accepted package boundaries;
   add direct Windows adapter tests where automation is practical.
-- [ ] Update solution membership, package-consumer probes, packaging metadata,
+- [x] Update solution membership, package-consumer probes, packaging metadata,
   README module maps, examples, and current technical documentation only after
   the implementation becomes authoritative.
-- [ ] Validate both target frameworks on Windows, run package-consumer probes
+- [x] Validate both target frameworks on Windows, run package-consumer probes
   with a new disposable version, compare warning identities, and run the full
   solution tests before completing the phase.
 
-### D7 — Module rollout and consumer bridge ⏸ **frozen**
+### D7 — Module rollout and consumer bridge ✅ **limited scope complete**
 
-- [ ] After an explicit limited unfreeze, connect the read-only Inspection
+- [x] After an explicit limited unfreeze, connect the read-only Inspection
   snapshot and bounded Telemetry/Logging snapshots to Diagnostics incident
   bundles.
-- [ ] After an explicit limited unfreeze, implement the initial Navigation
+- [x] After an explicit limited unfreeze, implement the initial Navigation
   operation timing without altering the frozen lifecycle-sensitive components.
-- [ ] Evaluate Data and Devices separately before adding telemetry contracts or
+- [x] Evaluate Data and Devices separately before adding telemetry contracts or
   new Core references. If accepted, emit their own correlated operations (for
   example query/transaction and command/round-trip) rather than Navigation-
   specific metrics.
-- [ ] Keep the existing B4 Inspection instrumentation freeze and its preserved
+- [x] Keep the existing B4 Inspection instrumentation freeze and its preserved
   context authoritative for broad module record/state/action hooks; telemetry
   rollout does not silently authorize those hooks.
 
+Phase D used a clean breaking rename because these packages are coordinated
+locally and compatibility shims would preserve the ambiguity the phase removes.
+Logging v1 is synchronous and ordered; Telemetry v1 keeps bounded completed
+operations in memory and does not persist them. `RegisterCommand` became the
+explicitly operational `RegisterAction` surface.
+
+The Data and Devices evaluation did not authorize instrumentation. Data already
+has `QueryExecutionContext` events that can later delimit query/transaction
+operations without importing Navigation semantics. Devices has a natural
+`HardwareEngine.SendAsync` command/round-trip boundary, but its transport work
+was concurrently dirty during Phase D. Both modules retain their zero-project-
+reference topology; a later accepted rollout can use a caller-supplied parent
+operation ID through Core telemetry contracts. The broader B4 Inspection freeze
+remains active.
+
 ### Phase D completion criteria
 
-- [ ] Ordinary logging, operation telemetry, runtime Inspection, and incident
+- [x] Ordinary logging, operation telemetry, runtime Inspection, and incident
   Diagnostics have distinct public names and non-overlapping ownership.
-- [ ] An application can write `Info` through Logging and persist it to bounded
+- [x] An application can write `Info` through Logging and persist it to bounded
   disk storage without enabling Diagnostics or Inspection.
-- [ ] Telemetry can represent the accepted Navigation timing scenario and later
+- [x] Telemetry can represent the accepted Navigation timing scenario and later
   correlate independent Data or Devices operations without module-to-module
   dependencies.
-- [ ] Diagnostics can produce a bounded partial bundle from the sources supplied
+- [x] Diagnostics can produce a bounded partial bundle from the sources supplied
   by composition without referencing their concrete implementations.
-- [ ] Windows-specific behavior remains isolated, and both supported TFMs plus
+- [x] Windows-specific behavior remains isolated, and both supported TFMs plus
   package-consumer probes pass without new warning identities.
 
 ---
@@ -755,6 +768,4 @@ reference concrete Logging, Telemetry, or Inspection implementations. The
   - Baseline: `master` / `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
   - Promoted to Phase D: DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
     TEST-01, and the frozen target direction of DBG-01.
-  - Remaining review-only decisions: CRASH-01, CRASH-02, WIN-01, rename
-    compatibility, exact persistence policies, and the concrete read-side
-    composition seam.
+  - Remaining review-only decisions: CRASH-01, CRASH-02, and WIN-01.

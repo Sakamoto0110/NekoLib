@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net481;net9.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>false</ImplicitUsings>
+
+		<OutputType>Library</OutputType>
+		<AssemblyName>NekoLib.Logging</AssemblyName>
+		<RootNamespace>NekoLib.Logging</RootNamespace>
+
+		<IsPackable>true</IsPackable>
+		<PackageId>NekoLib.Logging</PackageId>
+		<Title>NekoLib Logging</Title>
+		<Description>Synchronous severity-based logging with bounded recent entries, sink isolation, flush support and rolling file persistence.</Description>
+		<PackageTags>nekolib;logging;file-logging;desktop</PackageTags>
+
+		<!-- Assembly metadata: generated ONCE -->
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+		<!-- CRITICAL: avoid duplicate TargetFrameworkAttribute -->
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">
+		<DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)'=='net481'">
+		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Core\NekoLib.Core\NekoLib.Core.csproj" />
+	</ItemGroup>
+
+</Project>

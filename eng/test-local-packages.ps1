@@ -127,16 +127,17 @@ if (-not (Test-Path -LiteralPath $FeedPath -PathType Container)) {
 $packageTfms = [ordered]@{
     "NekoLib.Core" = "net9.0"
     "NekoLib.Data" = "net9.0"
-    "NekoLib.DebugUtils" = "net9.0"
+    "NekoLib.Inspection" = "net9.0"
     "NekoLib.Devices" = "net9.0"
     "NekoLib.Diagnostics" = "net9.0"
     "NekoLib.Diagnostics.Windows" = "net9.0-windows7.0"
-    "NekoLib.Logger" = "net9.0"
+    "NekoLib.Logging" = "net9.0"
     "NekoLib.Mvvm" = "net9.0"
     "NekoLib.Navigation" = "net9.0"
     "NekoLib.Navigation.WinForms" = "net9.0-windows7.0"
     "NekoLib.Navigation.Wpf" = "net9.0-windows7.0"
     "NekoLib.Pipes" = "net9.0"
+    "NekoLib.Telemetry" = "net9.0"
     "NekoLib.Watchdog" = "net9.0-windows7.0"
 }
 

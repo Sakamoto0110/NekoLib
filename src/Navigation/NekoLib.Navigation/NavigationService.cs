@@ -1,4 +1,4 @@
-﻿// FILE: PageNav.Core/Services/NavigationService.cs
+// FILE: PageNav.Core/Services/NavigationService.cs
 using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Diagnostics;
 using NekoLib.Navigation.Metadata;
@@ -22,7 +22,7 @@ namespace NekoLib.Navigation
     {
         private static NavigationContext _context;
         private static NavigationRuntime _runtime;
-        private static IDisposable? _debugUtilsObserver;
+        private static IDisposable? _observationLifetime;
         private static IDisposable? _bootstrapLifetime;
         private static readonly object _lifecycleSync = new object();
         private static Task? _shutdownTask;
@@ -92,12 +92,12 @@ namespace NekoLib.Navigation
 
         internal static void UseContext(
             NavigationContext context,
-            IDisposable? debugUtilsObserver)
-            => UseContext(context, debugUtilsObserver, null);
+            IDisposable? observationLifetime)
+            => UseContext(context, observationLifetime, null);
 
         internal static void UseContext(
             NavigationContext context,
-            IDisposable? debugUtilsObserver,
+            IDisposable? observationLifetime,
             IDisposable? bootstrapLifetime)
         {
             Exception? mountError = null;
@@ -127,7 +127,7 @@ namespace NekoLib.Navigation
                     {
                         _context = context;
                         _runtime = new NavigationRuntime(context);
-                        _debugUtilsObserver = debugUtilsObserver;
+                        _observationLifetime = observationLifetime;
                         _bootstrapLifetime = bootstrapLifetime;
                         WireRuntimeEvents(_runtime);
                     }
@@ -135,7 +135,7 @@ namespace NekoLib.Navigation
                     {
                         _context = null!;
                         _runtime = null!;
-                        _debugUtilsObserver = null;
+                        _observationLifetime = null;
                         _bootstrapLifetime = null;
                         mountError = ex;
                     }
@@ -149,7 +149,7 @@ namespace NekoLib.Navigation
             // observability subscriptions. A rejected mount still owns those
             // arguments and must release them, but never while holding the
             // lifecycle lock because disposal may call back into the facade.
-            DisposeMountHandles(debugUtilsObserver, bootstrapLifetime);
+            DisposeMountHandles(observationLifetime, bootstrapLifetime);
             throw mountError;
         }
      
@@ -159,7 +159,7 @@ namespace NekoLib.Navigation
             Task sharedTask;
             NavigationContext context;
             NavigationRuntime runtime;
-            IDisposable? debugUtilsObserver;
+            IDisposable? observationLifetime;
             IDisposable? bootstrapLifetime;
             Task runtimeOperationsDrained;
 
@@ -176,7 +176,7 @@ namespace NekoLib.Navigation
 
                 context = _context;
                 runtime = _runtime;
-                debugUtilsObserver = _debugUtilsObserver;
+                observationLifetime = _observationLifetime;
                 bootstrapLifetime = _bootstrapLifetime;
 
                 if (_activeRuntimeOperations == 0)
@@ -195,7 +195,7 @@ namespace NekoLib.Navigation
             _ = CompleteShutdownAsync(
                 context,
                 runtime,
-                debugUtilsObserver,
+                observationLifetime,
                 bootstrapLifetime,
                 runtimeOperationsDrained,
                 completion);
@@ -206,7 +206,7 @@ namespace NekoLib.Navigation
         private static async Task CompleteShutdownAsync(
             NavigationContext context,
             NavigationRuntime runtime,
-            IDisposable? debugUtilsObserver,
+            IDisposable? observationLifetime,
             IDisposable? bootstrapLifetime,
             Task runtimeOperationsDrained,
             TaskCompletionSource<bool> completion)
@@ -239,7 +239,7 @@ namespace NekoLib.Navigation
 
             try
             {
-                // Keep the facade forwarding and DebugUtils subscriptions alive for
+                // Keep the facade forwarding and Inspection subscriptions alive for
                 // the runtime teardown itself. This lets teardown diagnostics reach
                 // the same consumers as ordinary navigation operations.
                 if (runtime != null)
@@ -266,8 +266,8 @@ namespace NekoLib.Navigation
                     _runtime = null!;
                 if (ReferenceEquals(_context, context))
                     _context = null!;
-                if (ReferenceEquals(_debugUtilsObserver, debugUtilsObserver))
-                    _debugUtilsObserver = null;
+                if (ReferenceEquals(_observationLifetime, observationLifetime))
+                    _observationLifetime = null;
                 if (ReferenceEquals(_bootstrapLifetime, bootstrapLifetime))
                     _bootstrapLifetime = null;
 
@@ -285,7 +285,7 @@ namespace NekoLib.Navigation
 
             // Dispose the bootstrap observer/timer only after the runtime has
             // unsubscribed from it. Both handles are idempotent.
-            DisposeMountHandles(debugUtilsObserver, bootstrapLifetime);
+            DisposeMountHandles(observationLifetime, bootstrapLifetime);
 
             lock (_lifecycleSync)
             {
@@ -553,14 +553,14 @@ namespace NekoLib.Navigation
                ReferenceEquals(_context, context);
 
         private static void DisposeMountHandles(
-            IDisposable? debugUtilsObserver,
+            IDisposable? observationLifetime,
             IDisposable? bootstrapLifetime)
         {
-            try { debugUtilsObserver?.Dispose(); }
+            try { observationLifetime?.Dispose(); }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    "[NavigationService] DebugUtils observer disposal failed: " + ex);
+                    "[NavigationService] Inspection observer disposal failed: " + ex);
             }
 
             try { bootstrapLifetime?.Dispose(); }

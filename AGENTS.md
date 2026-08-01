@@ -24,16 +24,40 @@ the handoff state and the rules that are easy to get wrong.
   `NavigationService` facade is intentional for this application class, not a
   legacy shim to remove. `PageNavBootstrap.Start()` mounts it; always
   `await NavigationService.Shutdown()` before mounting a fresh context.
-- `NekoLib.Core` is a required foundation for Navigation, Logger, DebugUtils and
-  Watchdog. The other feature families are optional according to their actual
-  project references; "optional" never means "has no dependencies".
+- `NekoLib.Core` is the required contract foundation for Navigation, Logging,
+  Telemetry, Inspection, Diagnostics, and Watchdog. The other feature families
+  are optional according to their actual project references; "optional" never
+  means "has no dependencies".
 - The source and the `*.csproj` files are authoritative. `TODO.md` and the audit
   files preserve decision/history context and may describe findings that were
   fixed later.
 
 ---
 
-# ⚠ HANDOFF — state as of 2026-07-27
+# Current architecture state — Phase D, 2026-08-01
+
+- Capability vocabulary is now `Logging`, `Telemetry`, `Inspection`,
+  `Diagnostics`, and `Diagnostics.Windows`. `NekoLib.Logger`,
+  `NekoLib.DebugUtils`, `IDiagnosticsContext`, and `ObservabilityContext` are
+  not compatibility surfaces; Phase D intentionally used a clean break.
+- Logging is synchronous and ordered, with bounded recent snapshots and a
+  rolling file sink. Telemetry stores bounded completed operations in memory;
+  it does not persist raw operations in v1.
+- Inspection retains the opt-in singleton-capable model. Module-facing
+  `IInspectionRecorder` is separate from read-only
+  `IInspectionSnapshotSource`; Diagnostics cannot invoke actions.
+- Diagnostics owns incident evidence. Optional Logging, Telemetry, and
+  Inspection sources are supplied through Core contracts, are collected with
+  budgets and redaction, and may yield a partial bundle.
+- Navigation is the first telemetry producer. `NavigationTimingContext` allows
+  the application to report authentication completion; `page_ready` means the
+  successful synchronous Navigation lifecycle, not first paint.
+- Data and Devices were evaluated but not instrumented. They retain no Core
+  project reference. The broad B4 Inspection rollout remains frozen.
+- CRASH-01, CRASH-02, and WIN-01 remain review-only in
+  `docs/audit/diagnostics-boundaries-review-2026-07-30.md`.
+
+# ⚠ HISTORICAL HANDOFF — state as of 2026-07-27
 
 A point-in-time snapshot written at handover. If it contradicts the code, the
 code wins — and please correct it here.
@@ -242,8 +266,8 @@ domains.
 The current cross-project graph is shallow and is the rule to preserve:
 
 - Navigation → Core; Navigation.WinForms/Wpf → Navigation.
-- Logger → Core; DebugUtils → Core.
-- Diagnostics.Windows → Diagnostics.
+- Logging → Core; Telemetry → Core; Inspection → Core.
+- Diagnostics → Core; Diagnostics.Windows → Diagnostics.
 - Watchdog → Core + Pipes; Watchdog.Host → Watchdog.
 - Data, Devices, Mvvm, Pipes, Diagnostics and the orphan Hosting project have no
   project references.
@@ -256,7 +280,7 @@ infer that every feature module must reference Core.
 Custom constants are **not uniform**. Inspect the target project's csproj
 instead of copying a symbol from another module.
 
-- Core, Data, DebugUtils, Diagnostics, Logger, Mvvm, Navigation and Hosting
+- Core, Data, Inspection, Diagnostics, Logging, Telemetry, Mvvm, Navigation and Hosting
   declare `NEKOLIB` plus their conditional `NETFRAMEWORK` / `NET_9` symbols.
 - Devices declares `NETFRAMEWORK` / `NET_9`, but not `NEKOLIB`.
 - Pipes uses `NET481` / `NET9`.
@@ -278,7 +302,7 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 
 | Project | Nullable | ImplicitUsings |
 |---|---|---|
-| Core, Logger, DebugUtils, Diagnostics, Navigation (+WinForms, +Wpf), Data, Mvvm, Devices, Pipes, Watchdog (+Host), NekoLib | `enable` | disabled, **except** Pipes (`enable`) and Devices (`true`) |
+| Core, Logging, Telemetry, Inspection, Diagnostics, Navigation (+WinForms, +Wpf), Data, Mvvm, Devices, Pipes, Watchdog (+Host), NekoLib | `enable` | disabled, **except** Pipes (`enable`) and Devices (`true`) |
 | **Diagnostics.Windows** | **`disable`** | disabled |
 | All `*.Tests.Unit` projects | `disable` | disabled |
 
@@ -291,7 +315,7 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 - **Navigation tests that mount the static facade** touch process-wide state:
   they must carry `[Collection("NavigationServiceFacade")]` and
   `await NavigationService.Shutdown()` in a `finally`.
-  `DebugUtilsNavigationObserverFacadeTests` is the reference.
+  `InspectionNavigationObserverFacadeTests` is the reference.
 - `runtime_tests/` holds runnable `.exe` scenario apps — launch them directly,
   never via `dotnet test`.
 

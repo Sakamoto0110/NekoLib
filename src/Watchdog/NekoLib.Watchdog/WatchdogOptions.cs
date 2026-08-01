@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
-using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Logging;
+using NekoLib.Core.Telemetry;
 
 namespace NekoLib.Watchdog
 {
@@ -52,7 +53,7 @@ namespace NekoLib.Watchdog
         public string LogPath { get; set; }
         public long MaxLogBytes { get; set; } = 2 * 1024 * 1024;
         public ILogSink[] LogSinks { get; set; } = new ILogSink[0];
-        public ITelemetrySink TelemetrySink { get; set; }
+        public ITelemetry? Telemetry { get; set; }
 
         // ============================================================
         // Supervision Timings

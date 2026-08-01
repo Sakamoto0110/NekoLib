@@ -1,4 +1,4 @@
-using NekoLib.Core.Diagnostics;
+using NekoLib.Core.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

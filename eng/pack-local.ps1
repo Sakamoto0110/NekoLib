@@ -69,16 +69,17 @@ $sessionId = [Guid]::NewGuid().ToString("N")
 $packageIds = @(
     "NekoLib.Core",
     "NekoLib.Data",
-    "NekoLib.DebugUtils",
+    "NekoLib.Inspection",
     "NekoLib.Devices",
     "NekoLib.Diagnostics",
     "NekoLib.Diagnostics.Windows",
-    "NekoLib.Logger",
+    "NekoLib.Logging",
     "NekoLib.Mvvm",
     "NekoLib.Navigation",
     "NekoLib.Navigation.WinForms",
     "NekoLib.Navigation.Wpf",
     "NekoLib.Pipes",
+    "NekoLib.Telemetry",
     "NekoLib.Watchdog",
     "NekoLib.Watchdog.Host"
 )
