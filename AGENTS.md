@@ -11,6 +11,7 @@ the handoff state and the rules that are easy to get wrong.
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
+| Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 | Completed roadmap history | [`docs/history/`](docs/history/) |
@@ -313,6 +314,9 @@ without an explicit shim. Use ordinary classes for multi-target data types.
 
 ## Tests
 
+- `tests/README.md` owns the verification taxonomy. A test inside a `Unit/`
+  project may still be integration-scoped when it uses real filesystem, IPC,
+  network, or process boundaries.
 - Unit tests mirror the source module: `tests/NekoLib.{Module}.Tests/Unit/`.
 - Names follow `MethodName_Condition_ExpectedResult`.
 - `tests/NekoLib.Data.Tests/Shared/Pods.db` and `PodsDB` are tracked legacy

@@ -175,7 +175,8 @@ dotnet test tests/NekoLib.<Module>.Tests/Unit/NekoLib.<Module>.Tests.Unit.csproj
 
 Adapters and projects without a dedicated test assembly are built directly and
 covered through their owning module's tests. The complete validation taxonomy
-and package/runtime exceptions are documented in [`docs/README.md`](docs/README.md).
+and package/runtime exceptions are documented in
+[`tests/README.md`](tests/README.md).
 
 ## Compatibility
 
@@ -313,13 +314,14 @@ has no cycles.
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
+| Automated verification taxonomy | [`tests/README.md`](tests/README.md) |
 | Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
 | Completed roadmap history | [`docs/history/README.md`](docs/history/README.md) |
 | Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |
 
-Unit tests live in `tests/NekoLib.{Module}.Tests/Unit/`. `runtime_tests/` holds
-runnable WinForms/WPF scenario apps — launch them directly, never via
-`dotnet test`.
+Automated suites and package probes are classified in
+[`tests/README.md`](tests/README.md). Manual runtime scenarios are separate and
+are never launched through `dotnet test`.
 
 ## License
 

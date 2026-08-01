@@ -69,6 +69,7 @@ reference commit.
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
+| [`tests/README.md`](../tests/README.md) | reference | current | Automated verification taxonomy and canonical entry points |
 | [`AGENTS.md`](../AGENTS.md) | guide | current | Versioned agent workflow; not public product authority |
 | [`.agents/skills/nekolib/SKILL.md`](../.agents/skills/nekolib/SKILL.md) | guide | current | Repository-wide NekoLib routing |
 | [`.agents/skills/nekolib-data/SKILL.md`](../.agents/skills/nekolib-data/SKILL.md) | guide | current | Data workflow |

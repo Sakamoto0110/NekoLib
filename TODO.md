@@ -76,18 +76,18 @@ dependency changes, or broad Inspection instrumentation.
 
 ### C5 — Formalize the test taxonomy
 
-- [ ] Define `tests/` as automated verification, not as a synonym for unit
+- [x] Define `tests/` as automated verification, not as a synonym for unit
   tests.
-- [ ] Classify verification independently by execution mode, scope
+- [x] Classify verification independently by execution mode, scope
   (unit/integration/functional/package probe), prerequisites, and entry point.
   A semantic classification does not require moving a test by itself.
-- [ ] Keep unit tests under `tests/NekoLib.{Module}.Tests/Unit/`.
-- [ ] Document that `tests/NekoLib.PackageConsumers/` contains package probes,
+- [x] Keep unit tests under `tests/NekoLib.{Module}.Tests/Unit/`.
+- [x] Document that `tests/NekoLib.PackageConsumers/` contains package probes,
   stays outside `NekoLib.sln`, and runs through the packaging workflow.
-- [ ] Classify automated tests that use processes, IPC, a real database, or OS
+- [x] Classify automated tests that use processes, IPC, a real database, or OS
   resources as integration/functional. Split them physically when their cost,
   prerequisites, commands, or isolation justify a separate suite.
-- [ ] Document canonical commands for the solution, a project, a TFM, one test,
+- [x] Document canonical commands for the solution, a project, a TFM, one test,
   and package-consumer probes.
 
 ### C6 — Give `runtime_tests/` an operational contract
