@@ -9,16 +9,20 @@ using System.Threading.Tasks;
 namespace NekoLib.Devices.Core.Transport
 {
     /// <summary>
-    /// Represents a hardware-agnostic asynchronous communication transport.
+    /// Represents a hardware-agnostic asynchronous byte-stream transport.
     /// This abstraction allows any protocol to be executed over:
     /// - Serial ports
-    /// - TCP or UDP streams
+    /// - TCP streams
+    /// - Named pipes
     /// - Virtual/fake transports for testing
     /// </summary>
     public interface ICommTransport
     {
         /// <summary>
-        /// Gets diagnostic information about the underlying transport configuration.
+        /// Gets a snapshot of the protocol/transport configuration.
+        /// Serial transports apply every field. Stream transports use endpoint,
+        /// newline and timeout fields while preserving the serial fields for
+        /// compatibility with existing protocols.
         /// </summary>
         SerialConfig PortInfo { get; }
 
@@ -28,13 +32,14 @@ namespace NekoLib.Devices.Core.Transport
         HardwareLogHandler Log { get; set; }
 
         /// <summary>
-        /// Applies the desired communication parameters
-        /// (baud, parity, newline, etc.) to the underlying medium.
+        /// Applies the desired communication parameters to the underlying medium.
+        /// Fields that have no meaning for a transport are preserved but ignored.
         /// </summary>
         void Configure(SerialConfig cfg);
 
         /// <summary>
-        /// Gets the current port name (e.g., "COM3").
+        /// Gets the current endpoint (for example, "COM3",
+        /// "tcp://127.0.0.1:5001", or "\\.\pipe\pcb-a").
         /// </summary>
         string PortName { get; }
 
@@ -44,7 +49,7 @@ namespace NekoLib.Devices.Core.Transport
         bool IsOpen { get; }
 
         /// <summary>
-        /// Opens the specified port name, applying previous configuration.
+        /// Opens the specified transport-specific endpoint, applying previous configuration.
         /// </summary>
         Task<ICommTransport> Open(string portName, CancellationToken ct = default);
 

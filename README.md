@@ -83,7 +83,7 @@ optional unless one of their documented dependents brings them transitively.
 | `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
 | `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
-| `NekoLib.Devices` | Serial port and hardware protocol abstraction. |
+| `NekoLib.Devices` | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | `NekoLib.Inspection` | Opt-in in-process runtime inspection: a bounded operation buffer, pull-based state providers, runtime diagnostics, and constrained actions. No-op when disabled. Broad module instrumentation remains frozen — see [`TODO.md`](TODO.md). |
 
 Ordinary logging does not require Diagnostics or Inspection:

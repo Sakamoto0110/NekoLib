@@ -14,8 +14,8 @@
 		<IsPackable>true</IsPackable>
 		<PackageId>NekoLib.Devices</PackageId>
 		<Title>NekoLib Devices</Title>
-		<Description>Serial-port transport and hardware protocol abstractions for desktop and embedded applications.</Description>
-		<PackageTags>nekolib;devices;serial-port;hardware;embedded</PackageTags>
+		<Description>Serial-port, TCP, and named-pipe transports with hardware protocol abstractions for desktop and embedded applications.</Description>
+		<PackageTags>nekolib;devices;serial-port;tcp;named-pipe;hardware;embedded</PackageTags>
 	</PropertyGroup>
 
 	<!-- Framework flags -->

@@ -178,6 +178,52 @@ namespace NekoLib.Devices.Tests.Unit
         }
 
         [Fact]
+        public async Task SendAsync_ConcurrentOperations_SerializesCompleteTransactions()
+        {
+            var events = new List<string>();
+            var readStarted = new TaskCompletionSource<bool>();
+            var releaseRead = new TaskCompletionSource<bool>();
+            var transport = new FakeTransport(events)
+            {
+                Reply = new byte[] { 0x10 },
+                ReadStarted = readStarted,
+                ReleaseRead = releaseRead
+            };
+            var protocol = new FakeProtocol(events)
+            {
+                Config = { PortName = "COM9" },
+                Command = new byte[] { 0xAA }
+            };
+            var engine = new HardwareEngine(transport, protocol);
+
+            var first = engine.SendAsync(
+                new HardwareOperation { Operation = "first" },
+                1000);
+
+            var started = await Task.WhenAny(readStarted.Task, Task.Delay(2000));
+            Assert.Same(readStarted.Task, started);
+
+            var second = engine.SendAsync(
+                new HardwareOperation { Operation = "second" },
+                1000);
+
+            await Task.Delay(50);
+            Assert.Equal(1, transport.WriteCount);
+
+            releaseRead.SetResult(true);
+            await Task.WhenAll(first, second);
+
+            Assert.Equal(2, transport.WriteCount);
+            Assert.Equal(
+                new[]
+                {
+                    "Configure", "Open:COM9", "Build", "Write", "ReadAll", "Parse",
+                    "Configure", "Build", "Write", "ReadAll", "Parse"
+                },
+                events);
+        }
+
+        [Fact]
         public async Task SendAsync_NullOperation_Throws()
         {
             var engine = new HardwareEngine(new FakeTransport(), new FakeProtocol());
@@ -267,6 +313,12 @@ namespace NekoLib.Devices.Tests.Unit
 
             public Exception ExceptionToThrow { get; set; }
 
+            public int WriteCount { get; private set; }
+
+            public TaskCompletionSource<bool> ReadStarted { get; set; }
+
+            public TaskCompletionSource<bool> ReleaseRead { get; set; }
+
             public void Configure(SerialConfig cfg)
             {
                 _events.Add("Configure");
@@ -301,6 +353,7 @@ namespace NekoLib.Devices.Tests.Unit
             public Task Write(byte[] data, int offset = 0, int count = -1, CancellationToken ct = default)
             {
                 _events.Add("Write");
+                WriteCount++;
                 if(ExceptionToThrow != null)
                     throw ExceptionToThrow;
 
@@ -322,12 +375,22 @@ namespace NekoLib.Devices.Tests.Unit
                 throw new NotSupportedException();
             }
 
-            public Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default)
+            public async Task<byte[]> ReadAll(
+                int timeoutMs = 2000,
+                int quietPeriodMs = 100,
+                CancellationToken ct = default)
             {
                 _events.Add("ReadAll");
                 ReadTimeoutMs = timeoutMs;
                 QuietPeriodMs = quietPeriodMs;
-                return Task.FromResult(Reply);
+
+                if(ReadStarted != null)
+                    ReadStarted.TrySetResult(true);
+
+                if(ReleaseRead != null)
+                    await ReleaseRead.Task;
+
+                return Reply;
             }
         }
     }

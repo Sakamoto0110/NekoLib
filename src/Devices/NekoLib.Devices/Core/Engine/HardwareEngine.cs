@@ -12,11 +12,11 @@ namespace NekoLib.Devices.Core.Engine
 {
     /// <summary>
     /// Coordinates communication between a <see cref="IHardwareProtocol"/> and a 
-    /// <see cref="ICommTransport"/> (usually a serial port).
+    /// <see cref="ICommTransport"/> (serial port, TCP stream, named pipe, or test double).
     /// 
     /// This engine handles:
     /// <list type="bullet">
-    ///     <item>Applying correct protocol serial configuration</item>
+    ///     <item>Applying the protocol's communication configuration</item>
     ///     <item>Opening the transport safely</item>
     ///     <item>Sending commands (binary or text)</item>
     ///     <item>Receiving raw replies</item>
@@ -32,6 +32,7 @@ namespace NekoLib.Devices.Core.Engine
     {
         private readonly ICommTransport _transport;
         private readonly IHardwareProtocol _protocol;
+        private readonly SemaphoreSlim _operationGate = new SemaphoreSlim(1, 1);
         private HardwareLogHandler _log;
 
         /// <summary>
@@ -58,7 +59,7 @@ namespace NekoLib.Devices.Core.Engine
         /// <summary>
         /// Creates a new hardware engine for a transport+protocol pair.
         /// </summary>
-        /// <param name="transport">Transport layer (serial, TCP, virtual).</param>
+        /// <param name="transport">Transport layer (serial, TCP, named pipe, or virtual).</param>
         /// <param name="protocol">Protocol implementation for the target controller.</param>
         public HardwareEngine(ICommTransport transport, IHardwareProtocol protocol)
         {
@@ -72,7 +73,7 @@ namespace NekoLib.Devices.Core.Engine
         }
 
         /// <summary>
-        /// Sends a hardware operation using the configured port in the protocol's
+        /// Sends a hardware operation using the configured endpoint in the protocol's
         /// <see cref="SerialConfig"/>. 
         /// </summary>
         /// <param name="op">The protocol-defined operation to execute.</param>
@@ -90,103 +91,14 @@ namespace NekoLib.Devices.Core.Engine
             if(timeout < 0)
                 throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout cannot be negative.");
 
-            var cfg = _protocol.PortConfig;
-
-            var sw = Stopwatch.StartNew();
-            Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Starting '{op.Operation}'");
-
-            try
-            {
-                // ----------------------------------------
-                // 1. Configure transport
-                // ----------------------------------------
-                Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Applying serial config");
-                _transport.Configure(cfg);
-
-                // ----------------------------------------
-                // 2. Open using configured port name
-                // ----------------------------------------
-                if(string.IsNullOrWhiteSpace(cfg.PortName))
-                    throw new InvalidOperationException(
-                        $"Protocol {_protocol.Model} did not define a SerialConfig.PortName");
-
-                Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Opening port '{cfg.PortName}'");
-                if(!_transport.IsOpen)
-                {
-                    await _transport.Open(cfg.PortName, ct);
-                }
-                else
-                {
-                    EnsureTransportOpenOnExpectedPort(cfg.PortName);
-                    Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Port is already open '{cfg.PortName}'");
-                }
-
-                // ----------------------------------------
-                // 3. Build protocol-specific frame
-                // ----------------------------------------
-                Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Building command frame");
-                var frame = _protocol.BuildCommand(op);
-
-                Log?.Invoke(LogLevel.Raw,
-                    $"[{_protocol.Model}] TX → {LogUtil.Hex(frame)}");
-
-                // ----------------------------------------
-                // 4. Send frame
-                // ----------------------------------------
-                await _transport.Write(frame, 0, frame.Length, ct);
-
-                // ----------------------------------------
-                // 5. Await reply
-                // ----------------------------------------
-                Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Awaiting response…");
-
-                var rspBytes = await _transport.ReadAll(timeout, 50, ct);
-
-                Log?.Invoke(LogLevel.Raw,
-                    rspBytes != null
-                        ? $"[{_protocol.Model}] RX ← {LogUtil.Hex(rspBytes)}"
-                        : $"[{_protocol.Model}] RX ← <null>");
-
-                // ----------------------------------------
-                // 6. Let protocol parse it
-                // ----------------------------------------
-                var parsed = _protocol.ParseResponse(rspBytes, op);
-                if(parsed == null)
-                    throw new InvalidOperationException(
-                        $"Protocol {_protocol.Model} returned a null response.");
-
-                parsed.Request = parsed.Request ?? op;
-                parsed.Elapsed = sw.Elapsed;
-
-                Log?.Invoke(LogLevel.Info,
-                    $"[{_protocol.Model}] Completed → Status={parsed.Status}, Success={parsed.Success}");
-
-                return parsed;
-            }
-            catch(OperationCanceledException)
-            {
-                Log?.Invoke(LogLevel.Error, $"[{_protocol.Model}] CANCELED");
-                throw;
-            }
-            catch(Exception ex)
-            {
-                Log?.Invoke(LogLevel.Error, $"[{_protocol.Model}] ERROR: {ex}");
-
-                return new HardwareResponse
-                {
-                    Success = false,
-                    Status = ex.Message,
-                    Request = op,
-                    Elapsed = sw.Elapsed
-                };
-            }
+            return await ExecuteSerialized(null, op, timeout, ct).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Sends a hardware operation using a specific port name
+        /// Sends a hardware operation using a specific transport endpoint
         /// instead of relying on the protocol's configured one.
         /// </summary>
-        /// <param name="port">Port name to use (e.g., "COM7").</param>
+        /// <param name="port">Endpoint to use (for example, "COM7" or "tcp://127.0.0.1:5001").</param>
         /// <param name="op">Protocol operation.</param>
         /// <param name="timeout">Receive timeout.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -206,55 +118,84 @@ namespace NekoLib.Devices.Core.Engine
             if(timeout < 0)
                 throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout cannot be negative.");
 
-            var cfg = _protocol.PortConfig;
+            return await ExecuteSerialized(port, op, timeout, ct).ConfigureAwait(false);
+        }
 
+        private async Task<HardwareResponse> ExecuteSerialized(
+            string? port,
+            HardwareOperation op,
+            int timeout,
+            CancellationToken ct)
+        {
+            await _operationGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return await ExecuteCore(port, op, timeout, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                _operationGate.Release();
+            }
+        }
+
+        private async Task<HardwareResponse> ExecuteCore(
+            string? explicitPort,
+            HardwareOperation op,
+            int timeout,
+            CancellationToken ct)
+        {
             var sw = Stopwatch.StartNew();
             Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Starting '{op.Operation}'");
 
             try
             {
-                // ----------------------------------------
-                // 1. Configure transport
-                // ----------------------------------------
-                Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Applying serial config");
+                var cfg = _protocol.PortConfig;
+
+                Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Applying transport config");
                 _transport.Configure(cfg);
 
-                // ----------------------------------------
-                // 2. Open port explicitly
-                // ----------------------------------------
-                Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Opening port '{port}'");
-                await _transport.Open(port, ct);
+                var endpoint = string.IsNullOrWhiteSpace(explicitPort)
+                    ? cfg.PortName
+                    : explicitPort;
 
-                // ----------------------------------------
-                // 3. Build frame
-                // ----------------------------------------
+                if(string.IsNullOrWhiteSpace(endpoint))
+                {
+                    throw new InvalidOperationException(
+                        $"Protocol {_protocol.Model} did not define SerialConfig.PortName or a transport endpoint");
+                }
+
+                var resolvedEndpoint = endpoint!;
+                Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Opening endpoint '{resolvedEndpoint}'");
+                if(!_transport.IsOpen)
+                {
+                    await _transport.Open(resolvedEndpoint, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    EnsureTransportOpenOnExpectedPort(resolvedEndpoint);
+                    Log?.Invoke(LogLevel.Info, $"[{_protocol.Model}] Endpoint is already open '{resolvedEndpoint}'");
+                }
+
                 Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Building command frame");
                 var frame = _protocol.BuildCommand(op);
 
-                Log?.Invoke(LogLevel.Raw,
-                    $"[{_protocol.Model}] TX → {LogUtil.Hex(frame)}");
+                Log?.Invoke(LogLevel.Raw, $"[{_protocol.Model}] TX → {LogUtil.Hex(frame)}");
+                await _transport.Write(frame, 0, frame.Length, ct).ConfigureAwait(false);
 
-                await _transport.Write(frame, 0, frame.Length, ct);
-
-                // ----------------------------------------
-                // 4. Receive reply
-                // ----------------------------------------
                 Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Awaiting response…");
-
-                var rspBytes = await _transport.ReadAll(timeout, 50, ct);
+                var rspBytes = await _transport.ReadAll(timeout, 50, ct).ConfigureAwait(false);
 
                 Log?.Invoke(LogLevel.Raw,
                     rspBytes != null
                         ? $"[{_protocol.Model}] RX ← {LogUtil.Hex(rspBytes)}"
                         : $"[{_protocol.Model}] RX ← <null>");
 
-                // ----------------------------------------
-                // 5. Parse via protocol
-                // ----------------------------------------
                 var parsed = _protocol.ParseResponse(rspBytes, op);
                 if(parsed == null)
+                {
                     throw new InvalidOperationException(
                         $"Protocol {_protocol.Model} returned a null response.");
+                }
 
                 parsed.Request = parsed.Request ?? op;
                 parsed.Elapsed = sw.Elapsed;

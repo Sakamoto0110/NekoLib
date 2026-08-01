@@ -36,12 +36,50 @@ namespace NekoLib.Devices.Core.Protocols
     /// It performs no output interpretation and simply wraps the raw response
     /// into a <see cref="HardwareResponse"/>.
     ///
-    /// "RawText" is always encoded/decoded as ASCII (v1). Binary or non-ASCII
-    /// payloads must use "RawBytes" instead — this protocol does not offer a
-    /// configurable text encoding.
+    /// "RawText" uses ASCII by default for compatibility. A different
+    /// <see cref="Encoding"/> may be supplied when the device uses another
+    /// single-byte text encoding; binary payloads should use "RawBytes".
     /// </summary>
     public sealed class ProtocolRaw : IHardwareProtocol, IProtocolWithLogging
     {
+        private readonly SerialConfig _portConfig;
+        private readonly Encoding _textEncoding;
+
+        /// <summary>
+        /// Creates the default raw protocol using 115200/8/N/1 and ASCII text.
+        /// The endpoint may be supplied by the transport constructor or by the
+        /// explicit <c>HardwareEngine.SendAsync(endpoint, ...)</c> overload.
+        /// </summary>
+        public ProtocolRaw()
+            : this(null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a raw protocol with caller-owned transport configuration.
+        /// </summary>
+        public ProtocolRaw(SerialConfig portConfig)
+            : this(portConfig, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a raw protocol with caller-owned configuration and text encoding.
+        /// ASCII remains the default for compatibility; use raw bytes for binary data.
+        /// </summary>
+        public ProtocolRaw(SerialConfig? portConfig, Encoding? textEncoding)
+        {
+            _portConfig = portConfig ?? new SerialConfig
+            {
+                BaudRate = 115200,
+                Parity = System.IO.Ports.Parity.None,
+                DataBits = 8,
+                StopBits = System.IO.Ports.StopBits.One,
+                NewLine = string.Empty
+            };
+            _textEncoding = textEncoding ?? Encoding.ASCII;
+        }
+
         /// <summary>
         /// Optional logger assigned by <see cref="Engine.HardwareEngine"/>.
         /// </summary>
@@ -51,21 +89,17 @@ namespace NekoLib.Devices.Core.Protocols
         public ControllerModel Model => ControllerModel.ControllerRaw;
 
         /// <inheritdoc/>
-        public SerialConfig PortConfig => new SerialConfig
-        {
-            BaudRate = 115200,
-            Parity = System.IO.Ports.Parity.None,
-            DataBits = 8,
-            StopBits = System.IO.Ports.StopBits.One,
-            NewLine = string.Empty
-        };
+        public SerialConfig PortConfig => _portConfig;
+
+        /// <summary>Encoding used for RawText commands and response text.</summary>
+        public Encoding TextEncoding => _textEncoding;
 
         /// <summary>
         /// Builds a raw command based on the presence of arguments:
         ///
         /// <list type="bullet">
         ///     <item>"RawBytes" → sends the byte buffer as-is</item>
-        ///     <item>"RawText" → sends as ASCII</item>
+        ///     <item>"RawText" → sends using <see cref="TextEncoding"/></item>
         /// </list>
         ///
         /// Any other configuration results in an exception.
@@ -102,7 +136,7 @@ namespace NekoLib.Devices.Core.Protocols
 
                 var text = (string)value ?? string.Empty;
                 Log?.Invoke(LogLevel.Debug, $"[Raw] RAW TEXT CMD: {LogUtil.Clean(text)}");
-                return Encoding.ASCII.GetBytes(text);
+                return _textEncoding.GetBytes(text);
             }
 
             throw new InvalidOperationException(
@@ -134,7 +168,7 @@ namespace NekoLib.Devices.Core.Protocols
                 Success = true,
                 Status = "Ok",
                 RawBytes = reply,
-                RawText = Encoding.ASCII.GetString(reply)
+                RawText = _textEncoding.GetString(reply)
             };
         }
     }

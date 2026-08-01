@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO.Ports;
 using System.Text;
 using NekoLib.Devices.Core.Abstractions;
 using NekoLib.Devices.Core.Protocols;
@@ -103,6 +104,35 @@ namespace NekoLib.Devices.Tests.Unit
             Assert.Equal("Ok", response.Status);
             Assert.Same(reply, response.RawBytes);
             Assert.Equal("OK", response.RawText);
+        }
+
+        [Fact]
+        public void Constructor_CustomConfigAndEncoding_AreUsed()
+        {
+            var config = new SerialConfig
+            {
+                BaudRate = 9600,
+                Parity = Parity.Even,
+                DataBits = 7,
+                StopBits = StopBits.One,
+                PortName = @"\\.\pipe\pcb-a"
+            };
+            var protocol = new ProtocolRaw(config, Encoding.GetEncoding(28591));
+            var op = new HardwareOperation
+            {
+                Args = new Dictionary<string, object>
+                {
+                    ["RawText"] = "AÇÃO"
+                }
+            };
+
+            var command = protocol.BuildCommand(op);
+            var response = protocol.ParseResponse(command, op);
+
+            Assert.Same(config, protocol.PortConfig);
+            Assert.Equal(@"\\.\pipe\pcb-a", protocol.PortConfig.PortName);
+            Assert.Equal(new byte[] { 0x41, 0xC7, 0xC3, 0x4F }, command);
+            Assert.Equal("AÇÃO", response.RawText);
         }
     }
 }

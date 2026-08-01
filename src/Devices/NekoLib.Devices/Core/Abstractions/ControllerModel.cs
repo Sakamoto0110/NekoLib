@@ -113,7 +113,9 @@ namespace NekoLib.Devices.Core.Abstractions
         }
     }
     /// <summary>
-    /// Represents the serial communication configuration used by a device.
+    /// Represents communication configuration used by a device.
+    /// The type retains its serial-shaped fields for API compatibility; non-serial
+    /// transports use the endpoint, newline, and timeout fields that apply to them.
     /// </summary>
     public class SerialConfig
     {
@@ -138,7 +140,10 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>NewLine terminator used for ASCII protocols.</summary>
         public string NewLine;
 
-        /// <summary>Optional default port name (e.g., "COM3").</summary>
+        /// <summary>
+        /// Optional default transport endpoint (for example, "COM3",
+        /// "tcp://127.0.0.1:5001", or "\\.\pipe\pcb-a").
+        /// </summary>
         public string PortName;
     }
 
