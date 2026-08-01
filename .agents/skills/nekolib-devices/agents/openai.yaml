@@ -1,0 +1,4 @@
+interface:
+  display_name: "NekoLib / Devices"
+  short_description: "Work safely in the NekoLib Devices module"
+  default_prompt: "Use $nekolib-devices to implement and verify this Devices change."

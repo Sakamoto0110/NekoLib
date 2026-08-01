@@ -1,0 +1,4 @@
+interface:
+  display_name: "NekoLib / Navigation"
+  short_description: "Work safely in NekoLib Navigation"
+  default_prompt: "Use $nekolib-navigation to implement and verify this Navigation change."

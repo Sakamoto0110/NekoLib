@@ -1,0 +1,4 @@
+interface:
+  display_name: "NekoLib / Data"
+  short_description: "Work safely in the NekoLib data module"
+  default_prompt: "Use $nekolib-data to implement and verify this data-module change."

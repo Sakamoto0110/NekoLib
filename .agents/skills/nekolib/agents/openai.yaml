@@ -1,0 +1,4 @@
+interface:
+  display_name: "NekoLib"
+  short_description: "Route work to the right NekoLib workflow"
+  default_prompt: "Use $nekolib to route this repository task to the appropriate specialized workflow."

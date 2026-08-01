@@ -1,0 +1,7 @@
+interface:
+  display_name: "NekoLib Repository Hygiene"
+  short_description: "Organize and verify the NekoLib repository"
+  default_prompt: "Use $nekolib-repository-hygiene to audit and safely organize the NekoLib repository."
+
+policy:
+  allow_implicit_invocation: true
