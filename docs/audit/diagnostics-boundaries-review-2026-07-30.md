@@ -626,3 +626,46 @@ boundary decisions were promoted to TODO Phase D. No product code changed in
 that promotion. When the remaining review decisions are complete, mark this
 artifact historical and append later implementation outcomes here without
 rewriting the original evidence snapshot.
+
+### Phase D implementation outcome — 2026-08-01
+
+Commit `1ff2594b43d8646f5ed93c1f1a47a042af10ec35` completed the accepted Phase D
+scope as a clean breaking migration:
+
+- Core now exposes independent Logging, Telemetry, and Inspection contracts.
+  The combined `IDiagnosticsContext` and the old Observability contracts were
+  removed.
+- `NekoLib.Logging`, `NekoLib.Telemetry`, and `NekoLib.Inspection` own their
+  respective implementations. Logging v1 is synchronous and ordered with a
+  bounded rolling-file sink; Telemetry v1 retains bounded completed operations
+  in memory and does not persist them.
+- Diagnostics now consumes bounded Logging, Telemetry, and read-only Inspection
+  evidence through Core abstractions. It cannot invoke Inspection actions.
+- Navigation accepts the three capabilities independently and produces the
+  accepted correlated page-switch timings without changing its canonical
+  lifecycle order. Data and Devices were evaluated but were not instrumented or
+  given Core references.
+
+Validation ran on Windows against the Phase D working tree, which still
+contained the unrelated pre-existing Devices changes recorded in the baseline:
+
+```text
+dotnet test NekoLib.sln --no-restore -m:1 -v:minimal
+  all solution test projects passed across both supported target families
+  898 test executions, 0 failures, 0 skipped
+
+.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.5 -AllowDirty
+  Release build and solution tests passed
+  Watchdog Host payload validation passed
+  WinForms and WPF package-consumer probes passed
+  15 immutable disposable validation packages published to artifacts/local-feed
+```
+
+Direct rebuilds of Core, Logging, Telemetry, Inspection, and Diagnostics
+completed with zero warnings. The full solution retained its pre-existing
+nullable-warning identities; no Phase D warning identity was introduced.
+
+This reconciliation resolves the original pending rename compatibility,
+logging persistence, telemetry persistence, and read-side composition choices.
+CRASH-01, CRASH-02, and WIN-01 were not promoted or implemented and remain the
+only review decisions keeping this artifact in progress.
