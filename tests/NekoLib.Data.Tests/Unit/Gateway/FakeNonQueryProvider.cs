@@ -14,15 +14,18 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         private readonly Func<FakeNonQueryCommand> _commandFactory;
         private readonly bool _useSynchronousOpenFallback;
         private readonly Action _beforeOpenAsyncNotSupported;
+        private readonly Exception _openException;
 
         public FakeNonQueryConnectionFactory(
             Func<FakeNonQueryCommand> commandFactory,
             bool useSynchronousOpenFallback = false,
-            Action beforeOpenAsyncNotSupported = null)
+            Action beforeOpenAsyncNotSupported = null,
+            Exception openException = null)
         {
             _commandFactory = commandFactory;
             _useSynchronousOpenFallback = useSynchronousOpenFallback;
             _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
+            _openException = openException;
         }
 
         public FakeNonQueryConnection LastConnection { get; private set; }
@@ -36,7 +39,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             LastConnection = new FakeNonQueryConnection(
                 _commandFactory,
                 _useSynchronousOpenFallback,
-                _beforeOpenAsyncNotSupported);
+                _beforeOpenAsyncNotSupported,
+                _openException);
             return Task.FromResult<DbConnection>(LastConnection);
         }
 
@@ -52,16 +56,19 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         private readonly Func<FakeNonQueryCommand> _commandFactory;
         private readonly bool _useSynchronousOpenFallback;
         private readonly Action _beforeOpenAsyncNotSupported;
+        private readonly Exception _openException;
         private ConnectionState _state;
 
         public FakeNonQueryConnection(
             Func<FakeNonQueryCommand> commandFactory,
             bool useSynchronousOpenFallback = false,
-            Action beforeOpenAsyncNotSupported = null)
+            Action beforeOpenAsyncNotSupported = null,
+            Exception openException = null)
         {
             _commandFactory = commandFactory;
             _useSynchronousOpenFallback = useSynchronousOpenFallback;
             _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
+            _openException = openException;
         }
 
         public FakeNonQueryConnection(string connectionString)
@@ -86,12 +93,16 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override void Open()
         {
             OpenCalls++;
+            if (_openException != null)
+                throw _openException;
             _state = ConnectionState.Open;
         }
 
         public override Task OpenAsync(CancellationToken cancellationToken)
         {
             OpenAsyncCalls++;
+            if (_openException != null)
+                return Task.FromException(_openException);
             if (_useSynchronousOpenFallback)
             {
                 _beforeOpenAsyncNotSupported?.Invoke();
@@ -308,6 +319,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public bool WasDisposed { get; private set; }
         public bool UseSynchronousReadFallback { get; set; }
         public Action BeforeAsyncNotSupported { get; set; }
+        public Action BeforeReadAsync { get; set; }
+        public Exception ReadException { get; set; }
         public int ReadCalls { get; private set; }
         public int ReadAsyncCalls { get; private set; }
         public override int Depth => 0;
@@ -321,6 +334,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override bool Read()
         {
             ReadCalls++;
+            if (ReadException != null)
+                throw ReadException;
             if (_closed)
                 throw new InvalidOperationException("Reader is closed.");
             if (_rowIndex + 1 >= _rows.Length)
@@ -332,6 +347,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override Task<bool> ReadAsync(CancellationToken cancellationToken)
         {
             ReadAsyncCalls++;
+            BeforeReadAsync?.Invoke();
             if (UseSynchronousReadFallback)
             {
                 BeforeAsyncNotSupported?.Invoke();
@@ -339,6 +355,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                     new NotSupportedException("Async row reads are not supported."));
             }
             cancellationToken.ThrowIfCancellationRequested();
+            if (ReadException != null)
+                return Task.FromException<bool>(ReadException);
             return Task.FromResult(Read());
         }
 

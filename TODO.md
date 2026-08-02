@@ -287,7 +287,7 @@ row type is not implementation work until a concrete consumer requires it.
 
 #### E1.6 — Contract tests and source hygiene
 
-- [ ] **DATA-018 — Add provider-independent gateway contract tests.** Use fake
+- [x] **DATA-018 — Add provider-independent gateway contract tests.** Use fake
   ADO.NET objects to cover connection/command/reader disposal, cancellation,
   observer isolation, mapping, streaming, session affinity, transactions, and
   failure paths on both target frameworks. These tests do not count as real
