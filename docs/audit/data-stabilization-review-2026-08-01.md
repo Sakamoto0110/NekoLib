@@ -11,7 +11,7 @@ streaming, provider boundaries, sessions, transactions, and validation gaps
 
 **Reference commit:** `628442a58cdf2e2374cc7e48fa10d394d3fc3b87`
 
-**Last reconciliation:** 2026-08-01
+**Last reconciliation:** 2026-08-02
 
 **Current state:** accepted implementation work is authoritative in
 [`TODO.md`](../../TODO.md) Phase E1; real-provider validation is authoritative
@@ -803,9 +803,74 @@ work. Numbers refer to `docs/audit/data-first-pass.md`.
   tests establish support.
 - Complete: MongoDB remains native-driver-based and separate from SQL
   translation.
-- Pending implementation: append a dated reconciliation with the implemented
-  reference commit and validation outcome without rewriting this snapshot.
+- Complete: the 2026-08-02 reconciliation records the implemented reference
+  range and validation outcome without rewriting this snapshot.
 - Complete: this file no longer owns active work; `TODO.md` is authoritative.
 
 This file is the detailed, commit-bound review evidence. It must not be used as
 a second roadmap.
+
+---
+
+## Implementation reconciliation — 2026-08-02
+
+Phase E1 was implemented in the inclusive commit range `b6a49d6` through
+`adf9ade`. This section records the result against the accepted decisions above;
+it does not replace `TODO.md` as the live authority.
+
+### Implemented outcomes
+
+- Query construction now fails closed for empty collection predicates and
+  unconstrained DML, uses explicit statement-state transitions, validates the
+  supported condition-template grammar, rejects untranslated limited
+  subqueries, and documents raw SQL fragments as trusted input.
+- Query event subscribers are isolated without adding a cross-module
+  dependency, and every stream reports exactly one terminal outcome, including
+  cancellation and early disposal.
+- Typed mapping uses one cached strict binding plan and structured failures;
+  lenient behavior is explicit compatibility policy. Universal reads validate
+  the requested target before opening a connection and do not cast dynamic rows
+  to unrelated DTOs.
+- The provider seam now supports occurrence-ordered positional binding,
+  portable parameter metadata, command timeouts, explicit synchronous fallback,
+  factory ownership, session affinity checks, session-aware DML, and reusable
+  transactions after commit or rollback.
+- Dynamic IL rows now match Expando null behavior and use a process-wide,
+  non-evicting schema cap. Once initialized, later contexts cannot reconfigure
+  the global cap; rejected schemas fall back or fail according to the accepted
+  policy, and metrics expose cache hits, misses, and limit rejections.
+- Provider-independent fake ADO.NET contracts cover success, failure,
+  cancellation, connection/command/reader disposal, observer isolation,
+  mapping, streaming, session affinity, and transactions on both targets.
+- The fully commented duplicate `Connection/DbSession.cs` was removed after a
+  final reference search, and public Data XML documentation was normalized to
+  English.
+
+### Dynamic-mode measurement and decision
+
+An ignored local .NET 9 harness used `Microsoft.Data.Sqlite` 9.0.0 and the
+public `ReadDynamic` path to materialize 100,000 rows. Each run compared the
+median of seven post-warmup samples and verified the same checksum
+(`5000050000`):
+
+| Run | Expando median | IL median | Expando rows/s | IL rows/s |
+|---:|---:|---:|---:|---:|
+| 1 | 115.43 ms | 283.14 ms | 866,337 | 353,177 |
+| 2 | 111.40 ms | 259.85 ms | 897,694 | 384,844 |
+
+IL did not demonstrate a performance advantage in this bounded measurement.
+Expando therefore remains the production default, while IL remains a stabilized
+opt-in compatibility mode. Removing the public mode would be separate breaking
+API work, not an E1 correction. This SQLite measurement is performance evidence
+only and does not count as the real-provider support validation owned by E4.
+
+### Validation outcome
+
+- `NekoLib.Data` builds succeeded for `net481` and `net9.0` with zero warnings.
+- Data unit/contract tests passed: 108 on `net481` and 117 on `net9.0`.
+- `dotnet test NekoLib.sln --no-restore --nologo` completed successfully.
+- A full solution rebuild completed with 529 pre-existing warnings and zero
+  errors. `eng/verify-docs.ps1` accepted the captured build log, including the
+  warning-identity comparison, and reported documentation verification passed.
+- Real SQLite and Access/OleDb behavior, plus any selected server provider,
+  remains explicitly deferred to Phase E4 and is not claimed by E1.

@@ -296,7 +296,7 @@ row type is not implementation work until a concrete consumer requires it.
   fully commented duplicate `Connection/DbSession.cs` after a final reference
   search and translate public Data XML documentation to English. Keep the
   cleanup separate from behavioral commits where practical.
-- [ ] After E1.1-E1.5, run Data tests on both targets and the full solution,
+- [x] After E1.1-E1.5, run Data tests on both targets and the full solution,
   compare warning identities, and append implementation reconciliation to the
   dated Data stabilization review.
 
