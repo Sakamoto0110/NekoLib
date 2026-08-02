@@ -1,8 +1,8 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 namespace NekoLib.Data.Query 
 {
     /// <summary>
@@ -201,26 +201,71 @@ namespace NekoLib.Data.Query
         public QueryBuilder Where(string Condition, params object[] Values)
         {
             RequirePredicateQuery(nameof(Where));
-            if (!string.IsNullOrWhiteSpace(Condition) && Values != null && Values.Length > 0)
+            object[] conditionValues = Values ?? Array.Empty<object>();
+            int valueCount = conditionValues.Length;
+            if (string.IsNullOrWhiteSpace(Condition))
             {
-                for (int i = 0; i < Values.Length; i++)
-                {
-                    string placeholder = "@p" + (i + 1);
-                    string paramName = NewParamName();
-
-                    Condition = Regex.Replace(
-                        Condition,
-                        Regex.Escape(placeholder) + @"\b",
-                        paramName);
-
-                    _parameters[paramName] = Values[i];
-                }
+                if (valueCount != 0)
+                    throw new ArgumentException("Condition values were supplied without a condition template.", nameof(Values));
+                return this;
             }
 
-            if (!string.IsNullOrWhiteSpace(Condition))
-                _conditions.Add(Condition);
+            IReadOnlyList<SqlParameterToken> tokens = SqlParameterTokenizer.Tokenize(Condition);
+            ValidateConditionTemplate(tokens, valueCount, nameof(Values));
+
+            Dictionary<int, string> replacements = new Dictionary<int, string>();
+            for (int index = 1; index <= valueCount; index++)
+            {
+                string parameterName = NewParamName();
+                replacements[index] = parameterName;
+                _parameters[parameterName] = conditionValues[index - 1];
+            }
+
+            _conditions.Add(RewriteParameterTokens(
+                Condition,
+                tokens,
+                token => replacements[token.Index]));
 
             return this;
+        }
+
+        private static void ValidateConditionTemplate(
+            IReadOnlyList<SqlParameterToken> tokens,
+            int valueCount,
+            string valuesParameterName)
+        {
+            HashSet<int> indexes = new HashSet<int>();
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                SqlParameterToken token = tokens[i];
+                string canonicalName = "@p" + token.Index.ToString(CultureInfo.InvariantCulture);
+                if (token.Index < 1 ||
+                    !string.Equals(token.Name, canonicalName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException(
+                        "Condition placeholders must use the canonical @p1, @p2, ... grammar.",
+                        valuesParameterName);
+                }
+
+                indexes.Add(token.Index);
+            }
+
+            if (indexes.Count != valueCount)
+            {
+                throw new ArgumentException(
+                    "Condition placeholder count must exactly match the supplied value count.",
+                    valuesParameterName);
+            }
+
+            for (int index = 1; index <= valueCount; index++)
+            {
+                if (!indexes.Contains(index))
+                {
+                    throw new ArgumentException(
+                        "Condition placeholders must be contiguous and start at @p1.",
+                        valuesParameterName);
+                }
+            }
         }
 
         public QueryBuilder WhereIn(string Column, IEnumerable<object> Values)
@@ -324,7 +369,35 @@ namespace NekoLib.Data.Query
 
         private static string ReplaceParameterName(string sql, string oldName, string newName)
         {
-            return Regex.Replace(sql, Regex.Escape(oldName) + @"\b", newName);
+            IReadOnlyList<SqlParameterToken> tokens = SqlParameterTokenizer.Tokenize(sql);
+            return RewriteParameterTokens(
+                sql,
+                tokens,
+                token => string.Equals(token.Name, oldName, StringComparison.OrdinalIgnoreCase)
+                    ? newName
+                    : token.Name);
+        }
+
+        private static string RewriteParameterTokens(
+            string sql,
+            IReadOnlyList<SqlParameterToken> tokens,
+            Func<SqlParameterToken, string> replacement)
+        {
+            if (tokens.Count == 0)
+                return sql;
+
+            StringBuilder builder = new StringBuilder(sql.Length);
+            int position = 0;
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                SqlParameterToken token = tokens[i];
+                builder.Append(sql, position, token.Start - position);
+                builder.Append(replacement(token));
+                position = token.Start + token.Length;
+            }
+
+            builder.Append(sql, position, sql.Length - position);
+            return builder.ToString();
         }
 
         #endregion

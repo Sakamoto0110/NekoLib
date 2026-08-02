@@ -116,6 +116,99 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
+        public void Where_MissingPlaceholderValue_ThrowsBeforeMutatingParameters()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentException>(() =>
+                builder.Where("Id = @p1 AND Region = @p2", 7));
+            Assert.Empty(builder.Parameters);
+        }
+
+        [Fact]
+        public void Where_UnusedValue_ThrowsBeforeMutatingParameters()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentException>(() =>
+                builder.Where("Id = @p1", 7, "north"));
+            Assert.Empty(builder.Parameters);
+        }
+
+        [Fact]
+        public void Where_PlaceholderGap_ThrowsArgumentException()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentException>(() =>
+                builder.Where("Id = @p2", 7));
+        }
+
+        [Theory]
+        [InlineData("Id = @p0")]
+        [InlineData("Id = @p01")]
+        public void Where_NonCanonicalPlaceholder_ThrowsArgumentException(string condition)
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentException>(() => builder.Where(condition, 7));
+        }
+
+        [Fact]
+        public void Where_RepeatedPlaceholder_ReusesOneGeneratedParameter()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .Where("PrimaryId = @p1 OR BackupId = @p1", 7)
+                .Build();
+
+            Assert.Equal(
+                "SELECT * FROM Customers WHERE PrimaryId = @p1 OR BackupId = @p1",
+                model.Sql);
+            Assert.Single(model.Parameters);
+            Assert.Equal(7, model.Parameters["@p1"]);
+        }
+
+        [Fact]
+        public void Where_QuotedAndCommentedPlaceholderText_IsNotTokenized()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .Where(
+                    "Id = @p1 AND Note = '@p2' /* @p3 */ -- @p4\r\nAND Active = 1",
+                    7)
+                .Build();
+
+            Assert.Contains("Note = '@p2'", model.Sql);
+            Assert.Contains("/* @p3 */", model.Sql);
+            Assert.Contains("-- @p4", model.Sql);
+            Assert.Single(model.Parameters);
+        }
+
+        [Fact]
+        public void Where_PlaceholderPrefixCollision_IsTreatedAsTrustedRawText()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .Where("ProviderVariable = @p1suffix")
+                .Build();
+
+            Assert.Contains("@p1suffix", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void Where_ValuesWithoutCondition_ThrowsArgumentException()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentException>(() => builder.Where(" ", 7));
+        }
+
+        [Fact]
         public void WhereIn_EmptyCollection_EmitsConstantFalsePredicate()
         {
             QueryModel model = new QueryBuilder()

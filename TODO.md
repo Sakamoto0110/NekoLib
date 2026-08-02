@@ -194,7 +194,7 @@ only adaptations demonstrated by that evidence.
   each query/projection mode replace or reject incompatible state rather than
   retaining columns, `Distinct`, `Count`, `Top`, joins, or predicates from an
   earlier statement.
-- [ ] **DATA-009 — Validate condition-template placeholders.** Require exact
+- [x] **DATA-009 — Validate condition-template placeholders.** Require exact
   placeholder arity, tokenize only the supported template grammar, and reject
   missing or unused values before translation. Keep raw fragments explicitly
   trusted; defer public member renames to the API-stability phase.
