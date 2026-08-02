@@ -203,7 +203,7 @@ deployment package are packaged together; tests, runtime scenarios,
 Use the packaging entry point instead of packing individual projects:
 
 ```powershell
-.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.3
+.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.7
 ```
 
 The command requires a clean Git worktree, builds and tests the solution,
@@ -211,8 +211,8 @@ publishes the Watchdog Host payloads, packs the whole family, validates package
 structure and cross-TFM compatibility, restores clean PackageReference-only
 consumers, and finally copies the verified artifacts to
 `artifacts/local-feed/`. Main packages and `.snupkg` symbol packages are
-retained. Package versions are immutable: after publishing `local.3`, use
-`local.4` for changed bits.
+retained. Package versions are immutable: after publishing `local.7`, use
+`local.8` for changed bits.
 
 Use `-AllowDirty` only for a disposable validation version; a package produced
 from uncommitted sources cannot carry exact Git/Source Link provenance.
@@ -221,7 +221,7 @@ Register the generated folder as a source on a consumer machine:
 
 ```powershell
 dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
-dotnet add package NekoLib.Navigation.WinForms --version 1.0.0-local.3
+dotnet add package NekoLib.Navigation.WinForms --version 1.0.0-local.7
 ```
 
 The same verified `.nupkg` files can be pushed to an authenticated private
