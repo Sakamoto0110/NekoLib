@@ -1,12 +1,27 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using NekoLib.Data.Connection;
 
 namespace NekoLib.Data.Query
 {
+    /// <summary>
+    /// Owns connection and translation policy plus ordered query-lifecycle
+    /// notifications for one gateway context.
+    /// </summary>
+    /// <remarks>
+    /// Notifications run synchronously in subscription order, so subscriber
+    /// latency remains part of the database call. Subscriber exceptions are
+    /// isolated from database outcomes and retained only in the bounded
+    /// observer-failure snapshot.
+    /// </remarks>
     public class QueryExecutionContext : IDisposable
     {
         private const string RedactedSql = "[SQL redacted]";
+        private readonly object _observerFailureSync = new object();
+        private readonly Queue<DbQueryObserverFailure> _observerFailures =
+            new Queue<DbQueryObserverFailure>();
+        private long _observerFailureSequence;
         private bool disposedValue;
 
         public event Action<DbQueryEventArgs>? OnSqlGenerated;
@@ -25,17 +40,86 @@ namespace NekoLib.Data.Query
         }
         
 
+        /// <summary>
+        /// Returns a bounded snapshot of recent query-observer failures. The
+        /// snapshot never contains SQL text or command results.
+        /// </summary>
+        public IReadOnlyList<DbQueryObserverFailure> GetObserverFailures()
+        {
+            lock (_observerFailureSync)
+            {
+                return _observerFailures.ToArray();
+            }
+        }
+
         internal void RaiseSqlGenerated(string sql)
         {
-            OnSqlGenerated?.Invoke(new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlGenerated));
+            Notify(
+                OnSqlGenerated,
+                new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlGenerated));
         }
-        internal void RaiseSqlDispatch(string sql)=> OnSqlDispatch?.Invoke(new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlDispatched));
+        internal void RaiseSqlDispatch(string sql)
+        {
+            Notify(
+                OnSqlDispatch,
+                new DbQueryEventArgs(GetEventSql(sql), DbQueryEventType.SqlDispatched));
+        }
         internal void RaiseSuccess(string sql, object? result = null)
         {
             object? eventResult = Options.IncludeCommandResultInSuccessEvents ? result : null;
-            OnSuccess?.Invoke(new DbQuerySuccessEventArgs(GetEventSql(sql), eventResult));
+            Notify(
+                OnSuccess,
+                new DbQuerySuccessEventArgs(GetEventSql(sql), eventResult));
         }
-        internal void RaiseError(string sql, Exception ex)=> OnError?.Invoke(new DbQueryFailureEventArgs(GetEventSql(sql), ex));
+        internal void RaiseError(string sql, Exception ex)
+        {
+            Notify(
+                OnError,
+                new DbQueryFailureEventArgs(GetEventSql(sql), ex));
+        }
+
+        private void Notify<TEventArgs>(Action<TEventArgs>? handlers, TEventArgs args)
+            where TEventArgs : DbQueryEventArgs
+        {
+            if (handlers == null)
+                return;
+
+            Delegate[] subscribers = handlers.GetInvocationList();
+            for (int i = 0; i < subscribers.Length; i++)
+            {
+                try
+                {
+                    ((Action<TEventArgs>)subscribers[i])(args);
+                }
+                catch (Exception ex)
+                {
+                    CaptureObserverFailure(args.EventType, ex);
+                }
+            }
+        }
+
+        private void CaptureObserverFailure(DbQueryEventType eventType, Exception exception)
+        {
+            // Observer-failure capture is deliberately non-recursive and must
+            // never alter the authoritative database outcome.
+            try
+            {
+                lock (_observerFailureSync)
+                {
+                    _observerFailureSequence++;
+                    _observerFailures.Enqueue(new DbQueryObserverFailure(
+                        _observerFailureSequence,
+                        eventType,
+                        exception));
+
+                    while (_observerFailures.Count > Options.MaxObserverFailures)
+                        _observerFailures.Dequeue();
+                }
+            }
+            catch
+            {
+            }
+        }
 
         private string GetEventSql(string sql)
         {
@@ -57,6 +141,11 @@ namespace NekoLib.Data.Query
                         OnSuccess = null;
                         OnError = null;
                     }
+
+                    lock (_observerFailureSync)
+                    {
+                        _observerFailures.Clear();
+                    }
                 }              
                 disposedValue = true;
             }
@@ -69,6 +158,28 @@ namespace NekoLib.Data.Query
             GC.SuppressFinalize(this);
         }
     }
+
+    /// <summary>
+    /// Describes a query observer that failed while receiving a synchronous
+    /// notification. SQL and command results are intentionally excluded.
+    /// </summary>
+    public sealed class DbQueryObserverFailure
+    {
+        public DbQueryObserverFailure(
+            long sequence,
+            DbQueryEventType eventType,
+            Exception exception)
+        {
+            Sequence = sequence;
+            EventType = eventType;
+            Exception = exception ?? throw new ArgumentNullException(nameof(exception));
+        }
+
+        public long Sequence { get; }
+        public DbQueryEventType EventType { get; }
+        public Exception Exception { get; }
+    }
+
     [Flags]
     public enum DbQueryEventType { SqlGenerated=1, SqlDispatched=2, Success=4, Error=8}
     public class DbQueryEventArgs : EventArgs

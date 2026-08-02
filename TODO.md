@@ -210,7 +210,7 @@ only adaptations demonstrated by that evidence.
 
 #### E1.2 — Authoritative operation and stream outcomes
 
-- [ ] **DATA-002 — Isolate query-event subscribers.** Keep event delivery
+- [x] **DATA-002 — Isolate query-event subscribers.** Keep event delivery
   synchronous and ordered, invoke subscribers individually, and ensure a
   throwing observer cannot prevent dispatch, turn a committed operation into a
   failure, or mask the provider exception. Synchronous subscriber latency

@@ -63,9 +63,16 @@ namespace NekoLib.Data
         /// </summary>
         public bool IncludeCommandResultInSuccessEvents { get; set; } = false;
 
+        /// <summary>
+        /// Maximum number of recent query-observer failures retained by each
+        /// <see cref="Query.QueryExecutionContext"/>.
+        /// </summary>
+        public int MaxObserverFailures { get; set; } = 32;
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;
+            if (MaxObserverFailures < 1) MaxObserverFailures = 1;
         }
     }
 }
