@@ -58,20 +58,20 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = new TTranslator().Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await GetUniversalFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session).ConfigureAwait(false);
+            return await GetUniversalFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         private async Task<List<T>> GetUniversalFromSql<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
+            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null) where T : new()
         {
             Type targetType = typeof(T);
             ValidateUniversalTarget(targetType);
             if(IsDynamicTarget(targetType))
             {
-                List<DynamicRow> dynRows = await GetDynamicFromSql(sql, parameters, ct, session).ConfigureAwait(false);
+                List<DynamicRow> dynRows = await GetDynamicFromSql(sql, parameters, ct, session, commandPolicy).ConfigureAwait(false);
                 List<T> result = new List<T>(dynRows.Count);
                 for(int i = 0; i < dynRows.Count; i++)
                 {
@@ -80,7 +80,7 @@ namespace NekoLib.Data.Internal.Gateway
                 return result;
             }
 
-            return await GetDtoFromSql<T>(sql, parameters, ct, session).ConfigureAwait(false);
+            return await GetDtoFromSql<T>(sql, parameters, ct, session, commandPolicy).ConfigureAwait(false);
         }
 
         #endregion
@@ -167,7 +167,7 @@ namespace NekoLib.Data.Internal.Gateway
                     }
 
                     return 0;
-                }, ct, session).ConfigureAwait(false);
+                }, ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         private static Type ValidateUniversalHandler(Delegate handler)
@@ -309,6 +309,7 @@ namespace NekoLib.Data.Internal.Gateway
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    ApplyCommandPolicy(cmd, dbq.CommandPolicy);
                     if(session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);

@@ -62,7 +62,7 @@ namespace NekoLib.Data.Internal.Gateway
             return GetRawCore(Sql, Parameters, session, Ct);
         }
 
-        private async Task<List<Dictionary<string, RecordItem>>> GetRawCore(string Sql, Dictionary<string, object?>? Parameters, DbSession? session, CancellationToken Ct)
+        private async Task<List<Dictionary<string, RecordItem>>> GetRawCore(string Sql, Dictionary<string, object?>? Parameters, DbSession? session, CancellationToken Ct, DbCommandPolicy? commandPolicy = null)
         {
             List<Dictionary<string, RecordItem>> result = await WithCommandAsync(Sql,Parameters, async delegate (DbCommand cmd)
             {
@@ -80,7 +80,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return list;
-            }, Ct, session).ConfigureAwait(false);
+            }, Ct, session, commandPolicy).ConfigureAwait(false);
 
             return result;
         }
@@ -100,7 +100,7 @@ namespace NekoLib.Data.Internal.Gateway
             return ReadRawCore(Sql, Parameters, Callback, session, Ct);
         }
 
-        private async Task ReadRawCore(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct)
+        private async Task ReadRawCore(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession? session, CancellationToken Ct, DbCommandPolicy? commandPolicy = null)
         {
             if(Callback == null) throw new ArgumentNullException(nameof(Callback));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
@@ -119,16 +119,25 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, Ct, session).ConfigureAwait(false);
+            }, Ct, session, commandPolicy).ConfigureAwait(false);
         }
 
-        protected async Task<int> Upsert(string Sql,Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
+        protected async Task<int> Upsert(
+            string Sql,
+            Dictionary<string, object?>? Parameters,
+            CancellationToken Ct = default,
+            DbCommandPolicy? commandPolicy = null)
         {
             if(string.IsNullOrWhiteSpace(Sql))
                 throw new ArgumentNullException(nameof(Sql));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
-            int affected = await WithCommandAsync(Sql,Parameters, cmd => ExecuteNonQuerySafeAsync(cmd, Ct), Ct).ConfigureAwait(false);
+            int affected = await WithCommandAsync(
+                Sql,
+                Parameters,
+                cmd => ExecuteNonQuerySafeAsync(cmd, Ct),
+                Ct,
+                commandPolicy).ConfigureAwait(false);
 
             return affected;
         }
@@ -171,7 +180,7 @@ namespace NekoLib.Data.Internal.Gateway
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
-            return await GetRawCore(dbq.Sql, dbq.Parameters, session, Ct).ConfigureAwait(false);
+            return await GetRawCore(dbq.Sql, dbq.Parameters, session, Ct, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
@@ -194,7 +203,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadRawCore(dbq.Sql, dbq.Parameters, Callback, session, Ct).ConfigureAwait(false);
+            await ReadRawCore(dbq.Sql, dbq.Parameters, Callback, session, Ct, dbq.CommandPolicy).ConfigureAwait(false);
 
         }
 
@@ -207,7 +216,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await Insert(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
+            return await Upsert(dbq.Sql, dbq.Parameters, Ct, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         public async Task<int> Update(QueryBuilder Builder , CancellationToken Ct = default)
@@ -219,7 +228,7 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await Update(dbq.Sql, dbq.Parameters, Ct).ConfigureAwait(false);
+            return await Upsert(dbq.Sql, dbq.Parameters, Ct, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         #endregion
@@ -274,14 +283,14 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await GetDtoFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session).ConfigureAwait(false);
+            return await GetDtoFromSql<T>(dbq.Sql, dbq.Parameters, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         private async Task<List<T>> GetDtoFromSql<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
+            T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null) where T : new()
         {
             ReaderDtoMapper.ValidateTargetType(typeof(T));
             List<T> list = new List<T>();
@@ -298,7 +307,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, ct, session).ConfigureAwait(false);
+            }, ct, session, commandPolicy).ConfigureAwait(false);
 
             return list;
         }
@@ -334,14 +343,14 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadDtoFromSql<T>(dbq.Sql, dbq.Parameters, Callback, Ct, session).ConfigureAwait(false);
+            await ReadDtoFromSql<T>(dbq.Sql, dbq.Parameters, Callback, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         private async Task ReadDtoFromSql<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
 #endif
-            T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default, DbSession? session = null) where T : new()
+            T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null) where T : new()
         {
             ReaderDtoMapper.ValidateTargetType(typeof(T));
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
@@ -356,7 +365,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, ct, session).ConfigureAwait(false);
+            }, ct, session, commandPolicy).ConfigureAwait(false);
         }
 
         #endregion
@@ -433,6 +442,7 @@ namespace NekoLib.Data.Internal.Gateway
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    ApplyCommandPolicy(cmd, dbq.CommandPolicy);
                     if(session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);
@@ -517,6 +527,7 @@ namespace NekoLib.Data.Internal.Gateway
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    ApplyCommandPolicy(cmd, dbq.CommandPolicy);
                     if(session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);

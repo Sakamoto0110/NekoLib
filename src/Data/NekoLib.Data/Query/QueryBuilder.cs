@@ -49,6 +49,7 @@ namespace NekoLib.Data.Query
         }
 
         private int? _top;
+        private int? _commandTimeoutSeconds;
 
         private bool _isDistinctSelect;
         private string? _countColumn;
@@ -69,6 +70,7 @@ namespace NekoLib.Data.Query
             _parameters.Clear();
             _paramIndex = 0;
             _top = null;
+            _commandTimeoutSeconds = null;
             _isDistinctSelect = false;
             _countColumn = null;
             _isDistinctCount = false;
@@ -106,6 +108,20 @@ namespace NekoLib.Data.Query
         }
 
         #region TOP
+
+        /// <summary>
+        /// Overrides the context command timeout for the current statement.
+        /// </summary>
+        public QueryBuilder CommandTimeout(int seconds)
+        {
+            if (_queryType == QueryType.Undefined)
+                throw new InvalidOperationException("CommandTimeout requires an active statement.");
+            if (seconds <= 0)
+                throw new ArgumentOutOfRangeException(nameof(seconds), "Command timeout must be greater than zero.");
+
+            _commandTimeoutSeconds = seconds;
+            return this;
+        }
 
         /// <summary>
         /// Sets the provider-neutral row limit for the current SELECT statement.
@@ -559,7 +575,11 @@ namespace NekoLib.Data.Query
                     throw new InvalidOperationException("Query type was not defined. Call Select/Insert/Update first.");
             }
 
-            return new QueryModel(sql, parameters, _top);
+            return new QueryModel(
+                sql,
+                parameters,
+                _top,
+                new DbCommandPolicy { TimeoutSeconds = _commandTimeoutSeconds });
         }
 
         private string BuildSelect()

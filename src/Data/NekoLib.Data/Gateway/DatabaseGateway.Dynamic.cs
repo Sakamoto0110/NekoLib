@@ -342,17 +342,17 @@ namespace NekoLib.Data.Internal.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct, session).ConfigureAwait(false);
+            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
-        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null)
+        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null)
         {
             List<DynamicRow> list = new List<DynamicRow>();
-            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct, session).ConfigureAwait(false);
+            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct, session, commandPolicy).ConfigureAwait(false);
             return list;
         }
 
-        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default, DbSession? session = null)
+        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null)
         {
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
@@ -374,7 +374,7 @@ namespace NekoLib.Data.Internal.Gateway
                 }
 
                 return 0;
-            }, ct, session).ConfigureAwait(false);
+            }, ct, session, commandPolicy).ConfigureAwait(false);
         }
 
 
@@ -440,6 +440,7 @@ namespace NekoLib.Data.Internal.Gateway
 
                     cmd = conn.CreateCommand();
                     cmd.CommandText = dbq.Sql;
+                    ApplyCommandPolicy(cmd, dbq.CommandPolicy);
                     if(session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
                     ctx.RaiseSqlDispatch(dbq.Sql);

@@ -20,11 +20,19 @@ namespace NekoLib.Data.Query
         /// </summary>
         public Dictionary<string, object?> Parameters { get; }
 
-        public DatabaseQuery(string sql, Dictionary<string, object?> parameters)
+        /// <summary>Gets the policy overrides for this translated command.</summary>
+        public DbCommandPolicy CommandPolicy { get; }
+
+        public DatabaseQuery(
+            string sql,
+            Dictionary<string, object?> parameters,
+            DbCommandPolicy? commandPolicy = null)
         {
             if (sql == null) throw new ArgumentNullException("sql");
             Sql = sql;
             Parameters = parameters ?? new Dictionary<string, object?>();
+            CommandPolicy = commandPolicy?.Copy() ?? new DbCommandPolicy();
+            CommandPolicy.Validate(nameof(commandPolicy));
         }
     }
 

@@ -28,7 +28,14 @@ namespace NekoLib.Data.Query
         /// </summary>
         public int? Top { get; }
 
-        public QueryModel(string Sql, Dictionary<string, object?> Parameters, int? Top = null)
+        /// <summary>Gets the provider-neutral command policy.</summary>
+        public DbCommandPolicy CommandPolicy { get; }
+
+        public QueryModel(
+            string Sql,
+            Dictionary<string, object?> Parameters,
+            int? Top = null,
+            DbCommandPolicy? CommandPolicy = null)
         {
             if (Sql == null) throw new ArgumentNullException(nameof(Sql));
             if (Parameters == null) throw new ArgumentNullException(nameof(Parameters));
@@ -36,6 +43,8 @@ namespace NekoLib.Data.Query
             this.Sql = Sql;
             this.Parameters = new Dictionary<string, object?>(Parameters);
             this.Top = Top;
+            this.CommandPolicy = CommandPolicy?.Copy() ?? new DbCommandPolicy();
+            this.CommandPolicy.Validate(nameof(CommandPolicy));
         }
     }
 

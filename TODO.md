@@ -256,7 +256,7 @@ row type is not implementation work until a concrete consumer requires it.
   use an explicit opt-in policy, disabled by default, with cancellation checked
   before the blocking call and its in-flight limitation documented. Do not use
   `Task.Run` as a cancellation guarantee.
-- [ ] **DATA-013 — Add portable parameter and command policy.** Introduce a
+- [x] **DATA-013 — Add portable parameter and command policy.** Introduce a
   multi-target ordinary-class parameter specification for `DbType`, size,
   precision, scale, direction, and null value. Add explicit command-timeout
   defaults and overrides. Keep all concrete provider packages outside

@@ -76,6 +76,12 @@ namespace NekoLib.Data
         public DataMappingFailureMode MappingFailureMode { get; set; } =
             DataMappingFailureMode.Strict;
 
+        /// <summary>
+        /// Gets or sets the command timeout used when a command has no
+        /// per-query override. A null value preserves the provider default.
+        /// </summary>
+        public int? DefaultCommandTimeoutSeconds { get; set; }
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;
@@ -84,6 +90,11 @@ namespace NekoLib.Data
                 MappingFailureMode != DataMappingFailureMode.Lenient)
             {
                 throw new ArgumentOutOfRangeException(nameof(MappingFailureMode));
+            }
+            if (DefaultCommandTimeoutSeconds.HasValue &&
+                DefaultCommandTimeoutSeconds.Value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(DefaultCommandTimeoutSeconds));
             }
         }
     }

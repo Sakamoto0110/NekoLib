@@ -49,6 +49,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override string ServerVersion => "1";
         public override ConnectionState State => _state;
         public bool WasDisposed { get; private set; }
+        public FakeNonQueryCommand LastCommand { get; private set; }
 
         public override void Open()
         {
@@ -80,6 +81,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         {
             FakeNonQueryCommand command = _commandFactory();
             command.Connection = this;
+            LastCommand = command;
             return command;
         }
 
@@ -315,6 +317,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override bool IsNullable { get; set; }
         public override string ParameterName { get; set; }
         public override int Size { get; set; }
+        public override byte Precision { get; set; }
+        public override byte Scale { get; set; }
         public override string SourceColumn { get; set; }
         public override bool SourceColumnNullMapping { get; set; }
         public override object Value { get; set; }

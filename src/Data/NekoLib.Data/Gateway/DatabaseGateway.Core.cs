@@ -83,7 +83,7 @@ namespace NekoLib.Data.Internal.Gateway
             var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
             return new DbSession(conn);
         }
-        private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct)
+        private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct, DbCommandPolicy? commandPolicy = null)
         {
             if(Sql == null) throw new ArgumentNullException(nameof(Sql));
             if(work == null) throw new ArgumentNullException(nameof(work));
@@ -94,6 +94,7 @@ namespace NekoLib.Data.Internal.Gateway
                     cmd.CommandText = Sql;
                     cmd.CommandType = CommandType.Text;
 
+                    ApplyCommandPolicy(cmd, commandPolicy);
                     ApplyParameters(cmd, Parameters);
                     try
                     {
@@ -114,7 +115,7 @@ namespace NekoLib.Data.Internal.Gateway
            return WithCommandAsync(Sql, null, work, Ct);
         }
 
-        private async Task<T> WithCommandAsync<T>(string sql, Dictionary<string, object?>? parameters, Func<DbCommand, Task<T>> work, CancellationToken ct, DbSession? session)
+        private async Task<T> WithCommandAsync<T>(string sql, Dictionary<string, object?>? parameters, Func<DbCommand, Task<T>> work, CancellationToken ct, DbSession? session, DbCommandPolicy? commandPolicy = null)
         {
             DbConnection conn;
             bool ownsConnection = false;
@@ -136,6 +137,7 @@ namespace NekoLib.Data.Internal.Gateway
                     cmd.CommandText = sql;
                     cmd.CommandType = CommandType.Text;
 
+                    ApplyCommandPolicy(cmd, commandPolicy);
                     if (session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
 
@@ -245,10 +247,35 @@ namespace NekoLib.Data.Internal.Gateway
         if(!isAccess)
             p.ParameterName = kv.Key;
 
-        p.Value = kv.Value ?? DBNull.Value;
+        DbParameterSpec? spec = kv.Value as DbParameterSpec;
+        if(spec != null)
+        {
+            spec.Validate(kv.Key);
+            if(spec.DbType.HasValue) p.DbType = spec.DbType.Value;
+            if(spec.Size.HasValue) p.Size = spec.Size.Value;
+            if(spec.Precision.HasValue) p.Precision = spec.Precision.Value;
+            if(spec.Scale.HasValue) p.Scale = spec.Scale.Value;
+            p.Direction = spec.Direction;
+            p.Value = spec.Value ?? DBNull.Value;
+        }
+        else
+        {
+            p.Value = kv.Value ?? DBNull.Value;
+        }
         cmd.Parameters.Add(p);
     }
 }
+
+        private void ApplyCommandPolicy(DbCommand command, DbCommandPolicy? commandPolicy)
+        {
+            if (commandPolicy != null)
+                commandPolicy.Validate(nameof(commandPolicy));
+
+            int? timeout = commandPolicy?.TimeoutSeconds ??
+                ctx.Options.DefaultCommandTimeoutSeconds;
+            if (timeout.HasValue)
+                command.CommandTimeout = timeout.Value;
+        }
 
 #endregion
 
