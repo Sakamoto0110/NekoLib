@@ -80,6 +80,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public int OpenCalls { get; private set; }
         public int OpenAsyncCalls { get; private set; }
         public int CreateCommandCalls { get; private set; }
+        public int BeginTransactionCalls { get; private set; }
+        public FakeNonQueryTransaction LastTransaction { get; private set; }
 
         public override void Open()
         {
@@ -111,7 +113,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
-            throw new NotSupportedException();
+            BeginTransactionCalls++;
+            LastTransaction = new FakeNonQueryTransaction(this, isolationLevel);
+            return LastTransaction;
         }
 
         protected override DbCommand CreateDbCommand()
@@ -127,6 +131,41 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         {
             WasDisposed = true;
             _state = ConnectionState.Closed;
+            base.Dispose(disposing);
+        }
+    }
+
+    internal sealed class FakeNonQueryTransaction : DbTransaction
+    {
+        private readonly FakeNonQueryConnection _connection;
+
+        public FakeNonQueryTransaction(
+            FakeNonQueryConnection connection,
+            IsolationLevel isolationLevel)
+        {
+            _connection = connection;
+            IsolationLevel = isolationLevel;
+        }
+
+        public override IsolationLevel IsolationLevel { get; }
+        protected override DbConnection DbConnection => _connection;
+        public int CommitCalls { get; private set; }
+        public int RollbackCalls { get; private set; }
+        public bool WasDisposed { get; private set; }
+
+        public override void Commit()
+        {
+            CommitCalls++;
+        }
+
+        public override void Rollback()
+        {
+            RollbackCalls++;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
             base.Dispose(disposing);
         }
     }

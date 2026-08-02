@@ -49,9 +49,16 @@ namespace NekoLib.Data.Internal.Gateway
             string sql,
             Dictionary<string, object?>? parameters,
             CancellationToken ct,
-            DbSession? session)
+            DbSession? session,
+            DbCommandPolicy? commandPolicy = null)
         {
-            return WithCommandAsync(sql, parameters, cmd => ExecuteNonQuerySafeAsync(cmd, ct), ct, session);
+            return WithCommandAsync(
+                sql,
+                parameters,
+                cmd => ExecuteNonQuerySafeAsync(cmd, ct),
+                ct,
+                session,
+                commandPolicy);
         }
 
 #if NET6_0_OR_GREATER

@@ -268,7 +268,7 @@ row type is not implementation work until a concrete consumer requires it.
   generic string factory as a compatibility adapter. Add data-source-style or
   cancellable create/open contracts only when an E4 provider demonstrates the
   need and the ownership behavior is covered by provider-independent tests.
-- [ ] **DATA-015 — Make DML and transaction participation symmetric.** Add
+- [x] **DATA-015 — Make DML and transaction participation symmetric.** Add
   session-aware QueryBuilder DML overloads, align concrete and interface
   behavior without a namespace move, and allow a valid new transaction after
   commit or rollback while preserving nested-depth rules. Defer new async

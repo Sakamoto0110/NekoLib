@@ -15,7 +15,6 @@ namespace NekoLib.Data
         public DbTransaction? Transaction { get; private set; }
 
         private int _transactionDepth;
-        private bool _rolledBack;
         private bool _disposed;
         private object? _affinityToken;
 
@@ -38,9 +37,6 @@ namespace NekoLib.Data
         {
             ThrowIfDisposed();
 
-            if (_rolledBack)
-                throw new InvalidOperationException("Transaction already rolled back.");
-
             if (_transactionDepth == 0)
                 Transaction = Connection.BeginTransaction();
 
@@ -58,9 +54,6 @@ namespace NekoLib.Data
         {
             ThrowIfDisposed();
 
-            if (_rolledBack)
-                throw new InvalidOperationException("Transaction already rolled back.");
-
             if (_transactionDepth == 0)
                 Transaction = Connection.BeginTransaction(isolation);
 
@@ -73,9 +66,6 @@ namespace NekoLib.Data
 
             if (_transactionDepth == 0)
                 throw new InvalidOperationException("No active transaction.");
-
-            if (_rolledBack)
-                throw new InvalidOperationException("Transaction already rolled back.");
 
             _transactionDepth--;
 
@@ -120,7 +110,6 @@ namespace NekoLib.Data
                 {
                     Transaction = null;
                     _transactionDepth = 0;
-                    _rolledBack = true;
                 }
             }
         }
@@ -132,7 +121,7 @@ namespace NekoLib.Data
 
             try
             {
-                if (Transaction != null && !_rolledBack)
+                if (Transaction != null)
                     Rollback();
             }
             finally

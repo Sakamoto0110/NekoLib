@@ -132,11 +132,11 @@ namespace NekoLib.Data.Internal.Gateway
                 throw new ArgumentNullException(nameof(Sql));
             if(ctx == null) throw new ArgumentNullException(nameof(ctx));
 
-            int affected = await WithCommandAsync(
+            int affected = await ExecuteDmlAsync(
                 Sql,
                 Parameters,
-                cmd => ExecuteNonQuerySafeAsync(cmd, Ct),
                 Ct,
+                null,
                 commandPolicy).ConfigureAwait(false);
 
             return affected;
@@ -207,28 +207,49 @@ namespace NekoLib.Data.Internal.Gateway
 
         }
 
-        public async Task<int> Insert(QueryBuilder Builder , CancellationToken Ct = default)
+        public Task<int> Insert(QueryBuilder Builder , CancellationToken Ct = default)
         {
-            if(Builder == null) throw new ArgumentNullException(nameof(Builder));
-
-            var translator = ctx.Translator;
-            QueryModel model = Builder.Build();
-            DatabaseQuery dbq = translator.Translate(model);
-            ctx.RaiseSqlGenerated(dbq.Sql);
-
-            return await Upsert(dbq.Sql, dbq.Parameters, Ct, dbq.CommandPolicy).ConfigureAwait(false);
+            return ExecuteBuilderDmlAsync(Builder, null, Ct);
         }
 
-        public async Task<int> Update(QueryBuilder Builder , CancellationToken Ct = default)
+        public Task<int> Insert(
+            QueryBuilder Builder,
+            DbSession session,
+            CancellationToken Ct = default)
         {
-            if(Builder == null) throw new ArgumentNullException(nameof(Builder));
+            return ExecuteBuilderDmlAsync(Builder, session, Ct);
+        }
 
-            var translator = ctx.Translator;
-            QueryModel model = Builder.Build();
-            DatabaseQuery dbq = translator.Translate(model);
+        public Task<int> Update(QueryBuilder Builder , CancellationToken Ct = default)
+        {
+            return ExecuteBuilderDmlAsync(Builder, null, Ct);
+        }
+
+        public Task<int> Update(
+            QueryBuilder Builder,
+            DbSession session,
+            CancellationToken Ct = default)
+        {
+            return ExecuteBuilderDmlAsync(Builder, session, Ct);
+        }
+
+        private async Task<int> ExecuteBuilderDmlAsync(
+            QueryBuilder builder,
+            DbSession? session,
+            CancellationToken ct)
+        {
+            if(builder == null) throw new ArgumentNullException(nameof(builder));
+
+            QueryModel model = builder.Build();
+            DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            return await Upsert(dbq.Sql, dbq.Parameters, Ct, dbq.CommandPolicy).ConfigureAwait(false);
+            return await ExecuteDmlAsync(
+                dbq.Sql,
+                dbq.Parameters,
+                ct,
+                session,
+                dbq.CommandPolicy).ConfigureAwait(false);
         }
 
         #endregion

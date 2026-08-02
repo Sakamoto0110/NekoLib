@@ -29,8 +29,18 @@ namespace NekoLib.Data.Gateway
             QueryBuilder builder,
             CancellationToken ct = default);
 
+        Task<int> Insert(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
+
         Task<int> Update(
             QueryBuilder builder,
+            CancellationToken ct = default);
+
+        Task<int> Update(
+            QueryBuilder builder,
+            DbSession session,
             CancellationToken ct = default);
     }
 }
