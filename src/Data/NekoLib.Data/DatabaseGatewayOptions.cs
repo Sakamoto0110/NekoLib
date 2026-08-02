@@ -82,6 +82,13 @@ namespace NekoLib.Data
         /// </summary>
         public int? DefaultCommandTimeoutSeconds { get; set; }
 
+        /// <summary>
+        /// Gets or sets the parameter-marker policy. Automatic selects
+        /// positional binding only for OleDb commands.
+        /// </summary>
+        public DbParameterBindingMode ParameterBindingMode { get; set; } =
+            DbParameterBindingMode.Automatic;
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;
@@ -96,6 +103,8 @@ namespace NekoLib.Data
             {
                 throw new ArgumentOutOfRangeException(nameof(DefaultCommandTimeoutSeconds));
             }
+            if (!Enum.IsDefined(typeof(DbParameterBindingMode), ParameterBindingMode))
+                throw new ArgumentOutOfRangeException(nameof(ParameterBindingMode));
         }
     }
 }

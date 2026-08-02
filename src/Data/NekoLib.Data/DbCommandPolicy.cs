@@ -4,6 +4,22 @@ using System.Data;
 
 namespace NekoLib.Data
 {
+    /// <summary>Controls how SQL parameter markers are bound.</summary>
+    public enum DbParameterBindingMode
+    {
+        /// <summary>Uses positional binding for OleDb and named binding otherwise.</summary>
+        Automatic = 0,
+
+        /// <summary>Binds each supplied parameter once by name.</summary>
+        Named = 1,
+
+        /// <summary>
+        /// Rewrites generated placeholders and binds once per SQL occurrence.
+        /// Missing and unused supplied values are rejected before dispatch.
+        /// </summary>
+        Positional = 2
+    }
+
     /// <summary>
     /// Describes provider-neutral metadata for one database parameter.
     /// </summary>

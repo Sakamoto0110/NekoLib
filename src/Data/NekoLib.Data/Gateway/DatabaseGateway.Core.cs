@@ -6,11 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-#if NETFRAMEWORK
-using System.Data.OleDb;
-#endif
-using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -211,60 +206,13 @@ namespace NekoLib.Data.Internal.Gateway
             }
         }
 
-        private static void ApplyParameters(DbCommand cmd, Dictionary<string, object?>? parameters)
-{
-    if(parameters == null || parameters.Count == 0)
-        return;
-#if NETFRAMEWORK
-            bool isAccess = cmd is OleDbCommand;
-#else
-            bool isAccess = string.Equals(cmd.GetType().FullName, "System.Data.OleDb.OleDbCommand", StringComparison.Ordinal);
-#endif
-
-
-            // OleDb ignora nomes e usa ordem posicional.
-            // Em produção, garantimos uma ordem estável baseada em @pN quando possível.
-            IEnumerable<KeyValuePair<string, object?>> ordered = parameters;
-
-    if(isAccess)
-    {
-        ordered = parameters.OrderBy(static kv =>
+        private void ApplyParameters(DbCommand cmd, Dictionary<string, object?>? parameters)
         {
-            // @p1, @p2, ... (ordenação numérica)
-            string k = kv.Key ?? string.Empty;
-            if(k.Length >= 3 && (k[0] == '@' || k[0] == '?') && (k[1] == 'p' || k[1] == 'P'))
-            {
-                if(int.TryParse(k.Substring(2), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n))
-                    return n;
-            }
-            return int.MaxValue;
-        }).ThenBy(kv => kv.Key, StringComparer.Ordinal);
-    }
-
-    foreach(var kv in ordered)
-    {
-        DbParameter p = cmd.CreateParameter();
-        if(!isAccess)
-            p.ParameterName = kv.Key;
-
-        DbParameterSpec? spec = kv.Value as DbParameterSpec;
-        if(spec != null)
-        {
-            spec.Validate(kv.Key);
-            if(spec.DbType.HasValue) p.DbType = spec.DbType.Value;
-            if(spec.Size.HasValue) p.Size = spec.Size.Value;
-            if(spec.Precision.HasValue) p.Precision = spec.Precision.Value;
-            if(spec.Scale.HasValue) p.Scale = spec.Scale.Value;
-            p.Direction = spec.Direction;
-            p.Value = spec.Value ?? DBNull.Value;
+            IDbParameterBinder binder = DbParameterBinderFactory.Create(
+                cmd,
+                ctx.Options.ParameterBindingMode);
+            binder.Bind(cmd, parameters);
         }
-        else
-        {
-            p.Value = kv.Value ?? DBNull.Value;
-        }
-        cmd.Parameters.Add(p);
-    }
-}
 
         private void ApplyCommandPolicy(DbCommand command, DbCommandPolicy? commandPolicy)
         {

@@ -245,7 +245,7 @@ row type is not implementation work until a concrete consumer requires it.
 
 #### E1.4 — Provider, command, connection, and session seam
 
-- [ ] **DATA-003 — Bind positional providers by SQL occurrence.** Introduce a
+- [x] **DATA-003 — Bind positional providers by SQL occurrence.** Introduce a
   small marker/binder seam; for OleDb, tokenize placeholders outside literals
   and comments, render positional markers, and bind once per occurrence.
   Reject missing parameters and define unused-value handling. Cover reversed,
