@@ -202,7 +202,7 @@ only adaptations demonstrated by that evidence.
   query models are translated recursively, reject `Top` inside a subquery with
   an actionable exception instead of silently dropping it. Preserve subquery
   parameter isolation.
-- [ ] **DATA-020 — Make the raw-fragment trust boundary explicit.** Update
+- [x] **DATA-020 — Make the raw-fragment trust boundary explicit.** Update
   public XML documentation and tests so table, column, join, grouping,
   ordering, and raw-condition strings are never described as protected by
   value parameterization. Provider-specific identifier quoting remains part of

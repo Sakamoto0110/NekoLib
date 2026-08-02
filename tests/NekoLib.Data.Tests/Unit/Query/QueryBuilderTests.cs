@@ -237,6 +237,31 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
+        public void Build_TrustedSqlFragmentsAndParameterizedValue_PreserveSeparateBoundaries()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select("Customers.DisplayName AS UnsafeAlias")
+                .From("Customers /* trusted table fragment */")
+                .Join(
+                    "Orders /* trusted join fragment */",
+                    "Orders.CustomerId = Customers.Id",
+                    "LEFT")
+                .Where("Customers.Region = @p1 /* trusted condition fragment */", "north")
+                .GroupBy("Customers.DisplayName /* trusted grouping fragment */")
+                .OrderBy("UnsafeAlias DESC /* trusted ordering fragment */")
+                .Build();
+
+            Assert.Contains("UnsafeAlias", model.Sql);
+            Assert.Contains("trusted table fragment", model.Sql);
+            Assert.Contains("trusted join fragment", model.Sql);
+            Assert.Contains("trusted condition fragment", model.Sql);
+            Assert.Contains("trusted grouping fragment", model.Sql);
+            Assert.Contains("trusted ordering fragment", model.Sql);
+            Assert.DoesNotContain("north", model.Sql);
+            Assert.Equal("north", model.Parameters["@p1"]);
+        }
+
+        [Fact]
         public void WhereIn_EmptyCollection_EmitsConstantFalsePredicate()
         {
             QueryModel model = new QueryBuilder()

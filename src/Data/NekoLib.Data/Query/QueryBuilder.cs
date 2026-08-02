@@ -6,9 +6,15 @@ using System.Text;
 namespace NekoLib.Data.Query 
 {
     /// <summary>
-    /// Construtor fluente neutro de SQL parametrizada (SELECT, INSERT, UPDATE).
-    /// Gera um <see cref="QueryModel"/> que é traduzido por <see cref="IDbQueryTranslator"/>.
+    /// Builds provider-neutral SELECT, INSERT, and UPDATE statements and
+    /// produces a <see cref="QueryModel"/> for an <see cref="IDbQueryTranslator"/>.
     /// </summary>
+    /// <remarks>
+    /// Only values supplied through supported condition placeholders or value
+    /// collections are parameterized. Table names, column names, projections,
+    /// joins, grouping, ordering, and raw condition text are trusted SQL
+    /// fragments. Applications must not pass untrusted input to those fragments.
+    /// </remarks>
     public class QueryBuilder
     {
         internal enum QueryType
@@ -35,7 +41,7 @@ namespace NekoLib.Data.Query
         private int _paramIndex;
 
         /// <summary>
-        /// Parâmetros acumulados durante a construção da query.
+        /// Gets the values parameterized by the current statement.
         /// </summary>
         public IReadOnlyDictionary<string, object?> Parameters
         {
@@ -102,7 +108,7 @@ namespace NekoLib.Data.Query
         #region TOP
 
         /// <summary>
-        /// Define SELECT TOP N. Interpretação fica para o tradutor.
+        /// Sets the provider-neutral row limit for the current SELECT statement.
         /// </summary>
         public QueryBuilder Top(int N)
         {
@@ -118,6 +124,9 @@ namespace NekoLib.Data.Query
 
         #region SELECT / DISTINCT / COUNT
 
+        /// <summary>
+        /// Starts a SELECT statement with trusted projection fragments.
+        /// </summary>
         public QueryBuilder Select(params string[] Columns)
         {
             StartStatement(QueryType.Select);
@@ -126,6 +135,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Starts a DISTINCT SELECT statement with trusted projection fragments.
+        /// </summary>
         public QueryBuilder SelectDistinct(params string[] Columns)
         {
             StartStatement(QueryType.Select);
@@ -135,6 +147,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Applies DISTINCT to the active SELECT projection.
+        /// </summary>
         public QueryBuilder Distinct()
         {
             RequireQueryType(QueryType.Select, nameof(Distinct));
@@ -148,6 +163,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Starts a COUNT(*) SELECT statement.
+        /// </summary>
         public QueryBuilder Count()
         {
             StartStatement(QueryType.Select);
@@ -156,6 +174,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Starts a COUNT SELECT statement for a trusted column fragment.
+        /// </summary>
         public QueryBuilder Count(string Column)
         {
             StartStatement(QueryType.Select);
@@ -164,6 +185,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Starts a COUNT(DISTINCT ...) SELECT statement for a trusted column fragment.
+        /// </summary>
         public QueryBuilder DistinctCount(string Column)
         {
             StartStatement(QueryType.Select);
@@ -176,6 +200,9 @@ namespace NekoLib.Data.Query
 
         #region FROM / JOIN
 
+        /// <summary>
+        /// Sets the trusted table or table-expression fragment for a SELECT statement.
+        /// </summary>
         public QueryBuilder From(string Table)
         {
             RequireQueryType(QueryType.Select, nameof(From));
@@ -184,8 +211,7 @@ namespace NekoLib.Data.Query
         }
 
         /// <summary>
-        /// Adiciona um JOIN genérico.
-        /// Ex: Join("Produtos P", "P.Id = V.ProdutoId", "LEFT")
+        /// Adds a join assembled from trusted table, ON-expression, and join-type fragments.
         /// </summary>
         public QueryBuilder Join(string Table, string OnExpression, string Type = "INNER")
         {
@@ -198,6 +224,10 @@ namespace NekoLib.Data.Query
 
         #region WHERE
 
+        /// <summary>
+        /// Adds a trusted condition template and parameterizes only canonical
+        /// <c>@p1</c>, <c>@p2</c>, ... placeholders outside literals and comments.
+        /// </summary>
         public QueryBuilder Where(string Condition, params object[] Values)
         {
             RequirePredicateQuery(nameof(Where));
@@ -268,11 +298,17 @@ namespace NekoLib.Data.Query
             }
         }
 
+        /// <summary>
+        /// Adds an IN predicate for a trusted column fragment and parameterized values.
+        /// </summary>
         public QueryBuilder WhereIn(string Column, IEnumerable<object> Values)
         {
             return AddCollectionCondition(Column, Values, negated: false);
         }
 
+        /// <summary>
+        /// Adds a NOT IN predicate for a trusted column fragment and parameterized values.
+        /// </summary>
         public QueryBuilder WhereNotIn(string Column, IEnumerable<object> Values)
         {
             return AddCollectionCondition(Column, Values, negated: true);
@@ -312,6 +348,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Adds a BETWEEN predicate for a trusted column fragment and parameterized values.
+        /// </summary>
         public QueryBuilder WhereBetween(string Column, object Start, object End)
         {
             RequirePredicateQuery(nameof(WhereBetween));
@@ -325,6 +364,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Adds a LIKE predicate for a trusted column fragment and a parameterized pattern.
+        /// </summary>
         public QueryBuilder WhereLike(string Column, string Pattern)
         {
             RequirePredicateQuery(nameof(WhereLike));
@@ -410,6 +452,9 @@ namespace NekoLib.Data.Query
 
         #region GROUP BY / ORDER BY
 
+        /// <summary>
+        /// Adds trusted GROUP BY fragments to the active SELECT statement.
+        /// </summary>
         public QueryBuilder GroupBy(params string[] Columns)
         {
             RequireQueryType(QueryType.Select, nameof(GroupBy));
@@ -418,6 +463,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Adds trusted ORDER BY fragments to the active SELECT statement.
+        /// </summary>
         public QueryBuilder OrderBy(params string[] Columns)
         {
             RequireQueryType(QueryType.Select, nameof(OrderBy));
@@ -430,6 +478,10 @@ namespace NekoLib.Data.Query
 
         #region INSERT / UPDATE
 
+        /// <summary>
+        /// Starts an INSERT statement with trusted table and column names and
+        /// parameterized values.
+        /// </summary>
         public QueryBuilder InsertInto(string Table, Dictionary<string, object?> Values)
         {
             StartStatement(QueryType.Insert);
@@ -444,6 +496,10 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>
+        /// Starts an UPDATE statement with trusted table and column names and
+        /// parameterized values.
+        /// </summary>
         public QueryBuilder Update(string Table, Dictionary<string, object?> Values)
         {
             StartStatement(QueryType.Update);
@@ -550,7 +606,7 @@ namespace NekoLib.Data.Query
             if (_orderByColumns.Count > 0)
                 sb.Append(" ORDER BY ").Append(string.Join(", ", _orderByColumns));
 
-            // TOP é aplicado pelo tradutor.
+            // The provider translator applies TOP/LIMIT.
             return sb.ToString();
         }
 
