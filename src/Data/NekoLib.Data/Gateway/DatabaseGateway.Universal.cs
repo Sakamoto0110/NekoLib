@@ -291,6 +291,7 @@ namespace NekoLib.Data.Internal.Gateway
             DbDataReader? reader = null;
             SchemaInfo? schema = null;
             bool wantsDynamic = false;
+            StreamTerminalState terminal = new StreamTerminalState();
 
             try
             {
@@ -320,8 +321,14 @@ namespace NekoLib.Data.Internal.Gateway
                         typeof(T) == typeof(object) ||
                         typeof(T) == typeof(DynamicRow);
                 }
-                catch(Exception ex) when(!(ex is OperationCanceledException))
+                catch(OperationCanceledException ex)
                 {
+                    terminal.Cancel(ex);
+                    throw;
+                }
+                catch(Exception ex)
+                {
+                    terminal.Fail(ex);
                     ctx.RaiseError(dbq.Sql, ex);
                     throw;
                 }
@@ -344,8 +351,14 @@ namespace NekoLib.Data.Internal.Gateway
                         else
                             item = (T)(object)CreateDynamicRow(schema!, reader!);
                     }
-                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    catch(OperationCanceledException ex)
                     {
+                        terminal.Cancel(ex);
+                        throw;
+                    }
+                    catch(Exception ex)
+                    {
+                        terminal.Fail(ex);
                         ctx.RaiseError(dbq.Sql, ex);
                         throw;
                     }
@@ -353,13 +366,17 @@ namespace NekoLib.Data.Internal.Gateway
                     yield return item;
                 }
 
-                ctx.RaiseSuccess(dbq.Sql);
+                terminal.Complete();
             }
             finally
             {
-                if(reader != null) reader.Dispose();
-                if(cmd != null) cmd.Dispose();
-                if(ownsConnection && conn != null) conn.Dispose();
+                FinishStreamLifetime(
+                    dbq.Sql,
+                    terminal,
+                    reader,
+                    cmd,
+                    ownsConnection,
+                    conn);
             }
         }
 

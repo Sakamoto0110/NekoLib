@@ -48,6 +48,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override string DataSource => "Fake";
         public override string ServerVersion => "1";
         public override ConnectionState State => _state;
+        public bool WasDisposed { get; private set; }
 
         public override void Open()
         {
@@ -81,6 +82,13 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             command.Connection = this;
             return command;
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            _state = ConnectionState.Closed;
+            base.Dispose(disposing);
+        }
     }
 
     internal sealed class FakeNonQueryCommand : DbCommand
@@ -90,6 +98,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public int Result { get; set; }
         public Exception ExecuteException { get; set; }
         public DbDataReader Reader { get; set; }
+        public bool WasDisposed { get; private set; }
         public override string CommandText { get; set; }
         public override int CommandTimeout { get; set; }
         public override CommandType CommandType { get; set; }
@@ -160,6 +169,12 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             {
                 return Task.FromException<DbDataReader>(ex);
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            base.Dispose(disposing);
         }
     }
 

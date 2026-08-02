@@ -28,6 +28,12 @@ namespace NekoLib.Data.Query
         public event Action<DbQueryEventArgs>? OnSqlDispatch;
         public event Action<DbQuerySuccessEventArgs>? OnSuccess;
         public event Action<DbQueryFailureEventArgs>? OnError;
+
+        /// <summary>
+        /// Reports exactly one terminal outcome for each stream enumeration
+        /// that begins execution, after its owned resources are released.
+        /// </summary>
+        public event Action<DbQueryStreamTerminalEventArgs>? OnStreamTerminal;
         public IDbConnectionFactory ConnectionFactory { get; }
         public IDbQueryTranslator Translator { get; }
         public DatabaseGatewayOptions Options { get; }
@@ -76,6 +82,18 @@ namespace NekoLib.Data.Query
             Notify(
                 OnError,
                 new DbQueryFailureEventArgs(GetEventSql(sql), ex));
+        }
+        internal void RaiseStreamTerminal(
+            string sql,
+            DbQueryStreamOutcome outcome,
+            Exception? exception)
+        {
+            Notify(
+                OnStreamTerminal,
+                new DbQueryStreamTerminalEventArgs(
+                    GetEventSql(sql),
+                    outcome,
+                    exception));
         }
 
         private void Notify<TEventArgs>(Action<TEventArgs>? handlers, TEventArgs args)
@@ -140,6 +158,7 @@ namespace NekoLib.Data.Query
                         OnSqlDispatch = null;
                         OnSuccess = null;
                         OnError = null;
+                        OnStreamTerminal = null;
                     }
 
                     lock (_observerFailureSync)
@@ -181,7 +200,29 @@ namespace NekoLib.Data.Query
     }
 
     [Flags]
-    public enum DbQueryEventType { SqlGenerated=1, SqlDispatched=2, Success=4, Error=8}
+    public enum DbQueryEventType
+    {
+        SqlGenerated = 1,
+        SqlDispatched = 2,
+        Success = 4,
+        Error = 8,
+        StreamTerminal = 16
+    }
+
+    public enum DbQueryStreamOutcome
+    {
+        /// <summary>The provider was exhausted and cleanup succeeded.</summary>
+        Completed = 0,
+
+        /// <summary>Setup, reading, mapping, or cleanup failed.</summary>
+        Failed = 1,
+
+        /// <summary>The stream observed cancellation.</summary>
+        Cancelled = 2,
+
+        /// <summary>The consumer disposed an active stream before exhaustion.</summary>
+        DisposedBeforeCompletion = 3
+    }
     public class DbQueryEventArgs : EventArgs
     {
         public string RawSqlQuery { get; }
@@ -213,6 +254,22 @@ namespace NekoLib.Data.Query
         }
        
 
+    }
+
+    public sealed class DbQueryStreamTerminalEventArgs : DbQueryEventArgs
+    {
+        public DbQueryStreamTerminalEventArgs(
+            string sql,
+            DbQueryStreamOutcome outcome,
+            Exception? exception)
+            : base(sql, DbQueryEventType.StreamTerminal)
+        {
+            Outcome = outcome;
+            Exception = exception;
+        }
+
+        public DbQueryStreamOutcome Outcome { get; }
+        public Exception? Exception { get; }
     }
 
 }

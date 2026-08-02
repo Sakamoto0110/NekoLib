@@ -218,7 +218,7 @@ only adaptations demonstrated by that evidence.
   a background queue. Capture observer failures through a bounded,
   non-recursive Data-local mechanism while preserving SQL and result redaction
   defaults. Do not add Core or Inspection dependencies.
-- [ ] **DATA-011 — Give every stream exactly one terminal outcome.** Report
+- [x] **DATA-011 — Give every stream exactly one terminal outcome.** Report
   completed, failed, cancelled, or disposed-before-completion from the stream
   lifetime, including early consumer disposal and empty-schema termination.
   Resource cleanup and the database outcome remain authoritative even if a

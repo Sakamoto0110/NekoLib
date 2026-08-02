@@ -415,6 +415,7 @@ namespace NekoLib.Data.Internal.Gateway
             bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
+            StreamTerminalState terminal = new StreamTerminalState();
 
             try
             {
@@ -439,8 +440,14 @@ namespace NekoLib.Data.Internal.Gateway
 
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
                 }
-                catch(Exception ex) when(!(ex is OperationCanceledException))
+                catch(OperationCanceledException ex)
                 {
+                    terminal.Cancel(ex);
+                    throw;
+                }
+                catch(Exception ex)
+                {
+                    terminal.Fail(ex);
                     ctx.RaiseError(dbq.Sql, ex);
                     throw;
                 }
@@ -456,8 +463,14 @@ namespace NekoLib.Data.Internal.Gateway
                         ct.ThrowIfCancellationRequested();
                         item = ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode);
                     }
-                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    catch(OperationCanceledException ex)
                     {
+                        terminal.Cancel(ex);
+                        throw;
+                    }
+                    catch(Exception ex)
+                    {
+                        terminal.Fail(ex);
                         ctx.RaiseError(dbq.Sql, ex);
                         throw;
                     }
@@ -465,13 +478,17 @@ namespace NekoLib.Data.Internal.Gateway
                     yield return item;
                 }
 
-                ctx.RaiseSuccess(dbq.Sql);
+                terminal.Complete();
             }
             finally
             {
-                if(reader != null) reader.Dispose();
-                if(cmd != null) cmd.Dispose();
-                if(ownsConnection && conn != null) conn.Dispose();
+                FinishStreamLifetime(
+                    dbq.Sql,
+                    terminal,
+                    reader,
+                    cmd,
+                    ownsConnection,
+                    conn);
             }
         }
 
@@ -482,6 +499,7 @@ namespace NekoLib.Data.Internal.Gateway
             DbCommand? cmd = null;
             DbDataReader? reader = null;
             SchemaInfo? schema = null;
+            StreamTerminalState terminal = new StreamTerminalState();
 
             try
             {
@@ -507,8 +525,14 @@ namespace NekoLib.Data.Internal.Gateway
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
                     schema = ExtractSchema(reader);
                 }
-                catch(Exception ex) when(!(ex is OperationCanceledException))
+                catch(OperationCanceledException ex)
                 {
+                    terminal.Cancel(ex);
+                    throw;
+                }
+                catch(Exception ex)
+                {
+                    terminal.Fail(ex);
                     ctx.RaiseError(dbq.Sql, ex);
                     throw;
                 }
@@ -524,8 +548,14 @@ namespace NekoLib.Data.Internal.Gateway
                         ct.ThrowIfCancellationRequested();
                         row = ReadRecordRow(reader, schema!);
                     }
-                    catch(Exception ex) when(!(ex is OperationCanceledException))
+                    catch(OperationCanceledException ex)
                     {
+                        terminal.Cancel(ex);
+                        throw;
+                    }
+                    catch(Exception ex)
+                    {
+                        terminal.Fail(ex);
                         ctx.RaiseError(dbq.Sql, ex);
                         throw;
                     }
@@ -533,13 +563,17 @@ namespace NekoLib.Data.Internal.Gateway
                     yield return row;
                 }
 
-                ctx.RaiseSuccess(dbq.Sql);
+                terminal.Complete();
             }
             finally
             {
-                if(reader != null) reader.Dispose();
-                if(cmd != null) cmd.Dispose();
-                if(ownsConnection && conn != null) conn.Dispose();
+                FinishStreamLifetime(
+                    dbq.Sql,
+                    terminal,
+                    reader,
+                    cmd,
+                    ownsConnection,
+                    conn);
             }
         }
 

@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Reflection;
+using NekoLib.Data.Query;
 
 namespace NekoLib.Data.Internal.Gateway
 {
@@ -108,6 +109,78 @@ namespace NekoLib.Data.Internal.Gateway
             }
 
             return row;
+        }
+
+        private sealed class StreamTerminalState
+        {
+            public DbQueryStreamOutcome Outcome { get; private set; } =
+                DbQueryStreamOutcome.DisposedBeforeCompletion;
+            public Exception? Exception { get; private set; }
+
+            public void Complete()
+            {
+                Outcome = DbQueryStreamOutcome.Completed;
+                Exception = null;
+            }
+
+            public void Fail(Exception exception)
+            {
+                Outcome = DbQueryStreamOutcome.Failed;
+                Exception = exception;
+            }
+
+            public void Cancel(OperationCanceledException exception)
+            {
+                Outcome = DbQueryStreamOutcome.Cancelled;
+                Exception = exception;
+            }
+        }
+
+        private void FinishStreamLifetime(
+            string sql,
+            StreamTerminalState terminal,
+            DbDataReader? reader,
+            DbCommand? command,
+            bool ownsConnection,
+            DbConnection? connection)
+        {
+            Exception? cleanupFailure = null;
+            TryDispose(reader, ref cleanupFailure);
+            TryDispose(command, ref cleanupFailure);
+            if (ownsConnection)
+                TryDispose(connection, ref cleanupFailure);
+
+            bool propagateCleanupFailure =
+                cleanupFailure != null && terminal.Exception == null;
+            if (propagateCleanupFailure)
+            {
+                terminal.Fail(cleanupFailure!);
+                ctx.RaiseError(sql, cleanupFailure!);
+            }
+
+            if (terminal.Outcome == DbQueryStreamOutcome.Completed)
+                ctx.RaiseSuccess(sql);
+
+            ctx.RaiseStreamTerminal(sql, terminal.Outcome, terminal.Exception);
+
+            if (propagateCleanupFailure)
+                throw cleanupFailure!;
+        }
+
+        private static void TryDispose(IDisposable? resource, ref Exception? firstFailure)
+        {
+            if (resource == null)
+                return;
+
+            try
+            {
+                resource.Dispose();
+            }
+            catch (Exception ex)
+            {
+                if (firstFailure == null)
+                    firstFailure = ex;
+            }
         }
 
         #endregion
