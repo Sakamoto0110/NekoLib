@@ -208,6 +208,34 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Throws<ArgumentException>(() => builder.Where(" ", 7));
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Subquery_WithTop_ThrowsBeforeMutatingParent(bool negated)
+        {
+            QueryBuilder subquery = new QueryBuilder()
+                .Select("Id")
+                .From("Orders")
+                .Top(1);
+            QueryBuilder parent = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .Where("Active = @p1", true);
+
+            NotSupportedException exception = Assert.Throws<NotSupportedException>(() =>
+            {
+                if (negated)
+                    parent.WhereNotExists(subquery);
+                else
+                    parent.WhereExists(subquery);
+            });
+
+            Assert.Contains("nested query models", exception.Message);
+            Assert.Single(parent.Parameters);
+            Assert.Equal(true, parent.Parameters["@p1"]);
+            Assert.DoesNotContain("EXISTS", parent.Build().Sql);
+        }
+
         [Fact]
         public void WhereIn_EmptyCollection_EmitsConstantFalsePredicate()
         {

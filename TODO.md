@@ -198,7 +198,7 @@ only adaptations demonstrated by that evidence.
   placeholder arity, tokenize only the supported template grammar, and reject
   missing or unused values before translation. Keep raw fragments explicitly
   trusted; defer public member renames to the API-stability phase.
-- [ ] **DATA-010 — Fail fast for unsupported limited subqueries.** Until nested
+- [x] **DATA-010 — Fail fast for unsupported limited subqueries.** Until nested
   query models are translated recursively, reject `Top` inside a subquery with
   an actionable exception instead of silently dropping it. Preserve subquery
   parameter isolation.

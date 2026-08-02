@@ -355,6 +355,12 @@ namespace NekoLib.Data.Query
         private void AddSubQueryCondition(string keyword, QueryBuilder subQuery)
         {
             QueryModel model = subQuery.Build();
+            if (model.Top.HasValue)
+            {
+                throw new NotSupportedException(
+                    "TOP/LIMIT inside a subquery is not supported until nested query models are translated recursively.");
+            }
+
             string sql = model.Sql;
 
             foreach (KeyValuePair<string, object?> kv in model.Parameters)
