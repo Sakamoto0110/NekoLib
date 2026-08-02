@@ -14,6 +14,108 @@ namespace NekoLib.Data.Tests.Unit.Query
     public class QueryBuilderTests
     {
         [Fact]
+        public void Build_UndefinedQueryType_ThrowsInvalidOperationException()
+        {
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+                () => new QueryBuilder().Build());
+
+            Assert.Contains("Query type was not defined", exception.Message);
+        }
+
+        [Fact]
+        public void Select_AfterPreviousSelect_ReplacesEntireStatementState()
+        {
+            QueryBuilder builder = new QueryBuilder()
+                .SelectDistinct("Region")
+                .From("Customers")
+                .Top(5)
+                .Join("Orders", "Orders.CustomerId = Customers.Id")
+                .Where("Customers.Active = @p1", true)
+                .GroupBy("Region")
+                .OrderBy("Region");
+
+            QueryModel model = builder
+                .Select("Id")
+                .From("Archive")
+                .Build();
+
+            Assert.Equal("SELECT Id FROM Archive", model.Sql);
+            Assert.Null(model.Top);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void Count_AfterSelectDistinct_ReplacesProjectionAndStatementState()
+        {
+            QueryModel model = new QueryBuilder()
+                .SelectDistinct("Region")
+                .From("Customers")
+                .Where("Active = @p1", true)
+                .Count("Id")
+                .From("Orders")
+                .Build();
+
+            Assert.Equal("SELECT COUNT(Id) FROM Orders", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void Update_AfterSelect_DoesNotRetainSelectPredicateOrParameters()
+        {
+            QueryBuilder builder = new QueryBuilder()
+                .Select("Id")
+                .From("Customers")
+                .Where("Active = @p1", true)
+                .Update(
+                    "Customers",
+                    new Dictionary<string, object> { { "Active", false } });
+
+            Assert.Empty(builder.Parameters);
+            Assert.Throws<InvalidOperationException>(() => builder.Build());
+        }
+
+        [Fact]
+        public void Select_AfterUpdate_DoesNotRetainUpdateState()
+        {
+            QueryModel model = new QueryBuilder()
+                .Update(
+                    "Customers",
+                    new Dictionary<string, object> { { "Active", false } })
+                .AllowAllRowsUpdate()
+                .Select("Id")
+                .From("Archive")
+                .Build();
+
+            Assert.Equal("SELECT Id FROM Archive", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void Distinct_AfterCount_ThrowsInvalidOperationException()
+        {
+            QueryBuilder builder = new QueryBuilder().Count();
+
+            Assert.Throws<InvalidOperationException>(() => builder.Distinct());
+        }
+
+        [Fact]
+        public void Top_WithoutSelect_ThrowsInvalidOperationException()
+        {
+            Assert.Throws<InvalidOperationException>(() => new QueryBuilder().Top(5));
+        }
+
+        [Fact]
+        public void Where_DuringInsert_ThrowsInvalidOperationException()
+        {
+            QueryBuilder builder = new QueryBuilder().InsertInto(
+                "Customers",
+                new Dictionary<string, object> { { "Id", 1 } });
+
+            Assert.Throws<InvalidOperationException>(() =>
+                builder.Where("Id = @p1", 1));
+        }
+
+        [Fact]
         public void WhereIn_EmptyCollection_EmitsConstantFalsePredicate()
         {
             QueryModel model = new QueryBuilder()

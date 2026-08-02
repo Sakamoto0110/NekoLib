@@ -189,7 +189,7 @@ only adaptations demonstrated by that evidence.
   errors. Reject an `UPDATE` without a predicate unless the caller uses an
   explicit all-rows opt-in. Cover empty, null, single, and multiple values and
   the all-rows guard on both target frameworks.
-- [ ] **DATA-008 — Make QueryBuilder state transitions explicit.** Start with
+- [x] **DATA-008 — Make QueryBuilder state transitions explicit.** Start with
   an undefined query kind, preserve repeated `Build()` idempotence, and make
   each query/projection mode replace or reject incompatible state rather than
   retaining columns, `Distinct`, `Count`, `Top`, joins, or predicates from an

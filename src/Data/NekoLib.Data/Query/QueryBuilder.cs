@@ -13,6 +13,7 @@ namespace NekoLib.Data.Query
     {
         internal enum QueryType
         {
+            Undefined,
             Select,
             Insert,
             Update
@@ -48,6 +49,44 @@ namespace NekoLib.Data.Query
         private bool _isDistinctCount;
         private bool _allowAllRowsUpdate;
 
+        private void StartStatement(QueryType queryType)
+        {
+            _queryType = queryType;
+            _table = null;
+            _columns.Clear();
+            _conditions.Clear();
+            _groupByColumns.Clear();
+            _orderByColumns.Clear();
+            _joins.Clear();
+            _insertValues.Clear();
+            _updateValues.Clear();
+            _parameters.Clear();
+            _paramIndex = 0;
+            _top = null;
+            _isDistinctSelect = false;
+            _countColumn = null;
+            _isDistinctCount = false;
+            _allowAllRowsUpdate = false;
+        }
+
+        private void RequireQueryType(QueryType queryType, string operation)
+        {
+            if (_queryType != queryType)
+            {
+                throw new InvalidOperationException(
+                    operation + " is not valid for the current query state.");
+            }
+        }
+
+        private void RequirePredicateQuery(string operation)
+        {
+            if (_queryType != QueryType.Select && _queryType != QueryType.Update)
+            {
+                throw new InvalidOperationException(
+                    operation + " requires an active SELECT or UPDATE statement.");
+            }
+        }
+
         private string NewParamName()
         {
             _paramIndex++;
@@ -67,8 +106,11 @@ namespace NekoLib.Data.Query
         /// </summary>
         public QueryBuilder Top(int N)
         {
-            if (N > 0)
-                _top = N;
+            RequireQueryType(QueryType.Select, nameof(Top));
+            if (N <= 0)
+                throw new ArgumentOutOfRangeException(nameof(N), "TOP must be greater than zero.");
+
+            _top = N;
             return this;
         }
 
@@ -78,7 +120,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder Select(params string[] Columns)
         {
-            _queryType = QueryType.Select;
+            StartStatement(QueryType.Select);
             if (Columns != null && Columns.Length > 0)
                 _columns.AddRange(Columns);
             return this;
@@ -86,7 +128,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder SelectDistinct(params string[] Columns)
         {
-            _queryType = QueryType.Select;
+            StartStatement(QueryType.Select);
             _isDistinctSelect = true;
             if (Columns != null && Columns.Length > 0)
                 _columns.AddRange(Columns);
@@ -95,14 +137,20 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder Distinct()
         {
-            _queryType = QueryType.Select;
+            RequireQueryType(QueryType.Select, nameof(Distinct));
+            if (_countColumn != null)
+            {
+                throw new InvalidOperationException(
+                    "Distinct cannot modify a COUNT projection. Use DistinctCount instead.");
+            }
+
             _isDistinctSelect = true;
             return this;
         }
 
         public QueryBuilder Count()
         {
-            _queryType = QueryType.Select;
+            StartStatement(QueryType.Select);
             _countColumn = "*";
             _isDistinctCount = false;
             return this;
@@ -110,7 +158,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder Count(string Column)
         {
-            _queryType = QueryType.Select;
+            StartStatement(QueryType.Select);
             _countColumn = Column;
             _isDistinctCount = false;
             return this;
@@ -118,7 +166,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder DistinctCount(string Column)
         {
-            _queryType = QueryType.Select;
+            StartStatement(QueryType.Select);
             _countColumn = Column;
             _isDistinctCount = true;
             return this;
@@ -130,6 +178,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder From(string Table)
         {
+            RequireQueryType(QueryType.Select, nameof(From));
             _table = Table;
             return this;
         }
@@ -140,6 +189,7 @@ namespace NekoLib.Data.Query
         /// </summary>
         public QueryBuilder Join(string Table, string OnExpression, string Type = "INNER")
         {
+            RequireQueryType(QueryType.Select, nameof(Join));
             _joins.Add(Type + " JOIN " + Table + " ON " + OnExpression);
             return this;
         }
@@ -150,6 +200,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder Where(string Condition, params object[] Values)
         {
+            RequirePredicateQuery(nameof(Where));
             if (!string.IsNullOrWhiteSpace(Condition) && Values != null && Values.Length > 0)
             {
                 for (int i = 0; i < Values.Length; i++)
@@ -187,6 +238,7 @@ namespace NekoLib.Data.Query
             IEnumerable<object> values,
             bool negated)
         {
+            RequirePredicateQuery(negated ? nameof(WhereNotIn) : nameof(WhereIn));
             if (column == null)
                 throw new ArgumentNullException(nameof(column));
             if (string.IsNullOrWhiteSpace(column))
@@ -217,6 +269,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder WhereBetween(string Column, object Start, object End)
         {
+            RequirePredicateQuery(nameof(WhereBetween));
             string p1 = NewParamName();
             string p2 = NewParamName();
 
@@ -229,6 +282,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder WhereLike(string Column, string Pattern)
         {
+            RequirePredicateQuery(nameof(WhereLike));
             string p = NewParamName();
             _parameters[p] = Pattern;
             _conditions.Add(Column + " LIKE " + p);
@@ -237,6 +291,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder WhereExists(QueryBuilder SubQuery)
         {
+            RequirePredicateQuery(nameof(WhereExists));
             if (SubQuery == null) return this;
 
             AddSubQueryCondition("EXISTS", SubQuery);
@@ -245,6 +300,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder WhereNotExists(QueryBuilder SubQuery)
         {
+            RequirePredicateQuery(nameof(WhereNotExists));
             if (SubQuery == null) return this;
 
             AddSubQueryCondition("NOT EXISTS", SubQuery);
@@ -277,6 +333,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder GroupBy(params string[] Columns)
         {
+            RequireQueryType(QueryType.Select, nameof(GroupBy));
             if (Columns != null && Columns.Length > 0)
                 _groupByColumns.AddRange(Columns);
             return this;
@@ -284,6 +341,7 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder OrderBy(params string[] Columns)
         {
+            RequireQueryType(QueryType.Select, nameof(OrderBy));
             if (Columns != null && Columns.Length > 0)
                 _orderByColumns.AddRange(Columns);
             return this;
@@ -295,9 +353,8 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder InsertInto(string Table, Dictionary<string, object?> Values)
         {
-            _queryType = QueryType.Insert;
+            StartStatement(QueryType.Insert);
             _table = Table;
-            _insertValues.Clear();
 
             if (Values != null)
             {
@@ -310,10 +367,8 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder Update(string Table, Dictionary<string, object?> Values)
         {
-            _queryType = QueryType.Update;
+            StartStatement(QueryType.Update);
             _table = Table;
-            _allowAllRowsUpdate = false;
-            _updateValues.Clear();
 
             if (Values != null)
             {
