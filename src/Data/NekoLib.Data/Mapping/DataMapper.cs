@@ -1,154 +1,154 @@
 #nullable enable
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Collections.Concurrent;
 
 namespace NekoLib.Data.Mapping
 {
     /// <summary>
-    /// Utilitário para mapear dicionários de <see cref="RecordItem"/> para DTOs.
+    /// Maps the intentionally textual <see cref="RecordItem"/> row model to DTOs.
     /// </summary>
+    /// <remarks>
+    /// Strict mapping is the default. Use the overload that accepts
+    /// <see cref="DataMappingFailureMode.Lenient"/> only for explicit legacy
+    /// compatibility. This API cannot recover null or binary fidelity already
+    /// lost by <see cref="RecordItem"/>.
+    /// </remarks>
     public static class DataMapper
     {
-        private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _cache = new();
+        private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache =
+            new ConcurrentDictionary<Type, PropertyInfo[]>();
 
-        public static T Map<T>(Dictionary<string, RecordItem> Row) where T : new()
+        public static T Map<T>(Dictionary<string, RecordItem> row) where T : new()
         {
-            if(Row == null) throw new ArgumentNullException(nameof(Row));
-
-            T obj = new T();
-            Type type = typeof(T);
-
-            PropertyInfo[] props = _cache.GetOrAdd(type, static t =>
-            {
-                return t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Where(p => p.CanWrite)
-                        .ToArray();
-            });
-
-            foreach(PropertyInfo prop in props)
-            {
-                RecordItem record;
-                if(!TryGetRecord(Row, prop.Name, out record))
-                    continue;
-
-                object? converted = ConvertValue(record, prop.PropertyType);
-
-                try
-                {
-                    prop.SetValue(obj, converted, null);
-                }
-                catch { /* ignora falhas individuais */ }
-            }
-
-            return obj;
+            return Map<T>(row, DataMappingFailureMode.Strict);
         }
 
-        public static object Map(Dictionary<string, RecordItem> row,Type targetType)
+        public static T Map<T>(
+            Dictionary<string, RecordItem> row,
+            DataMappingFailureMode failureMode) where T : new()
         {
-            if(row == null)
+            if (row == null)
                 throw new ArgumentNullException(nameof(row));
-            if(targetType == null)
-                throw new ArgumentNullException(nameof(targetType));
 
-            ConstructorInfo? ctor = targetType.GetConstructor(Type.EmptyTypes);
-            if(ctor == null)
-                throw new InvalidOperationException($"Type '{targetType.FullName}' must have a parameterless constructor.");
-
-            object instance = ctor.Invoke(null);
-            MapInto(instance, row);
+            T instance = new T();
+            MapInto(instance!, row, failureMode);
             return instance;
         }
-        private static void MapInto(object instance,Dictionary<string, RecordItem> row)
+
+        public static object Map(Dictionary<string, RecordItem> row, Type targetType)
         {
-            Type type = instance.GetType();
-            PropertyInfo[] props = _cache.GetOrAdd(type, static t =>
-            {
-                return t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Where(p => p.CanWrite)
-                        .ToArray();
-            });
+            return Map(row, targetType, DataMappingFailureMode.Strict);
+        }
 
-            for(int i = 0; i < props.Length; i++)
-            {
-                PropertyInfo prop = props[i];
+        public static object Map(
+            Dictionary<string, RecordItem> row,
+            Type targetType,
+            DataMappingFailureMode failureMode)
+        {
+            if (row == null)
+                throw new ArgumentNullException(nameof(row));
+            if (targetType == null)
+                throw new ArgumentNullException(nameof(targetType));
+            ValidateFailureMode(failureMode);
 
-                RecordItem record;
-                if(!TryGetRecord(row, prop.Name, out record))
+            object? instance = Activator.CreateInstance(targetType);
+            if (instance == null)
+            {
+                throw new InvalidOperationException(
+                    "Type '" + targetType.FullName + "' must have a public parameterless constructor.");
+            }
+
+            MapInto(instance, row, failureMode);
+            return instance;
+        }
+
+        private static void MapInto(
+            object instance,
+            Dictionary<string, RecordItem> row,
+            DataMappingFailureMode failureMode)
+        {
+            ValidateFailureMode(failureMode);
+            PropertyInfo[] properties = PropertyCache.GetOrAdd(
+                instance.GetType(),
+                type => type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(property => property.CanWrite)
+                    .ToArray());
+
+            for (int index = 0; index < properties.Length; index++)
+            {
+                PropertyInfo property = properties[index];
+                string columnName;
+                RecordItem? record;
+                if (!TryGetRecord(row, property.Name, out columnName, out record))
                     continue;
 
                 try
                 {
-                    object? converted = ConvertValue(record, prop.PropertyType);
-                    prop.SetValue(instance, converted, null);
+                    object? converted = DataValueConverter.ConvertValue(
+                        record!.Value,
+                        property.PropertyType);
+                    property.SetValue(instance, converted, null);
                 }
-                catch { /* ignora falhas individuais */ }
+                catch (Exception ex)
+                {
+                    if (failureMode == DataMappingFailureMode.Lenient)
+                        continue;
+
+                    Exception cause = ex is TargetInvocationException && ex.InnerException != null
+                        ? ex.InnerException
+                        : ex;
+                    throw new DataMappingException(
+                        columnName,
+                        property.Name,
+                        typeof(string),
+                        property.PropertyType,
+                        cause);
+                }
             }
         }
 
-        private static bool TryGetRecord(Dictionary<string, RecordItem> row, string name, out RecordItem record)
+        private static bool TryGetRecord(
+            Dictionary<string, RecordItem> row,
+            string propertyName,
+            out string columnName,
+            out RecordItem? record)
         {
-            RecordItem? found;
-            if(row.TryGetValue(name, out found) && found != null)
+            if (row.TryGetValue(propertyName, out record) && record != null)
             {
-                record = found;
+                columnName = string.IsNullOrWhiteSpace(record.Name)
+                    ? propertyName
+                    : record.Name;
                 return true;
             }
 
-            foreach(KeyValuePair<string, RecordItem> kv in row)
+            foreach (KeyValuePair<string, RecordItem> item in row)
             {
-                if(string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(item.Key, propertyName, StringComparison.OrdinalIgnoreCase) &&
+                    item.Value != null)
                 {
-                    record = kv.Value;
+                    record = item.Value;
+                    columnName = string.IsNullOrWhiteSpace(record.Name)
+                        ? item.Key
+                        : record.Name;
                     return true;
                 }
             }
 
-            record = null!;
+            columnName = propertyName;
+            record = null;
             return false;
         }
 
-        private static object? ConvertValue(RecordItem Record, Type Target)
+        private static void ValidateFailureMode(DataMappingFailureMode failureMode)
         {
-            Type effectiveTarget = Nullable.GetUnderlyingType(Target) ?? Target;
-
-            if(Target == typeof(string)) return Record.As<string>();
-
-            if(Target == typeof(int) || Target == typeof(int?))
-                return Record.As<int>();
-
-            if(Target == typeof(long) || Target == typeof(long?))
-                return Record.As<long>();
-
-            if(Target == typeof(double) || Target == typeof(double?))
-                return Record.As<double>();
-
-            if(Target == typeof(decimal) || Target == typeof(decimal?))
+            if (failureMode != DataMappingFailureMode.Strict &&
+                failureMode != DataMappingFailureMode.Lenient)
             {
-                decimal d;
-                if(decimal.TryParse(Record.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out d))
-                    return d;
-                return default(decimal);
+                throw new ArgumentOutOfRangeException(nameof(failureMode));
             }
-
-            if(Target == typeof(bool) || Target == typeof(bool?))
-                return Record.As<bool>();
-
-            if(Target == typeof(DateTime) || Target == typeof(DateTime?))
-                return Record.As<DateTime>();
-
-            try
-            {
-                if(effectiveTarget.IsEnum)
-                    return Enum.Parse(effectiveTarget, Record.Value);
-
-                return Convert.ChangeType(Record.Value, effectiveTarget, CultureInfo.InvariantCulture);
-            }
-            catch { return null; }
-             
         }
     }
 }

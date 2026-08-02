@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NekoLib.Data.Mapping;
 
 namespace NekoLib.Data 
 {
@@ -69,10 +70,21 @@ namespace NekoLib.Data
         /// </summary>
         public int MaxObserverFailures { get; set; } = 32;
 
+        /// <summary>
+        /// Controls DTO property failures. Strict mapping is the production default.
+        /// </summary>
+        public DataMappingFailureMode MappingFailureMode { get; set; } =
+            DataMappingFailureMode.Strict;
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;
             if (MaxObserverFailures < 1) MaxObserverFailures = 1;
+            if (MappingFailureMode != DataMappingFailureMode.Strict &&
+                MappingFailureMode != DataMappingFailureMode.Lenient)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MappingFailureMode));
+            }
         }
     }
 }
