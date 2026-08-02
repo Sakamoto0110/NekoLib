@@ -183,7 +183,7 @@ only adaptations demonstrated by that evidence.
 
 #### E1.1 — Fail-closed query construction
 
-- [ ] **DATA-001 — Make collection predicates and DML fail closed.** Empty
+- [x] **DATA-001 — Make collection predicates and DML fail closed.** Empty
   `IN` produces a constant-false predicate; empty `NOT IN` produces a
   constant-true predicate. Null collections and empty column names are caller
   errors. Reject an `UPDATE` without a predicate unless the caller uses an

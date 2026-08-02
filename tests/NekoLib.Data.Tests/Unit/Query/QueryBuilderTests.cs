@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NekoLib.Data.Query;
 using Xunit;
@@ -12,6 +13,114 @@ namespace NekoLib.Data.Tests.Unit.Query
     /// </summary>
     public class QueryBuilderTests
     {
+        [Fact]
+        public void WhereIn_EmptyCollection_EmitsConstantFalsePredicate()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .WhereIn("Id", Array.Empty<object>())
+                .Build();
+
+            Assert.Equal("SELECT * FROM Customers WHERE 1 = 0", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void WhereNotIn_EmptyCollection_EmitsConstantTruePredicate()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .WhereNotIn("Id", Array.Empty<object>())
+                .Build();
+
+            Assert.Equal("SELECT * FROM Customers WHERE 1 = 1", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void CollectionPredicate_NullValues_ThrowsArgumentNullException(bool negated)
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                if (negated)
+                    builder.WhereNotIn("Id", null);
+                else
+                    builder.WhereIn("Id", null);
+            });
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void WhereIn_MissingColumn_ThrowsArgumentException(string column)
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Customers");
+
+            Assert.ThrowsAny<ArgumentException>(() =>
+                builder.WhereIn(column, new object[] { 1 }));
+        }
+
+        [Fact]
+        public void WhereIn_SingleValue_UsesOneParameter()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .WhereIn("Id", new object[] { 7 })
+                .Build();
+
+            Assert.Equal("SELECT * FROM Customers WHERE Id IN (@p1)", model.Sql);
+            Assert.Equal(7, model.Parameters["@p1"]);
+        }
+
+        [Fact]
+        public void WhereNotIn_MultipleValues_PreservesValueOrder()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Customers")
+                .WhereNotIn("Id", new object[] { 7, 11 })
+                .Build();
+
+            Assert.Equal("SELECT * FROM Customers WHERE Id NOT IN (@p1, @p2)", model.Sql);
+            Assert.Equal(7, model.Parameters["@p1"]);
+            Assert.Equal(11, model.Parameters["@p2"]);
+        }
+
+        [Fact]
+        public void Build_UpdateWithoutPredicate_ThrowsInvalidOperationException()
+        {
+            QueryBuilder builder = new QueryBuilder().Update(
+                "Customers",
+                new Dictionary<string, object> { { "Active", false } });
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() => builder.Build());
+
+            Assert.Contains("AllowAllRowsUpdate", exception.Message);
+        }
+
+        [Fact]
+        public void Build_UpdateWithAllRowsOptIn_EmitsUpdateWithoutWhereClause()
+        {
+            QueryModel model = new QueryBuilder()
+                .Update(
+                    "Customers",
+                    new Dictionary<string, object> { { "Active", false } })
+                .AllowAllRowsUpdate()
+                .Build();
+
+            Assert.DoesNotContain(" WHERE ", model.Sql);
+            Assert.Single(model.Parameters);
+        }
+
         // ---------------------------------------------------------------------
         // Finding #5 - WhereExists / WhereNotExists must rename subquery params
         // so they cannot collide with parent params that share the same name.

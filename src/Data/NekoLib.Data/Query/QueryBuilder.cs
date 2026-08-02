@@ -46,6 +46,7 @@ namespace NekoLib.Data.Query
         private bool _isDistinctSelect;
         private string? _countColumn;
         private bool _isDistinctCount;
+        private bool _allowAllRowsUpdate;
 
         private string NewParamName()
         {
@@ -173,32 +174,32 @@ namespace NekoLib.Data.Query
 
         public QueryBuilder WhereIn(string Column, IEnumerable<object> Values)
         {
-            if (string.IsNullOrEmpty(Column) || Values == null)
-                return this;
-
-            List<object> list = new List<object>(Values);
-            if (list.Count == 0) return this;
-
-            List<string> prmNames = new List<string>();
-
-            foreach (object value in list)
-            {
-                string paramName = NewParamName();
-                prmNames.Add(paramName);
-                _parameters[paramName] = value;
-            }
-
-            _conditions.Add(Column + " IN (" + string.Join(", ", prmNames) + ")");
-            return this;
+            return AddCollectionCondition(Column, Values, negated: false);
         }
 
         public QueryBuilder WhereNotIn(string Column, IEnumerable<object> Values)
         {
-            if (string.IsNullOrEmpty(Column) || Values == null)
-                return this;
+            return AddCollectionCondition(Column, Values, negated: true);
+        }
 
-            List<object> list = new List<object>(Values);
-            if (list.Count == 0) return this;
+        private QueryBuilder AddCollectionCondition(
+            string column,
+            IEnumerable<object> values,
+            bool negated)
+        {
+            if (column == null)
+                throw new ArgumentNullException(nameof(column));
+            if (string.IsNullOrWhiteSpace(column))
+                throw new ArgumentException("A collection predicate requires a column name.", nameof(column));
+            if (values == null)
+                throw new ArgumentNullException(nameof(values));
+
+            List<object> list = new List<object>(values);
+            if (list.Count == 0)
+            {
+                _conditions.Add(negated ? "1 = 1" : "1 = 0");
+                return this;
+            }
 
             List<string> prmNames = new List<string>();
 
@@ -209,7 +210,8 @@ namespace NekoLib.Data.Query
                 _parameters[paramName] = value;
             }
 
-            _conditions.Add(Column + " NOT IN (" + string.Join(", ", prmNames) + ")");
+            string keyword = negated ? " NOT IN (" : " IN (";
+            _conditions.Add(column + keyword + string.Join(", ", prmNames) + ")");
             return this;
         }
 
@@ -310,6 +312,7 @@ namespace NekoLib.Data.Query
         {
             _queryType = QueryType.Update;
             _table = Table;
+            _allowAllRowsUpdate = false;
             _updateValues.Clear();
 
             if (Values != null)
@@ -318,6 +321,23 @@ namespace NekoLib.Data.Query
                     _updateValues[kv.Key] = kv.Value;
             }
 
+            return this;
+        }
+
+        /// <summary>
+        /// Explicitly allows the current UPDATE statement to affect every row.
+        /// </summary>
+        /// <remarks>
+        /// This opt-in applies only to the current UPDATE state and is cleared
+        /// when <see cref="Update(string, Dictionary{string, object?})"/> is
+        /// called again.
+        /// </remarks>
+        public QueryBuilder AllowAllRowsUpdate()
+        {
+            if (_queryType != QueryType.Update)
+                throw new InvalidOperationException("AllowAllRowsUpdate can be used only after Update.");
+
+            _allowAllRowsUpdate = true;
             return this;
         }
 
@@ -433,6 +453,12 @@ namespace NekoLib.Data.Query
 
             if (_updateValues.Count == 0)
                 throw new InvalidOperationException("No values specified for UPDATE.");
+
+            if (_conditions.Count == 0 && !_allowAllRowsUpdate)
+            {
+                throw new InvalidOperationException(
+                    "UPDATE requires a predicate. Call AllowAllRowsUpdate to explicitly affect every row.");
+            }
 
             List<string> sets = new List<string>();
 
