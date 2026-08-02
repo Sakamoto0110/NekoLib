@@ -27,13 +27,16 @@ namespace NekoLib.Data
     [Flags]
     public enum DynamicMode
     {
-        /// <summary>Usa Reflection.Emit (rápido, mas não funciona em AOT e não é unloadable).</summary>
+        /// <summary>
+        /// Uses the optional Reflection.Emit compatibility path. Emitted types
+        /// are process-wide and not unloadable; Expando remains the production default.
+        /// </summary>
         IL = 1,
 
-        /// <summary>Usa ExpandoObject/Dictionary (sem Reflection.Emit, seguro para AOT).</summary>
+        /// <summary>Uses the AOT-safe ExpandoObject/dictionary path.</summary>
         Expando = 2,
 
-        /// <summary>Desabilita retornos dinâmicos (força DTO/Raw).</summary>
+        /// <summary>Disables dynamic results and requires DTO or raw APIs.</summary>
         Disabled = 4,
     }
 
@@ -48,7 +51,9 @@ namespace NekoLib.Data
         public DynamicMode DynamicMode { get; set; } = DynamicMode.Expando;
 
         /// <summary>
-        /// Limite máximo de "schemas" para modo IL. (Tipos emitidos não são unloadable).
+        /// Gets or sets the process-wide IL schema limit requested by this
+        /// context. The first IL use locks the process limit; later contexts
+        /// cannot reconfigure it because emitted types are not unloadable.
         /// </summary>
         public int MaxDynamicSchemas { get; set; } = 64;
 

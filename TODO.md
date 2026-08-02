@@ -277,7 +277,7 @@ row type is not implementation work until a concrete consumer requires it.
 
 #### E1.5 — Dynamic-result stability
 
-- [ ] **DATA-012 — Align dynamic null and type-lifetime behavior.** Keep
+- [x] **DATA-012 — Align dynamic null and type-lifetime behavior.** Keep
   Expando as the production default. Make IL and Expando null semantics
   equivalent, replace eviction with a process-wide non-evicting schema cap so a
   new schema falls back or fails after the cap instead of causing type

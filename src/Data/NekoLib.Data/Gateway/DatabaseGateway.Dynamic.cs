@@ -22,9 +22,12 @@ namespace NekoLib.Data.Internal.Gateway
             private static readonly AssemblyName _assemblyName = new AssemblyName("DynamicRowTypesAsm");
             private static readonly ModuleBuilder _module;
             private static readonly Dictionary<string, Type> _cache = new Dictionary<string, Type>(StringComparer.Ordinal);
-            private static readonly LinkedList<string> _lru = new LinkedList<string>();
             private static int _maxTypes = 256;
+            private static bool _limitLocked;
             private static int _typeCounter;
+            private static long _cacheHits;
+            private static long _cacheMisses;
+            private static long _limitRejections;
             private static readonly object _sync = new object();
 
             static RuntimeTypeFactory()
@@ -34,9 +37,17 @@ namespace NekoLib.Data.Internal.Gateway
                 _module = ab.DefineDynamicModule("MainModule");
             }
 
-            public static int Count
+            public static DynamicIlMetrics GetMetrics()
             {
-                get { lock(_sync) return _cache.Count; }
+                lock(_sync)
+                {
+                    return new DynamicIlMetrics(
+                        _maxTypes,
+                        _cache.Count,
+                        _cacheHits,
+                        _cacheMisses,
+                        _limitRejections);
+                }
             }
 
             public static void ConfigureMaxTypes(int maxTypes)
@@ -44,12 +55,15 @@ namespace NekoLib.Data.Internal.Gateway
                 if(maxTypes < 1) maxTypes = 1;
                 lock(_sync)
                 {
+                    if(_limitLocked)
+                        return;
+
                     _maxTypes = maxTypes;
-                    EnforceCapacity();
+                    _limitLocked = true;
                 }
             }
 
-            public static bool TryGetExisting(SchemaInfo schema, out Type? type)
+            public static bool TryGetOrCreate(SchemaInfo schema, out Type? type)
             {
                 if(schema == null) throw new ArgumentNullException(nameof(schema));
                 string signature = BuildSignature(schema);
@@ -57,35 +71,23 @@ namespace NekoLib.Data.Internal.Gateway
                 {
                     if(_cache.TryGetValue(signature, out var t))
                     {
-                        MoveToTail(signature);
+                        _cacheHits++;
                         type = t;
                         return true;
                     }
-                }
-                type = null;
-                return false;
-            }
 
-            public static Type GetOrCreate(SchemaInfo Schema)
-            {
-                if(Schema == null) throw new ArgumentNullException(nameof(Schema));
-
-                string signature = BuildSignature(Schema);
-
-                lock(_sync)
-                {
-                    Type? t;
-                    if(_cache.TryGetValue(signature, out t) && t != null)
+                    _cacheMisses++;
+                    if(_cache.Count >= _maxTypes)
                     {
-                        MoveToTail(signature);
-                        return t;
+                        _limitRejections++;
+                        type = null;
+                        return false;
                     }
 
-                    Type created = CreateType(Schema);
+                    Type created = CreateType(schema);
                     _cache[signature] = created;
-                    _lru.AddLast(signature);
-                    EnforceCapacity();
-                    return created;
+                    type = created;
+                    return true;
                 }
             }
 
@@ -120,9 +122,10 @@ namespace NekoLib.Data.Internal.Gateway
                 for(int i = 0; i < Schema.Columns.Count; i++)
                 {
                     string propName = Schema.Columns[i];
-                    Type? propType;
-                    if(!Schema.ColumnTypes.TryGetValue(propName, out propType) || propType == null)
-                        propType = typeof(string);
+                    Type? sourceType;
+                    if(!Schema.ColumnTypes.TryGetValue(propName, out sourceType) || sourceType == null)
+                        sourceType = typeof(string);
+                    Type propType = GetNullablePropertyType(sourceType);
 
                     FieldBuilder field = tb.DefineField("_" + propName, propType, FieldAttributes.Private);
                     PropertyBuilder prop = tb.DefineProperty(
@@ -162,28 +165,21 @@ namespace NekoLib.Data.Internal.Gateway
                 return createdType;
             }
 
-            private static void MoveToTail(string Key)
+            private static Type GetNullablePropertyType(Type sourceType)
             {
-                LinkedListNode<string>? node = _lru.Find(Key);
-                if(node != null)
-                {
-                    _lru.Remove(node);
-                    _lru.AddLast(node);
-                }
-            }
+                if(!sourceType.IsValueType || Nullable.GetUnderlyingType(sourceType) != null)
+                    return sourceType;
 
-            private static void EnforceCapacity()
-            {
-                while(_lru.Count > _maxTypes)
-                {
-                    LinkedListNode<string>? first = _lru.First;
-                    if(first == null) break;
-
-                    string key = first.Value;
-                    _lru.RemoveFirst();
-                    _cache.Remove(key);
-                }
+                return typeof(Nullable<>).MakeGenericType(sourceType);
             }
+        }
+
+        /// <summary>
+        /// Returns a process-wide snapshot of emitted dynamic IL schemas.
+        /// </summary>
+        public static DynamicIlMetrics GetDynamicIlMetrics()
+        {
+            return RuntimeTypeFactory.GetMetrics();
         }
 
         private static void FillDynamicObject(object Instance, Type RuntimeType, SchemaInfo Schema, DbDataReader Reader)
@@ -269,29 +265,25 @@ namespace NekoLib.Data.Internal.Gateway
             var opts = ctx.Options;
             RuntimeTypeFactory.ConfigureMaxTypes(opts.MaxDynamicSchemas);
 
-            if(!RuntimeTypeFactory.TryGetExisting(schema, out var existing))
+            Type? ilType;
+            if(!RuntimeTypeFactory.TryGetOrCreate(schema, out ilType))
             {
-                if(RuntimeTypeFactory.Count >= opts.MaxDynamicSchemas)
-                {
-                    if(opts.FailOnDynamicSchemaLimit || !opts.AllowExpandoFallback || (opts.DynamicMode & DynamicMode.Expando) != DynamicMode.Expando)
-                        throw new InvalidOperationException($"Dynamic IL schema limit reached ({opts.MaxDynamicSchemas}).");
+                DynamicIlMetrics metrics = RuntimeTypeFactory.GetMetrics();
+                if(opts.FailOnDynamicSchemaLimit || !opts.AllowExpandoFallback || (opts.DynamicMode & DynamicMode.Expando) != DynamicMode.Expando)
+                    throw new InvalidOperationException($"Dynamic IL schema limit reached ({metrics.SchemaLimit}).");
 
-                    // fallback to Expando
-                    IDictionary<string, object?> exp = new ExpandoObject();
-                    for(int i = 0; i < schema.Columns.Count; i++)
-                    {
-                        string col = schema.Columns[i];
-                        object raw = reader.GetValue(schema.Ordinals[col]);
-                        exp[col] = raw is DBNull ? null : raw;
-                    }
-                    return new DynamicRow(exp);
+                IDictionary<string, object?> exp = new ExpandoObject();
+                for(int i = 0; i < schema.Columns.Count; i++)
+                {
+                    string col = schema.Columns[i];
+                    object raw = reader.GetValue(schema.Ordinals[col]);
+                    exp[col] = raw is DBNull ? null : raw;
                 }
+                return new DynamicRow(exp);
             }
 
-            Type ilType = existing ?? RuntimeTypeFactory.GetOrCreate(schema);
-
-            object inst = Activator.CreateInstance(ilType)!;
-            FillDynamicObject(inst, ilType, schema, reader);
+            object inst = Activator.CreateInstance(ilType!)!;
+            FillDynamicObject(inst, ilType!, schema, reader);
             return new DynamicRow(inst);
         }
 
