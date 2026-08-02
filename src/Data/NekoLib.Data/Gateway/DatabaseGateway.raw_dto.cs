@@ -283,18 +283,17 @@ namespace NekoLib.Data.Internal.Gateway
 #endif
             T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
         {
+            ReaderDtoMapper.ValidateTargetType(typeof(T));
             List<T> list = new List<T>();
 
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
-                    List<PropertyColumnBinding> bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
-
                     while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
                         ct.ThrowIfCancellationRequested();
-                        list.Add(CreateDtoFromReader<T>(reader, bindings));
+                        list.Add(ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode));
                     }
                 }
 
@@ -344,16 +343,15 @@ namespace NekoLib.Data.Internal.Gateway
 #endif
             T>(string sql, Dictionary<string, object?>? parameters, Action<T> callback, CancellationToken ct = default, DbSession? session = null) where T : new()
         {
+            ReaderDtoMapper.ValidateTargetType(typeof(T));
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
-                    List<PropertyColumnBinding> bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
-
                     while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
                         ct.ThrowIfCancellationRequested();
-                        callback(CreateDtoFromReader<T>(reader, bindings));
+                        callback(ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode));
                     }
                 }
 
@@ -401,6 +399,7 @@ namespace NekoLib.Data.Internal.Gateway
             T>(QueryBuilder builder, DbSession? session, CancellationToken ct) where T : new()
         {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
+            ReaderDtoMapper.ValidateTargetType(typeof(T));
 
             QueryModel model = builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
@@ -416,7 +415,6 @@ namespace NekoLib.Data.Internal.Gateway
             bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
-            List<PropertyColumnBinding>? bindings = null;
 
             try
             {
@@ -440,7 +438,6 @@ namespace NekoLib.Data.Internal.Gateway
                     ApplyParameters(cmd, dbq.Parameters);
 
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
-                    bindings = CreatePropertyBindings(typeof(T), ExtractSchema(reader));
                 }
                 catch(Exception ex) when(!(ex is OperationCanceledException))
                 {
@@ -457,7 +454,7 @@ namespace NekoLib.Data.Internal.Gateway
                             break;
 
                         ct.ThrowIfCancellationRequested();
-                        item = CreateDtoFromReader<T>(reader, bindings!);
+                        item = ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode);
                     }
                     catch(Exception ex) when(!(ex is OperationCanceledException))
                     {

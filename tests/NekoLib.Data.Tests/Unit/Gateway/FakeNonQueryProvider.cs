@@ -87,6 +87,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public int Result { get; set; }
         public Exception ExecuteException { get; set; }
+        public DbDataReader Reader { get; set; }
         public override string CommandText { get; set; }
         public override int CommandTimeout { get; set; }
         public override CommandType CommandType { get; set; }
@@ -137,7 +138,156 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            throw new NotSupportedException();
+            if (ExecuteException != null)
+                throw ExecuteException;
+            if (Reader == null)
+                throw new InvalidOperationException("No fake reader was configured.");
+            return Reader;
+        }
+
+        protected override Task<DbDataReader> ExecuteDbDataReaderAsync(
+            CommandBehavior behavior,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return Task.FromResult(ExecuteDbDataReader(behavior));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromException<DbDataReader>(ex);
+            }
+        }
+    }
+
+    internal sealed class FakeDataReader : DbDataReader
+    {
+        private readonly string[] _names;
+        private readonly Type[] _types;
+        private readonly object[][] _rows;
+        private int _rowIndex = -1;
+        private bool _closed;
+
+        public FakeDataReader(string[] names, Type[] types, params object[][] rows)
+        {
+            if (names == null) throw new ArgumentNullException(nameof(names));
+            if (types == null) throw new ArgumentNullException(nameof(types));
+            if (names.Length != types.Length)
+                throw new ArgumentException("Fake schema names and types must have equal lengths.");
+
+            _names = names;
+            _types = types;
+            _rows = rows ?? Array.Empty<object[]>();
+            for (int index = 0; index < _rows.Length; index++)
+            {
+                if (_rows[index].Length != _names.Length)
+                    throw new ArgumentException("Every fake row must match the schema width.");
+            }
+        }
+
+        public bool WasDisposed { get; private set; }
+        public override int Depth => 0;
+        public override int FieldCount => _names.Length;
+        public override bool HasRows => _rows.Length > 0;
+        public override bool IsClosed => _closed;
+        public override int RecordsAffected => -1;
+        public override object this[int ordinal] => GetValue(ordinal);
+        public override object this[string name] => GetValue(GetOrdinal(name));
+
+        public override bool Read()
+        {
+            if (_closed)
+                throw new InvalidOperationException("Reader is closed.");
+            if (_rowIndex + 1 >= _rows.Length)
+                return false;
+            _rowIndex++;
+            return true;
+        }
+
+        public override Task<bool> ReadAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Read());
+        }
+
+        public override bool NextResult() => false;
+        public override string GetName(int ordinal) => _names[ordinal];
+        public override string GetDataTypeName(int ordinal) => _types[ordinal].Name;
+        public override Type GetFieldType(int ordinal) => _types[ordinal];
+        public override object GetValue(int ordinal)
+        {
+            if (_rowIndex < 0 || _rowIndex >= _rows.Length)
+                throw new InvalidOperationException("Reader is not positioned on a row.");
+            return _rows[_rowIndex][ordinal];
+        }
+        public override int GetValues(object[] values)
+        {
+            int count = Math.Min(values.Length, FieldCount);
+            for (int index = 0; index < count; index++)
+                values[index] = GetValue(index);
+            return count;
+        }
+        public override int GetOrdinal(string name)
+        {
+            for (int index = 0; index < _names.Length; index++)
+            {
+                if (string.Equals(_names[index], name, StringComparison.OrdinalIgnoreCase))
+                    return index;
+            }
+            throw new IndexOutOfRangeException(name);
+        }
+        public override bool IsDBNull(int ordinal) => GetValue(ordinal) is DBNull;
+        public override bool GetBoolean(int ordinal) => (bool)GetValue(ordinal);
+        public override byte GetByte(int ordinal) => (byte)GetValue(ordinal);
+        public override char GetChar(int ordinal) => (char)GetValue(ordinal);
+        public override DateTime GetDateTime(int ordinal) => (DateTime)GetValue(ordinal);
+        public override decimal GetDecimal(int ordinal) => (decimal)GetValue(ordinal);
+        public override double GetDouble(int ordinal) => (double)GetValue(ordinal);
+        public override float GetFloat(int ordinal) => (float)GetValue(ordinal);
+        public override Guid GetGuid(int ordinal) => (Guid)GetValue(ordinal);
+        public override short GetInt16(int ordinal) => (short)GetValue(ordinal);
+        public override int GetInt32(int ordinal) => (int)GetValue(ordinal);
+        public override long GetInt64(int ordinal) => (long)GetValue(ordinal);
+        public override string GetString(int ordinal) => (string)GetValue(ordinal);
+        public override long GetBytes(
+            int ordinal,
+            long dataOffset,
+            byte[] buffer,
+            int bufferOffset,
+            int length)
+        {
+            byte[] source = (byte[])GetValue(ordinal);
+            if (buffer == null)
+                return source.Length;
+            int count = Math.Min(length, source.Length - (int)dataOffset);
+            Array.Copy(source, (int)dataOffset, buffer, bufferOffset, count);
+            return count;
+        }
+        public override long GetChars(
+            int ordinal,
+            long dataOffset,
+            char[] buffer,
+            int bufferOffset,
+            int length)
+        {
+            char[] source = GetString(ordinal).ToCharArray();
+            if (buffer == null)
+                return source.Length;
+            int count = Math.Min(length, source.Length - (int)dataOffset);
+            Array.Copy(source, (int)dataOffset, buffer, bufferOffset, count);
+            return count;
+        }
+        public override IEnumerator GetEnumerator() => new DbEnumerator(this, false);
+        public override void Close()
+        {
+            _closed = true;
+        }
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            _closed = true;
+            base.Dispose(disposing);
         }
     }
 

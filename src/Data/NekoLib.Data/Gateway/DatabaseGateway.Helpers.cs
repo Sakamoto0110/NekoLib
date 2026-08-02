@@ -92,37 +92,6 @@ namespace NekoLib.Data.Internal.Gateway
             return name + "_" + count.ToString(CultureInfo.InvariantCulture);
         }
 
-        private sealed class PropertyColumnBinding
-        {
-            public PropertyInfo Property { get; private set; }
-            public int Ordinal { get; private set; }
-
-            public PropertyColumnBinding(PropertyInfo property, int ordinal)
-            {
-                Property = property;
-                Ordinal = ordinal;
-            }
-        }
-
-        private static List<PropertyColumnBinding> CreatePropertyBindings(Type type, SchemaInfo schema)
-        {
-            PropertyInfo[] props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            List<PropertyColumnBinding> bindings = new List<PropertyColumnBinding>();
-
-            for(int i = 0; i < props.Length; i++)
-            {
-                PropertyInfo prop = props[i];
-                if(!prop.CanWrite)
-                    continue;
-
-                int ordinal;
-                if(schema.Ordinals.TryGetValue(prop.Name, out ordinal))
-                    bindings.Add(new PropertyColumnBinding(prop, ordinal));
-            }
-
-            return bindings;
-        }
-
         private static Dictionary<string, RecordItem> ReadRecordRow(DbDataReader reader, SchemaInfo schema)
         {
             Dictionary<string, RecordItem> row = new Dictionary<string, RecordItem>(StringComparer.OrdinalIgnoreCase);
@@ -139,39 +108,6 @@ namespace NekoLib.Data.Internal.Gateway
             }
 
             return row;
-        }
-
-        private static T CreateDtoFromReader<T>(DbDataReader reader, List<PropertyColumnBinding> bindings) where T : new()
-        {
-            T instance = new T();
-
-            for(int i = 0; i < bindings.Count; i++)
-            {
-                PropertyColumnBinding binding = bindings[i];
-                object value = reader.GetValue(binding.Ordinal);
-                if(value is DBNull)
-                    continue;
-
-                try
-                {
-                    object? converted = ConvertValueForProperty(value, binding.Property.PropertyType);
-                    binding.Property.SetValue(instance, converted, null);
-                }
-                catch
-                {
-                }
-            }
-
-            return instance;
-        }
-
-        private static object? ConvertValueForProperty(object value, Type propertyType)
-        {
-            Type targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
-            if(targetType.IsEnum)
-                return Enum.Parse(targetType, Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty);
-
-            return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
         }
 
         #endregion

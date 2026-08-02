@@ -226,7 +226,7 @@ only adaptations demonstrated by that evidence.
 
 #### E1.3 — One strict typed-mapping contract
 
-- [ ] **DATA-004 — Stop suppressing mapping failures.** Add a structured
+- [x] **DATA-004 — Stop suppressing mapping failures.** Add a structured
   mapping exception with column/property/source/target evidence and a
   deliberate conversion matrix. Strict failure is the default; legacy lenient
   behavior is available only through an explicit compatibility option.
@@ -234,7 +234,7 @@ only adaptations demonstrated by that evidence.
   `DynamicRow`, and raw paths separate; validate target construction and
   delegate shape before opening a connection; never pass or cast a
   `DynamicRow` as an unrelated DTO.
-- [ ] **DATA-006 — Use one reader-to-DTO pipeline.** Compile and reuse one
+- [x] **DATA-006 — Use one reader-to-DTO pipeline.** Compile and reuse one
   binding plan per schema and target type across buffered, callback, and
   streaming APIs, with parity tests for nulls, enums, binary values, date/time,
   numeric overflow, and unsupported conversions.

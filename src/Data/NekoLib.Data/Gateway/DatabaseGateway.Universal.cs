@@ -150,15 +150,17 @@ namespace NekoLib.Data.Internal.Gateway
                         SchemaInfo schema = ExtractSchema(reader);
 
                         bool wantsDynamic = targetType == typeof(DynamicRow) || targetType == typeof(object);
-                        bool wantsDto = !wantsDynamic && targetType.GetConstructor(Type.EmptyTypes) != null;
 
                         while(await ReadSafeAsync(reader, ct))
                         {
                             ct.ThrowIfCancellationRequested();
 
-                            if(wantsDto)
+                            if(!wantsDynamic)
                             {
-                                object dto = DataMapper.Map(ReadRecordRow(reader, schema), targetType);
+                                object dto = ReaderDtoMapper.Map(
+                                    reader,
+                                    targetType,
+                                    ctx.Options.MappingFailureMode);
                                 handler.DynamicInvoke(dto);
                                 continue;
                             }
@@ -251,7 +253,7 @@ namespace NekoLib.Data.Internal.Gateway
             DbCommand? cmd = null;
             DbDataReader? reader = null;
             SchemaInfo? schema = null;
-            bool wantsDto = false;
+            bool wantsDynamic = false;
 
             try
             {
@@ -277,13 +279,9 @@ namespace NekoLib.Data.Internal.Gateway
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
                     schema = ExtractSchema(reader);
 
-                    bool wantsDynamic =
+                    wantsDynamic =
                         typeof(T) == typeof(object) ||
                         typeof(T) == typeof(DynamicRow);
-
-                    wantsDto =
-                        !wantsDynamic &&
-                        typeof(T).GetConstructor(Type.EmptyTypes) != null;
                 }
                 catch(Exception ex) when(!(ex is OperationCanceledException))
                 {
@@ -301,8 +299,11 @@ namespace NekoLib.Data.Internal.Gateway
 
                         ct.ThrowIfCancellationRequested();
 
-                        if(wantsDto)
-                            item = (T)DataMapper.Map(ReadRecordRow(reader!, schema!), typeof(T));
+                        if(!wantsDynamic)
+                            item = (T)ReaderDtoMapper.Map(
+                                reader!,
+                                typeof(T),
+                                ctx.Options.MappingFailureMode);
                         else
                             item = (T)(object)CreateDynamicRow(schema!, reader!);
                     }
