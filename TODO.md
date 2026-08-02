@@ -342,6 +342,29 @@ WPF scope:
 - focus, DPI/resize, exception propagation, parity with intended Navigation
   contracts, and behavior that legitimately differs from WinForms.
 
+**Confirmed runtime finding — 2026-08-02:** the PCB emulation scenario observed
+the configured 30-second idle tick sign the session out without navigating to
+Home. Current source confirms that `NavigationBootstrapLifetime` validates the
+interaction generation, calls `Session.SignOut()`, and validates the same
+generation again. A synchronous application UI update caused by sign-out can be
+reported by the WinForms interaction observer and make that second validation
+abort `GoIdleAsync()`.
+
+- [ ] **NAV-001 — Preserve an admitted idle transition across sign-out UI
+  mutation.** Keep genuine interaction before sign-out capable of invalidating
+  the stale idle tick. Once the pre-sign-out continuation check succeeds, treat
+  the idle transition as admitted: after `Session.SignOut()`, revalidate
+  disposal, `StopIdle()`, and current-context ownership, but do not let an
+  interaction-generation increment caused synchronously by sign-out UI updates
+  cancel navigation to the resolved idle/Home page. Preserve the documented
+  `SignOut()` then `GoIdleAsync()` order and timer rearming on denied or failed
+  navigation. Add dual-target regressions in
+  `PageNavBootstrapLifetimeTests` for sign-out-induced interaction, genuine
+  interaction before admission, and stop/shutdown boundaries, then repeat the
+  native 30-second idle scenario. Keep the implementation scoped to
+  `NavigationBootstrapLifetime`; if evidence requires a frozen component, stop
+  and request a narrow explicit unfreeze.
+
 Validation requirements:
 
 - fake-based automated tests do not replace native interactive evidence;
@@ -602,6 +625,44 @@ target, preserve platform-neutral Core contracts, keep Diagnostics.Windows
 isolated, audit actual WinAPI use, and define a platform adapter only for a real
 runtime target. Do not dilute current Windows behavior prematurely or claim
 portability merely because a library targets plain `net9.0`.
+
+### F7 — Opt-in Navigation surface regions and toast orchestration
+
+**GATED — DO NOT START.** After E2 establishes the current native-adapter
+baseline, design an opt-in surface-region model whose first concrete consumer is
+stacked toast notification. A region is a visual and lifetime scope—sometimes
+described as a pseudo-page—but it must not participate in `Current`, navigation
+history, guards, page reuse, or the canonical page lifecycle.
+
+The accepted direction is:
+
+- allow shell-, page-, dialog-, prompt-, or other surface-owned regions, with
+  explicit ownership so closing an owner removes its visible child views,
+  cancels timers, and disposes pending entries;
+- keep the existing single/replacement toast behavior as the default and make
+  region-based stacking and queuing explicitly opt in;
+- let a toast region define its visible capacity, deterministic stack/reflow
+  order, and a bounded pending queue with an explicit overflow rule; queued
+  entries should defer native-view creation where practical, and their lifetime
+  timer starts only when they become visible;
+- give independently dismissible entries stable identity or a handle rather
+  than extending the ambiguous `DismissCurrentToast()` model to a collection;
+- add opt-in surface capabilities such as `IsMovable` without expanding page
+  presentation enums. Region-managed views remain presenter-positioned unless
+  an explicit detach/reorder interaction is later accepted;
+- make auto-dismiss opt in. When enabled without a more specific dismissal
+  strategy, use the bounded timer as the default fallback; owner teardown and
+  explicit dismissal always cancel it deterministically;
+- keep hit testing, drag capture, positioning, DPI/resize behavior, and native
+  Z-order in the WinForms/WPF adapters. Empty region space must not consume
+  input, and a drag must not be interpreted as click-to-dismiss;
+- preserve UI-thread mutation, transactional setup/cleanup, bounded state,
+  surface diagnostics, current teardown guarantees, and dual-target tests.
+
+Do not introduce nested `NavigationContext` instances, generic region routing,
+or a new feature-module family for the toast use case. If implementation proves
+that a frozen Navigation component must change, stop at the confirmed boundary
+and require an explicit, narrowly scoped unfreeze before modifying it.
 
 ## Explicit non-goals
 
