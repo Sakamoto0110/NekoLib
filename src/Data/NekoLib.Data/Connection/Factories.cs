@@ -21,23 +21,24 @@ namespace NekoLib.Data.Connection
     }
 
     /// <summary>
-    /// Abstração de fábrica de conexões para o DatabaseGateway.
-    /// Implementações devem ser <b>stateless</b>: Create() sempre retorna uma NOVA conexão fechada.
+    /// Creates connections for the database gateway. Implementations must be
+    /// stateless: each <see cref="IDbConnectionFactory.Create"/> call returns a
+    /// new closed connection.
     /// </summary>
     public interface IDbConnectionFactory : IDisposable
     {
         /// <summary>
-        /// Cria uma nova instância de <see cref="DbConnection"/> ainda fechada.
+        /// Creates a new closed <see cref="DbConnection"/> instance.
         /// </summary>
         Task<DbConnection> Create();
     }
 
     /// <summary>
-    /// Implementação genérica de <see cref="IDbConnectionFactory"/> utilizando <see cref="Activator"/>.
+    /// Generic <see cref="IDbConnectionFactory"/> implementation that uses
+    /// <see cref="Activator"/> with a connection-string constructor.
     /// <para/>
-    /// ⚠️ Produção: esta fábrica é propositalmente <b>stateless</b>.
-    /// Ela NÃO mantém referência e NÃO tenta fechar/dispensar conexões criadas.
-    /// Quem chama é responsável por <c>Dispose()</c> da conexão.
+    /// This factory is deliberately stateless. It does not retain, close, or
+    /// dispose created connections; the caller owns each returned connection.
     /// </summary>
     public class DbConnectionAbstractFactory<T> : IDbConnectionFactory where T : DbConnection
     {

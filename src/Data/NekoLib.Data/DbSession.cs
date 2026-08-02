@@ -44,11 +44,12 @@ namespace NekoLib.Data
         }
 
         /// <summary>
-        /// Inicia uma transação no nível de isolamento informado.
-        /// Útil para leituras consistentes (ex.: <see cref="IsolationLevel.Snapshot"/> ou
-        /// <see cref="IsolationLevel.RepeatableRead"/>) que abrangem múltiplos acessos.
-        /// O isolamento só é aplicado quando uma transação real é aberta (profundidade 0);
-        /// chamadas aninhadas apenas incrementam a profundidade.
+        /// Starts a transaction at the specified isolation level.
+        /// This is useful for consistent reads spanning multiple operations,
+        /// such as <see cref="IsolationLevel.Snapshot"/> or
+        /// <see cref="IsolationLevel.RepeatableRead"/>. The isolation level is
+        /// applied only when the provider transaction opens at depth zero;
+        /// nested calls only increment the logical depth.
         /// </summary>
         public void BeginTransaction(IsolationLevel isolation)
         {

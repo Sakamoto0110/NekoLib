@@ -168,7 +168,7 @@ namespace NekoLib.Data.Query
                 {
                     if (ConnectionFactoryOwnership == DbConnectionFactoryOwnership.ContextOwned)
                         ConnectionFactory.Dispose();
-                    // Quebra cadeias de referência (evita leaks por subscribers long-lived)
+                    // Break subscriber reference chains held by long-lived publishers.
                     if(Options.ClearEventsOnContextDispose)
                     {
                         OnSqlGenerated = null;
@@ -189,7 +189,7 @@ namespace NekoLib.Data.Query
 
         public void Dispose()
         {
-            // Não altere este código. Coloque o código de limpeza no método 'Dispose(bool disposing)'
+            // Keep cleanup in Dispose(bool) so derived contexts preserve the pattern.
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }

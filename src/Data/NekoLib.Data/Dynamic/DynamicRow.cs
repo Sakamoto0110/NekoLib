@@ -7,15 +7,15 @@ using System.Reflection;
 namespace NekoLib.Data.Dynamic
 {
     /// <summary>
-    /// Linha dinâmica, acessível por:
+    /// Provides a dynamic row through:
     /// <list type="bullet">
-    /// <item>indexador: row["Nome"]</item>
-    /// <item>membro dinâmico: row.Nome</item>
+    /// <item>an indexer such as <c>row["Name"]</c>;</item>
+    /// <item>a dynamic member such as <c>row.Name</c>.</item>
     /// </list>
-    /// Suporta dois backends:
+    /// Supports two storage backends:
     /// <list type="bullet">
-    /// <item>Instância com propriedades (DTO/IL)</item>
-    /// <item>Dicionário (Expando/Dictionary)</item>
+    /// <item>an emitted instance with properties;</item>
+    /// <item>an ExpandoObject/dictionary.</item>
     /// </list>
     /// </summary>
     public sealed class DynamicRow : DynamicObject

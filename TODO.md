@@ -292,7 +292,7 @@ row type is not implementation work until a concrete consumer requires it.
   observer isolation, mapping, streaming, session affinity, transactions, and
   failure paths on both target frameworks. These tests do not count as real
   provider coverage.
-- [ ] **DATA-019 — Remove dead and mixed-language source material.** Delete the
+- [x] **DATA-019 — Remove dead and mixed-language source material.** Delete the
   fully commented duplicate `Connection/DbSession.cs` after a final reference
   search and translate public Data XML documentation to English. Keep the
   cleanup separate from behavioral commits where practical.

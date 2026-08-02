@@ -10,12 +10,13 @@ using NekoLib.Data.Query;
 namespace NekoLib.Data.Internal.Gateway
 {
     /// <summary>
-    /// Extensões utilitárias para <see cref="IDataRecord"/> / <see cref="System.Data.Common.DbDataReader"/>.
+    /// Utility extensions for <see cref="IDataRecord"/> and
+    /// <see cref="DbDataReader"/>.
     /// </summary>
     public static class DbDataReaderExtensions
     {
         /// <summary>
-        /// Verifica se o reader contém a coluna especificada (case-insensitive).
+        /// Returns whether the reader contains the specified column, ignoring case.
         /// </summary>
         public static bool HasColumn(this IDataRecord Reader, string ColumnName)
         {
@@ -39,7 +40,7 @@ namespace NekoLib.Data.Internal.Gateway
         #region Schema helpers
 
         /// <summary>
-        /// Representa informações de esquema (colunas e tipos) para mapeamento dinâmico.
+        /// Holds column, type, and ordinal information for dynamic mapping.
         /// </summary>
         private sealed class SchemaInfo
         {

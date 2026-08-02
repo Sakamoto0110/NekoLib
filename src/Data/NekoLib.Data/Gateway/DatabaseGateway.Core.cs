@@ -12,14 +12,15 @@ using System.Threading.Tasks;
 namespace NekoLib.Data.Internal.Gateway
 {
     /// <summary>
-    /// Gateway genérico para acesso a dados baseado em SQL bruto e em <see cref="Query.QueryBuilder"/>.
+    /// Provider-neutral database gateway for raw SQL and
+    /// <see cref="Query.QueryBuilder"/> statements.
     /// 
-    /// Exposição pública em quatro camadas:
+    /// The public result APIs have four layers:
     /// <list type="bullet">
-    ///   <item><b>Raw</b>: RecordItem (GetRaw/ReadRaw).</item>
-    ///   <item><b>DTO</b>: GetDto/ReadDto (tipado forte via reflexão).</item>
-    ///   <item><b>Dynamic</b>: DynamicRow + IL.</item>
-    ///   <item><b>Universal</b>: Get/Read com fallback DTO → Dynamic.</item>
+    ///   <item><b>Raw</b>: <see cref="RecordItem"/> through GetRaw/ReadRaw.</item>
+    ///   <item><b>DTO</b>: strongly typed GetDto/ReadDto mapping.</item>
+    ///   <item><b>Dynamic</b>: <see cref="Dynamic.DynamicRow"/> storage.</item>
+    ///   <item><b>Universal</b>: explicit DTO or dynamic target selection.</item>
     /// </list>
     /// </summary>
     public partial class DatabaseGateway : IDatabaseGateway
@@ -30,7 +31,7 @@ namespace NekoLib.Data.Internal.Gateway
         #region ctor
 
         /// <summary>
-        /// Cria um <see cref="DatabaseGateway"/> baseado no contexto de execução fornecido. 
+        /// Creates a gateway for the supplied execution context.
         /// </summary>
         public DatabaseGateway(QueryExecutionContext _ctx)
         {

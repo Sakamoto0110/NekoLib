@@ -408,10 +408,10 @@ namespace NekoLib.Data.Internal.Gateway
         }
 
         /// <remarks>
-        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
-        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
-        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
-        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
+        /// so the <paramref name="session"/> connection and transaction remain
+        /// occupied while the consumer iterates. Avoid slow per-row I/O inside
+        /// an open transaction; consume promptly or materialize the results.
         /// </remarks>
         public IAsyncEnumerable<T> StreamDto<
 #if NET6_0_OR_GREATER

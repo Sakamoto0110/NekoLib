@@ -6,20 +6,20 @@ namespace NekoLib.Data.Gateway
     internal static class PlatformGuards
     {
         /// <summary>
-        /// Retorna true quando o runtime não suporta geração dinâmica de código (AOT).
+        /// Returns whether the runtime does not support dynamic code generation.
         /// </summary>
         public static bool IsAot()
         {
 #if NET6_0_OR_GREATER
             return !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
 #else
-            // .NET Framework (net481) não roda em AOT.
+            // .NET Framework net481 does not run as AOT.
             return false;
 #endif
         }
 
         /// <summary>
-        /// Retorna true quando o runtime suporta Reflection.Emit / DynamicCode.
+        /// Returns whether the runtime supports Reflection.Emit dynamic code.
         /// </summary>
         public static bool SupportsDynamicIL()
         {

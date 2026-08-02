@@ -5,8 +5,8 @@ using System.Linq;
 namespace NekoLib.Data.Query
 {
     /// <summary>
-    /// Tradutor de <see cref="QueryModel"/> para SQL Server.
-    /// Aplica TOP com sintaxe "SELECT DISTINCT TOP (n)" ou "SELECT TOP (n)".
+    /// Translates <see cref="QueryModel"/> for SQL Server and applies row
+    /// limits with <c>SELECT DISTINCT TOP (n)</c> or <c>SELECT TOP (n)</c>.
     /// </summary>
     public sealed class SqlServerQueryTranslator : IDbQueryTranslator
     {
@@ -41,8 +41,8 @@ namespace NekoLib.Data.Query
     }
 
     /// <summary>
-    /// Tradutor de <see cref="QueryModel"/> para Access (OleDb).
-    /// Aplica TOP com sintaxe "SELECT DISTINCT TOP n" ou "SELECT TOP n".
+    /// Translates <see cref="QueryModel"/> for Access/OleDb and applies row
+    /// limits with <c>SELECT DISTINCT TOP n</c> or <c>SELECT TOP n</c>.
     /// </summary>
     public sealed class AccessQueryTranslator : IDbQueryTranslator
     {
@@ -77,8 +77,8 @@ namespace NekoLib.Data.Query
     }
 
     /// <summary>
-    /// Tradutor de <see cref="QueryModel"/> para SQLite.
-    /// Aplica limite de linhas com sintaxe "LIMIT n".
+    /// Translates <see cref="QueryModel"/> for SQLite and applies row limits
+    /// with <c>LIMIT n</c>.
     /// </summary>
     public sealed class SqliteQueryTranslator : IDbQueryTranslator
     {

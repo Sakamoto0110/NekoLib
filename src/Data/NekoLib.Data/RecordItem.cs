@@ -6,10 +6,11 @@ using System.Text;
 namespace NekoLib.Data
 {
     /// <summary>
-    /// Representa um item de registro (coluna) retornado do banco.
-    /// Armazena tipo, nome e valor textual (cultura invariável).
-    /// Este formato é voltado a exibição/transporte simples e não preserva
-    /// todos os detalhes do valor original, como null, binários e precisão de provedor.
+    /// Represents one database record item (column).
+    /// Stores its type, name, and invariant textual value.
+    /// This format is intended for simple display and transport and does not
+    /// preserve every original detail, including nulls, binary data, or
+    /// provider-specific precision.
     /// </summary>
     public class RecordItem
     {

@@ -25,7 +25,7 @@ namespace NekoLib.Data.Internal.Gateway
 {
     public partial class DatabaseGateway
     {
-        #region Universal GET (DTO → fallback Dynamic)
+        #region Universal GET (explicit DTO or Dynamic target)
 
         public Task<List<T>> Get<TTranslator,
 #if NET6_0_OR_GREATER
@@ -161,9 +161,10 @@ namespace NekoLib.Data.Internal.Gateway
                                 handler.DynamicInvoke(dto);
                                 continue;
                             }
-                            // Dynamic path (IL/Expando) conforme opções
+
+                            // Dynamic path selected by the configured IL/Expando policy.
                             handler.DynamicInvoke((object)CreateDynamicRow(schema, reader));
-}
+                        }
                     }
 
                     return 0;
@@ -220,10 +221,10 @@ namespace NekoLib.Data.Internal.Gateway
         }
 
         /// <remarks>
-        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
-        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
-        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
-        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
+        /// so the <paramref name="session"/> connection and transaction remain
+        /// occupied while the consumer iterates. Avoid slow per-row I/O inside
+        /// an open transaction; consume promptly or materialize the results.
         /// </remarks>
         public IAsyncEnumerable<dynamic> StreamData(QueryBuilder builder, DbSession session, CancellationToken ct = default)
         {
@@ -252,10 +253,10 @@ namespace NekoLib.Data.Internal.Gateway
         }
 
         /// <remarks>
-        /// O <see cref="DbDataReader"/> permanece aberto durante toda a enumeração, então a
-        /// transação/conexão da <paramref name="session"/> fica presa enquanto o consumidor
-        /// itera. Evite manter um <c>await foreach</c> lento (ex.: I/O por linha) dentro de
-        /// uma transação aberta, para não prolongar locks. Consuma rapidamente ou materialize.
+        /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
+        /// so the <paramref name="session"/> connection and transaction remain
+        /// occupied while the consumer iterates. Avoid slow per-row I/O inside
+        /// an open transaction; consume promptly or materialize the results.
         /// </remarks>
         public IAsyncEnumerable<T> StreamData<
 #if NET6_0_OR_GREATER

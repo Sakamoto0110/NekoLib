@@ -8,15 +8,15 @@ using System.Threading.Tasks;
 namespace NekoLib.Data.Query 
 {
     /// <summary>
-    /// Representa uma consulta já traduzida para o SQL específico de um provedor,
-    /// pronta para ser executada pelo <see cref="DatabaseGateway"/>.
+    /// Represents provider-specific SQL translated and ready for execution by
+    /// <see cref="DatabaseGateway"/>.
     /// </summary>
     public sealed class DatabaseQuery
     {
         public string Sql { get; }
 
         /// <summary>
-        /// Parâmetros mutáveis, permitindo ajustes após a tradução, se necessário.
+        /// Gets mutable parameters that may be adjusted after translation.
         /// </summary>
         public Dictionary<string, object?> Parameters { get; }
 

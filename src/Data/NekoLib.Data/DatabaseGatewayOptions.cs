@@ -22,7 +22,7 @@ namespace NekoLib.Data
     }
 
     /// <summary>
-    /// Modos possíveis para retornos dinâmicos.
+    /// Available dynamic-result modes.
     /// </summary>
     [Flags]
     public enum DynamicMode
@@ -41,12 +41,12 @@ namespace NekoLib.Data
     }
 
     /// <summary>
-    /// Opções globais para o DatabaseGateway (produção / kiosk-safe).
+    /// Configures production-safe gateway behavior.
     /// </summary>
     public sealed class DatabaseGatewayOptions
     {
         /// <summary>
-        /// Modo dinâmico padrão (recomendado: Expando em produção).
+        /// Gets or sets the dynamic-result mode. Expando is recommended in production.
         /// </summary>
         public DynamicMode DynamicMode { get; set; } = DynamicMode.Expando;
 
@@ -58,28 +58,29 @@ namespace NekoLib.Data
         public int MaxDynamicSchemas { get; set; } = 64;
 
         /// <summary>
-        /// Se true, ao estourar o limite ou quando IL não é suportado, lança exceção.
-        /// Se false, faz fallback para Expando (se permitido).
+        /// Gets or sets whether an unsupported or exhausted IL path throws
+        /// instead of using the permitted Expando fallback.
         /// </summary>
         public bool FailOnDynamicSchemaLimit { get; set; } = true;
 
         /// <summary>
-        /// Se true, permite fallback automático para Expando quando IL não é suportado (ex: AOT).
+        /// Gets or sets whether IL may fall back to Expando, including on AOT runtimes.
         /// </summary>
         public bool AllowExpandoFallback { get; set; } = true;
 
         /// <summary>
-        /// Se true, limpa eventos em Dispose() do QueryExecutionContext (evita leaks por assinantes).
+        /// Gets or sets whether disposing the query context clears event subscribers.
         /// </summary>
         public bool ClearEventsOnContextDispose { get; set; } = true;
 
         /// <summary>
-        /// Se true, eventos recebem o SQL original. O padrão evita vazamento de literais em logs.
+        /// Gets or sets whether query events receive the original SQL. The
+        /// secure default redacts SQL to avoid exposing literals in logs.
         /// </summary>
         public bool EmitRawSqlInEvents { get; set; } = false;
 
         /// <summary>
-        /// Se true, eventos de sucesso podem carregar o objeto de resultado completo.
+        /// Gets or sets whether success events may include the complete result object.
         /// </summary>
         public bool IncludeCommandResultInSuccessEvents { get; set; } = false;
 
