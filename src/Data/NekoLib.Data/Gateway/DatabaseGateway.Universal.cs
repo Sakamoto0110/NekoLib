@@ -52,6 +52,7 @@ namespace NekoLib.Data.Internal.Gateway
             T>(QueryBuilder Builder, DbSession? session, CancellationToken Ct) where TTranslator : IDbQueryTranslator, new() where T : new()
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
+            ValidateUniversalTarget(typeof(T));
 
             QueryModel model = Builder.Build();
             DatabaseQuery dbq = new TTranslator().Translate(model);
@@ -67,7 +68,8 @@ namespace NekoLib.Data.Internal.Gateway
             T>(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null) where T : new()
         {
             Type targetType = typeof(T);
-            if(targetType == typeof(DynamicRow) || targetType == typeof(object))
+            ValidateUniversalTarget(targetType);
+            if(IsDynamicTarget(targetType))
             {
                 List<DynamicRow> dynRows = await GetDynamicFromSql(sql, parameters, ct, session).ConfigureAwait(false);
                 List<T> result = new List<T>(dynRows.Count);
@@ -86,9 +88,8 @@ namespace NekoLib.Data.Internal.Gateway
         #region Universal READ (no <T> required + typed overload)
 
         /// <summary>
-        /// Leitura universal usando apenas o tradutor e o delegate do callback.
-        /// O tipo do parâmetro do callback determina a estratégia:
-        /// DynamicRow → IL, object → IL, DTO com ctor padrão → DTO, senão fallback IL.
+        /// Reads rows using the callback parameter type as an explicit DTO or
+        /// dynamic target. Raw rows remain available only through the raw API.
         /// </summary>
         public Task Read(QueryBuilder builder,Delegate handler,CancellationToken ct = default)
         {
@@ -108,7 +109,7 @@ namespace NekoLib.Data.Internal.Gateway
 
 
         /// <summary>
-        /// Versão tipada de leitura universal, com fallback automático para IL + DynamicRow.
+        /// Reads rows into the explicitly requested DTO or dynamic target type.
         /// </summary>
         public Task Read<
 #if NET6_0_OR_GREATER
@@ -134,12 +135,8 @@ namespace NekoLib.Data.Internal.Gateway
 
         private async Task ReadUniversalDispatch(QueryBuilder builder,Delegate handler, DbSession? session, CancellationToken ct)
         {
-            ParameterInfo[] pars = handler.Method.GetParameters();
-            if(pars.Length != 1)
-                throw new InvalidOperationException(
-                    "The handler must have exactly one parameter.");
-
-            Type targetType = pars[0].ParameterType;
+            Type targetType = ValidateUniversalHandler(handler);
+            ValidateUniversalTarget(targetType);
             QueryModel model = builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
@@ -149,7 +146,7 @@ namespace NekoLib.Data.Internal.Gateway
                     {
                         SchemaInfo schema = ExtractSchema(reader);
 
-                        bool wantsDynamic = targetType == typeof(DynamicRow) || targetType == typeof(object);
+                        bool wantsDynamic = IsDynamicTarget(targetType);
 
                         while(await ReadSafeAsync(reader, ct))
                         {
@@ -171,6 +168,45 @@ namespace NekoLib.Data.Internal.Gateway
 
                     return 0;
                 }, ct, session).ConfigureAwait(false);
+        }
+
+        private static Type ValidateUniversalHandler(Delegate handler)
+        {
+            MethodInfo? invoke = handler.GetType().GetMethod("Invoke");
+            if (invoke == null || invoke.ReturnType != typeof(void))
+            {
+                throw new InvalidOperationException(
+                    "The universal read handler must be a void-returning delegate.");
+            }
+
+            ParameterInfo[] parameters = invoke.GetParameters();
+            if (parameters.Length != 1 ||
+                parameters[0].ParameterType.IsByRef ||
+                parameters[0].IsOut ||
+                parameters[0].ParameterType.ContainsGenericParameters)
+            {
+                throw new InvalidOperationException(
+                    "The universal read handler must have exactly one closed, by-value parameter.");
+            }
+
+            return parameters[0].ParameterType;
+        }
+
+        private static void ValidateUniversalTarget(Type targetType)
+        {
+            if (targetType == typeof(Dictionary<string, RecordItem>))
+            {
+                throw new InvalidOperationException(
+                    "Dictionary<string, RecordItem> belongs to the raw API, not the universal API.");
+            }
+
+            if (!IsDynamicTarget(targetType))
+                ReaderDtoMapper.ValidateTargetType(targetType);
+        }
+
+        private static bool IsDynamicTarget(Type targetType)
+        {
+            return targetType == typeof(DynamicRow) || targetType == typeof(object);
         }
 
 
@@ -237,6 +273,7 @@ namespace NekoLib.Data.Internal.Gateway
             T>(QueryBuilder builder, DbSession? session, CancellationToken ct)
         {
             if(builder == null) throw new ArgumentNullException(nameof(builder));
+            ValidateUniversalTarget(typeof(T));
 
             QueryModel model = builder.Build();
             DatabaseQuery dbq = ctx.Translator.Translate(model);

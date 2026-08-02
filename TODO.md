@@ -230,7 +230,7 @@ only adaptations demonstrated by that evidence.
   mapping exception with column/property/source/target evidence and a
   deliberate conversion matrix. Strict failure is the default; legacy lenient
   behavior is available only through an explicit compatibility option.
-- [ ] **DATA-005 — Remove the invalid universal typed fallback.** Keep DTO,
+- [x] **DATA-005 — Remove the invalid universal typed fallback.** Keep DTO,
   `DynamicRow`, and raw paths separate; validate target construction and
   delegate shape before opening a connection; never pass or cast a
   `DynamicRow` as an unrelated DTO.

@@ -19,9 +19,11 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         }
 
         public FakeNonQueryConnection LastConnection { get; private set; }
+        public int CreateCalls { get; private set; }
 
         public Task<DbConnection> Create()
         {
+            CreateCalls++;
             LastConnection = new FakeNonQueryConnection(_commandFactory);
             return Task.FromResult<DbConnection>(LastConnection);
         }
