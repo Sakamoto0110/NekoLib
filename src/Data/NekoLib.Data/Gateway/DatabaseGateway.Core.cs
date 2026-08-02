@@ -50,13 +50,15 @@ namespace NekoLib.Data.Internal.Gateway
                 await conn.OpenAsync(Ct).ConfigureAwait(false);
                 return conn;
             }
-            catch(NotSupportedException)
+            catch(NotSupportedException) when (
+                ctx.Options.SynchronousFallbackMode == DbSynchronousFallbackMode.Enabled)
             {
                 if(conn == null)
                     throw;
 
                 try
                 {
+                    Ct.ThrowIfCancellationRequested();
                     conn.Open();
                     return conn;
                 }
@@ -167,41 +169,47 @@ namespace NekoLib.Data.Internal.Gateway
             return WithCommandAsync(sql, null, work, ct,session);
         }
 
-        private static async Task<DbDataReader> ExecuteReaderSafeAsync(DbCommand Cmd, CancellationToken Ct)
+        private async Task<DbDataReader> ExecuteReaderSafeAsync(DbCommand Cmd, CancellationToken Ct)
         {
             try
             {
                 DbDataReader reader = await Cmd.ExecuteReaderAsync(Ct).ConfigureAwait(false);
                 return reader;
             }
-            catch(NotSupportedException)
+            catch(NotSupportedException) when (
+                ctx.Options.SynchronousFallbackMode == DbSynchronousFallbackMode.Enabled)
             {
+                Ct.ThrowIfCancellationRequested();
                 return Cmd.ExecuteReader();
             }
         }
 
-        private static async Task<int> ExecuteNonQuerySafeAsync(DbCommand Cmd, CancellationToken Ct)
+        private async Task<int> ExecuteNonQuerySafeAsync(DbCommand Cmd, CancellationToken Ct)
         {
             try
             {
                 int count = await Cmd.ExecuteNonQueryAsync(Ct).ConfigureAwait(false);
                 return count;
             }
-            catch(NotSupportedException)
+            catch(NotSupportedException) when (
+                ctx.Options.SynchronousFallbackMode == DbSynchronousFallbackMode.Enabled)
             {
+                Ct.ThrowIfCancellationRequested();
                 return Cmd.ExecuteNonQuery();
             }
         }
 
-        private static async Task<bool> ReadSafeAsync(DbDataReader Reader, CancellationToken Ct)
+        private async Task<bool> ReadSafeAsync(DbDataReader Reader, CancellationToken Ct)
         {          
             try
             {
                 bool has = await Reader.ReadAsync(Ct).ConfigureAwait(false);
                 return has;
             }
-            catch(NotSupportedException)
+            catch(NotSupportedException) when (
+                ctx.Options.SynchronousFallbackMode == DbSynchronousFallbackMode.Enabled)
             {
+                Ct.ThrowIfCancellationRequested();
                 return Reader.Read();
             }
         }

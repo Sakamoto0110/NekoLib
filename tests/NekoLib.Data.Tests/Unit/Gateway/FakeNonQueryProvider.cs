@@ -12,10 +12,17 @@ namespace NekoLib.Data.Tests.Unit.Gateway
     internal sealed class FakeNonQueryConnectionFactory : IDbConnectionFactory
     {
         private readonly Func<FakeNonQueryCommand> _commandFactory;
+        private readonly bool _useSynchronousOpenFallback;
+        private readonly Action _beforeOpenAsyncNotSupported;
 
-        public FakeNonQueryConnectionFactory(Func<FakeNonQueryCommand> commandFactory)
+        public FakeNonQueryConnectionFactory(
+            Func<FakeNonQueryCommand> commandFactory,
+            bool useSynchronousOpenFallback = false,
+            Action beforeOpenAsyncNotSupported = null)
         {
             _commandFactory = commandFactory;
+            _useSynchronousOpenFallback = useSynchronousOpenFallback;
+            _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
         }
 
         public FakeNonQueryConnection LastConnection { get; private set; }
@@ -24,7 +31,10 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public Task<DbConnection> Create()
         {
             CreateCalls++;
-            LastConnection = new FakeNonQueryConnection(_commandFactory);
+            LastConnection = new FakeNonQueryConnection(
+                _commandFactory,
+                _useSynchronousOpenFallback,
+                _beforeOpenAsyncNotSupported);
             return Task.FromResult<DbConnection>(LastConnection);
         }
 
@@ -36,11 +46,18 @@ namespace NekoLib.Data.Tests.Unit.Gateway
     internal sealed class FakeNonQueryConnection : DbConnection
     {
         private readonly Func<FakeNonQueryCommand> _commandFactory;
+        private readonly bool _useSynchronousOpenFallback;
+        private readonly Action _beforeOpenAsyncNotSupported;
         private ConnectionState _state;
 
-        public FakeNonQueryConnection(Func<FakeNonQueryCommand> commandFactory)
+        public FakeNonQueryConnection(
+            Func<FakeNonQueryCommand> commandFactory,
+            bool useSynchronousOpenFallback = false,
+            Action beforeOpenAsyncNotSupported = null)
         {
             _commandFactory = commandFactory;
+            _useSynchronousOpenFallback = useSynchronousOpenFallback;
+            _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
         }
 
         public override string ConnectionString { get; set; }
@@ -50,16 +67,25 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public override ConnectionState State => _state;
         public bool WasDisposed { get; private set; }
         public FakeNonQueryCommand LastCommand { get; private set; }
+        public int OpenCalls { get; private set; }
+        public int OpenAsyncCalls { get; private set; }
 
         public override void Open()
         {
+            OpenCalls++;
             _state = ConnectionState.Open;
         }
 
         public override Task OpenAsync(CancellationToken cancellationToken)
         {
+            OpenAsyncCalls++;
+            if (_useSynchronousOpenFallback)
+            {
+                _beforeOpenAsyncNotSupported?.Invoke();
+                return Task.FromException(new NotSupportedException("Async open is not supported."));
+            }
             cancellationToken.ThrowIfCancellationRequested();
-            Open();
+            _state = ConnectionState.Open;
             return Task.CompletedTask;
         }
 
@@ -101,6 +127,13 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public Exception ExecuteException { get; set; }
         public DbDataReader Reader { get; set; }
         public bool WasDisposed { get; private set; }
+        public bool UseSynchronousNonQueryFallback { get; set; }
+        public bool UseSynchronousReaderFallback { get; set; }
+        public Action BeforeAsyncNotSupported { get; set; }
+        public int ExecuteNonQueryCalls { get; private set; }
+        public int ExecuteNonQueryAsyncCalls { get; private set; }
+        public int ExecuteReaderCalls { get; private set; }
+        public int ExecuteReaderAsyncCalls { get; private set; }
         public override string CommandText { get; set; }
         public override int CommandTimeout { get; set; }
         public override CommandType CommandType { get; set; }
@@ -122,6 +155,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public override int ExecuteNonQuery()
         {
+            ExecuteNonQueryCalls++;
             if (ExecuteException != null)
                 throw ExecuteException;
             return Result;
@@ -129,6 +163,13 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
+            ExecuteNonQueryAsyncCalls++;
+            if (UseSynchronousNonQueryFallback)
+            {
+                BeforeAsyncNotSupported?.Invoke();
+                return Task.FromException<int>(
+                    new NotSupportedException("Async non-query execution is not supported."));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             if (ExecuteException != null)
                 return Task.FromException<int>(ExecuteException);
@@ -151,6 +192,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
+            ExecuteReaderCalls++;
             if (ExecuteException != null)
                 throw ExecuteException;
             if (Reader == null)
@@ -162,6 +204,13 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             CommandBehavior behavior,
             CancellationToken cancellationToken)
         {
+            ExecuteReaderAsyncCalls++;
+            if (UseSynchronousReaderFallback)
+            {
+                BeforeAsyncNotSupported?.Invoke();
+                return Task.FromException<DbDataReader>(
+                    new NotSupportedException("Async reader execution is not supported."));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
@@ -206,6 +255,10 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         }
 
         public bool WasDisposed { get; private set; }
+        public bool UseSynchronousReadFallback { get; set; }
+        public Action BeforeAsyncNotSupported { get; set; }
+        public int ReadCalls { get; private set; }
+        public int ReadAsyncCalls { get; private set; }
         public override int Depth => 0;
         public override int FieldCount => _names.Length;
         public override bool HasRows => _rows.Length > 0;
@@ -216,6 +269,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public override bool Read()
         {
+            ReadCalls++;
             if (_closed)
                 throw new InvalidOperationException("Reader is closed.");
             if (_rowIndex + 1 >= _rows.Length)
@@ -226,6 +280,13 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public override Task<bool> ReadAsync(CancellationToken cancellationToken)
         {
+            ReadAsyncCalls++;
+            if (UseSynchronousReadFallback)
+            {
+                BeforeAsyncNotSupported?.Invoke();
+                return Task.FromException<bool>(
+                    new NotSupportedException("Async row reads are not supported."));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Read());
         }

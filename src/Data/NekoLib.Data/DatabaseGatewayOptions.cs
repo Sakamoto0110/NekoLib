@@ -7,6 +7,20 @@ using NekoLib.Data.Mapping;
 
 namespace NekoLib.Data 
 {
+    /// <summary>Controls fallback to blocking ADO.NET provider methods.</summary>
+    public enum DbSynchronousFallbackMode
+    {
+        /// <summary>Requires native asynchronous provider support.</summary>
+        Disabled = 0,
+
+        /// <summary>
+        /// Allows a blocking call after the provider rejects its async method.
+        /// Cancellation is checked immediately before the blocking call but
+        /// cannot interrupt that call once it has started.
+        /// </summary>
+        Enabled = 1
+    }
+
     /// <summary>
     /// Modos possíveis para retornos dinâmicos.
     /// </summary>
@@ -89,6 +103,13 @@ namespace NekoLib.Data
         public DbParameterBindingMode ParameterBindingMode { get; set; } =
             DbParameterBindingMode.Automatic;
 
+        /// <summary>
+        /// Gets or sets the explicit opt-in for providers that do not support
+        /// native asynchronous open, execute, or read operations.
+        /// </summary>
+        public DbSynchronousFallbackMode SynchronousFallbackMode { get; set; } =
+            DbSynchronousFallbackMode.Disabled;
+
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;
@@ -105,6 +126,8 @@ namespace NekoLib.Data
             }
             if (!Enum.IsDefined(typeof(DbParameterBindingMode), ParameterBindingMode))
                 throw new ArgumentOutOfRangeException(nameof(ParameterBindingMode));
+            if (!Enum.IsDefined(typeof(DbSynchronousFallbackMode), SynchronousFallbackMode))
+                throw new ArgumentOutOfRangeException(nameof(SynchronousFallbackMode));
         }
     }
 }

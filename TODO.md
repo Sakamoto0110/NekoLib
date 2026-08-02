@@ -251,7 +251,7 @@ row type is not implementation work until a concrete consumer requires it.
   Reject missing parameters and define unused-value handling. Cover reversed,
   repeated, quoted, commented, and prefix-colliding placeholders before the
   real Access validation in E4.
-- [ ] **DATA-007 — Make synchronous fallback explicit.** Native async is the
+- [x] **DATA-007 — Make synchronous fallback explicit.** Native async is the
   default requirement. A provider that needs synchronous open/execute/read must
   use an explicit opt-in policy, disabled by default, with cancellation checked
   before the blocking call and its in-flight limitation documented. Do not use
