@@ -430,7 +430,7 @@ namespace NekoLib.Data.Internal.Gateway
                 {
                     if(session != null)
                     {
-                        conn = session.Connection;
+                        conn = GetSessionConnection(session);
                     }
                     else
                     {

@@ -262,7 +262,7 @@ row type is not implementation work until a concrete consumer requires it.
   defaults and overrides. Keep all concrete provider packages outside
   `NekoLib.Data`; introduce a provider-native hook only if E4 evidence proves
   that the portable metadata cannot express an accepted provider requirement.
-- [ ] **DATA-014 — Make factory and session ownership explicit.** Support
+- [x] **DATA-014 — Make factory and session ownership explicit.** Support
   explicit context-owned versus externally owned factories and validate session
   connection state and affinity before command creation. Preserve the existing
   generic string factory as a compatibility adapter. Add data-source-style or

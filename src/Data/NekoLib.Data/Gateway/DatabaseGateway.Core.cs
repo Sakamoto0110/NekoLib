@@ -78,7 +78,7 @@ namespace NekoLib.Data.Internal.Gateway
         public async Task<DbSession> OpenSessionAsync(CancellationToken ct = default)
         {
             var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
-            return new DbSession(conn);
+            return new DbSession(conn, ctx.SessionAffinityToken);
         }
         private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct, DbCommandPolicy? commandPolicy = null)
         {
@@ -119,7 +119,7 @@ namespace NekoLib.Data.Internal.Gateway
 
             if (session != null)
             {
-                conn = session.Connection;
+                conn = GetSessionConnection(session);
             }
             else
             {
@@ -182,6 +182,15 @@ namespace NekoLib.Data.Internal.Gateway
                 Ct.ThrowIfCancellationRequested();
                 return Cmd.ExecuteReader();
             }
+        }
+
+        private DbConnection GetSessionConnection(DbSession session)
+        {
+            if (session == null)
+                throw new ArgumentNullException(nameof(session));
+
+            session.ValidateFor(ctx.SessionAffinityToken);
+            return session.Connection;
         }
 
         private async Task<int> ExecuteNonQuerySafeAsync(DbCommand Cmd, CancellationToken Ct)

@@ -22,6 +22,7 @@ namespace NekoLib.Data.Query
         private readonly Queue<DbQueryObserverFailure> _observerFailures =
             new Queue<DbQueryObserverFailure>();
         private long _observerFailureSequence;
+        private readonly object _sessionAffinityToken = new object();
         private bool disposedValue;
 
         public event Action<DbQueryEventArgs>? OnSqlGenerated;
@@ -37,11 +38,26 @@ namespace NekoLib.Data.Query
         public IDbConnectionFactory ConnectionFactory { get; }
         public IDbQueryTranslator Translator { get; }
         public DatabaseGatewayOptions Options { get; }
-        public QueryExecutionContext(IDbConnectionFactory connectionFactory, IDbQueryTranslator queryTranslator, DatabaseGatewayOptions? options = null)
+        public DbConnectionFactoryOwnership ConnectionFactoryOwnership { get; }
+        internal object SessionAffinityToken => _sessionAffinityToken;
+
+        public QueryExecutionContext(
+            IDbConnectionFactory connectionFactory,
+            IDbQueryTranslator queryTranslator,
+            DatabaseGatewayOptions? options = null,
+            DbConnectionFactoryOwnership connectionFactoryOwnership =
+                DbConnectionFactoryOwnership.ContextOwned)
         {
             ConnectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
             Translator = queryTranslator ?? throw new ArgumentNullException(nameof(queryTranslator));
             Options = options ?? new DatabaseGatewayOptions();
+            if (!Enum.IsDefined(
+                typeof(DbConnectionFactoryOwnership),
+                connectionFactoryOwnership))
+            {
+                throw new ArgumentOutOfRangeException(nameof(connectionFactoryOwnership));
+            }
+            ConnectionFactoryOwnership = connectionFactoryOwnership;
             Options.Validate();
         }
         
@@ -150,7 +166,8 @@ namespace NekoLib.Data.Query
             {
                 if(disposing)
                 {
-                    ConnectionFactory?.Dispose();
+                    if (ConnectionFactoryOwnership == DbConnectionFactoryOwnership.ContextOwned)
+                        ConnectionFactory.Dispose();
                     // Quebra cadeias de referência (evita leaks por subscribers long-lived)
                     if(Options.ClearEventsOnContextDispose)
                     {

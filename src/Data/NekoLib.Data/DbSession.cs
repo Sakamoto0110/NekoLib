@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoLib.Data
@@ -16,10 +17,21 @@ namespace NekoLib.Data
         private int _transactionDepth;
         private bool _rolledBack;
         private bool _disposed;
+        private object? _affinityToken;
 
+        /// <summary>
+        /// Wraps an externally opened connection. The session is atomically
+        /// affiliated with the first query context that uses it.
+        /// </summary>
         public DbSession(DbConnection connection)
+            : this(connection, null)
         {
-            Connection = connection;
+        }
+
+        internal DbSession(DbConnection connection, object? affinityToken)
+        {
+            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            _affinityToken = affinityToken;
         }
 
         public void BeginTransaction()
@@ -134,6 +146,29 @@ namespace NekoLib.Data
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(DbSession));
+        }
+
+        internal void ValidateFor(object affinityToken)
+        {
+            if (affinityToken == null)
+                throw new ArgumentNullException(nameof(affinityToken));
+
+            ThrowIfDisposed();
+            if (Connection.State != ConnectionState.Open)
+            {
+                throw new InvalidOperationException(
+                    "The session connection must be open before command creation.");
+            }
+
+            object? existing = Interlocked.CompareExchange(
+                ref _affinityToken,
+                affinityToken,
+                null);
+            if (existing != null && !ReferenceEquals(existing, affinityToken))
+            {
+                throw new InvalidOperationException(
+                    "The session belongs to a different query execution context.");
+            }
         }
     }
 

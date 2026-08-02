@@ -10,6 +10,16 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Data.Connection
 {
+    /// <summary>Controls whether a query context disposes its connection factory.</summary>
+    public enum DbConnectionFactoryOwnership
+    {
+        /// <summary>The context owns and disposes the factory.</summary>
+        ContextOwned = 0,
+
+        /// <summary>The caller retains ownership of the factory.</summary>
+        External = 1
+    }
+
     /// <summary>
     /// Abstração de fábrica de conexões para o DatabaseGateway.
     /// Implementações devem ser <b>stateless</b>: Create() sempre retorna uma NOVA conexão fechada.

@@ -27,6 +27,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public FakeNonQueryConnection LastConnection { get; private set; }
         public int CreateCalls { get; private set; }
+        public int DisposeCalls { get; private set; }
+        public bool WasDisposed { get; private set; }
 
         public Task<DbConnection> Create()
         {
@@ -40,6 +42,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public void Dispose()
         {
+            DisposeCalls++;
+            WasDisposed = true;
         }
     }
 
@@ -60,6 +64,12 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
         }
 
+        public FakeNonQueryConnection(string connectionString)
+        {
+            _commandFactory = () => new FakeNonQueryCommand { Result = 1 };
+            ConnectionString = connectionString;
+        }
+
         public override string ConnectionString { get; set; }
         public override string Database => "Fake";
         public override string DataSource => "Fake";
@@ -69,6 +79,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         public FakeNonQueryCommand LastCommand { get; private set; }
         public int OpenCalls { get; private set; }
         public int OpenAsyncCalls { get; private set; }
+        public int CreateCommandCalls { get; private set; }
 
         public override void Open()
         {
@@ -105,6 +116,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         protected override DbCommand CreateDbCommand()
         {
+            CreateCommandCalls++;
             FakeNonQueryCommand command = _commandFactory();
             command.Connection = this;
             LastCommand = command;
