@@ -447,7 +447,7 @@ none of them authorizes one.
   subtree, matching the rule the WPF adapter already implements. Keep the
   `Form.Deactivate` subscription, keep the notification single-shot per surface,
   and keep `IFocusObserverAdapter` unchanged. Add dual-target regressions driving
-  the real WinForms adapter on an STA thread, then execute step 3 of the WinForms
+  the real WinForms adapter on an STA thread, then execute step 5 of the WinForms
   smoke scenario. Keep the change scoped to `NekoLib.Navigation.WinForms`.
   **Status 2026-08-03:** implemented by observing `Control.Leave` instead of
   `Control.LostFocus`; `Form.Deactivate` is unchanged. Three dual-target
