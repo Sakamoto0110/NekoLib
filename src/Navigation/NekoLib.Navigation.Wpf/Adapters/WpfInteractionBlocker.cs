@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using NekoLib.Navigation.Contracts.Platform;
 
 namespace NekoLib.Navigation.Wpf.Adapters
@@ -14,6 +15,13 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// propagate the disabled state to that later-added overlay too (WPF coerces every
     /// descendant's effective IsEnabled), leaving the dialog's own controls dead.
     /// Only children we actually disabled are restored on <see cref="Unblock"/>.
+    /// <para>
+    /// Every write goes through <see cref="DependencyObject.SetCurrentValue"/>. A
+    /// plain <c>IsEnabled = false</c> assignment sets a local value, which
+    /// permanently clears any <c>Binding</c> or style setter on the property — one
+    /// dialog was enough to sever a page's <c>IsEnabled</c> binding for the rest of
+    /// the process.
+    /// </para>
     /// </summary>
     public sealed class WpfInteractionBlocker :
         IPageAwareInteractionBlocker
@@ -21,6 +29,10 @@ namespace NekoLib.Navigation.Wpf.Adapters
         private readonly UIElement _root;
         private readonly Dictionary<UIElement, bool> _originalStates =
             new Dictionary<UIElement, bool>();
+
+        // Only elements this blocker actually turned off. Restoring anything else
+        // would pin a value onto an element that was merely inheriting its state.
+        private readonly HashSet<UIElement> _disabled = new HashSet<UIElement>();
         private readonly List<UIElement> _modalStack = new List<UIElement>();
         private int _blockDepth;
 
@@ -35,6 +47,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             if (_blockDepth != 1) return;
 
             _originalStates.Clear();
+            _disabled.Clear();
             _modalStack.Clear();
 
             // Snapshot + disable the children present now (the page and any earlier
@@ -50,11 +63,11 @@ namespace NekoLib.Navigation.Wpf.Adapters
                         Disable(child);
                     }
                 }
-                else if (_root.IsEnabled)
+                else
                 {
                     // Non-Panel host (shouldn't happen via WpfPlatformAdapter): best effort.
                     CaptureState(_root);
-                    _root.IsEnabled = false;
+                    Disable(_root);
                 }
             }
             catch
@@ -108,6 +121,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
             _modalStack.Remove(element);
             Restore(element);
+            _disabled.Remove(element);
             _originalStates.Remove(element);
 
             if (_blockDepth > 0 && wasTop && _modalStack.Count > 0)
@@ -116,11 +130,12 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
         private void RestoreDisabledElements()
         {
-            foreach (var pair in _originalStates)
+            foreach (var element in _disabled)
             {
-                try { pair.Key.IsEnabled = pair.Value; } catch { }
+                try { ApplyRestore(element); } catch { }
             }
 
+            _disabled.Clear();
             _originalStates.Clear();
             _modalStack.Clear();
         }
@@ -131,16 +146,31 @@ namespace NekoLib.Navigation.Wpf.Adapters
                 _originalStates.Add(element, element.IsEnabled);
         }
 
-        private static void Disable(UIElement element)
+        private void Disable(UIElement element)
         {
-            if (element.IsEnabled)
-                element.IsEnabled = false;
+            if (!element.IsEnabled)
+                return;
+
+            element.SetCurrentValue(UIElement.IsEnabledProperty, false);
+            _disabled.Add(element);
         }
 
         private void Restore(UIElement element)
         {
+            if (_disabled.Remove(element))
+                ApplyRestore(element);
+        }
+
+        private void ApplyRestore(UIElement element)
+        {
             if (_originalStates.TryGetValue(element, out var enabled))
-                element.IsEnabled = enabled;
+                element.SetCurrentValue(UIElement.IsEnabledProperty, enabled);
+
+            // The source may have changed while the surface was blocked, so let a
+            // binding re-assert itself instead of leaving the captured value pinned.
+            BindingOperations
+                .GetBindingExpression(element, UIElement.IsEnabledProperty)
+                ?.UpdateTarget();
         }
     }
 }

@@ -476,6 +476,18 @@ none of them authorizes one.
   the binding still drives the element after a full cycle; the current
   `PlatformPageLifecycleTests` cases use unbound elements, which is why this was
   invisible. Keep the change scoped to `NekoLib.Navigation.Wpf`.
+  **Status 2026-08-03:** implemented. Every write now goes through
+  `SetCurrentValue`, the blocker restores only the elements it actually disabled
+  — so an element that merely inherited a disabled state is never pinned — and a
+  restored element with a live binding re-reads its source, so a value that
+  changed while the modal was up is honoured. Three dual-target regressions added
+  to `PlatformPageLifecycleTests`, all three confirmed to fail against the
+  previous implementation; the two pre-existing blocker tests are unchanged and
+  still pass. Navigation suite 232/232 on `net481` and `net9.0-windows`, whole
+  solution builds, no new warning identity. Driving the real WPF smoke app shows
+  the page disabled while a dialog is open and re-enabled after it closes.
+  **Complete pending the interactive WPF smoke run, which covers it as part of
+  step 2.**
 
 - [ ] **NAV-006 — Make WinForms UI dispatch truthful when the host handle does
   not exist.** `Control.InvokeRequired` returns `false` from a worker thread

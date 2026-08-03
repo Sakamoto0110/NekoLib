@@ -371,6 +371,90 @@ namespace NekoLib.Navigation.Tests.Unit
             });
         }
 
+        // NAV-005: assigning IsEnabled directly sets a local value, which permanently
+        // clears any Binding on the property. One dialog was enough to sever a page's
+        // IsEnabled binding for the rest of the process.
+        [Fact]
+        public void WpfInteractionBlocker_BlockAndUnblock_PreservesIsEnabledBinding()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var model = new EnabledModel { CanEdit = true };
+                var page = new System.Windows.Controls.Grid { DataContext = model };
+                System.Windows.Data.BindingOperations.SetBinding(
+                    page,
+                    UIElement.IsEnabledProperty,
+                    new System.Windows.Data.Binding(nameof(EnabledModel.CanEdit)));
+                root.Children.Add(page);
+
+                var blocker = new WpfInteractionBlocker(root);
+
+                blocker.Block();
+                Assert.False(page.IsEnabled);
+
+                blocker.Unblock();
+                Assert.True(page.IsEnabled);
+
+                Assert.True(System.Windows.Data.BindingOperations.IsDataBound(
+                    page, UIElement.IsEnabledProperty));
+
+                // The binding must still drive the element after a full modal cycle.
+                model.CanEdit = false;
+                Assert.False(page.IsEnabled);
+            });
+        }
+
+        [Fact]
+        public void WpfInteractionBlocker_SourceChangedWhileBlocked_UnblockHonoursNewValue()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var model = new EnabledModel { CanEdit = true };
+                var page = new System.Windows.Controls.Grid { DataContext = model };
+                System.Windows.Data.BindingOperations.SetBinding(
+                    page,
+                    UIElement.IsEnabledProperty,
+                    new System.Windows.Data.Binding(nameof(EnabledModel.CanEdit)));
+                root.Children.Add(page);
+
+                var blocker = new WpfInteractionBlocker(root);
+
+                blocker.Block();
+                model.CanEdit = false;      // the source moved while the modal was up
+                blocker.Unblock();
+
+                // Restoring must not pin the value captured before blocking.
+                Assert.False(page.IsEnabled);
+            });
+        }
+
+        [Fact]
+        public void WpfInteractionBlocker_AlreadyDisabledElement_IsNotPinnedOnUnblock()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var outer = new System.Windows.Controls.Grid { IsEnabled = false };
+                var inner = new System.Windows.Controls.Button();
+                outer.Children.Add(inner);
+                root.Children.Add(outer);
+
+                var blocker = new WpfInteractionBlocker(root);
+
+                // inner only inherits its disabled state; the blocker must not write
+                // a value onto it, or re-enabling the parent would no longer work.
+                blocker.Block();
+                blocker.OnViewAdded(inner, isModalSurface: false);
+                blocker.OnViewRemoved(inner);
+                blocker.Unblock();
+
+                outer.IsEnabled = true;
+                Assert.True(inner.IsEnabled);
+            });
+        }
+
         // NAV-004: IViewHost.Focus forwards focus to the surface's first selectable
         // child, so the container never holds focus and its non-bubbling LostFocus
         // never fired. Leave is the subtree-scoped event that actually reports the
@@ -534,6 +618,25 @@ namespace NekoLib.Navigation.Tests.Unit
 
             public void OnAttach(IPageHost host) => AttachCount++;
             public void OnDetach() => DetachCount++;
+        }
+
+        private sealed class EnabledModel : System.ComponentModel.INotifyPropertyChanged
+        {
+            private bool _canEdit;
+
+            public bool CanEdit
+            {
+                get => _canEdit;
+                set
+                {
+                    _canEdit = value;
+                    PropertyChanged?.Invoke(
+                        this,
+                        new System.ComponentModel.PropertyChangedEventArgs(nameof(CanEdit)));
+                }
+            }
+
+            public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
         }
 
         private sealed class DirectWinFormsPage : IPageView
