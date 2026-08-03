@@ -28,7 +28,7 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
         {
             Title = "NekoLib.Navigation — WPF smoke test";
             Width = 1040;
-            Height = 680;
+            Height = 840;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             Content = BuildLayout();
@@ -56,21 +56,40 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
             buttons.Children.Add(Header("Navegação"));
             buttons.Children.Add(Btn("Ir: Dashboard", async (_, __) => await Try(() => NavigationService.SwitchPage<DashboardPage>())));
             buttons.Children.Add(Btn("Ir: Idle", async (_, __) => await Try(() => NavigationService.GoIdleAsync())));
-            buttons.Children.Add(Btn("Voltar (Back)", async (_, __) => Log("GoBack -> " + await NavigationService.GoBackAsync())));
+            buttons.Children.Add(Btn("Voltar (Back)", async (_, __) => await Try(async () => Log("GoBack -> " + await NavigationService.GoBackAsync()))));
 
             buttons.Children.Add(Header("Overlays (caixas, não tela cheia)"));
-            buttons.Children.Add(Btn("Dialog (modal, bool)", async (_, __) => Log("Dialog -> " + await NavigationService.ShowDialogAsync<SampleDialog>())));
-            buttons.Children.Add(Btn("Prompt (modal, texto)", async (_, __) =>
+            buttons.Children.Add(Btn("Dialog (modal, bool)", async (_, __) => await Try(async () => Log("Dialog -> " + await NavigationService.ShowDialogAsync<SampleDialog>()))));
+            buttons.Children.Add(Btn("Prompt (modal, texto)", async (_, __) => await Try(async () =>
             {
                 var r = await NavigationService.ShowPromptAsync<SamplePrompt, string>();
                 Log("Prompt -> " + (r == null ? "(cancelado)" : "\"" + r + "\""));
-            }));
-            buttons.Children.Add(Btn("Toast (bottom-right, 3s)", (_, __) => { Log("Toast"); NavigationService.ShowToast<SampleToast>(durationMs: 3000); }));
-            buttons.Children.Add(Btn("Popover (top-left)", async (_, __) => Log("Popover -> " + await NavigationService.ShowPopoverAsync<SamplePopover>())));
+            })));
+            buttons.Children.Add(Btn("Toast (bottom-right, 3s)", (_, __) => Run(() => { Log("Toast"); NavigationService.ShowToast<SampleToast>(durationMs: 3000); })));
+            buttons.Children.Add(Btn("Popover (top-left)", async (_, __) => await Try(async () => Log("Popover -> " + await NavigationService.ShowPopoverAsync<SamplePopover>()))));
 
             buttons.Children.Add(Header("Sessão / guards"));
-            buttons.Children.Add(Btn("SignIn(\"admin\")", (_, __) => { NavigationService.Session.SignIn("admin"); Log("SignIn(admin) — auth=" + NavigationService.Session.IsAuthenticated); }));
-            buttons.Children.Add(Btn("SignOut", (_, __) => { NavigationService.Session.SignOut(); Log("SignOut — auth=" + NavigationService.Session.IsAuthenticated); }));
+            buttons.Children.Add(Btn("SignIn(\"admin\")", (_, __) => Run(() => { NavigationService.Session.SignIn("admin"); Log("SignIn(admin) — auth=" + NavigationService.Session.IsAuthenticated); })));
+            buttons.Children.Add(Btn("SignOut", (_, __) => Run(() => { NavigationService.Session.SignOut(); Log("SignOut — auth=" + NavigationService.Session.IsAuthenticated); })));
+
+            // Reset keeps the context alive; Shutdown unmounts the facade and Start
+            // remounts a fresh one, which is how repeated mount/shutdown is exercised.
+            buttons.Children.Add(Header("Ciclo de vida"));
+            buttons.Children.Add(Btn("Reset (ResetAsync)", async (_, __) => await Try(async () =>
+            {
+                await NavigationService.ResetAsync();
+                Log("ResetAsync concluído");
+            })));
+            buttons.Children.Add(Btn("Shutdown", async (_, __) => await Try(async () =>
+            {
+                await NavigationService.Shutdown();
+                Log("Shutdown concluído — use Start para remontar");
+            })));
+            buttons.Children.Add(Btn("Start (re-bootstrap)", (_, __) => Run(() =>
+            {
+                BuildNavigation();
+                _ = NavigationService.GoIdleAsync();
+            })));
 
             buttons.Children.Add(Header("Log"));
             buttons.Children.Add(Btn("Limpar log", (_, __) => _log.Items.Clear()));
@@ -126,9 +145,17 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
         // -----------------------------------------------------------------
         private static string PageName(IPageView p) => p?.Name ?? "—";
 
+        // Every handler is guarded: after Shutdown the facade is unmounted, so any
+        // navigation, surface, or session call throws until Start remounts it.
         private async System.Threading.Tasks.Task Try(Func<System.Threading.Tasks.Task> action)
         {
             try { await action(); }
+            catch (Exception ex) { Log("ERRO: " + ex.Message); }
+        }
+
+        private void Run(Action action)
+        {
+            try { action(); }
             catch (Exception ex) { Log("ERRO: " + ex.Message); }
         }
 

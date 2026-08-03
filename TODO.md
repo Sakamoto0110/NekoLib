@@ -390,6 +390,199 @@ and Inspection with an empty or null explanation.
   `GuardDeniedEvent` and the Navigation diagnostics bridge. Keep the change
   scoped to guard diagnostics; do not change session or authorization policy.
 
+**Confirmed adapter-review findings — 2026-08-03:** the code-first E2 adapter
+review ran against `ae1781086b3858cdc9cb025473ed18e3445ee1eb`, on a clean
+worktree on branch `navigation-claude`. Both
+adapters built on `net481` and `net9.0-windows`, the 222 Navigation unit tests
+passed on both target families, and the WPF smoke scenario built. Only eight of
+those tests touch a native adapter, so every item below was confirmed from
+current source plus executed framework probes, never from interactive evidence.
+The items are ordered by impact. None of them requires a change to
+`NavigationContext`, `NavigationRuntime`, `PageRegistry`, or `PageFactory`, and
+none of them authorizes one.
+
+- [ ] **NAV-003 — Give WPF surfaces real keyboard focus.**
+  `WpfLayeredPageHostBase.Focus(object)` guards on `UIElement.Focusable`, and
+  `System.Windows.Controls.UserControl` overrides that default to `false`, so the
+  guard makes `Focus` an unconditional no-op for `PageView`, `DialogViewBase`,
+  `PromptViewBase<TResult>`, `PopoverViewBase`, `ToastViewBase`, and
+  `DefaultLoadingMask`. Measured on instances: `Control` and `ContentControl`
+  report `Focusable = true`, `UserControl` reports `false`, and a direct
+  `UserControl.Focus()` returns `false`. After `ShowDialogAsync`,
+  `Keyboard.FocusedElement` is still the `Window`, so keyboard input never
+  reaches the modal until the user clicks it. WinForms is correct: the container
+  forwards focus to the surface's first selectable child. The WPF smoke scenario
+  hides the gap because `SamplePrompt` and `SamplePopover` focus an inner control
+  from `OnShownAsync`, and `SampleDialog` relies on `IsDefault`/`IsCancel`, which
+  act at window scope. Make the WPF `IViewHost.Focus(object)` place keyboard
+  focus inside the target subtree — first focusable descendant, falling back to
+  the element itself only when it is genuinely focusable. Preserve the documented
+  surface order (`AddView` → `OnViewAdded` → `BringToFront` → `Focus` →
+  `OnShownAsync`), and keep a view that focuses its own control from
+  `OnShownAsync` winning. Add dual-target regressions asserting that focus lands
+  inside the surface for dialog, prompt, and popover, then rerun the WPF smoke
+  procedure interactively. Keep the change scoped to `NekoLib.Navigation.Wpf`; do
+  not change `IViewHost` or the shared surface services.
+
+- [ ] **NAV-004 — Make WinForms focus-loss dismissal observe the surface
+  subtree.** `WinFormsFocusObserverAdapter.Track` subscribes `Control.LostFocus`
+  on the surface container, but `IViewHost.Focus` forwards focus to a child, so
+  the container never holds focus, and WinForms focus events do not bubble.
+  Measured with a real message pump and an activated form, following
+  `PopoverService`'s exact order, the unfocus callback fired zero times when
+  focus moved between the popover's own children and zero times when focus moved
+  to a control outside the popover. Only `Form.Deactivate` can dismiss a WinForms
+  popover today, so `AutoDismissPopoverBase` does not honor the auto-dismiss
+  contract the Navigation README documents. Observe subtree focus instead of
+  container focus and raise unfocus only when focus actually leaves the surface
+  subtree, matching the rule the WPF adapter already implements. Keep the
+  `Form.Deactivate` subscription, keep the notification single-shot per surface,
+  and keep `IFocusObserverAdapter` unchanged. Add dual-target regressions driving
+  the real WinForms adapter on an STA thread, then execute step 3 of the WinForms
+  smoke scenario. Keep the change scoped to `NekoLib.Navigation.WinForms`.
+
+- [ ] **NAV-005 — Stop the WPF interaction blocker from destroying `IsEnabled`
+  bindings.** `WpfInteractionBlocker` assigns `element.IsEnabled` directly in
+  `Disable`, `Restore`, and `RestoreDisabledElements`. In WPF that writes a local
+  value and permanently clears any `Binding` or style setter on the property.
+  Measured over one block/unblock cycle: the binding reported alive before
+  `Block()`, dead after it, still dead after `Unblock()`, and a later view-model
+  change no longer moved the element; the same sequence expressed with
+  `SetCurrentValue` kept the binding alive and responsive. Any WPF page or
+  overlay that binds `IsEnabled` therefore stops following its view model after
+  the first dialog or prompt. Use `SetCurrentValue` for the temporary disable and
+  restore through the captured local value so a binding or style setter survives
+  a modal cycle. Preserve the existing depth, modal-stack, and late-view rules.
+  Add a dual-target regression that binds `IsEnabled` on a host child and asserts
+  the binding still drives the element after a full cycle; the current
+  `PlatformPageLifecycleTests` cases use unbound elements, which is why this was
+  invisible. Keep the change scoped to `NekoLib.Navigation.Wpf`.
+
+- [ ] **NAV-006 — Make WinForms UI dispatch truthful when the host handle does
+  not exist.** `Control.InvokeRequired` returns `false` from a worker thread
+  whenever no handle exists in the parent chain; this was measured both for a
+  bare `Control` and for a `Panel` inside an unshown `Form`.
+  `WinFormsEventDispatcherAdapter.Invoke` and `BeginInvoke` therefore run the
+  action on the calling thread instead of the UI thread, the
+  `InvalidOperationException` the adapter documents is unreachable in exactly the
+  case it describes, and the comment claiming that a non-UI thread will throw is
+  wrong. `NavigationRuntime.ExecuteSafeOnUiAsync` depends on `BeginInvoke`
+  throwing to detect a dead message pump, so its inline teardown fallback is not
+  reached either. Determine UI-thread identity explicitly — capture the owning
+  thread at construction rather than inferring it from `InvokeRequired` — then
+  marshal, run inline on the real UI thread, or fail loudly, and state the chosen
+  rule for an unreachable UI thread in the `IEventDispatcherAdapter`
+  documentation. Preserve current behavior whenever the handle exists. Add
+  dual-target regressions covering handle-created and handle-absent against UI
+  thread and worker thread. Keep the change scoped to
+  `NekoLib.Navigation.WinForms` plus contract documentation; do not change
+  `NavigationRuntime`.
+
+- [ ] **NAV-007 — Define and document toast dismissal reachability per
+  platform.** The WinForms `ToastViewBase` binds `Control.Click` on the
+  container, and WinForms click events do not bubble: a measured
+  `PerformClick()` on a child control raised the container's `Click` zero times,
+  so only the toast's own background dismisses. The WPF `ToastViewBase` binds
+  `MouseLeftButtonDown`, which is re-raised along the bubble route of
+  `Mouse.MouseDownEvent`, so most children dismiss but controls that mark the
+  event handled — `Button` among them — do not. "Tap anywhere to dismiss" is
+  therefore accurate on neither platform and differs between them. Decide and
+  document the real contract: keep the current click binding for compatibility,
+  describe the actual reachability per platform in the Navigation README overlay
+  section, and treat an explicit close affordance as the supported dismissal for
+  a toast that contains child controls. This is the evidence that feeds the
+  ready-made close-button toast proposal; it does not authorize a change to
+  `IToastView` or `ToastService`. Validate by documentation review plus the toast
+  step of both smoke scenarios, recording which regions dismiss on each platform.
+
+- [ ] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
+  Each is independent and low risk; land them separately from the behavioral
+  items above. (a) `WinFormsTimerAdapter` never assigns its `intervalMilis`
+  constructor parameter, leaving the WinForms default of 100 ms measured at
+  construction, while `WpfTimerAdapter` honors it; `NavigationBootstrapLifetime`
+  always assigns `IntervalMilliseconds`, so only the public constructor is
+  affected. (b) `PageNavBootstrap` uses raw `Assembly.GetTypes()` for the
+  custom-loading-mask probe that decides whether each adapter's
+  `DefaultLoadingMask` is auto-registered, bypassing the tolerant
+  `GetLoadableTypes` the Navigation README credits to that step, so a partially
+  loadable assembly aborts `Start()`. (c) `NekoLib.Navigation.Wpf` ships two dead
+  public types, `InteractionObserver` and `EventSubscriptionAdapter`, neither
+  produced by `WpfPlatformAdapter`; the latter also wraps failures in a bare
+  `Exception`. Removing them is a public-surface removal with no consumer in this
+  repository — record it for the future F1 policy. (d) `PageNavBootstrap` never
+  registers anything with `PageFactory` and `PageFactory.Warn` has no subscriber
+  anywhere, so every page and every surface is created through the
+  migration-only default-constructor fallback silently; give the existing `Warn`
+  event a real consumer instead of modifying the frozen `PageFactory`. (e)
+  `WinFormsPlatformAdapter` throws `new ArgumentException(nameof(nativeHost))` in
+  three places, putting the parameter name in the message slot. (f) Calling any
+  navigation API while the facade is unmounted throws
+  `NavigationService.Initialize must be called first.`, but no `Initialize`
+  member exists on `NavigationService`; the public entry point is
+  `PageNavBootstrap.Start()`. This is the message a consumer sees on the most
+  common misuse, and it was observed while exercising the smoke scenario's
+  Shutdown control. (g) `IPageView.Name` is seeded differently per platform: the
+  WPF `PageView` constructor uses `GetType().Name` while the WinForms one uses
+  `GetType().FullName`, so the same navigation logs `IdlePage -> DashboardPage`
+  on WPF and the fully qualified names on WinForms. Pick one and apply it to
+  both platform base classes; the descriptor name remains authoritative for
+  registration and history either way. Add dual-target coverage for the timer
+  interval and the tolerant scan.
+
+- [ ] **NAV-009 — Resolve the surface-DPI and ergonomics dispositions.**
+  Choose correct, keep-and-document, or remove for each, and record the rejected
+  alternatives. (a) `WinFormsNavigationSurface.Scale` calls
+  `Control.CreateGraphics()`, which was measured to force host handle creation as
+  a side effect and to throw `ObjectDisposedException` once the host is disposed,
+  while `WpfNavigationSurface.Scale` degrades to `1f`. Replace it with a
+  side-effect-free DPI read and define the unrealized and disposed behavior
+  explicitly, so an anchor consumer can read `Scale` at any time. The Toolkit's
+  purpose is settled — see NAV-010 — so this is a correction, not a
+  keep-or-remove question. (b) The WPF view bases expose a
+  non-virtual `public void Dispose()`, so a subclass cannot extend disposal the
+  way the WinForms `protected override void Dispose(bool)` pattern allows. (c)
+  `WpfLayeredPageHostBase.BringToFront(IPageView)` assigns the same z-index to
+  every page and therefore cannot order two simultaneously attached pages, while
+  WinForms genuinely reorders; the difference is currently masked because
+  keep-attached hidden pages are collapsed. Nothing here justifies a core or
+  frozen change.
+
+**Confirmed surface-positioning finding — 2026-08-03:** while the WinForms smoke
+scenario was being written, a stock WinForms toast was observed to cover the
+whole navigation host. `WinFormsLayeredPageHostBase.AddView` docks every added
+view to `Fill`, and the WinForms `ToastViewBase` is the only surface base that
+never undoes it — `DialogViewBase`, `PromptViewBase<TResult>`, and
+`PopoverViewBase` each undock and place themselves. The WPF `ToastViewBase` sets
+`HorizontalAlignment = Right`, `VerticalAlignment = Bottom`, and a 20px margin in
+its constructor, so the same toast is correctly parked bottom-right there. The
+scenario's `SampleToast` therefore performs the undock and anchoring itself, with
+a comment recording why. The intended mechanism for this is the existing Toolkit:
+`INavigationSurface.ResolveAnchor(SurfaceAnchor)` already returns the nine anchor
+points, `Scale` reports the DPI factor, both platform implementations exist, and
+the contract documents itself as being "used to position overlays, dialogs,
+keyboards, debug panels". The gap is wiring, not purpose — `PageNavBootstrap`
+never constructs or registers an `INavigationToolkit`, so no view can obtain one.
+
+- [ ] **NAV-010 — Give native surfaces an anchored default position and wire the
+  Toolkit as its seam.** Register the platform toolkit during bootstrap so a
+  surface can resolve it, then make the WinForms `ToastViewBase` undock and place
+  itself at the `BottomRight` anchor with a documented default inset, matching the
+  visual result the WPF base already produces. **Accepted registration shape
+  (2026-08-03):** let the platform layered host also implement
+  `INavigationToolkit` and have
+  `PageNavBootstrap` register it with the same `host as INavigationToolkit`
+  probe it already uses for `host as IViewHost`. **Rejected alternative:** adding
+  a `CreateNavigationToolkit` factory method to `IPlatformAdapter`, because that
+  breaks every third-party adapter implementation for no gain over the probe.
+  Keep the WPF base's declarative alignment unless the shared anchor path proves
+  strictly better; DPI-correct placement depends on the `Scale` correction in
+  NAV-009(a). Do not turn the Toolkit into a layout engine, do not add
+  positioning to `IViewHost`, and do not change `SurfaceAnchor`. Add dual-target
+  regressions asserting that a WinForms toast is not host-sized after attach and
+  sits at the bottom-right inset, plus toolkit resolution from a mounted context;
+  then run the toast step of both smoke scenarios on both target families. Keep
+  the change scoped to `PageNavBootstrap` registration and the two adapters.
+
 Validation requirements:
 
 - fake-based automated tests do not replace native interactive evidence;

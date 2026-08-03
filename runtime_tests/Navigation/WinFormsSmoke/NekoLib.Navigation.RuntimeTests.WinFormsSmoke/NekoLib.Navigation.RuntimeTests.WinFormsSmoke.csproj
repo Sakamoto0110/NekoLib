@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Navigation.RuntimeTests.WinFormsSmoke</RootNamespace>
+    <AssemblyName>NekoLib.Navigation.RuntimeTests.WinFormsSmoke</AssemblyName>
+    <StartupObject>NekoLib.Navigation.RuntimeTests.WinFormsSmoke.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
+  </ItemGroup>
+
+</Project>

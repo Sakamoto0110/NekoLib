@@ -42,10 +42,18 @@ dotnet run --project runtime_tests/Navigation/WpfSmoke/NekoLib.Navigation.Runtim
    remain non-modal and close on focus loss.
 4. Sign out and attempt the guarded page, then sign in as `admin` and retry. The
    anonymous attempt must be denied and the authenticated attempt allowed.
-5. Exercise reset/shutdown controls. No modal awaiter may remain hung and the
-   window must close without a navigation teardown deadlock.
+5. Exercise the lifecycle controls, in order. Open a Popover, then press
+   **Reset (ResetAsync)**: the popover must close, its awaiter must resolve
+   (`Popover -> False` in the log), the current page must clear, history must
+   report `CanGoBack=False`, and navigation must still work afterwards. Press
+   **Shutdown**: the facade unmounts, and any further navigation must log an
+   error rather than crash. Press **Start (re-bootstrap)**: a fresh context must
+   mount and navigation must work again. Repeat the Shutdown/Start pair a few
+   times — repeated mount and shutdown is explicit E2 scope.
 6. Leave the Dashboard idle for the displayed timeout. The session must sign out
    and Navigation must return to the Idle page.
+7. Close the window. No modal awaiter may remain hung and the window must close
+   without a navigation teardown deadlock.
 
 ## Cleanup and side effects
 
@@ -57,3 +65,6 @@ build output.
 
 - 2026-08-01 / `32fc67e`: project built successfully on Windows for
   `net9.0-windows`; interactive behavior was not claimed.
+- 2026-08-03 / `ae17810`: rebuilt successfully on Windows for `net9.0-windows`
+  with 0 warnings and 0 errors during the Phase E2 adapter review; interactive
+  behavior was again not claimed.
