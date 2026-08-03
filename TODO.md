@@ -365,6 +365,22 @@ abort `GoIdleAsync()`.
   `NavigationBootstrapLifetime`; if evidence requires a frozen component, stop
   and request a narrow explicit unfreeze.
 
+**Confirmed guard-diagnostics finding — 2026-08-03:** the external NuGet
+consumer scenario observed `[RequireAuthenticated]` deny an unauthenticated
+request with no diagnostic reason, while `[RequireRole]` reports a specific
+reason such as `Missing role: administrator`. Current source confirms that
+`RequireAuthenticatedGuard` returns `GuardResult.Deny()` without a reason. This
+does not change authorization behavior, but leaves `GuardDeniedEvent`, Logging,
+and Inspection with an empty or null explanation.
+
+- [ ] **NAV-002 — Give authentication denial a stable diagnostic reason.**
+  Return `Authentication required.` from `RequireAuthenticatedGuard` when the
+  user is not authenticated, while preserving the current allow/deny behavior
+  and redirect semantics. Add dual-target regression coverage for authenticated
+  and unauthenticated evaluation and for the reason propagated to
+  `GuardDeniedEvent` and the Navigation diagnostics bridge. Keep the change
+  scoped to guard diagnostics; do not change session or authorization policy.
+
 Validation requirements:
 
 - fake-based automated tests do not replace native interactive evidence;
