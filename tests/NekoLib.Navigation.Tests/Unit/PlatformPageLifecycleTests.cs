@@ -267,6 +267,110 @@ namespace NekoLib.Navigation.Tests.Unit
             });
         }
 
+        // NAV-003: WPF UserControl overrides Focusable to false, so the old
+        // `if (element.Focusable) element.Focus()` host implementation could never
+        // focus any shipped view base. Focus must land INSIDE the surface.
+        [Fact]
+        public void WpfHost_FocusSurface_MovesFocusToFirstFocusableDescendant()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var host = new WpfLayeredPageHostBase(root);
+
+                var surface = new System.Windows.Controls.UserControl();
+                var stack = new System.Windows.Controls.StackPanel();
+                var field = new System.Windows.Controls.TextBox();
+                var confirm = new System.Windows.Controls.Button();
+                stack.Children.Add(field);
+                stack.Children.Add(confirm);
+                surface.Content = stack;
+
+                Assert.False(surface.Focusable);
+
+                host.AddView(surface);
+                host.Focus(surface);
+
+                Assert.True(field.IsFocused);
+                Assert.False(confirm.IsFocused);
+                Assert.Same(field, System.Windows.Input.FocusManager.GetFocusedElement(root));
+            });
+        }
+
+        [Fact]
+        public void WpfHost_FocusSurface_SkipsDisabledAndCollapsedCandidates()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var host = new WpfLayeredPageHostBase(root);
+
+                var surface = new System.Windows.Controls.UserControl();
+                var stack = new System.Windows.Controls.StackPanel();
+                var disabled = new System.Windows.Controls.TextBox { IsEnabled = false };
+                var collapsed = new System.Windows.Controls.TextBox
+                {
+                    Visibility = Visibility.Collapsed
+                };
+                var usable = new System.Windows.Controls.Button();
+                stack.Children.Add(disabled);
+                stack.Children.Add(collapsed);
+                stack.Children.Add(usable);
+                surface.Content = stack;
+
+                host.AddView(surface);
+                host.Focus(surface);
+
+                Assert.True(usable.IsFocused);
+                Assert.False(disabled.IsFocused);
+                Assert.False(collapsed.IsFocused);
+            });
+        }
+
+        [Fact]
+        public void WpfHost_FocusSurfaceWithoutFocusableContent_LeavesFocusUntouched()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var host = new WpfLayeredPageHostBase(root);
+
+                var surface = new System.Windows.Controls.UserControl
+                {
+                    Content = new System.Windows.Controls.TextBlock { Text = "no controls" }
+                };
+
+                host.AddView(surface);
+                host.Focus(surface);
+
+                // Nothing to focus, and nothing unrelated stolen.
+                Assert.False(surface.IsFocused);
+                Assert.Null(System.Windows.Input.FocusManager.GetFocusedElement(root));
+            });
+        }
+
+        [Fact]
+        public void WpfHost_FocusSurfaceThatIsItselfFocusable_FocusesTheSurface()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var host = new WpfLayeredPageHostBase(root);
+
+                var surface = new System.Windows.Controls.UserControl
+                {
+                    Focusable = true,
+                    Content = new System.Windows.Controls.TextBlock { Text = "no controls" }
+                };
+
+                host.AddView(surface);
+                host.Focus(surface);
+
+                Assert.True(surface.IsFocused);
+                Assert.Same(surface, System.Windows.Input.FocusManager.GetFocusedElement(root));
+            });
+        }
+
         private static void RunSta(Action action)
         {
             Exception failure = null;

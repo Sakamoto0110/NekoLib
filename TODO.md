@@ -423,6 +423,15 @@ none of them authorizes one.
   inside the surface for dialog, prompt, and popover, then rerun the WPF smoke
   procedure interactively. Keep the change scoped to `NekoLib.Navigation.Wpf`; do
   not change `IViewHost` or the shared surface services.
+  **Status 2026-08-03:** implemented in `WpfLayeredPageHostBase.Focus`, which now
+  resolves the first focusable element inside the surface and retries once the
+  surface is `Loaded`, because the service focuses it before layout. Four
+  dual-target regressions added to `PlatformPageLifecycleTests`; the Navigation
+  suite passes 226/226 on `net481` and `net9.0-windows`. Driving the real WPF
+  smoke app confirmed `Keyboard.FocusedElement` moves from `MainWindow` to the
+  dialog's Confirm button, and that a view focusing its own control from
+  `OnShownAsync` still wins. **The interactive procedure has not been performed by
+  a person; this item stays open until it has.**
 
 - [ ] **NAV-004 — Make WinForms focus-loss dismissal observe the surface
   subtree.** `WinFormsFocusObserverAdapter.Track` subscribes `Control.LostFocus`

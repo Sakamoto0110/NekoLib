@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using NekoLib.Navigation.Contracts.Pages;
 
 namespace NekoLib.Navigation.Wpf.Hosting
@@ -112,10 +115,113 @@ namespace NekoLib.Navigation.Wpf.Hosting
             }
         }
 
+        /// <summary>
+        /// Places keyboard focus <em>inside</em> the surface.
+        /// <para>
+        /// Every view base this host is asked to focus derives from
+        /// <see cref="UserControl"/>, which overrides <see cref="UIElement.Focusable"/>
+        /// to <c>false</c>. Calling <see cref="UIElement.Focus"/> on the surface is
+        /// therefore a guaranteed no-op, which left dialogs and prompts without
+        /// keyboard focus and left popovers unable to observe focus loss. Move focus
+        /// to the first focusable element within the surface instead, and fall back
+        /// to the surface itself only when it can genuinely take focus.
+        /// </para>
+        /// </summary>
         public virtual void Focus(object view)
         {
-            if (view is UIElement element && element.Focusable)
+            if (view is not UIElement element)
+                return;
+
+            // The service focuses a surface immediately after adding it, before WPF
+            // has laid it out. Nothing inside an unrendered element can take keyboard
+            // focus, so also retry once the surface is loaded. The retry is skipped
+            // when focus already reached the surface: Loaded runs at a higher
+            // dispatcher priority than Input, so a view that focuses its own control
+            // from OnShownAsync still wins.
+            if (element is FrameworkElement frameworkElement && !frameworkElement.IsLoaded)
+            {
+                RoutedEventHandler? onLoaded = null;
+                onLoaded = (_, __) =>
+                {
+                    frameworkElement.Loaded -= onLoaded;
+
+                    if (!frameworkElement.IsKeyboardFocusWithin)
+                        FocusInto(element);
+                };
+
+                frameworkElement.Loaded += onLoaded;
+            }
+
+            FocusInto(element);
+        }
+
+        private static void FocusInto(UIElement element)
+        {
+            // Honours TabIndex and the surface's own tab order, but only resolves
+            // once the element participates in a live, rendered visual tree.
+            if (element is FrameworkElement frameworkElement &&
+                frameworkElement.MoveFocus(
+                    new TraversalRequest(FocusNavigationDirection.First)))
+            {
+                return;
+            }
+
+            // Before layout — and whenever traversal declines — resolve the first
+            // focusable descendant directly so the surface still receives focus.
+            var target = FindFirstFocusable(element);
+            if (target != null)
+            {
+                target.Focus();
+                return;
+            }
+
+            // A surface with no focusable content at all: focus it directly when the
+            // subclass opted in, otherwise leave focus untouched rather than stealing
+            // it to an unrelated element.
+            if (element.Focusable)
                 element.Focus();
+        }
+
+        private static UIElement? FindFirstFocusable(DependencyObject root)
+        {
+            var queue = new Queue<DependencyObject>();
+            EnqueueChildren(root, queue);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+
+                if (current is UIElement candidate &&
+                    candidate.Focusable &&
+                    candidate.IsEnabled &&
+                    candidate.Visibility == Visibility.Visible)
+                {
+                    return candidate;
+                }
+
+                EnqueueChildren(current, queue);
+            }
+
+            return null;
+        }
+
+        // The logical tree is authoritative for author-supplied content and is
+        // populated before layout; the visual tree covers templated content once the
+        // surface has been rendered.
+        private static void EnqueueChildren(DependencyObject node, Queue<DependencyObject> queue)
+        {
+            foreach (var child in LogicalTreeHelper.GetChildren(node))
+            {
+                if (child is DependencyObject logicalChild)
+                    queue.Enqueue(logicalChild);
+            }
+
+            if (node is not Visual && node is not System.Windows.Media.Media3D.Visual3D)
+                return;
+
+            var count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+                queue.Enqueue(VisualTreeHelper.GetChild(node, i));
         }
     }
 }
