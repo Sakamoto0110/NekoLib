@@ -449,6 +449,16 @@ none of them authorizes one.
   and keep `IFocusObserverAdapter` unchanged. Add dual-target regressions driving
   the real WinForms adapter on an STA thread, then execute step 3 of the WinForms
   smoke scenario. Keep the change scoped to `NekoLib.Navigation.WinForms`.
+  **Status 2026-08-03:** implemented by observing `Control.Leave` instead of
+  `Control.LostFocus`; `Form.Deactivate` is unchanged. Three dual-target
+  regressions added to `PlatformPageLifecycleTests`, driving real focus
+  transitions on an off-screen shown form; the leaving case was confirmed to fail
+  against the previous implementation and pass against the new one. Navigation
+  suite passes 229/229 on `net481` and `net9.0-windows`. Driving the real
+  WinForms smoke app confirmed the popover holds focus while open and is
+  dismissed with `Popover -> False` once focus moves outside it. **The
+  interactive procedure has not been performed by a person; this item stays open
+  until step 5 of the WinForms smoke scenario has been driven by hand.**
 
 - [ ] **NAV-005 — Stop the WPF interaction blocker from destroying `IsEnabled`
   bindings.** `WpfInteractionBlocker` assigns `element.IsEnabled` directly in

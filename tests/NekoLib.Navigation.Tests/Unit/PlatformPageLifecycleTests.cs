@@ -371,6 +371,136 @@ namespace NekoLib.Navigation.Tests.Unit
             });
         }
 
+        // NAV-004: IViewHost.Focus forwards focus to the surface's first selectable
+        // child, so the container never holds focus and its non-bubbling LostFocus
+        // never fired. Leave is the subtree-scoped event that actually reports the
+        // user moving focus out of the surface.
+        [Fact]
+        public void WinFormsFocusObserver_FocusMovingWithinSurface_DoesNotReportUnfocus()
+        {
+            RunFocusScenario((surface, outside, field, confirm, observer) =>
+            {
+                var unfocusCount = 0;
+                using (observer.Track(surface, () => unfocusCount++))
+                {
+                    field.Focus();
+                    System.Windows.Forms.Application.DoEvents();
+                    Assert.Equal(0, unfocusCount);
+
+                    confirm.Focus();
+                    System.Windows.Forms.Application.DoEvents();
+                    Assert.Equal(0, unfocusCount);
+                }
+            });
+        }
+
+        [Fact]
+        public void WinFormsFocusObserver_FocusLeavingSurface_ReportsUnfocus()
+        {
+            RunFocusScenario((surface, outside, field, confirm, observer) =>
+            {
+                // Mirror the service order: the host focuses the surface first, then
+                // the observer is attached.
+                surface.Focus();
+                System.Windows.Forms.Application.DoEvents();
+                Assert.True(surface.ContainsFocus);
+
+                var unfocusCount = 0;
+                using (observer.Track(surface, () => unfocusCount++))
+                {
+                    outside.Focus();
+                    System.Windows.Forms.Application.DoEvents();
+                    Assert.Equal(1, unfocusCount);
+                }
+            });
+        }
+
+        [Fact]
+        public void WinFormsFocusObserver_DisposedSubscription_StopsReportingUnfocus()
+        {
+            RunFocusScenario((surface, outside, field, confirm, observer) =>
+            {
+                var unfocusCount = 0;
+                var subscription = observer.Track(surface, () => unfocusCount++);
+
+                field.Focus();
+                System.Windows.Forms.Application.DoEvents();
+                subscription.Dispose();
+
+                outside.Focus();
+                System.Windows.Forms.Application.DoEvents();
+                Assert.Equal(0, unfocusCount);
+            });
+        }
+
+        /// <summary>
+        /// Real focus transitions need a shown form, so the scenario uses one parked
+        /// far off-screen: it never becomes visible to the user but still delivers
+        /// genuine WinForms focus events.
+        /// </summary>
+        private static void RunFocusScenario(
+            Action<System.Windows.Forms.UserControl,
+                   System.Windows.Forms.Button,
+                   System.Windows.Forms.TextBox,
+                   System.Windows.Forms.Button,
+                   WinFormsFocusObserverAdapter> body)
+        {
+            RunSta(() =>
+            {
+                using (var form = new System.Windows.Forms.Form
+                {
+                    ShowInTaskbar = false,
+                    StartPosition = System.Windows.Forms.FormStartPosition.Manual,
+                    Location = new System.Drawing.Point(-32000, -32000),
+                    Size = new System.Drawing.Size(320, 240)
+                })
+                {
+                    var root = new System.Windows.Forms.Panel
+                    {
+                        Dock = System.Windows.Forms.DockStyle.Fill
+                    };
+                    form.Controls.Add(root);
+
+                    var outside = new System.Windows.Forms.Button
+                    {
+                        Text = "outside",
+                        Location = new System.Drawing.Point(10, 150)
+                    };
+                    root.Controls.Add(outside);
+
+                    var surface = new System.Windows.Forms.UserControl
+                    {
+                        Size = new System.Drawing.Size(200, 100)
+                    };
+                    var field = new System.Windows.Forms.TextBox
+                    {
+                        Location = new System.Drawing.Point(10, 10),
+                        Width = 120
+                    };
+                    var confirm = new System.Windows.Forms.Button
+                    {
+                        Text = "OK",
+                        Location = new System.Drawing.Point(10, 50)
+                    };
+                    surface.Controls.Add(field);
+                    surface.Controls.Add(confirm);
+                    root.Controls.Add(surface);
+
+                    form.Show();
+                    System.Windows.Forms.Application.DoEvents();
+
+                    try
+                    {
+                        body(surface, outside, field, confirm, new WinFormsFocusObserverAdapter());
+                    }
+                    finally
+                    {
+                        form.Close();
+                    }
+                }
+            });
+        }
+
         private static void RunSta(Action action)
         {
             Exception failure = null;
