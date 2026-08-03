@@ -302,22 +302,31 @@ row type is not implementation work until a concrete consumer requires it.
 
 #### E1.7 — Explicitly deferred or non-promoted review items
 
-- **DATA-016:** a namespace move, overload removal, and broad public API cleanup
-  are breaking-change work gated by F1. Only the non-breaking session parity in
-  DATA-015 is active now.
-- **DATA-017:** preserve the documented lossy `RecordItem` contract; no new raw
-  model is accepted without a consumer.
-- Relational provider candidates are a validation matrix, not support claims or
-  dependencies to add speculatively. E4 owns real-provider execution.
-- MongoDB remains an application-owned native-driver integration during Phase
-  E. Do not model it as `IDbQueryTranslator`, emulate SQL over it, or create
-  `NekoLib.Data.MongoDB` without a later explicit use-case decision.
-- Redis, LiteDB, Elasticsearch/OpenSearch, and specialized stores remain native
+- [x] **DATA-016 — Deferral confirmed.** A namespace move, overload removal,
+  and broad public API cleanup are breaking-change work gated by F1. Only the
+  non-breaking session parity delivered by DATA-015 was active in E1.
+- [x] **DATA-017 — Existing contract confirmed.** Preserve the documented lossy
+  `RecordItem` contract; no new raw model is accepted without a consumer.
+- [x] **Relational provider boundary confirmed.** Provider candidates remain a
+  validation matrix, not support claims or dependencies to add speculatively.
+  E4 owns real-provider execution.
+- [x] **Non-relational boundary confirmed.** MongoDB remains an
+  application-owned native-driver integration during Phase E. Do not model it
+  as `IDbQueryTranslator`, emulate SQL over it, or create
+  `NekoLib.Data.MongoDB` without a later explicit use-case decision. Redis,
+  LiteDB, Elasticsearch/OpenSearch, and specialized stores remain native
   application capabilities, not interchangeable providers for this SQL gateway.
 
-Implementation order is E1.1, then E1.2/E1.3, E1.4, E1.5, and E1.6. A smaller
-regression may land independently only when it preserves the accepted shared
-seam and includes its dual-target tests.
+**E1 closure — 2026-08-03:** complete. E1.1-E1.6 are implemented and reconciled
+in the dated Data stabilization review. The E1.7 dispositions above were
+revalidated against the current Data source, tests, and project topology; no
+breaking API cleanup, new raw model, concrete provider dependency, or
+non-relational Data module was promoted. Real-provider execution remains open
+only under E4, and public API cleanup remains gated by F1.
+
+The completed implementation order was E1.1, then E1.2/E1.3, E1.4, E1.5, and
+E1.6. Each behavioral change preserved the accepted shared seam and included
+dual-target coverage.
 
 ### E2 — Navigation WinForms/WPF adapter review
 
