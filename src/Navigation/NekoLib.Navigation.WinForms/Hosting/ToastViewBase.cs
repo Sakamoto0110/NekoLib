@@ -10,6 +10,14 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// so that a user click forwards an early-dismissal request to the
     /// <see cref="Contracts.Runtime.IToastService"/>.
     /// </summary>
+    /// <remarks>
+    /// <b>Reachability:</b> only a click on the toast's own background dismisses.
+    /// WinForms click events do not bubble, so a click on a child control raises
+    /// that child's <c>Click</c> and never the container's. A toast that contains
+    /// child controls must therefore offer an explicit close affordance calling
+    /// <see cref="Dismiss"/>; "tap anywhere to dismiss" does not hold across it.
+    /// The WPF base differs — see the overlay section of the Navigation README.
+    /// </remarks>
     public abstract class ToastViewBase : UserControl, IToastView
     {
         private Action _dismissCallback;

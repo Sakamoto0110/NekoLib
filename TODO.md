@@ -606,6 +606,28 @@ none of them authorizes one.
   would need mouse capture or a hit-test scrim and is **not** accepted by this
   entry. Validate by documentation review plus the toast and popover steps of both
   smoke scenarios, recording which regions dismiss on each platform.
+  **Status 2026-08-03:** documented; **stays open for its interactive
+  validation.** Both claims were re-confirmed against current source: the WinForms
+  `ToastViewBase` still binds `this.Click` on the container, the WPF one still
+  binds `MouseLeftButtonDown`, and both focus observers are purely focus-driven —
+  `Control.Leave` + `Form.Deactivate` on WinForms, subtree-filtered
+  `LostKeyboardFocus` + `Window.Deactivated` on WPF — with no hit testing
+  anywhere. A new "Dismissal reachability" subsection in the Navigation README
+  overlay section states the per-platform toast table and the four popover rules,
+  the overlay table now reads "keyboard-focus loss … not hit testing" for
+  Popover, and the reachability notes were added to `IUnfocusAware`,
+  `IFocusObserverAdapter`, and both `ToastViewBase` classes. An explicit close
+  affordance calling `Dismiss()` is now the documented supported dismissal for a
+  toast with child controls. `IToastView` and `ToastService` were not touched;
+  the click bindings are unchanged. **Outstanding — interactive:** the toast and
+  popover steps of both smoke scenarios, recording which regions dismiss on each
+  platform. Only the WinForms popover half exists today, recorded under NAV-004
+  on 2026-08-03 and now quoted in the README; the WinForms toast, the WPF toast
+  and the WPF popover have no per-region record. No automated coverage was added:
+  a synthetic WPF mouse test would be misleading, because
+  `UIElement.MouseLeftButtonDown` is a Direct routed event that only travels the
+  bubble route when the input system promotes it, so `RaiseEvent` on a child
+  would fail to reach the toast for a reason unrelated to the documented one.
 
 - [ ] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
   Each is independent and low risk; land them separately from the behavioral

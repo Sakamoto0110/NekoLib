@@ -11,6 +11,17 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// WPF base class for toast views. Anchored to bottom-right by default and
     /// dismisses on click (early-dismiss equivalent to the WinForms toast base).
     /// </summary>
+    /// <remarks>
+    /// <b>Reachability:</b> a click on the background and on most children
+    /// dismisses, because the input system re-raises
+    /// <see cref="UIElement.MouseLeftButtonDown"/> along the bubble route of
+    /// <c>Mouse.MouseDownEvent</c>. A child that marks the event handled does not
+    /// — <see cref="System.Windows.Controls.Primitives.ButtonBase"/> does so
+    /// outside <c>ClickMode.Hover</c>. A toast that contains child controls must
+    /// therefore offer an explicit close affordance calling <see cref="Dismiss"/>.
+    /// The WinForms base is stricter — see the overlay section of the Navigation
+    /// README.
+    /// </remarks>
     public abstract class ToastViewBase : UserControl, IToastView
     {
         private Action _dismissCallback;

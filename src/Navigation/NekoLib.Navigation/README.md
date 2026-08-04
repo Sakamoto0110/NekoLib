@@ -302,10 +302,10 @@ Four services, strictly partitioned by intent:
 
 | Primitive | Blocking | Auto-dismiss | Return |
 |---|---|---|---|
-| `IToastView` / `IToastService` | no | timer (+ tap via `BindDismiss`) | `void` |
+| `IToastView` / `IToastService` | no | timer (+ tap via `BindDismiss` — see reachability below) | `void` |
 | `IDialogView` / `IDialogService` | **yes** | — | `Task<bool>` |
 | `IPromptView<TResult>` / `IPromptService` | **yes** | — | `Task<TResult>` |
-| `IPopoverView` / `IPopoverService` | no | on focus loss (via `IUnfocusAware`) | `Task<bool>` |
+| `IPopoverView` / `IPopoverService` | no | **keyboard-focus** loss (via `IUnfocusAware`), not hit testing | `Task<bool>` |
 
 Dialog is always `bool` — anything tri-state uses `Prompt<TEnum>`. Popover is
 always non-blocking — blocking variants go through Dialog.
@@ -337,6 +337,46 @@ Semantics worth knowing:
   awaiter if native cleanup fails, but the UI callback itself contains that
   exception. Toast dismiss callbacks also contain cleanup failures and are bound
   to their own instance, so a stale callback cannot dismiss its replacement.
+
+### Dismissal reachability
+
+"Tap anywhere to dismiss" and "closes when you click away" are both wrong as
+written. What actually dismisses differs per primitive and per platform.
+
+**Toast — the click binding does not reach child controls.**
+
+| Platform | Bound event | Dismisses | Does not dismiss |
+|---|---|---|---|
+| WinForms | `Control.Click` on the toast container | a click on the toast's own background | a click on any child control: WinForms click events do not bubble, so a child's `Click` never reaches the container |
+| WPF | `MouseLeftButtonDown` on the toast container | a click on the background and on most children, because the input system re-raises the event along the bubble route of `Mouse.MouseDownEvent` | a click on a child that marks the event handled — `Button` does so outside `ClickMode.Hover` |
+
+The bindings are kept as they are, for compatibility. **A toast that contains
+child controls must offer an explicit close affordance**; tap-to-dismiss is not
+reachable across it. `Dismiss()` on both bases is the programmatic equivalent and
+is what such an affordance calls.
+
+**Popover — light dismissal follows focus, not hit testing.**
+
+Both `IFocusObserverAdapter` implementations are focus observers: WinForms tracks
+`Control.Leave` (subtree-scoped) plus `Form.Deactivate`; WPF tracks
+`LostKeyboardFocus`, filtered to focus actually leaving the element's subtree,
+plus `Window.Deactivated`. Neither performs a hit test. On both platforms:
+
+- clicking a control **outside** the popover that can take focus dismisses it;
+- moving focus **within** the popover — tabbing between its own fields — does
+  not;
+- clicking inert area (labels, panels, a page built only from static content)
+  moves no focus and therefore **does not dismiss**; the popover stays open;
+- switching away from the application dismisses it, through the form/window
+  deactivation subscription.
+
+Recorded on WinForms on 2026-08-03 while validating NAV-004: clicking the
+Dashboard counter (inside the host) and left-panel buttons such as "Limpar log"
+(outside it) both dismissed the popover, while clicking the Idle page — labels
+only — dismissed nothing.
+
+A real click-outside model would need mouse capture or a hit-test scrim. It is
+deliberately **not** implemented.
 
 Both platform projects ship `ToastViewBase`, `DialogViewBase`,
 `PromptViewBase<TResult>`, `PopoverViewBase` and `AutoDismissPopoverBase` so
