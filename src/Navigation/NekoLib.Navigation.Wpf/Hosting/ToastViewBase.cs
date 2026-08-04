@@ -57,7 +57,13 @@ namespace NekoLib.Navigation.Wpf.Hosting
         private void OnViewClicked(object sender, MouseButtonEventArgs e)
             => _dismissCallback?.Invoke();
 
-        public void Dispose()
+        /// <summary>
+        /// NAV-009(b): virtual so a subclass can extend disposal, the way the
+        /// WinForms bases allow through <c>Dispose(bool)</c>. An override must call
+        /// <c>base.Dispose()</c> — that is what unsubscribes the click handler,
+        /// clears the dismiss callback and sets <see cref="IsDisposed"/>.
+        /// </summary>
+        public virtual void Dispose()
         {
             if (IsDisposed) return;
             MouseLeftButtonDown -= OnViewClicked;

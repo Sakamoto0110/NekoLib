@@ -75,7 +75,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var loaded = new List<Type>(
                 AssemblyTypeScanner.GetLoadableTypes(new PartiallyLoadableAssembly()));
 
-            Assert.Equal(new[] { typeof(ProbePage) }, loaded);
+            Assert.Equal(new[] { typeof(UnloadableProbePage) }, loaded);
         }
 
         /// <summary>
@@ -87,15 +87,15 @@ namespace NekoLib.Navigation.Tests.Unit
         {
             public override Type[] GetTypes()
                 => throw new ReflectionTypeLoadException(
-                    new[] { typeof(ProbePage), null },
+                    new[] { typeof(UnloadableProbePage), null },
                     new Exception[] { new TypeLoadException("missing dependency") });
 
             public override string FullName => "PartiallyLoadable, Version=0.0.0.0";
         }
 
-        private sealed class ProbePage : IPageView
+        private sealed class UnloadableProbePage : IPageView
         {
-            public string Name => nameof(ProbePage);
+            public string Name => nameof(UnloadableProbePage);
             public object NativeView => this;
             public bool IsDisposed => false;
             public void Dispose() { }

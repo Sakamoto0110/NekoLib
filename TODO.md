@@ -694,7 +694,7 @@ none of them authorizes one.
   deletion and two message strings. No interactive evidence was taken; this
   item's validation does not ask for any.
 
-- [ ] **NAV-009 — Resolve the surface-DPI and ergonomics dispositions.**
+- [x] **NAV-009 — Resolve the surface-DPI and ergonomics dispositions.**
   Choose correct, keep-and-document, or remove for each, and record the rejected
   alternatives. (a) `WinFormsNavigationSurface.Scale` calls
   `Control.CreateGraphics()`, which was measured to force host handle creation as
@@ -711,6 +711,41 @@ none of them authorizes one.
   WinForms genuinely reorders; the difference is currently masked because
   keep-attached hidden pages are collapsed. Nothing here justifies a core or
   frozen change.
+  **Closed 2026-08-03 — all three disposed as "correct".** (a)
+  `WinFormsNavigationSurface.Scale` now reads `Control.DeviceDpi`, a plain field
+  read. The two behaviours are stated on the property: **unrealized** reports the
+  DPI captured when the control was constructed and creates no handle;
+  **disposed** keeps reporting the last known value instead of throwing. So an
+  anchor consumer can read `Scale` at any point in the host's life, which is what
+  NAV-010 needs. The WPF property gained the matching documentation; its `1f`
+  degradation was already correct and is unchanged. *Rejected:* keeping
+  `CreateGraphics()` and merely documenting the side effect — realizing a window
+  as a consequence of reading a scale factor is not a documentable behaviour, it
+  is a defect. (b) `Dispose()` is now `virtual` on `DialogViewBase`,
+  `PromptViewBase<TResult>`, `PopoverViewBase` and `ToastViewBase`; WPF
+  `PageView` already was. Overriding requires calling `base.Dispose()`, which is
+  documented on each. Recorded under F1 as a binary-breaking public-surface
+  change. *Rejected:* mirroring the full WinForms `protected virtual void
+  Dispose(bool)` pattern — it adds a protected member to four public types to
+  express a finalizer contract none of them has. (c)
+  `WpfLayeredPageHostBase.BringToFront(IPageView)` now orders within the page
+  band, taking the highest z-index below `OverlayZIndex` and adding one, clamped
+  so a page can never reach the overlay band. Two simultaneously attached pages
+  can therefore be ordered, matching what WinForms already did. *Rejected:*
+  keep-and-document, since the divergence is only masked by hidden keep-attached
+  pages being collapsed and would resurface the moment two pages are visible at
+  once. Five regressions added in `SurfaceToolkitAndErgonomicsTests`. **Confirmed
+  against the previous implementation on `net481` and `net9.0-windows`:** the
+  disposed-host case threw `ObjectDisposedException`, the unrealized-host case
+  reported a created handle, and the z-order case measured `first=0, second=0`.
+  (b) discriminates at compile time — against the old bases the subclass fails
+  with CS0506, "cannot override inherited member … because it is not marked
+  virtual", which is precisely the finding; it was therefore proven in a separate
+  pass from (a) and (c). The `ResolveAnchor` case is a pin and passes against
+  both. Navigation suite 262/262 on both target families, whole solution builds,
+  `verify-docs.ps1` passes. No interactive evidence was taken; this item's
+  validation does not ask for any, though (c) is the kind of change the WPF smoke
+  scenario would exercise.
 
 **Confirmed surface-positioning finding — 2026-08-03:** while the WinForms smoke
 scenario was being written, a stock WinForms toast was observed to cover the
@@ -1005,6 +1040,12 @@ are facts the policy will have to account for when it is written.
   Anything keying off the fully qualified value — including WinForms
   `Controls.Find` by name — would break. The descriptor name was and remains
   authoritative for registration and history.
+- **2026-08-03, NAV-009(b).** `Dispose()` on the four WPF surface bases
+  (`DialogViewBase`, `PromptViewBase<TResult>`, `PopoverViewBase`,
+  `ToastViewBase`) became `virtual`. Source-compatible in both directions, but
+  non-virtual to virtual is a binary-breaking change: an external assembly
+  compiled against the old signature must be recompiled. WPF `PageView` was
+  already virtual.
 
 ### F2 — Automated release confidence
 

@@ -22,14 +22,21 @@ namespace NekoLib.Navigation.WinForms.Toolkit
 
         public Rectangle ClientBounds => _host.ClientRectangle;
 
-        public float Scale
-        {
-            get
-            {
-                using (var g = _host.CreateGraphics())
-                    return g.DpiX / 96f;
-            }
-        }
+        /// <summary>
+        /// DPI factor of the host, where 1.0 is 96 DPI.
+        /// <para>
+        /// NAV-009(a): this used to read <c>Control.CreateGraphics()</c>, which forces
+        /// the host's window handle to be created as a side effect and throws
+        /// <see cref="ObjectDisposedException"/> once the host is disposed — so merely
+        /// asking a surface for its scale could realize a window, and an anchor
+        /// consumer could not read it during teardown. <c>DeviceDpi</c> is a plain
+        /// field read: <b>before the host is realized</b> it reports the DPI captured
+        /// when the control was constructed and creates no handle, and <b>after the
+        /// host is disposed</b> it keeps reporting the last known value instead of
+        /// throwing. The value is therefore always safe to read.
+        /// </para>
+        /// </summary>
+        public float Scale => _host.DeviceDpi / 96f;
 
         public bool IsActive => _host.Visible && _host.Enabled;
 

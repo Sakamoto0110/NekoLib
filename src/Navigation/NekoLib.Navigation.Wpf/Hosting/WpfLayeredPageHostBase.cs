@@ -68,10 +68,22 @@ namespace NekoLib.Navigation.Wpf.Hosting
 
         public virtual void BringToFront(IPageView page)
         {
-            // Pages are explicitly the bottom layer — promoting a page to the top
-            // would hide live overlays. Re-asserts the page layer instead.
-            if (page?.NativeView is UIElement element)
-                Panel.SetZIndex(element, PageZIndex);
+            if (page?.NativeView is not UIElement element)
+                return;
+
+            // Pages are explicitly the bottom layer — promoting one to the top would
+            // hide live overlays. NAV-009(c): this used to re-assert the same constant
+            // for every page, so two simultaneously attached pages could not be
+            // ordered at all, while WinForms genuinely reorders them. Order within the
+            // page band instead, staying strictly below OverlayZIndex.
+            var top = Root.Children
+                .OfType<UIElement>()
+                .Select(Panel.GetZIndex)
+                .Where(z => z < OverlayZIndex)
+                .DefaultIfEmpty(PageZIndex)
+                .Max();
+
+            Panel.SetZIndex(element, Math.Min(top + 1, OverlayZIndex - 1));
         }
 
         // ---------------------------------------------------------------------

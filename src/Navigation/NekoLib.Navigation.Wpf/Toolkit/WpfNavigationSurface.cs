@@ -28,6 +28,12 @@ namespace NekoLib.Navigation.Wpf.Toolkit
             (int)_host.ActualWidth,
             (int)_host.ActualHeight);
 
+        /// <summary>
+        /// DPI factor of the host, where 1.0 is 96 DPI. Reading it never has a side
+        /// effect. Before the element is connected to a presentation source there is
+        /// no device transform to read, so it degrades to <c>1f</c>; see NAV-009(a)
+        /// for the matching WinForms rule.
+        /// </summary>
         public float Scale
         {
             get
