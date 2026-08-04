@@ -158,11 +158,19 @@ namespace NekoLib.Navigation.Bootstrap
 
                         context.Session.SignOut();
 
-                        // Session observers are synchronous and may report an
-                        // interaction reentrantly while SignOut is running.
-                        if (!CanContinueTick(
-                            context,
-                            interactionGeneration))
+                        // The transition is admitted from here on. Session observers
+                        // run synchronously, so an application that refreshes its UI
+                        // in response to sign-out can make the platform observer
+                        // report an interaction reentrantly — on WinForms a
+                        // programmatic TextChanged is enough. That is the application
+                        // reacting to us, not a user arriving, and it must not cancel
+                        // the transition we just committed to; the terminal would sign
+                        // out and then stay on the operator's page. Genuine
+                        // interaction *before* admission still cancels, through the
+                        // check above, which deliberately keeps comparing the
+                        // interaction generation. Disposal, StopIdle and context
+                        // ownership are still revalidated here.
+                        if (!CanHandleIdle(context))
                         {
                             return;
                         }

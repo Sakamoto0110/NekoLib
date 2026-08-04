@@ -373,6 +373,22 @@ abort `GoIdleAsync()`.
   native 30-second idle scenario. Keep the implementation scoped to
   `NavigationBootstrapLifetime`; if evidence requires a frozen component, stop
   and request a narrow explicit unfreeze.
+  **Status 2026-08-03:** implemented. The post-sign-out check now revalidates
+  disposal, `StopIdle()`, and context ownership through `CanHandleIdle` but no
+  longer compares the interaction generation, so an interaction caused by the
+  application reacting to sign-out cannot cancel an admitted transition. The
+  pre-admission check still compares the generation, so genuine interaction before
+  sign-out still invalidates a stale tick. Three regressions added to
+  `PageNavBootstrapLifetimeTests`; the sign-out-induced case was confirmed to fail
+  against the previous implementation, and the other two pin that the relaxation
+  did not go too far. Navigation suite 244/244 on `net481` and `net9.0-windows`.
+  **Outstanding:** the native 30-second repeat. It cannot be reproduced from a
+  smoke scenario, because `NavigationSession.Changed` is `internal` and its only
+  subscriber is the Inspection observer — there is **no public session-changed
+  event**, so no application can react to sign-out the way this finding describes.
+  The regressions therefore drive that exact internal seam, and the native repeat
+  remains a task for the originating PCB application. This item stays open until
+  that repeat is performed.
 
 **Confirmed guard-diagnostics finding — 2026-08-03:** the external NuGet
 consumer scenario observed `[RequireAuthenticated]` deny an unauthenticated

@@ -119,6 +119,128 @@ namespace NekoLib.Navigation.Tests.Unit
             }
         }
 
+        // NAV-001: the tick validated the interaction generation again *after*
+        // Session.SignOut(). Session observers run synchronously, so an application
+        // that refreshes its UI on sign-out could make the platform observer report
+        // an interaction from inside SignOut and cancel the transition the tick had
+        // already committed to — signing the terminal out but leaving it on the
+        // operator's page.
+        [Fact]
+        public async Task IdleTick_InteractionCausedBySignOut_StillReachesTheIdlePage()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var navigations = 0;
+            var lifetime = new NavigationBootstrapLifetime(
+                observer,
+                timer,
+                () => { navigations++; return Task.CompletedTask; });
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("operator");
+
+                // The application reacts to sign-out by touching its UI, which the
+                // platform interaction observer reports synchronously and reentrantly.
+                fixture.Context.Session.Changed += () => observer.RaiseInteraction();
+
+                timer.RaiseTick();
+
+                Assert.Equal(1, navigations);
+                Assert.False(fixture.Context.Session.IsAuthenticated);
+
+                // NAV-011 composition: the interaction rearmed the timer itself, so
+                // the watchdog is still running afterwards.
+                Assert.True(timer.IsStarted);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleTick_GenuineInteractionBeforeAdmission_CancelsWithoutSigningOut()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var navigations = 0;
+            var lifetime = new NavigationBootstrapLifetime(
+                observer,
+                timer,
+                () => { navigations++; return Task.CompletedTask; });
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("operator");
+
+                // IdleElapsed is emitted after the tick starts and before the
+                // transition is admitted, so this lands in exactly the window a real
+                // user interaction would.
+                fixture.Context.Events.NavigationTrace += e =>
+                {
+                    if (e.Kind == NavigationTraceKind.IdleElapsed)
+                        observer.RaiseInteraction();
+                };
+
+                timer.RaiseTick();
+
+                Assert.Equal(0, navigations);
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleTick_StopIdleDuringSignOut_CancelsAdmittedTransition()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var navigations = 0;
+            NavigationBootstrapLifetime lifetime = null;
+            lifetime = new NavigationBootstrapLifetime(
+                observer,
+                timer,
+                () => { navigations++; return Task.CompletedTask; });
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+
+                // Admission must still yield to teardown, which the relaxed
+                // post-sign-out check keeps revalidating.
+                fixture.Context.Session.Changed += () => lifetime.StopIdle();
+
+                timer.RaiseTick();
+
+                Assert.Equal(0, navigations);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
         // NAV-011: a successful idle transition used to leave the timer stopped
         // until the next interaction inside the host, so anything that later moved
         // off the idle page without user input left the shell with no idle timeout.
