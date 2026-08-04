@@ -187,11 +187,21 @@ Stated rather than closed, so no later reader mistakes them for verified.
   coverage on both families, and where the two were compared interactively they
   behaved identically, so this is missing demonstration rather than unknown
   behaviour.
-- **The scenarios do not resemble a real application.** They exercise one control
-  of each kind in a single window. Nothing here was driven under dense pages,
-  competing surfaces, sustained operator input, or hardware in the loop. The
-  adapters are reviewed and corrected, not exercised under realistic load; E3
-  owns long-running and recovery scenarios.
+- **The scenarios do not resemble a real application — by scope, not by
+  oversight.** This review was commissioned as a deep pass over the native
+  navigation adapters and nothing else; PDV/DM-realistic scenarios were never in
+  it. The scenarios exercise one control of each kind in a single window, so
+  nothing here was driven under dense pages, competing surfaces, sustained
+  operator input, or hardware in the loop. Read the adapters as reviewed and
+  corrected, not as exercised under realistic load. E3 owns long-running and
+  recovery scenarios; E4 owns real integration.
+- **A deep review is not a proof of absence.** Eleven findings were confirmed and
+  corrected, but the method — reading current source, probing frameworks, then
+  driving the real apps — finds what it is pointed at. The two unperformable
+  procedure steps are the honest illustration: both had been written down and
+  believed for weeks, and only executing them exposed them. Later manual findings
+  against this same surface should be expected rather than treated as
+  contradicting this snapshot.
 - **`WpfEventDispatcherAdapter` answers the unreachable-UI-thread question
   differently** from the corrected WinForms one: it runs the action inline from
   any thread once its `Dispatcher` reports shutdown. NAV-006 recorded the

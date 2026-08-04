@@ -349,19 +349,25 @@ dual-target coverage.
   and
   [`runtime_tests/Navigation/WpfSmoke/README.md`](runtime_tests/Navigation/WpfSmoke/README.md).
 
-  **Remark — missing more scenarios relatable to the real world.** This review
-  validated the adapters through purpose-built smoke scenarios plus one real
-  consumer application. Both are narrow. The scenarios exercise one control of
-  each kind in a single window; they do not resemble a working PDV/DM shell with
-  dense pages, competing surfaces, sustained operator input, or hardware in the
-  loop. Two of their steps turned out not to be performable at all — WinForms
-  step 6 wants a popover alive while a prompt opens, which focus-driven light
-  dismissal forbids, and WPF step 4 wants a guarded page the scenario never
-  declares — and both went unnoticed until the procedures were actually walked.
-  Treat the adapter behaviour as reviewed and corrected, **not** as exercised
-  under realistic load. Closing this entry does not close that gap; the residual
-  list in the audit artifact names what remains uncovered, and E3 owns the
-  long-running and recovery scenarios.
+  **Remark — missing more scenarios relatable to the real world.** This is a
+  statement of **scope, not of shortfall**. E2 asked for one thing: a deep review
+  of the native navigation adapters. PDV/DM-realistic scenarios were never inside
+  it, and deliberately so — a review that also had to build a representative
+  shell would have gone shallower on the adapters. What was validated is the
+  adapter behaviour, through purpose-built smoke scenarios plus one real consumer
+  application. Neither resembles a working PDV/DM shell with dense pages,
+  competing surfaces, sustained operator input, or hardware in the loop, so
+  **read the adapters as reviewed and corrected, not as exercised under realistic
+  load.** Closing this entry does not close that gap: E3 owns long-running and
+  recovery scenarios, and E4 owns real integration. The residual list in the
+  audit artifact names what is still uncovered.
+
+  One caution worth carrying forward: two of the smoke procedures' own steps were
+  wrong — WinForms step 6 wants a popover alive while a prompt opens, which
+  focus-driven light dismissal forbids, and WPF step 4 wants a guarded page the
+  scenario never declares — and neither was noticed until the procedures were
+  actually walked by hand. A written procedure is not evidence until someone
+  executes it.
 
 WinForms scope:
 
