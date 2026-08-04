@@ -401,7 +401,7 @@ The items are ordered by impact. None of them requires a change to
 `NavigationContext`, `NavigationRuntime`, `PageRegistry`, or `PageFactory`, and
 none of them authorizes one.
 
-- [ ] **NAV-003 — Give WPF surfaces real keyboard focus.**
+- [x] **NAV-003 — Give WPF surfaces real keyboard focus.**
   `WpfLayeredPageHostBase.Focus(object)` guards on `UIElement.Focusable`, and
   `System.Windows.Controls.UserControl` overrides that default to `false`, so the
   guard makes `Focus` an unconditional no-op for `PageView`, `DialogViewBase`,
@@ -430,8 +430,11 @@ none of them authorizes one.
   suite passes 226/226 on `net481` and `net9.0-windows`. Driving the real WPF
   smoke app confirmed `Keyboard.FocusedElement` moves from `MainWindow` to the
   dialog's Confirm button, and that a view focusing its own control from
-  `OnShownAsync` still wins. **The interactive procedure has not been performed by
-  a person; this item stays open until it has.**
+  `OnShownAsync` still wins. **Closed 2026-08-03 at `822b51b`:** verified
+  interactively on `net9.0-windows`. With the dialog open and the mouse untouched,
+  pressing Space activated the focused Confirm button and logged `Dialog -> True`;
+  before this change nothing inside the dialog held focus and Space did nothing.
+  Typing immediately into the prompt without clicking also landed in its field.
 
 - [ ] **NAV-004 — Make WinForms focus-loss dismissal observe the surface
   subtree.** `WinFormsFocusObserverAdapter.Track` subscribes `Control.LostFocus`
@@ -460,7 +463,7 @@ none of them authorizes one.
   interactive procedure has not been performed by a person; this item stays open
   until step 5 of the WinForms smoke scenario has been driven by hand.**
 
-- [ ] **NAV-005 — Stop the WPF interaction blocker from destroying `IsEnabled`
+- [x] **NAV-005 — Stop the WPF interaction blocker from destroying `IsEnabled`
   bindings.** `WpfInteractionBlocker` assigns `element.IsEnabled` directly in
   `Disable`, `Restore`, and `RestoreDisabledElements`. In WPF that writes a local
   value and permanently clears any `Binding` or style setter on the property.
@@ -486,8 +489,12 @@ none of them authorizes one.
   still pass. Navigation suite 232/232 on `net481` and `net9.0-windows`, whole
   solution builds, no new warning identity. Driving the real WPF smoke app shows
   the page disabled while a dialog is open and re-enabled after it closes.
-  **Complete pending the interactive WPF smoke run, which covers it as part of
-  step 2.**
+  **Closed 2026-08-03 at `822b51b`:** the interactive `net9.0-windows` run
+  confirmed no regression — clicking the page behind an open modal left focus in
+  the modal, and the Dashboard counter worked again once the modal closed. The
+  binding-preservation behaviour itself is not observable in the smoke scenario,
+  which has no bound `IsEnabled`; it rests on the three dual-target regressions
+  that were confirmed to fail against the previous implementation.
 
 - [ ] **NAV-006 — Make WinForms UI dispatch truthful when the host handle does
   not exist.** `Control.InvokeRequired` returns `false` from a worker thread

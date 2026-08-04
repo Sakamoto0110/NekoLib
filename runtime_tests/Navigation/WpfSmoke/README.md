@@ -10,8 +10,8 @@
 
 **Prerequisites:** .NET 9 SDK and Desktop Runtime; interactive desktop session
 
-**Last verification:** build-only on 2026-08-01 at scenario-source commit
-`32fc67e`; interactive procedure not rerun
+**Last verification:** partial interactive run on 2026-08-03 at `822b51b` —
+steps 2 and 5 driven by hand and passing; the remaining steps were not driven
 
 ## Purpose
 
@@ -68,3 +68,13 @@ build output.
 - 2026-08-03 / `ae17810`: rebuilt successfully on Windows for `net9.0-windows`
   with 0 warnings and 0 errors during the Phase E2 adapter review; interactive
   behavior was again not claimed.
+- 2026-08-03 / `822b51b`: **partial interactive pass** on `net9.0-windows`.
+  Step 2 passed, including the NAV-003 check — with the dialog open and the mouse
+  untouched, Space activated the focused Confirm button and logged
+  `Dialog -> True` — and the NAV-005 no-regression check: clicking the page behind
+  an open modal left focus in the modal, and the Dashboard counter worked again
+  after it closed. Step 5 passed, repeated several times with overlays open:
+  Reset, Shutdown, and Start all behaved, and `Start` correctly refuses to run
+  until `Shutdown` has completed. Steps 1, 3, 4, 6 and 7 were **not** driven.
+  The run also exposed an unrelated idle defect; see the idle finding in
+  [`TODO.md`](../../../TODO.md).

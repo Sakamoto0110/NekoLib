@@ -33,7 +33,7 @@ identity.
 |---|---|---|---|
 | Devices / com0com serial parity | Real virtual-COM configuration, timeout/cancellation, read modes, reopen, PCB-A text and PCB-B binary protocol readiness | Interactive pass on `net481` and `net9.0` on 2026-08-01 from working trees based on NekoLib `628442a` and emulator `9c9528f`; middleware behavior also confirmed visually by the user; repeat after immutable commits | [`Devices/Com0Com/README.md`](Devices/Com0Com/README.md) |
 | Navigation / WinForms smoke | WinForms page switching, idle, guards, overlays, interaction blocker, and shutdown on both target families | Builds on `net481` and `net9.0-windows` on 2026-08-03 against baseline `ae17810`; interactive procedure never performed | [`Navigation/WinFormsSmoke/README.md`](Navigation/WinFormsSmoke/README.md) |
-| Navigation / WPF smoke | WPF page switching, idle, guards, overlays, reset, and shutdown | Build succeeded on 2026-08-01 at scenario-source commit `32fc67e` and again on 2026-08-03 at `ae17810`; interactive procedure not rerun | [`Navigation/WpfSmoke/README.md`](Navigation/WpfSmoke/README.md) |
+| Navigation / WPF smoke | WPF page switching, idle, guards, overlays, reset, and shutdown | Partial interactive pass on `net9.0-windows` on 2026-08-03 at `822b51b`: steps 2 and 5 driven and passing, remaining steps not driven | [`Navigation/WpfSmoke/README.md`](Navigation/WpfSmoke/README.md) |
 | Watchdog / Supervisor481 | In-process Watchdog supervision driven through real Pipes RPC/events | Build succeeded on 2026-08-01 at scenario-source commit `32fc67e`; interactive procedure not rerun | [`Watchdog/Supervisor481/README.md`](Watchdog/Supervisor481/README.md) |
 
 Build success proves source compatibility only. It does not prove the manual
