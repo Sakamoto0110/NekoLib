@@ -332,6 +332,13 @@ dual-target coverage.
 
 - [ ] Complete a deep native-adapter review without automatically reopening
   the Navigation core.
+  **Durable record written 2026-08-03:**
+  [`docs/audit/navigation-adapter-review-2026-08-03.md`](docs/audit/navigation-adapter-review-2026-08-03.md)
+  preserves the baseline, the eleven findings with their accepted dispositions
+  and implementing commits, the rejected alternatives, the automated /
+  build-only / interactive evidence split, and the residual gaps. This entry
+  stays open while NAV-001 does — see its Status paragraph; the outstanding
+  repeat is outside this repository.
 
 WinForms scope:
 
