@@ -618,7 +618,12 @@ none of them authorizes one.
   Popover, and the reachability notes were added to `IUnfocusAware`,
   `IFocusObserverAdapter`, and both `ToastViewBase` classes. An explicit close
   affordance calling `Dismiss()` is now the documented supported dismissal for a
-  toast with child controls. `IToastView` and `ToastService` were not touched;
+  toast with child controls. A follow-up sweep also corrected both
+  `AutoDismissPopoverBase` classes, which still said the notification is raised
+  "when the user clicks a sibling control" (WinForms) and "when the user clicks
+  elsewhere" (WPF) — the exact imprecision this item exists to remove, in the
+  class consumers actually derive from. A repository-wide sweep of `src/` and
+  every `*.md` found no other surviving claim. `IToastView` and `ToastService` were not touched;
   the click bindings are unchanged. **Outstanding — interactive:** the toast and
   popover steps of both smoke scenarios, recording which regions dismiss on each
   platform. Only the WinForms popover half exists today, recorded under NAV-004
