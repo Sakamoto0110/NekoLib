@@ -192,9 +192,14 @@ Removed because every type they described was verified absent from the repo:
 `.gitignore`d on purpose. If you are told these exist and cannot find them, this
 is why — **do not recreate them**:
 
-- **All of `runtime_tests/`** — six WinForms/WPF scenario apps, none of which are
-  in `NekoLib.sln` either. `IntegrationDemo_481` is the best worked example of the
-  current API surface.
+- **Part of `runtime_tests/`** — the older WinForms/WPF scenario apps, none of
+  which are in `NekoLib.sln` either. `IntegrationDemo_481` is the best worked
+  example of the current API surface.
+  **Corrected 2026-08-03:** this used to say *all* of `runtime_tests/`. It does
+  not. Four versioned scenarios are tracked and their files land in normal
+  commits — `Devices/Com0Com`, `Navigation/WinFormsSmoke`, `Navigation/WpfSmoke`
+  and `Watchdog/Supervisor481` — plus `README.md` and `SCENARIO_TEMPLATE.md`.
+  Run `git check-ignore -v <path>` before claiming a scenario file is untracked.
 - **`CLAUDE.md`** at the root and under `src/Data/` and `src/Navigation/` —
   guidance files for the other assistant.
 
