@@ -46,8 +46,10 @@ dotnet run --project runtime_tests/Navigation/WpfSmoke/NekoLib.Navigation.Runtim
    anonymous attempt must be denied and the authenticated attempt allowed.
 5. Exercise the lifecycle controls, in order. Open a Popover, then press
    **Reset (ResetAsync)**: the popover must close, its awaiter must resolve
-   (`Popover -> False` in the log), the current page must clear, history must
-   report `CanGoBack=False`, and navigation must still work afterwards. Press
+   (`Popover -> False` in the log), history must report `CanGoBack=False`, and the
+   shell must land back on Idle. `ResetAsync` itself does not navigate — it clears
+   the shell and leaves the context alive — so the scenario goes to Idle right
+   after it, which is what a real shell would do. Press
    **Shutdown**: the facade unmounts, and any further navigation must log an
    error rather than crash. Press **Start (re-bootstrap)**: a fresh context must
    mount and navigation must work again. Repeat the Shutdown/Start pair a few

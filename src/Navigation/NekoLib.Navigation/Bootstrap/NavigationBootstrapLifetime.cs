@@ -104,11 +104,29 @@ namespace NekoLib.Navigation.Bootstrap
             {
                 long interactionGeneration;
 
+                // Evaluated before taking the idle lock: this reaches into the
+                // runtime through NavigationService.Current, and the idle lock must
+                // not be held across that.
+                var settled = IsIdleStateSettled(context);
+
                 lock (_idleSync)
                 {
                     if (!CanHandleIdle(context) ||
                         _idleTickInProgress != 0)
                     {
+                        return;
+                    }
+
+                    // The runtime is already idle and already signed out, so there
+                    // is nothing to transition to. Stay armed and stay quiet rather
+                    // than re-running the whole transition every interval, which
+                    // would dispose and recreate a transient idle page — and emit a
+                    // trace — for as long as the terminal is unattended.
+                    if (settled)
+                    {
+                        _idleWindowTimestamp = Stopwatch.GetTimestamp();
+                        _timer.Stop();
+                        _timer.Start();
                         return;
                     }
 
@@ -167,10 +185,17 @@ namespace NekoLib.Navigation.Bootstrap
                             elapsedMilliseconds: ElapsedSince(
                                 Interlocked.Read(
                                     ref _idleWindowTimestamp)));
-                        TryRearmIdle(
-                            context,
-                            interactionGeneration);
                     }
+
+                    // Rearm after every completed tick, not only after a denied or
+                    // failed one. A successful transition used to leave the timer
+                    // stopped until the next user interaction inside the host, so
+                    // anything that later moved off the idle page without input —
+                    // ResetAsync, an IPC event, background work — left an
+                    // unattended terminal with no idle timeout at all.
+                    TryRearmIdle(
+                        context,
+                        interactionGeneration);
                 }
                 catch (Exception ex)
                 {
@@ -285,6 +310,9 @@ namespace NekoLib.Navigation.Bootstrap
             {
                 lock (_idleSync)
                 {
+                    // An interaction that arrived while the tick was running has
+                    // already rearmed the timer, and a stopped or disposed lifetime
+                    // must not rearm at all.
                     if (!CanContinueTick(
                         context,
                         interactionGeneration))
@@ -301,6 +329,22 @@ namespace NekoLib.Navigation.Bootstrap
                 System.Diagnostics.Debug.WriteLine(
                     "[PageNavBootstrap] Idle timer rearm failed: " + ex);
             }
+        }
+
+        /// <summary>
+        /// True when a tick has nothing to do: the runtime already shows the idle
+        /// page and the session is already signed out.
+        /// <para>
+        /// Only meaningful when this lifetime owns the real idle navigation. A
+        /// caller-supplied navigation is opaque — its effect cannot be verified —
+        /// so it is never skipped.
+        /// </para>
+        /// </summary>
+        private bool IsIdleStateSettled(NavigationContext context)
+        {
+            return _verifyIdleReached &&
+                   !context.Session.IsAuthenticated &&
+                   IsIdlePageCurrent(context);
         }
 
         private static bool IsIdlePageCurrent(

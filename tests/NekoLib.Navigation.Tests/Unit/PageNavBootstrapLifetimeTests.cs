@@ -119,6 +119,114 @@ namespace NekoLib.Navigation.Tests.Unit
             }
         }
 
+        // NAV-011: a successful idle transition used to leave the timer stopped
+        // until the next interaction inside the host, so anything that later moved
+        // off the idle page without user input left the shell with no idle timeout.
+        [Fact]
+        public async Task IdleTick_AfterSuccessfulTransition_KeepsTimerArmed()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var lifetime = new NavigationBootstrapLifetime(
+                observer,
+                timer,
+                () => Task.CompletedTask);
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                var startCallsBeforeTick = timer.StartCalls;
+
+                timer.RaiseTick();
+
+                Assert.True(timer.IsStarted);
+                Assert.True(timer.StartCalls > startCallsBeforeTick);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleTick_AfterStopIdle_DoesNotRearmTimer()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var lifetime = new NavigationBootstrapLifetime(
+                observer,
+                timer,
+                () => Task.CompletedTask);
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.StopIdle();
+                var startCallsAfterStop = timer.StartCalls;
+
+                timer.RaiseTick();
+
+                Assert.False(timer.IsStarted);
+                Assert.Equal(startCallsAfterStop, timer.StartCalls);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleTick_WhenAlreadyIdleAndSignedOut_StaysArmedWithoutRenavigating()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            NavigationService.UseContext(fixture.Context);
+
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+
+            // No navigateIdle override: this lifetime owns the real GoIdleAsync and
+            // can therefore verify — and skip — an already-settled idle state.
+            var lifetime = new NavigationBootstrapLifetime(observer, timer);
+
+            var navigations = 0;
+            NavigationService.Navigated += (_, __, ___) => navigations++;
+
+            try
+            {
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+
+                timer.RaiseTick();
+                await Task.Yield();
+                Assert.IsType<StubIdle>(NavigationService.Current);
+                var navigationsAfterFirstTick = navigations;
+                Assert.True(navigationsAfterFirstTick > 0);
+
+                // Already idle and already signed out: the tick must do nothing but
+                // keep the watchdog armed.
+                timer.RaiseTick();
+                await Task.Yield();
+
+                Assert.Equal(navigationsAfterFirstTick, navigations);
+                Assert.True(timer.IsStarted);
+            }
+            finally
+            {
+                lifetime.Dispose();
+                await NavigationService.Shutdown();
+            }
+        }
+
         [Fact]
         public async Task IdleLifecycle_EmitsConfiguredInteractionElapsedAndDisposed()
         {

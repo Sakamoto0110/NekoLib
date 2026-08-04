@@ -11,9 +11,9 @@
 **Prerequisites:** .NET 9 SDK, .NET Framework 4.8.1 targeting pack, .NET Desktop
 Runtime; interactive desktop session
 
-**Last verification:** build-only on 2026-08-03 against repository baseline
-`ae1781086b3858cdc9cb025473ed18e3445ee1eb`, with the scenario added in the
-working tree; the interactive procedure has not been performed
+**Last verification:** partial interactive run on `net9.0-windows` on 2026-08-03
+at `4ab9629` — step 5 driven by hand and passing; `net481` has not been driven
+and the remaining steps were not systematically walked
 
 ## Purpose
 
@@ -93,8 +93,10 @@ Run the procedure once per target family and record each result separately.
    authentication state changes.
 9. **Reset, shutdown, and repeated mounting.** Open a Popover, then press
    **Reset (ResetAsync)**: the popover must close, its awaiter must resolve
-   (`Popover -> False` in the log), the current page must clear, history must
-   report `CanGoBack=False`, and navigation must still work afterwards. Press
+   (`Popover -> False` in the log), history must report `CanGoBack=False`, and the
+   shell must land back on Idle. `ResetAsync` itself does not navigate — it clears
+   the shell and leaves the context alive — so the scenario goes to Idle right
+   after it, which is what a real shell would do. Press
    **Shutdown**: the facade unmounts, and any further navigation must log an
    error rather than crash. Press **Start (re-bootstrap)**: a fresh context must
    mount and navigation must work again. Repeat the Shutdown/Start pair a few
@@ -139,4 +141,16 @@ disposable build output.
   verification: no person performed the procedure above, and it did not exercise
   real mouse focus transitions, which is exactly what steps 4, 5 and 7 depend
   on.
-- The interactive procedure has not been performed on either target family.
+- 2026-08-03 / `4ab9629`: **partial interactive pass on `net9.0-windows`.**
+  Step 5 passed in full: tabbing between the popover's field and its Fechar button
+  did not dismiss it, Space on the focused button completed with
+  `Popover -> True`, and clicking the Dashboard counter (inside the host) or a
+  left-panel control such as "Limpar log" (outside the host) dismissed it with
+  `Popover -> False`. Switching away from the application dismissed it too, via
+  `Form.Deactivate`. Clicking the Idle page dismissed nothing, which is correct
+  and is now documented as the focus-versus-hit-testing boundary in NAV-007.
+  The remaining steps were exercised incidentally but not systematically walked.
+  The only later change to this scenario is descriptive text plus Reset now
+  navigating to Idle.
+- **`net481` has not been driven at all.** Phase E requires both target families
+  to be recorded separately.

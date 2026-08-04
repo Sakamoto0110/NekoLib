@@ -638,6 +638,41 @@ never constructs or registers an `INavigationToolkit`, so no view can obtain one
   then run the toast step of both smoke scenarios on both target families. Keep
   the change scoped to `PageNavBootstrap` registration and the two adapters.
 
+**Confirmed idle finding — 2026-08-03:** the interactive WPF smoke run left the
+shell blank after `ResetAsync` and the idle timeout never recovered it, while
+dialogs and toasts still opened normally. Reproduced by driving the WinForms
+scenario and timing the idle system: after a successful idle transition the timer
+is stopped and never rearmed, so `Reset` at t+25s produced a blank shell that was
+still blank a full interval later at t+52s; clicking a control **inside** the
+navigation host at t+55s rearmed it and idle fired on schedule at t+76s. Current
+source confirms it — `NavigationBootstrapLifetime` stops the timer when a tick
+starts and only `TryRearmIdle` (the denied and failed paths) or the interaction
+handler restart it. Any programmatic move off the idle page — `ResetAsync`, an
+IPC event, background work — therefore leaves an unattended terminal with no idle
+timeout until a person touches the host.
+
+- [x] **NAV-011 — Keep the idle watchdog armed after a successful transition.**
+  **Accepted direction (2026-08-03):** rearm after every completed tick, not only
+  after a denied or failed one. **Rejected alternative:** rearming only when the
+  runtime is not on the idle page, which leaves the same hole — once the timer is
+  disarmed while idle, no tick ever comes to observe that the shell moved away.
+  A bare "always rearm" is not enough on its own: `NavigationSession.SignOut()`
+  raises `Changed` on every call and the idle page is `Transient` by default, so
+  an armed timer would re-run the whole transition every interval and dispose and
+  recreate the idle page for as long as the terminal stayed unattended. A tick is
+  therefore skipped entirely — silently, with no trace and no navigation — when
+  the runtime already shows the idle page and the session is already signed out.
+  That check is gated on this lifetime owning the real `GoIdleAsync`, because a
+  caller-supplied navigation is opaque and must never be skipped. Keep the change
+  scoped to `NavigationBootstrapLifetime`; it does not touch a frozen component
+  and shares its file with NAV-001.
+  **Status 2026-08-03:** implemented. Three regressions added to
+  `PageNavBootstrapLifetimeTests`; the two behavioural ones were confirmed to fail
+  against the previous implementation. Navigation suite 235/235 on `net481` and
+  `net9.0-windows`. Re-running the timed reproduction shows the blank shell
+  recovering on its own at t+39s with no host interaction, and the spurious
+  re-navigation that previously fired while already idle is gone.
+
 Validation requirements:
 
 - fake-based automated tests do not replace native interactive evidence;

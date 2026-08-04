@@ -121,8 +121,13 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
             buttons.Controls.Add(Header("Ciclo de vida"));
             buttons.Controls.Add(Btn("Reset (ResetAsync)", async (_, __) => await Try(async () =>
             {
+                // ResetAsync deliberately does not navigate: it tears the shell down
+                // and leaves the context alive so the application decides what comes
+                // next. Going to Idle is what a real shell would do, and it keeps the
+                // button from looking like a dead end.
                 await NavigationService.ResetAsync();
-                Log("ResetAsync concluído");
+                Log("ResetAsync concluído — indo para Idle");
+                await NavigationService.GoIdleAsync();
             })));
             buttons.Controls.Add(Btn("Shutdown", async (_, __) => await Try(async () =>
             {
