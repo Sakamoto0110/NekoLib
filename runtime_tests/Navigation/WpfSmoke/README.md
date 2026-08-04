@@ -10,8 +10,9 @@
 
 **Prerequisites:** .NET 9 SDK and Desktop Runtime; interactive desktop session
 
-**Last verification:** partial interactive run on 2026-08-03 at `03f5760` —
-steps 2, 3 and 5 driven by hand and passing; the remaining steps were not driven
+**Last verification:** 2026-08-04 at `7e26b87` — steps 1, 2, 3, 5, 6 and 7
+driven by hand and passing; step 4 is not performable because the scenario
+declares no guarded page
 
 ## Purpose
 
@@ -98,3 +99,20 @@ build output.
     handled, such as a `Button`. This scenario's toast holds only a `TextBlock`,
     so that half of NAV-007's WPF row still rests on framework semantics rather
     than on an observation. Closing the window exited the process cleanly.
+- 2026-08-04 / `7e26b87`: **steps 1, 6 and 7 driven by hand**, and step 4 found
+  to be not performable.
+  - Step 1: Dashboard → Idle → Back all navigated, `GoBack -> True`, with
+    `HistoryChanged: CanGoBack` and `CurrentChanged` tracking each move.
+  - Step 6: with the Dashboard counter clicked to a confirmed `Cliques: 1` — so
+    the interaction genuinely landed inside the host — idle fired **exactly 20 s
+    later**, at 14:43:35 → 14:43:55, navigating `DashboardPage -> IdlePage`
+    against the declared `[PageTimeout(20)]`.
+  - Step 7: closing the window exited the process cleanly, with empty stderr and
+    no hung awaiter.
+  - **Step 4 cannot be performed: this scenario has no guarded page.** The
+    procedure asks for an anonymous attempt at a guarded page to be denied and an
+    authenticated one allowed, but no page in the WPF scenario declares any guard
+    attribute — only the `SignIn("admin")`/`SignOut` buttons and a `GuardDenied`
+    log subscription exist. Both were exercised and `SignIn(admin) — auth=True`
+    was logged, but no denial can occur. Either add a guarded page to the
+    scenario or correct the step.

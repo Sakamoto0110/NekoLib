@@ -330,15 +330,38 @@ dual-target coverage.
 
 ### E2 — Navigation WinForms/WPF adapter review
 
-- [ ] Complete a deep native-adapter review without automatically reopening
+- [x] Complete a deep native-adapter review without automatically reopening
   the Navigation core.
-  **Durable record written 2026-08-03:**
-  [`docs/audit/navigation-adapter-review-2026-08-03.md`](docs/audit/navigation-adapter-review-2026-08-03.md)
-  preserves the baseline, the eleven findings with their accepted dispositions
-  and implementing commits, the rejected alternatives, the automated /
-  build-only / interactive evidence split, and the residual gaps. This entry
-  stays open while NAV-001 does — see its Status paragraph; the outstanding
-  repeat is outside this repository.
+  **Closed 2026-08-04.** NAV-001…NAV-011 are all closed, including NAV-001's
+  native repeat, and both smoke scenarios have been walked end to end — the
+  WinForms procedure on `net481` and the WPF procedure on `net9.0-windows`. No
+  finding required a change to `NavigationContext`, `NavigationRuntime`,
+  `PageRegistry`, or `PageFactory`.
+
+  **→ The complete record is
+  [`docs/audit/navigation-adapter-review-2026-08-03.md`](docs/audit/navigation-adapter-review-2026-08-03.md).**
+  It holds the reviewed baseline, all eleven findings with their evidence and
+  accepted dispositions, the commit that implemented each, the rejected
+  alternatives, the automated / build-only / interactive evidence split, the
+  public-surface changes recorded for F1, and the residual gaps. Per-step
+  interactive results live in each scenario's own verification record:
+  [`runtime_tests/Navigation/WinFormsSmoke/README.md`](runtime_tests/Navigation/WinFormsSmoke/README.md)
+  and
+  [`runtime_tests/Navigation/WpfSmoke/README.md`](runtime_tests/Navigation/WpfSmoke/README.md).
+
+  **Remark — missing more scenarios relatable to the real world.** This review
+  validated the adapters through purpose-built smoke scenarios plus one real
+  consumer application. Both are narrow. The scenarios exercise one control of
+  each kind in a single window; they do not resemble a working PDV/DM shell with
+  dense pages, competing surfaces, sustained operator input, or hardware in the
+  loop. Two of their steps turned out not to be performable at all — WinForms
+  step 6 wants a popover alive while a prompt opens, which focus-driven light
+  dismissal forbids, and WPF step 4 wants a guarded page the scenario never
+  declares — and both went unnoticed until the procedures were actually walked.
+  Treat the adapter behaviour as reviewed and corrected, **not** as exercised
+  under realistic load. Closing this entry does not close that gap; the residual
+  list in the audit artifact names what remains uncovered, and E3 owns the
+  long-running and recovery scenarios.
 
 WinForms scope:
 
@@ -366,7 +389,7 @@ generation again. A synchronous application UI update caused by sign-out can be
 reported by the WinForms interaction observer and make that second validation
 abort `GoIdleAsync()`.
 
-- [ ] **NAV-001 — Preserve an admitted idle transition across sign-out UI
+- [x] **NAV-001 — Preserve an admitted idle transition across sign-out UI
   mutation.** Keep genuine interaction before sign-out capable of invalidating
   the stale idle tick. Once the pre-sign-out continuation check succeeds, treat
   the idle transition as admitted: after `Session.SignOut()`, revalidate
@@ -396,6 +419,31 @@ abort `GoIdleAsync()`.
   The regressions therefore drive that exact internal seam, and the native repeat
   remains a task for the originating PCB application. This item stays open until
   that repeat is performed.
+  **Closed 2026-08-04 — the native repeat was performed.** The originating
+  application, `NekoPcbMiddleware`, was moved to the packaged `1.0.0-local.8`
+  (provenance `cc89f94`, which descends from this work) and driven on its real
+  WinForms shell with a 30 s configured timeout.
+  - **Interactive, anonymous session:** two independent idle transitions, each
+    left untouched on a non-idle page. `SessionLabPage -> HomePage` and
+    `PolicyMatrixPage -> HomePage`, both `trigger = Idle`, `success = True`,
+    `decision = Navigated`; the second measured `durationMs = 29993` against the
+    30 000 ms interval, and the Inspection idle provider ended at
+    `status = Completed, decision = Navigated, navigations = 2`.
+  - **Automated, authenticated session** — the app's own `S16.1` scenario, run as
+    `--run S16.1 --include-long`, signs in through code and so needs no
+    credential entry. It passed 6/6: authenticated before the window, then
+    **`the idle timeout signed the session out` → `IsAuthenticated=False`** and
+    **`the idle transition navigated to the idle page` → `HomePage`**. Both halves
+    of the original symptom, on one authenticated run.
+  **Honest limit on what this repeat proves.** It confirms the behaviour now
+  holds in the native application; it is **not** a discriminating test. The
+  original 2026-08-02 symptom was intermittent — it depended on a synchronous UI
+  update racing the tick — and that same day `S16.1` was recorded as passing
+  against `1.0.0-local.7`, before the fix. The discrimination for this item
+  therefore rests where it always did: on the `PageNavBootstrapLifetimeTests`
+  regression that was confirmed to fail against the previous implementation.
+  Also observed in the same run: the guard denial reported
+  `reason=Authentication required.`, which is NAV-002 reaching a real consumer.
 
 **Confirmed guard-diagnostics finding — 2026-08-03:** the external NuGet
 consumer scenario observed `[RequireAuthenticated]` deny an unauthenticated

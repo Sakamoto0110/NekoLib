@@ -11,9 +11,9 @@
 **Prerequisites:** .NET 9 SDK, .NET Framework 4.8.1 targeting pack, .NET Desktop
 Runtime; interactive desktop session
 
-**Last verification:** partial interactive run on **both** `net9.0-windows` and
-`net481` on 2026-08-03 at `03f5760` — steps 4 and 5 driven by hand and passing on
-both families; the remaining steps were not systematically walked
+**Last verification:** 2026-08-04 at `7e26b87` — the full procedure driven by
+hand on `net481` except step 6, which is not performable as written; steps 4 and
+5 also recorded on `net9.0-windows` on 2026-08-03
 
 ## Purpose
 
@@ -171,5 +171,33 @@ disposable build output.
   - Closing the window exited the process cleanly on both families, with an empty
     stderr.
   - Steps 1, 2, 3, 6, 7, 8 and 9 were **not** walked in this pass.
-- **`net481` step 5 and step 4 are now recorded** (above). The remaining steps
-  have still never been driven on `net481`.
+- 2026-08-04 / `7e26b87`: **steps 1, 2, 3, 7, 8, 9 and 10 driven by hand on
+  `net481`**, completing the procedure on that family alongside the steps 4 and 5
+  recorded above.
+  - Step 1: Dashboard → Idle → Back all navigated, with `HistoryChanged:
+    CanGoBack=True` and `CurrentChanged` tracking each move; Back landed on
+    Dashboard.
+  - Step 2: the dialog appeared as a centred bounded box, returned `Dialog ->
+    True` from Confirmar and `Dialog -> False` from Cancelar, and the Dashboard
+    behind it was visibly disabled while open and crisp again after closing.
+    The prompt returned `Prompt -> "sem clicar no campo"` and
+    `Prompt -> (cancelado)`.
+  - Step 3: with the prompt open and the field never clicked, typed text landed
+    in the input.
+  - Step 7: the idle timeout navigated `DashboardPage -> IdlePage` 22 s after a
+    click on the Dashboard counter, confirming a click inside the host restarts
+    the 20 s interval.
+  - Step 8: `SignIn(admin) → auth=True` then `SignOut → auth=False`.
+  - Step 9: Reset resolved the open popover with `Popover -> False`, reported
+    `HistoryChanged: CanGoBack=False`, cleared `CurrentChanged: -` and landed on
+    Idle. Shutdown logged `Shutdown concluído`, and a navigation attempt
+    afterwards logged `ERRO: NavigationService is not mounted…` instead of
+    crashing — the corrected NAV-008(f) message. Three Shutdown/Start cycles each
+    remounted a working context.
+  - Step 10: closing the window exited the process cleanly with empty stderr.
+- **Step 6 could not be performed as written, on either family.** It asks for a
+  popover to be open while a prompt is opened, but every control that can open
+  the prompt lives in the left panel and takes focus, so the auto-dismiss popover
+  resolves with `Popover -> False` *before* the prompt appears. That is correct
+  NAV-007 behaviour, not a defect — but the step needs rewriting, or the scenario
+  needs a way to open a modal without moving focus.

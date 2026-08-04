@@ -12,7 +12,8 @@ and light dismissal, idle integration, DPI, and bootstrap wiring
 
 **Reference commit:** `ae1781086b3858cdc9cb025473ed18e3445ee1eb`
 
-**Last reconciliation:** 2026-08-03, at `0449e79`
+**Last reconciliation:** 2026-08-04 — NAV-001's native repeat closed the last
+open finding; see the residual-gaps section
 
 **Current state:** every accepted finding is implemented; the authoritative
 active-work list remains [`TODO.md`](../../TODO.md) Phase E2
@@ -145,12 +146,17 @@ but it hides every other result in the same pass; those were proven separately.
 
 Stated rather than closed, so no later reader mistakes them for verified.
 
-- **NAV-001 is implemented but its checkbox stays open.** The native 30-second
-  repeat lives in the originating PCB emulation application, outside this
-  repository, and **cannot** be reproduced from a smoke scenario: there is no
-  public session-changed event, so no application can react to sign-out the way
-  the finding describes. The regressions therefore drive that exact internal
-  seam.
+- **NAV-001's native repeat was performed on 2026-08-04** and the item is closed.
+  It could not be reproduced from a smoke scenario — there is no public
+  session-changed event — so it was driven in the originating application,
+  `NekoPcbMiddleware`, against the packaged `1.0.0-local.8`. Two interactive
+  anonymous idle transitions navigated to the idle page, and the app's own
+  `S16.1` scenario confirmed both halves on an authenticated session: signed out
+  and navigated to `HomePage`. **That repeat is confirmation, not
+  discrimination** — the original symptom was intermittent, and `S16.1` was
+  recorded as passing against `1.0.0-local.7` on the same day the symptom was
+  first seen. The discrimination rests on the `PageNavBootstrapLifetimeTests`
+  regression that was confirmed to fail against the previous implementation.
 - **No public session-changed event.** `NavigationSession.Changed` is `internal`
   and its only subscriber is the Inspection observer. Found while implementing
   NAV-001; deliberately not promoted, and recorded as a candidate.
@@ -162,9 +168,30 @@ Stated rather than closed, so no later reader mistakes them for verified.
 - **The WPF smoke scenario is `net9.0-windows` only**, while the WPF adapter also
   targets `net481`, so NAV-010's "both target families" is satisfied on the
   WinForms side only. Whether to multi-target that scenario is an open question.
-- **The smoke scenarios are only partially walked.** WinForms steps 1, 2, 3, 6,
-  7, 8 and 9 have never been driven on `net481`; WPF steps 1, 4, 6 and 7 have
-  never been driven.
+- **Both scenarios are now walked end to end** (2026-08-04): the WinForms
+  procedure on `net481`, the WPF procedure on `net9.0-windows`. Two steps proved
+  **not performable as written**, and both are procedure defects rather than
+  adapter defects. WinForms step 6 wants a popover alive while a prompt is
+  opened, but every control that opens the prompt takes focus, so the
+  auto-dismiss popover resolves first — correct NAV-007 behaviour. WPF step 4
+  wants an anonymous attempt at a guarded page denied, but no page in that
+  scenario declares a guard. The behaviour behind both is covered automatically
+  on both target families — by
+  `WinFormsInteractionBlocker_LateViewsAndModalStack_RestoreStates` and its WPF
+  twin, and by `RequireAuthenticatedGuardTests` — and guard denial was
+  additionally demonstrated end to end in a real consumer.
+- **Interactive coverage is uneven across target families.** The WinForms
+  procedure was walked in full on `net481` but only steps 4 and 5 on
+  `net9.0-windows`; the WPF scenario is `net9.0-windows` only, so the WPF adapter
+  has no interactive evidence on `net481`. Every adapter behaviour has automated
+  coverage on both families, and where the two were compared interactively they
+  behaved identically, so this is missing demonstration rather than unknown
+  behaviour.
+- **The scenarios do not resemble a real application.** They exercise one control
+  of each kind in a single window. Nothing here was driven under dense pages,
+  competing surfaces, sustained operator input, or hardware in the loop. The
+  adapters are reviewed and corrected, not exercised under realistic load; E3
+  owns long-running and recovery scenarios.
 - **`WpfEventDispatcherAdapter` answers the unreachable-UI-thread question
   differently** from the corrected WinForms one: it runs the action inline from
   any thread once its `Dispatcher` reports shutdown. NAV-006 recorded the
