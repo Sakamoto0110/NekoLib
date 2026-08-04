@@ -529,7 +529,7 @@ none of them authorizes one.
   which has no bound `IsEnabled`; it rests on the three dual-target regressions
   that were confirmed to fail against the previous implementation.
 
-- [ ] **NAV-006 — Make WinForms UI dispatch truthful when the host handle does
+- [x] **NAV-006 — Make WinForms UI dispatch truthful when the host handle does
   not exist.** `Control.InvokeRequired` returns `false` from a worker thread
   whenever no handle exists in the parent chain; this was measured both for a
   bare `Control` and for a `Panel` inside an unshown `Form`.
@@ -548,6 +548,37 @@ none of them authorizes one.
   thread and worker thread. Keep the change scoped to
   `NekoLib.Navigation.WinForms` plus contract documentation; do not change
   `NavigationRuntime`.
+  **Closed 2026-08-03:** `WinFormsEventDispatcherAdapter` now captures the owning
+  thread in its constructor and uses `InvokeRequired` only where it is
+  authoritative — while the handle exists. With the handle created, behaviour is
+  unchanged on both methods. Without a handle, the action runs inline only on the
+  captured UI thread and both `Invoke` and `BeginInvoke` throw
+  `InvalidOperationException` on any other thread, so the failure the adapter
+  documents is finally reachable and `ExecuteSafeOnUiAsync`'s inline teardown
+  fallback can trigger. The chosen rule is stated on `IEventDispatcherAdapter`:
+  decide UI-thread identity, never infer it; on an unreachable UI thread run
+  inline only for the UI thread itself and throw otherwise, never substituting
+  the calling thread. Eight dual-target regressions added in
+  `WinFormsEventDispatcherAdapterTests` covering handle-created and handle-absent
+  against UI thread and worker thread for both methods, driving a real off-screen
+  form, a real worker thread, and a real message pump. **The two handle-absent
+  worker-thread cases were confirmed to fail against the previous implementation
+  on `net481` and `net9.0-windows`**, with no exception raised and the action
+  executed on the worker thread — which re-measures the `InvokeRequired` premise
+  on this machine. The other six pass against both implementations and exist to
+  pin the preserved behaviour. Navigation suite 252/252 on `net481` and
+  `net9.0-windows`, the whole solution builds, and no warning identity mentions
+  either changed file. `NavigationRuntime` was not touched. **Behaviour change to
+  be aware of:** an application that starts navigation from a worker thread
+  before the host window exists used to run page lifecycle on that worker thread
+  silently and now gets an exception naming the fix. No interactive evidence was
+  taken for this item; its validation does not ask for any, and the WinForms
+  smoke scenario was only confirmed to still build.
+  **Observed, not acted on:** `WpfEventDispatcherAdapter` runs the action inline
+  from *any* thread once its `Dispatcher` reports shutdown, which is a different
+  answer to the same unreachable-UI-thread question. The contract documentation
+  records that divergence as a platform teardown fallback rather than silently
+  changing WPF, because this item is scoped to the WinForms adapter.
 
 - [ ] **NAV-007 — Define and document surface dismissal reachability per
   platform.** (a) The WinForms `ToastViewBase` binds `Control.Click` on the

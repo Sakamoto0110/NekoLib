@@ -356,6 +356,17 @@ subclasses skip the wiring.
 | `CreateFocusObserver` | nullable — popovers just will not auto-dismiss |
 | `GetDefaultLoadingMaskType` | nullable |
 
+**UI-thread rule for `CreateEventDispatcher`:** an adapter must decide UI-thread
+identity rather than infer it from a helper that only works once the host is
+realized — `Control.InvokeRequired` answers `false` on every thread while the
+WinForms host has no window handle. When the UI thread cannot be reached at all,
+the action runs inline only if the caller *is* the UI thread; any other thread
+gets an `InvalidOperationException` instead of having navigation work executed on
+it. So navigating from a worker thread before the host window is shown fails
+loudly rather than running page lifecycle off the UI thread, and `DisposeAsync`
+still completes because `ExecuteSafeOnUiAsync` catches that exception and tears
+down inline.
+
 **Host split:** `IPageHost` handles Attach/Detach/BringToFront of *pages*;
 `IViewHost` handles AddView/RemoveView/BringToFront/Focus of *raw views* and is
 what overlay services and the loading mask use. `WinFormsLayeredPageHostBase`
