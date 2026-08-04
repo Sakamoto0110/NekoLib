@@ -80,16 +80,15 @@ namespace NekoLib.Inspection.Tests.Unit
         [Fact]
         public void CaptureSnapshot_ProviderExceedsBudget_ReturnsPartialSnapshot()
         {
+            using var provider = new BlockingSnapshotProvider();
             using var runtime = new InspectionRuntime();
-            using var slow = runtime.RegisterStateProvider("Module", "slow", () =>
-            {
-                Thread.Sleep(250);
-                return 42;
-            });
+            using var slow = runtime.RegisterStateProvider("Module", "slow", provider.Capture);
 
             var snapshot = runtime.CaptureSnapshot(10, TimeSpan.FromMilliseconds(20));
+            provider.Release();
 
             Assert.Equal("<snapshot timed out>", snapshot.State["Module::slow"]);
+            Assert.True(provider.WaitForCapture(TimeSpan.FromSeconds(5)));
         }
 
         [Fact]
@@ -196,6 +195,35 @@ namespace NekoLib.Inspection.Tests.Unit
 
             Assert.Throws<InvalidOperationException>(() => InspectionRuntime.EnableGlobal());
             Assert.Same(runtime, InspectionProvider.Current);
+        }
+
+        private sealed class BlockingSnapshotProvider : IDisposable
+        {
+            private readonly ManualResetEventSlim _release = new ManualResetEventSlim(false);
+            private readonly ManualResetEventSlim _snapshotCompleted = new ManualResetEventSlim(false);
+
+            public object Capture()
+            {
+                _release.Wait();
+                _snapshotCompleted.Set();
+                return 42;
+            }
+
+            public void Release()
+            {
+                _release.Set();
+            }
+
+            public bool WaitForCapture(TimeSpan timeout)
+            {
+                return _snapshotCompleted.Wait(timeout);
+            }
+
+            public void Dispose()
+            {
+                _snapshotCompleted.Dispose();
+                _release.Dispose();
+            }
         }
     }
 }
