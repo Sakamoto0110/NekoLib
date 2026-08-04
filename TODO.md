@@ -382,13 +382,23 @@ reason such as `Missing role: administrator`. Current source confirms that
 does not change authorization behavior, but leaves `GuardDeniedEvent`, Logging,
 and Inspection with an empty or null explanation.
 
-- [ ] **NAV-002 — Give authentication denial a stable diagnostic reason.**
+- [x] **NAV-002 — Give authentication denial a stable diagnostic reason.**
   Return `Authentication required.` from `RequireAuthenticatedGuard` when the
   user is not authenticated, while preserving the current allow/deny behavior
   and redirect semantics. Add dual-target regression coverage for authenticated
   and unauthenticated evaluation and for the reason propagated to
   `GuardDeniedEvent` and the Navigation diagnostics bridge. Keep the change
   scoped to guard diagnostics; do not change session or authorization policy.
+  **Closed 2026-08-03:** `RequireAuthenticatedGuard` now returns
+  `Authentication required.`, matching the reasons the role and permission guards
+  already report. The guard was also made non-async, since it had nothing to
+  await, aligning it with `RequireRoleGuard`. Six regressions added in
+  `RequireAuthenticatedGuardTests` covering authenticated and unauthenticated
+  evaluation, a missing user context, the reason reaching `GuardDeniedEvent`
+  through a real navigation, an authenticated navigation not being denied, and the
+  reason reaching the logging bridge; three of them were confirmed to fail against
+  the previous implementation. Navigation suite 241/241 on `net481` and
+  `net9.0-windows`. Allow/deny and redirect behaviour are unchanged.
 
 **Confirmed adapter-review findings — 2026-08-03:** the code-first E2 adapter
 review ran against `ae1781086b3858cdc9cb025473ed18e3445ee1eb`, on a clean
