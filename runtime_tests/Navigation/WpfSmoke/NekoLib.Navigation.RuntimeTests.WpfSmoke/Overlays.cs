@@ -141,7 +141,9 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
 
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock { Text = "Popover (top-left)", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) });
-            stack.Children.Add(new TextBlock { Text = "Tab entre o campo e o botão NÃO fecha. Clicar fora fecha.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+            // Light dismissal follows focus, not hit testing: clicking a control that
+            // can take focus dismisses, clicking inert area does not.
+            stack.Children.Add(new TextBlock { Text = "Tab entre o campo e o botão NÃO fecha. Clicar em outro controle fecha; clicar em área inerte, não.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
             stack.Children.Add(_field);
             stack.Children.Add(ok);
 

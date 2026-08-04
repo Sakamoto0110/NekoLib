@@ -436,7 +436,7 @@ none of them authorizes one.
   before this change nothing inside the dialog held focus and Space did nothing.
   Typing immediately into the prompt without clicking also landed in its field.
 
-- [ ] **NAV-004 — Make WinForms focus-loss dismissal observe the surface
+- [x] **NAV-004 — Make WinForms focus-loss dismissal observe the surface
   subtree.** `WinFormsFocusObserverAdapter.Track` subscribes `Control.LostFocus`
   on the surface container, but `IViewHost.Focus` forwards focus to a child, so
   the container never holds focus, and WinForms focus events do not bubble.
@@ -459,9 +459,16 @@ none of them authorizes one.
   against the previous implementation and pass against the new one. Navigation
   suite passes 229/229 on `net481` and `net9.0-windows`. Driving the real
   WinForms smoke app confirmed the popover holds focus while open and is
-  dismissed with `Popover -> False` once focus moves outside it. **The
-  interactive procedure has not been performed by a person; this item stays open
-  until step 5 of the WinForms smoke scenario has been driven by hand.**
+  dismissed with `Popover -> False` once focus moves outside it. **Closed
+  2026-08-03:** step 5 was driven by hand and every path behaved. Tabbing between
+  the popover's field and its Fechar button did not dismiss it, and Space on the
+  focused button completed it with `true`. Clicking the Dashboard counter (inside
+  the host) and clicking left-panel controls such as "Limpar log" (outside the
+  host) both dismissed it with `Popover -> False`. Switching away from the
+  application also dismissed it through the retained `Form.Deactivate`
+  subscription. Clicking the Idle page dismissed nothing, which is correct: that
+  page contains only labels, so no focus moves — see NAV-007 for the documentation
+  of that boundary.
 
 - [x] **NAV-005 — Stop the WPF interaction blocker from destroying `IsEnabled`
   bindings.** `WpfInteractionBlocker` assigns `element.IsEnabled` directly in
@@ -516,8 +523,8 @@ none of them authorizes one.
   `NekoLib.Navigation.WinForms` plus contract documentation; do not change
   `NavigationRuntime`.
 
-- [ ] **NAV-007 — Define and document toast dismissal reachability per
-  platform.** The WinForms `ToastViewBase` binds `Control.Click` on the
+- [ ] **NAV-007 — Define and document surface dismissal reachability per
+  platform.** (a) The WinForms `ToastViewBase` binds `Control.Click` on the
   container, and WinForms click events do not bubble: a measured
   `PerformClick()` on a child control raised the container's `Click` zero times,
   so only the toast's own background dismisses. The WPF `ToastViewBase` binds
@@ -530,8 +537,18 @@ none of them authorizes one.
   section, and treat an explicit close affordance as the supported dismissal for
   a toast that contains child controls. This is the evidence that feeds the
   ready-made close-button toast proposal; it does not authorize a change to
-  `IToastView` or `ToastService`. Validate by documentation review plus the toast
-  step of both smoke scenarios, recording which regions dismiss on each platform.
+  `IToastView` or `ToastService`. (b) Popover light dismissal is driven by
+  **focus, not hit testing**, on both platforms, and this is undocumented.
+  Observed on 2026-08-03 during the WinForms step 5 run: clicking a control that
+  can take focus dismisses the popover, but clicking inert page area does not —
+  the Idle page contains only labels, so no focus moves and the popover correctly
+  stays open. WPF has the same boundary, because clicking a non-focusable element
+  does not move keyboard focus there either. Document it on `IUnfocusAware`,
+  `IFocusObserverAdapter`, and the Navigation README overlay table so "closes when
+  you click away" is not read as hit-test dismissal. A true click-outside model
+  would need mouse capture or a hit-test scrim and is **not** accepted by this
+  entry. Validate by documentation review plus the toast and popover steps of both
+  smoke scenarios, recording which regions dismiss on each platform.
 
 - [ ] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
   Each is independent and low risk; land them separately from the behavioral

@@ -39,7 +39,9 @@ dotnet run --project runtime_tests/Navigation/WpfSmoke/NekoLib.Navigation.Runtim
 2. Open Dialog and Prompt. Each must appear as a centered bounded surface, block
    background interaction, and return the selected result.
 3. Open Toast and Popover. Toast must dismiss after its duration; Popover must
-   remain non-modal and close on focus loss.
+   remain non-modal and close on focus loss. Light dismissal follows **focus, not
+   hit testing**: clicking a control that can take focus dismisses the popover,
+   clicking inert area does not. See NAV-007.
 4. Sign out and attempt the guarded page, then sign in as `admin` and retry. The
    anonymous attempt must be denied and the authenticated attempt allowed.
 5. Exercise the lifecycle controls, in order. Open a Popover, then press

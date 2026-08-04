@@ -156,7 +156,10 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
 
             Controls.Add(SurfaceChrome.Card(
                 title: "Popover (top-left)",
-                body: "Tab entre o campo e o botão NÃO fecha. Clicar fora fecha.",
+                // Light dismissal follows focus, not hit testing: clicking a control
+                // that can take focus dismisses, clicking inert area does not.
+                body: "Tab entre o campo e o botão NÃO fecha. Clicar em outro " +
+                      "controle fecha; clicar em área inerte, não.",
                 field: _field,
                 buttons: new[] { close },
                 padding: 12));

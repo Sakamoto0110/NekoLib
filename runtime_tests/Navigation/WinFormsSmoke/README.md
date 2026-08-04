@@ -73,12 +73,14 @@ Run the procedure once per target family and record each result separately.
    background area, then repeat and click directly on the message text. Record
    which of the two dismisses the toast; see NAV-007.
 5. **Popover focus dismissal.** Open Popover. Its field must already have focus.
-   Tab between the field and the Fechar button — the popover must **not** close.
-   Then click a control outside the popover: per the documented contract the
-   popover must close. **This step is the one under investigation** — the E2
-   review predicts it will not close, because the WinForms focus observer
-   watches the container rather than the surface subtree. Record what actually
-   happens; see NAV-004.
+   Tab between the field and the Fechar button — the popover must **not** close,
+   and Space on the focused button must complete it with `Popover -> True`.
+   Reopen it and click a control that can take focus outside the popover, such as
+   "Limpar log" or the Dashboard counter: it must close with `Popover -> False`.
+   Switching away from the application dismisses it too, through
+   `Form.Deactivate`. Light dismissal follows **focus, not hit testing**, so
+   clicking inert page area moves no focus and correctly does not dismiss —
+   the Idle page contains only labels, so clicking it does nothing. See NAV-007.
 6. **Popover interaction while a modal is open.** With a Popover open, open a
    Prompt. The popover must become disabled while the prompt stays interactive,
    and must become interactive again when the prompt closes.
@@ -109,8 +111,7 @@ new discovery. All are tracked in [`TODO.md`](../../../TODO.md) under Phase E2.
 
 | Item | What to watch |
 |---|---|
-| NAV-004 | Step 5 — popover auto-dismissal on focus loss is predicted not to fire |
-| NAV-007 | Step 4 — which regions of a toast actually dismiss it |
+| NAV-007 | Step 4 — which regions of a toast actually dismiss it; step 5 — light dismissal follows focus, not hit testing |
 | NAV-010 | Step 4 — the toast is positioned by the scenario, not by `ToastViewBase` |
 | NAV-001 | Step 7 — an idle tick must not be cancelled by sign-out UI updates |
 | NAV-006 | Step 10 — teardown when the host handle is gone |
