@@ -84,8 +84,6 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
     /// </summary>
     public sealed class SampleToast : ToastViewBase
     {
-        private const int MarginFromEdge = 20;
-
         public SampleToast()
         {
             Size = new Size(300, 70);
@@ -100,37 +98,18 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
                 Padding = new Padding(14, 0, 14, 0),
                 Font = new Font("Segoe UI", 9F)
             });
-
-            ParentChanged += OnParentChanged;
         }
 
-        private void OnParentChanged(object sender, EventArgs e)
-        {
-            if (Parent == null)
-                return;
-
-            var size = new Size(300, 70);
-            SurfaceChrome.Post(this, () =>
-            {
-                if (IsDisposed || Parent == null)
-                    return;
-
-                Dock = DockStyle.None;
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-                Size = size;
-                Location = new Point(
-                    Math.Max(0, Parent.ClientSize.Width - size.Width - MarginFromEdge),
-                    Math.Max(0, Parent.ClientSize.Height - size.Height - MarginFromEdge));
-                BringToFront();
-            });
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-                ParentChanged -= OnParentChanged;
-            base.Dispose(disposing);
-        }
+        // NAV-010: this class used to undock itself and place itself bottom-right
+        // from ParentChanged, because the WinForms ToastViewBase never undid the
+        // host's Dock=Fill and a stock toast covered the whole navigation host. The
+        // base now anchors itself at BottomRight with a 20px DPI-scaled inset, so
+        // that compensation is gone — and the toast step of this scenario now
+        // actually exercises the base instead of the workaround.
+        //
+        // The label fills the toast, so clicking the text does NOT dismiss: WinForms
+        // click events do not bubble to the container (NAV-007). Clicking the toast's
+        // own background does, and the 3s timer always does.
     }
 
     /// <summary>

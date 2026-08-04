@@ -13,6 +13,7 @@ using NekoLib.Navigation.Runtime.Factories;
 using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using NekoLib.Navigation.Runtime.Session;
+using NekoLib.Navigation.Toolkit.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -413,6 +414,14 @@ namespace NekoLib.Navigation.Bootstrap
             var viewHost = host as IViewHost
                 ?? throw new InvalidOperationException(
                     "The platform page host must also implement IViewHost.");
+
+            // NAV-010: the platform toolkit is the same probe shape as IViewHost
+            // above, deliberately. A factory method on IPlatformAdapter would break
+            // every third-party adapter; an adapter whose host does not implement
+            // INavigationToolkit just leaves it unregistered, and anchored surface
+            // placement falls back to reading its own parent.
+            if (host is INavigationToolkit navigationToolkit)
+                services.Register(typeof(INavigationToolkit), navigationToolkit);
 
             IInteractionBlocker modalBlocker = null;
             if (services.CanResolve(typeof(IInteractionBlocker)))

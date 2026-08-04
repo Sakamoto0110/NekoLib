@@ -782,6 +782,34 @@ never constructs or registers an `INavigationToolkit`, so no view can obtain one
   sits at the bottom-right inset, plus toolkit resolution from a mounted context;
   then run the toast step of both smoke scenarios on both target families. Keep
   the change scoped to `PageNavBootstrap` registration and the two adapters.
+  **Status 2026-08-03:** implemented; **stays open for its interactive
+  validation.** Both layered hosts now implement `INavigationToolkit`, delegating
+  to the existing `WinFormsNavigationToolkit` / `WpfNavigationToolkit` rather than
+  duplicating them, and `Start()` registers the host under that contract with the
+  accepted `host as INavigationToolkit` probe, placed next to the `host as
+  IViewHost` probe it mirrors. No `IPlatformAdapter` member was added, so a
+  third-party adapter still compiles and simply leaves the toolkit unregistered.
+  The WinForms `ToastViewBase` now undocks in `IToastView.OnShown` — after the
+  virtual `OnShown`, so a subclass that resizes from its payload is placed at its
+  final size — restores the size it had when the host added it, anchors
+  bottom-right, and positions itself at `SurfaceAnchor.BottomRight` minus a
+  `protected virtual int AnchorInset` of 20 scaled by `INavigationSurface.Scale`.
+  The geometry comes from the Toolkit contract read off the toast's own parent, so
+  it works whether or not a toolkit was registered, and it depends on the NAV-009(a)
+  `Scale` correction. `IViewHost`, `SurfaceAnchor` and the WPF base's declarative
+  alignment are unchanged. Five regressions added in `AnchoredToastAndToolkitTests`,
+  including toolkit resolution from a really mounted context via
+  `WinFormsPlatformAdapter`. **Confirmed against the previous implementation on
+  `net481` and `net9.0-windows`:** the toast reported `Dock=Fill` and `Right=800`
+  on an 800px host instead of 780 — it covered the whole navigation host. The
+  toolkit half discriminates at compile time, since `Surface` did not exist on
+  either host, so the toast geometry was proven in a separate stash pass.
+  Navigation suite 267/267 on both target families, whole solution builds, both
+  smoke scenarios build. **The WinForms smoke `SampleToast` lost its own
+  undock-and-anchor compensation**, which is now the base's job — so the toast
+  step finally exercises the fix instead of the workaround.
+  **Outstanding — interactive:** the toast step of both smoke scenarios on both
+  target families.
 
 **Confirmed idle finding — 2026-08-03:** the interactive WPF smoke run left the
 shell blank after `ResetAsync` and the idle timeout never recovered it, while

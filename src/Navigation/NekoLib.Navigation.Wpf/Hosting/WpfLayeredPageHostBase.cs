@@ -6,6 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Toolkit.Abstractions;
+using NekoLib.Navigation.Wpf.Toolkit;
 
 namespace NekoLib.Navigation.Wpf.Hosting
 {
@@ -15,7 +17,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// the Z-order; every other child is kept above them so surfaces remain visible.
     /// Mirrors WinFormsLayeredPageHostBase.
     /// </summary>
-    public class WpfLayeredPageHostBase : IPageHost, IViewHost
+    public class WpfLayeredPageHostBase : IPageHost, IViewHost, INavigationToolkit
     {
         // Z-index buckets: pages live below, overlays live above. Concrete values
         // are arbitrary as long as overlays > pages.
@@ -23,11 +25,25 @@ namespace NekoLib.Navigation.Wpf.Hosting
         private const int OverlayZIndex = 1000;
 
         protected Panel Root { get; }
+        private readonly WpfNavigationToolkit _toolkit;
 
         public WpfLayeredPageHostBase(Panel root)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
+            _toolkit = new WpfNavigationToolkit(root);
         }
+
+        // ---------------------------------------------------------------------
+        // INavigationToolkit
+        //
+        // NAV-010: mirrors WinFormsLayeredPageHostBase. PageNavBootstrap registers
+        // the host with a `host as INavigationToolkit` probe, so an adapter that
+        // does not implement it simply leaves the toolkit unregistered.
+        // ---------------------------------------------------------------------
+
+        public INavigationSurface Surface => _toolkit.Surface;
+
+        public void FocusSurface() => _toolkit.FocusSurface();
 
         // ---------------------------------------------------------------------
         // IPageHost (content pages)

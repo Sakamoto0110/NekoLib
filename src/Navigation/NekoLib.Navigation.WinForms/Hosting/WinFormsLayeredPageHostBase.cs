@@ -1,4 +1,6 @@
 using NekoLib.Navigation.Contracts.Pages;
+using NekoLib.Navigation.Toolkit.Abstractions;
+using NekoLib.Navigation.WinForms.Toolkit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,16 +14,32 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// z-order; every other control is kept above them so surfaces remain visible.
     /// Nested host Forms are intentionally avoided to dodge WinForms transparency bugs.
     /// </summary>
-    public class WinFormsLayeredPageHostBase : IPageHost, IViewHost
+    public class WinFormsLayeredPageHostBase : IPageHost, IViewHost, INavigationToolkit
     {
         protected Control Root { get; }
         private readonly HashSet<Control> _pageControls =
             new HashSet<Control>();
+        private readonly WinFormsNavigationToolkit _toolkit;
 
         public WinFormsLayeredPageHostBase(Control root)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
+            _toolkit = new WinFormsNavigationToolkit(root);
         }
+
+        // ---------------------------------------------------------------------
+        // INavigationToolkit
+        //
+        // NAV-010: the host is the one object that already owns the root control,
+        // so it is also the natural toolkit. PageNavBootstrap registers it with the
+        // same `host as INavigationToolkit` probe it already uses for IViewHost,
+        // which is why a third-party adapter that does not implement it keeps
+        // working — the toolkit simply stays unregistered.
+        // ---------------------------------------------------------------------
+
+        public INavigationSurface Surface => _toolkit.Surface;
+
+        public void FocusSurface() => _toolkit.FocusSurface();
 
         // ---------------------------------------------------------------------
         // IPageHost (content pages)

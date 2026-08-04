@@ -385,6 +385,18 @@ only — dismissed nothing.
 A real click-outside model would need mouse capture or a hit-test scrim. It is
 deliberately **not** implemented.
 
+### Surface placement
+
+`WinFormsLayeredPageHostBase.AddView` docks every added view to `Fill`. Each
+surface base then places itself: dialog and prompt centre themselves, popover
+keeps its designer placement, and `ToastViewBase` parks itself at the host's
+`BottomRight` anchor, inset by `AnchorInset` (default 20, scaled by
+`INavigationSurface.Scale`) and anchored bottom-right so it stays parked when the
+host resizes. Override `AnchorInset` to change the gap, or `ApplyDefaultAnchor()`
+to place the toast somewhere else entirely. The WPF `ToastViewBase` reaches the
+same result declaratively, through alignment and a 20px margin set in its
+constructor.
+
 Both platform projects ship `ToastViewBase`, `DialogViewBase`,
 `PromptViewBase<TResult>`, `PopoverViewBase` and `AutoDismissPopoverBase` so
 subclasses skip the wiring.
@@ -413,6 +425,14 @@ it. So navigating from a worker thread before the host window is shown fails
 loudly rather than running page lifecycle off the UI thread, and `DisposeAsync`
 still completes because `ExecuteSafeOnUiAsync` catches that exception and tears
 down inline.
+
+**Navigation toolkit:** both shipped layered hosts also implement
+`INavigationToolkit`, and `Start()` registers the host under that contract with
+the same `host as INavigationToolkit` probe it uses for `IViewHost`. An adapter
+whose host does not implement it simply leaves the toolkit unregistered — no
+`IPlatformAdapter` member was added, so third-party adapters keep compiling.
+Resolve it from `context.Services` to read `INavigationSurface.ClientBounds`,
+`Scale` and `ResolveAnchor(SurfaceAnchor)`, or to call `FocusSurface()`.
 
 **Host split:** `IPageHost` handles Attach/Detach/BringToFront of *pages*;
 `IViewHost` handles AddView/RemoveView/BringToFront/Focus of *raw views* and is
