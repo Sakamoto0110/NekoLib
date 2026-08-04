@@ -580,7 +580,7 @@ none of them authorizes one.
   records that divergence as a platform teardown fallback rather than silently
   changing WPF, because this item is scoped to the WinForms adapter.
 
-- [ ] **NAV-007 — Define and document surface dismissal reachability per
+- [x] **NAV-007 — Define and document surface dismissal reachability per
   platform.** (a) The WinForms `ToastViewBase` binds `Control.Click` on the
   container, and WinForms click events do not bubble: a measured
   `PerformClick()` on a child control raised the container's `Click` zero times,
@@ -633,6 +633,33 @@ none of them authorizes one.
   `UIElement.MouseLeftButtonDown` is a Direct routed event that only travels the
   bubble route when the input system promotes it, so `RaiseEvent` on a child
   would fail to reach the toast for a reason unrelated to the documented one.
+  **Closed 2026-08-03 on interactive evidence at `03f5760`.** The toast and
+  popover steps were driven by hand on the WinForms smoke scenario on **both**
+  `net9.0-windows` and `net481`, and on the WPF smoke scenario on
+  `net9.0-windows`. Regions recorded:
+  - **WinForms toast — nothing dismisses by click.** Clicking the message text
+    did not dismiss, on either target family, and neither did clicking the
+    toast's extreme top-left and bottom-right corners. `SampleToast`'s label is
+    `Dock = Fill`, so it covers the container's entire client area and **no**
+    pixel of that toast reaches the container's `Click`. Only the 3 s timer
+    dismissed it. This is stronger than the finding predicted — the finding said
+    "only the toast's own background dismisses", and with a filling child there
+    is no reachable background at all.
+  - **WPF toast — the message text dismisses.** Opened at 23:57:27.252 and gone
+    roughly 0.8 s later, well inside the 3 s timer, so the click and not the
+    timer closed it. This is the documented per-platform divergence, now
+    measured on both sides.
+  - **Popover, both platforms.** Clicking the inert Idle page (labels only) left
+    the popover open on WinForms `net9.0-windows`, WinForms `net481` and WPF —
+    the focus-versus-hit-testing boundary, confirmed on every combination.
+    Clicking `SignIn("admin")`, a focusable control outside the host, dismissed
+    it with `Popover -> False` in all three. On WPF, Tab moved focus from the
+    field to the Fechar button without dismissing.
+  **Residual gap:** the WPF "a child that marks the event handled does not
+  dismiss" case was **not** exercised, because the scenario's toast contains only
+  a `TextBlock` — there is no `Button` inside a toast anywhere in the scenarios.
+  That half of the WPF row rests on framework semantics plus the source, not on
+  interactive evidence.
 
 - [x] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
   Each is independent and low risk; land them separately from the behavioral
@@ -763,7 +790,7 @@ the contract documents itself as being "used to position overlays, dialogs,
 keyboards, debug panels". The gap is wiring, not purpose — `PageNavBootstrap`
 never constructs or registers an `INavigationToolkit`, so no view can obtain one.
 
-- [ ] **NAV-010 — Give native surfaces an anchored default position and wire the
+- [x] **NAV-010 — Give native surfaces an anchored default position and wire the
   Toolkit as its seam.** Register the platform toolkit during bootstrap so a
   surface can resolve it, then make the WinForms `ToastViewBase` undock and place
   itself at the `BottomRight` anchor with a documented default inset, matching the
@@ -808,8 +835,19 @@ never constructs or registers an `INavigationToolkit`, so no view can obtain one
   smoke scenarios build. **The WinForms smoke `SampleToast` lost its own
   undock-and-anchor compensation**, which is now the base's job — so the toast
   step finally exercises the fix instead of the workaround.
-  **Outstanding — interactive:** the toast step of both smoke scenarios on both
-  target families.
+  **Closed 2026-08-03 on interactive evidence at `03f5760`.** The toast step was
+  driven by hand on the WinForms smoke scenario on **both** `net9.0-windows` and
+  `net481`, and on the WPF smoke scenario. On every run the toast appeared parked
+  at the host's bottom-right corner at its own designed size — not stretched over
+  the navigation host — and the WinForms runs prove the base does it, because
+  `SampleToast`'s own undock-and-anchor compensation was removed in this commit.
+  The WPF toast, whose code did not change, looks identical.
+  **Residual gap:** the WPF smoke scenario is `net9.0-windows` only, while the WPF
+  adapter also targets `net481`, so "both target families" could not be satisfied
+  on the WPF side — there is no net481 WPF scenario to run. That is the
+  pre-existing open question about multi-targeting the WPF scenario, not a new
+  finding, and the WinForms half — the half this item actually changed — was
+  recorded on both families.
 
 **Confirmed idle finding — 2026-08-03:** the interactive WPF smoke run left the
 shell blank after `ResetAsync` and the idle timeout never recovered it, while

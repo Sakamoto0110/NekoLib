@@ -10,8 +10,8 @@
 
 **Prerequisites:** .NET 9 SDK and Desktop Runtime; interactive desktop session
 
-**Last verification:** partial interactive run on 2026-08-03 at `822b51b` —
-steps 2 and 5 driven by hand and passing; the remaining steps were not driven
+**Last verification:** partial interactive run on 2026-08-03 at `03f5760` —
+steps 2, 3 and 5 driven by hand and passing; the remaining steps were not driven
 
 ## Purpose
 
@@ -82,3 +82,19 @@ build output.
   until `Shutdown` has completed. Steps 1, 3, 4, 6 and 7 were **not** driven.
   The run also exposed an unrelated idle defect; see the idle finding in
   [`TODO.md`](../../../TODO.md).
+- 2026-08-03 / `03f5760`: **step 3 driven by hand** on `net9.0-windows`, closing
+  the WPF halves of NAV-007 and NAV-010.
+  - **Toast.** It appeared parked at the host's bottom-right corner at its own
+    size. Clicking the message text **dismissed** it: the toast opened at
+    23:57:27.252 and was gone roughly 0.8 s later, well inside its 3 s duration,
+    so the click and not the timer closed it. This is the documented divergence
+    from WinForms, where the same click dismisses nothing.
+  - **Popover.** It opened with its field focused. Tab moved focus to the Fechar
+    button without dismissing. Clicking the inert Idle page — labels only — left
+    it open, confirming that light dismissal follows focus and not hit testing on
+    WPF too. Clicking `SignIn("admin")`, a focusable control outside the host,
+    dismissed it with `Popover -> False`.
+  - **Not covered:** a toast containing a control that marks the mouse event
+    handled, such as a `Button`. This scenario's toast holds only a `TextBlock`,
+    so that half of NAV-007's WPF row still rests on framework semantics rather
+    than on an observation. Closing the window exited the process cleanly.

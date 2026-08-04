@@ -11,9 +11,9 @@
 **Prerequisites:** .NET 9 SDK, .NET Framework 4.8.1 targeting pack, .NET Desktop
 Runtime; interactive desktop session
 
-**Last verification:** partial interactive run on `net9.0-windows` on 2026-08-03
-at `4ab9629` — step 5 driven by hand and passing; `net481` has not been driven
-and the remaining steps were not systematically walked
+**Last verification:** partial interactive run on **both** `net9.0-windows` and
+`net481` on 2026-08-03 at `03f5760` — steps 4 and 5 driven by hand and passing on
+both families; the remaining steps were not systematically walked
 
 ## Purpose
 
@@ -68,10 +68,12 @@ Run the procedure once per target family and record each result separately.
    forwards focus to the surface's first selectable child. Note that Enter and
    Escape are **not** wired: a WinForms surface is a `UserControl`, not a `Form`,
    so it has no `AcceptButton`/`CancelButton` equivalent. Close with the buttons.
-4. **Toast.** Open Toast. It must appear bottom-right at its own size and
-   disappear after 3s. Then open another Toast and click it — click the dark
-   background area, then repeat and click directly on the message text. Record
-   which of the two dismisses the toast; see NAV-007.
+4. **Toast.** Open Toast. It must appear bottom-right at its own size —
+   `ToastViewBase` parks it there with a 20px DPI-scaled inset — and disappear
+   after 3s. Then open another Toast and click it: on the message text, and at
+   the toast's extreme corners. **Neither dismisses.** This toast's label is
+   `Dock = Fill`, so it covers the whole container and no click ever reaches the
+   container's `Click`; only the timer closes it. See NAV-007.
 5. **Popover focus dismissal.** Open Popover. Its field must already have focus.
    Tab between the field and the Fechar button — the popover must **not** close,
    and Space on the focused button must complete it with `Popover -> True`.
@@ -113,8 +115,8 @@ new discovery. All are tracked in [`TODO.md`](../../../TODO.md) under Phase E2.
 
 | Item | What to watch |
 |---|---|
-| NAV-007 | Step 4 — which regions of a toast actually dismiss it; step 5 — light dismissal follows focus, not hit testing |
-| NAV-010 | Step 4 — the toast is positioned by the scenario, not by `ToastViewBase` |
+| NAV-007 | Closed 2026-08-03. Step 4 — **no** region of this toast dismisses by click: its label is `Dock = Fill`, so nothing reaches the container. Step 5 — light dismissal follows focus, not hit testing |
+| NAV-010 | Closed 2026-08-03. Step 4 — the toast is positioned by `ToastViewBase`; the scenario's own compensation was removed |
 | NAV-001 | Step 7 — an idle tick must not be cancelled by sign-out UI updates |
 | NAV-006 | Step 10 — teardown when the host handle is gone |
 | NAV-008(f) | Step 9 — the unmounted-facade error names a non-existent `Initialize` |
@@ -152,5 +154,22 @@ disposable build output.
   The remaining steps were exercised incidentally but not systematically walked.
   The only later change to this scenario is descriptive text plus Reset now
   navigating to Idle.
-- **`net481` has not been driven at all.** Phase E requires both target families
-  to be recorded separately.
+- 2026-08-03 / `03f5760`: **interactive pass of steps 4 and 5 on BOTH target
+  families.** Driven by hand on `net9.0-windows` and then on `net481`; every
+  observation below held identically on both.
+  - Step 4: the toast appeared parked at the host's bottom-right corner at its
+    own size, not stretched over the host — and this run proves `ToastViewBase`
+    does it, because `SampleToast`'s own undock-and-anchor compensation was
+    removed at this commit. Clicking the message text did not dismiss; on
+    `net9.0-windows` clicking the toast's extreme top-left and bottom-right
+    corners did not dismiss either. The 3 s timer did. The label is `Dock = Fill`,
+    so no click reaches the container — NAV-007's per-platform row, confirmed.
+  - Step 5: the popover opened with its field focused. Clicking the inert Idle
+    page (labels only) left it open. Clicking `SignIn("admin")`, a focusable
+    control outside the host, dismissed it with `Popover -> False`.
+  - Page names logged as `IdlePage`, not the fully qualified name — NAV-008(g).
+  - Closing the window exited the process cleanly on both families, with an empty
+    stderr.
+  - Steps 1, 2, 3, 6, 7, 8 and 9 were **not** walked in this pass.
+- **`net481` step 5 and step 4 are now recorded** (above). The remaining steps
+  have still never been driven on `net481`.
