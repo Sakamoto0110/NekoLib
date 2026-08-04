@@ -434,7 +434,9 @@ namespace NekoLib.Navigation
 
                 if (_runtime == null)
                     throw new InvalidOperationException(
-                        "NavigationService.Initialize must be called first.");
+                        "NavigationService is not mounted. Call PageNavBootstrap.Start() " +
+                        "to mount a NavigationContext before using navigation, and await " +
+                        "NavigationService.Shutdown() before mounting a new one.");
 
                 _activeRuntimeOperations++;
                 return new RuntimeLease(_runtime);

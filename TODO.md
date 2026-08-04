@@ -634,7 +634,7 @@ none of them authorizes one.
   bubble route when the input system promotes it, so `RaiseEvent` on a child
   would fail to reach the toast for a reason unrelated to the documented one.
 
-- [ ] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
+- [x] **NAV-008 — Correct the small confirmed adapter and bootstrap defects.**
   Each is independent and low risk; land them separately from the behavioral
   items above. (a) `WinFormsTimerAdapter` never assigns its `intervalMilis`
   constructor parameter, leaving the WinForms default of 100 ms measured at
@@ -667,6 +667,32 @@ none of them authorizes one.
   both platform base classes; the descriptor name remains authoritative for
   registration and history either way. Add dual-target coverage for the timer
   interval and the tolerant scan.
+  **Closed 2026-08-03:** all seven landed. (a) `WinFormsTimerAdapter` now assigns
+  the constructor interval, so a directly constructed timer no longer ticks at
+  100 ms. (b) The custom-loading-mask probe goes through the new internal
+  `AssemblyTypeScanner.GetLoadableTypes`, which `PageMetadataBuilder` now shares,
+  so one unloadable type no longer aborts `Start()` on its first line. (c) Both
+  dead public WPF types were removed; the removal is recorded under F1 as a
+  public-surface input. (d) `PageNavBootstrap` subscribes `PageFactory.Warn` to
+  the configured `ILogger`, falling back to `Debug` output when logging is not
+  configured — the frozen `PageFactory` was not modified, and the handler
+  captures a local so it does not root the builder. (e) The three
+  `WinFormsPlatformAdapter` throws now carry a real message plus the parameter
+  name. (f) The unmounted-facade message now names `PageNavBootstrap.Start()`
+  and `NavigationService.Shutdown()` instead of a nonexistent
+  `NavigationService.Initialize`. (g) Both platforms seed `IPageView.Name` from
+  `GetType().Name`; the WinForms `PageView`, `ToastViewBase`, `DialogViewBase`,
+  `PromptViewBase` and `PopoverViewBase` all changed, and WPF was already
+  correct — WPF cannot use `FullName`, because a WPF `Name` must be a valid
+  identifier. Five regressions added in `BootstrapSmallDefectTests`; **the three
+  timer cases and the tolerant-scan bootstrap case were confirmed to fail against
+  the previous implementation on `net481` and `net9.0-windows`** — the timer read
+  100 ms instead of the requested interval, and `Start()` threw
+  `ReflectionTypeLoadException`. The fifth pins the extracted scanner directly and
+  does not discriminate. Navigation suite 257/257 on both target families, whole
+  solution builds. (c), (e) and (f) carry no automated coverage: they are a
+  deletion and two message strings. No interactive evidence was taken; this
+  item's validation does not ask for any.
 
 - [ ] **NAV-009 — Resolve the surface-DPI and ergonomics dispositions.**
   Choose correct, keep-and-document, or remove for each, and record the rejected
@@ -964,6 +990,21 @@ APIs; coordinated package-family compatibility; changelog and real migration
 guidance; automated public API compatibility checks; breaking-change approval;
 deprecation policy; and a support window if multiple package versions are
 maintained.
+
+**Recorded inputs — public-surface changes already made.** Not F1 work; these
+are facts the policy will have to account for when it is written.
+
+- **2026-08-03, NAV-008(c).** `NekoLib.Navigation.Wpf.Adapters.InteractionObserver`
+  and `NekoLib.Navigation.Wpf.Adapters.EventSubscriptionAdapter` were removed.
+  Both were public, both were dead: `WpfPlatformAdapter` produces
+  `WpfInteractionObserver` and `WpfEventSubscriptionAdapter` instead, and a
+  repository-wide search found no other reference. An external consumer that
+  constructed either type directly would break.
+- **2026-08-03, NAV-008(g).** `IPageView.Name` seeding on the WinForms base
+  classes changed from `GetType().FullName` to `GetType().Name`, matching WPF.
+  Anything keying off the fully qualified value — including WinForms
+  `Controls.Find` by name — would break. The descriptor name was and remains
+  authoritative for registration and history.
 
 ### F2 — Automated release confidence
 

@@ -36,7 +36,13 @@ namespace NekoLib.Navigation.WinForms.Hosting
             // Keep the ctor designer-safe: the WinForms designer instantiates this
             // type, so it must not run navigation/runtime logic here. Seed the
             // IPageView.Name fallback used when no descriptor name is available.
-            Name = GetType().FullName!;
+            // NAV-008(g): the simple type name, matching the WPF bases and the
+            // PageDescriptorBuilder default. This used to be FullName here and Name
+            // there, so the same navigation logged differently per platform. WPF
+            // cannot use FullName at all — a WPF Name must be a valid identifier and
+            // a namespace-qualified name is not one. The descriptor name stays
+            // authoritative for registration and history.
+            Name = GetType().Name;
         }
 
         // Optional lifecycle hooks — override to load/refresh state on entry and to

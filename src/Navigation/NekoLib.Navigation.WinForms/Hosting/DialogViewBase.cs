@@ -34,7 +34,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         protected DialogViewBase()
         {
-            Name = GetType().FullName;
+            Name = GetType().Name; // NAV-008(g): aligned with the WPF surface bases.
             ParentChanged += OnParentChanged;
         }
 

@@ -29,7 +29,9 @@ namespace NekoLib.Navigation.WinForms.Adapters
         public IEventDispatcherAdapter CreateEventDispatcher(object nativeHost)
         {
             if (nativeHost is not Control control)
-                throw new ArgumentException(nameof(nativeHost));
+                throw new ArgumentException(
+                    "WinFormsPlatformAdapter requires a System.Windows.Forms.Control as native host.",
+                    nameof(nativeHost));
 
             return new WinFormsEventDispatcherAdapter(control);
         }
@@ -42,7 +44,9 @@ namespace NekoLib.Navigation.WinForms.Adapters
         public IInteractionBlocker CreateInteractionBlocker(object nativeHost)
         {
             if (nativeHost is not Control control)
-                throw new ArgumentException(nameof(nativeHost));
+                throw new ArgumentException(
+                    "WinFormsPlatformAdapter requires a System.Windows.Forms.Control as native host.",
+                    nameof(nativeHost));
 
             return new WinFormsInteractionBlocker(control);
         }
@@ -54,7 +58,9 @@ namespace NekoLib.Navigation.WinForms.Adapters
         public IInteractionObserverService CreateInteractionObserverAdapter(object nativeHost)
         {
             if (nativeHost is not Control control)
-                throw new ArgumentException(nameof(nativeHost));
+                throw new ArgumentException(
+                    "WinFormsPlatformAdapter requires a System.Windows.Forms.Control as native host.",
+                    nameof(nativeHost));
 
             return new WinFormsInteractionObserver(control);
         }

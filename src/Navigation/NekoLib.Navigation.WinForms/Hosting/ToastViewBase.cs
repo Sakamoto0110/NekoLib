@@ -31,7 +31,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         protected ToastViewBase()
         {
-            Name = GetType().FullName;
+            Name = GetType().Name; // NAV-008(g): aligned with the WPF surface bases.
             this.Click += OnViewClicked;
         }
 

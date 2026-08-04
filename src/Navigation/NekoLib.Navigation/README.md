@@ -187,7 +187,14 @@ one page compose into an `AndGuard`; `OrGuard` exists for manual composition.
 duplicate page **type** or **name** (case-insensitive) throws at bootstrap.
 `PageFactory` creates via a registered factory or a default-ctor fallback
 (`AllowUnregisteredPages` defaults to `true`; the fallback raises the internal
-`Warn` event).
+`Warn` event). Bootstrap registers no factories, so **every** page and surface
+takes that fallback today; `Start()` subscribes `Warn` to the configured
+`ILogger` — or to `Debug` output when logging is not configured — so the
+fallback is at least visible instead of silent.
+
+`IPageView.Name` is seeded by both platform base classes from `GetType().Name`.
+It is a display/diagnostic fallback: the descriptor name stays authoritative for
+registration and history.
 
 `PageDescriptor.AllowAnonymous` (set by `[AllowAnonymous]`) bypasses the
 descriptor guard. This is evaluated before calling the guard, so an anonymous

@@ -242,9 +242,12 @@ namespace NekoLib.Navigation.Bootstrap
             // 1) Registry (instance-scoped)
              
             PageRegistry registry;
+            // NAV-008(b): the tolerant scan, not raw GetTypes(). A single unloadable
+            // type in a scanned assembly used to abort Start() here, on its first
+            // line, before any of the tolerance the rest of bootstrap advertises.
             bool hasCustomMask = _assemblies
-    .SelectMany(a => a.GetTypes())
-    .Any(t => typeof(IGlobalLoadingMask).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
+                .SelectMany(AssemblyTypeScanner.GetLoadableTypes)
+                .Any(t => typeof(IGlobalLoadingMask).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
             if (_registry != null)
             {
                 if (_assemblies.Count > 0 || _pageConfig != null || _idlePageType != null)
@@ -388,6 +391,22 @@ namespace NekoLib.Navigation.Bootstrap
             // 6) Runtime services
             // ------------------------------------------------------------
             var pageFactory = new PageFactory();
+
+            // NAV-008(d): PageFactory.Warn had no subscriber anywhere, so every page
+            // and every surface was being built through the migration-only
+            // default-constructor fallback in complete silence — nothing here ever
+            // registers a factory. Give the event a real consumer instead of touching
+            // the frozen PageFactory. Capture the logger in a local so the handler
+            // does not root this builder for the lifetime of the factory.
+            var warnLogger = _logger;
+            pageFactory.Warn += message =>
+            {
+                if (warnLogger != null)
+                    warnLogger.Warn(message, category: "Navigation");
+                else
+                    System.Diagnostics.Debug.WriteLine(message);
+            };
+
             services.Register(typeof(PageFactory), pageFactory);
 
             // Replaces the legacy OverlayService with three ISP-friendly services.
