@@ -80,9 +80,14 @@ namespace NekoLib.Logging.Tests.Unit
         [Fact]
         public void Flush_SinkExceedsBudget_ReturnsFalse()
         {
-            using var logger = new Logger(LogLevel.Trace, new SlowFlushSink());
+            using var sink = new BlockingFlushSink();
+            using var logger = new Logger(LogLevel.Trace, sink);
 
-            Assert.False(logger.Flush(TimeSpan.FromMilliseconds(20)));
+            bool completedWithinBudget = logger.Flush(TimeSpan.FromMilliseconds(20));
+            sink.Release();
+
+            Assert.False(completedWithinBudget);
+            Assert.True(sink.WaitForFlush(TimeSpan.FromSeconds(5)));
         }
 
         [Fact]
@@ -211,10 +216,28 @@ namespace NekoLib.Logging.Tests.Unit
             public void Flush() => FlushCount++;
         }
 
-        private sealed class SlowFlushSink : IFlushableLogSink
+        private sealed class BlockingFlushSink : IFlushableLogSink, IDisposable
         {
+            private readonly ManualResetEventSlim _release = new ManualResetEventSlim(false);
+            private readonly ManualResetEventSlim _flushCompleted = new ManualResetEventSlim(false);
+
             public void Write(LogEntry entry) { }
-            public void Flush() => Thread.Sleep(250);
+
+            public void Flush()
+            {
+                _release.Wait();
+                _flushCompleted.Set();
+            }
+
+            public void Release() => _release.Set();
+
+            public bool WaitForFlush(TimeSpan timeout) => _flushCompleted.Wait(timeout);
+
+            public void Dispose()
+            {
+                _flushCompleted.Dispose();
+                _release.Dispose();
+            }
         }
     }
 }
