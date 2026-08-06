@@ -134,3 +134,44 @@ A separate throwaway console harness exercised the whole `Core` surface against 
 providers before any UI existed, and passed on both — including the negative cases
 (stock refused below zero, removal refused without a reason). That harness was not
 kept: everything it covered is reachable from the steps above.
+
+## Observed evidence
+
+Captured from the in-app SQL console during the 2026-08-05 pass. This is the reason
+the scenario exists, so it is recorded rather than summarized.
+
+**The same `Top(n)` call renders differently per engine.** Both rows come from
+pressing *Ler tabela* with the row cap enabled:
+
+```
+SQLite   SELECT * FROM [Animals] LIMIT 100
+Access   SELECT TOP 1004 * FROM [Products]
+```
+
+**A stock movement emits its update and its audit row as one unit.** Identical shape
+on both providers; on Access the `@pN` markers are bound positionally by the OleDb
+binder rather than by name:
+
+```
+gerado      UPDATE Products SET Quantity = @p2 WHERE [Id] = @p1
+despachado  UPDATE Products SET Quantity = @p2 WHERE [Id] = @p1
+gerado      INSERT INTO OperationLog (OccurredAt, EntityKind, EntityId, EntityName,
+                                      Operation, Quantity, Reason)
+            VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7)
+despachado  INSERT INTO OperationLog (...) VALUES (...)
+```
+
+**Removing an animal pairs a raw delete with the same audit insert**, because
+`Delete` has no `QueryBuilder` overload — only the raw-SQL one:
+
+```
+despachado  DELETE FROM [Animals] WHERE [Id] = @p1
+gerado      INSERT INTO OperationLog (...) VALUES (@p1, ..., @p7)
+despachado  INSERT INTO OperationLog (...) VALUES (...)
+```
+
+Measured outcomes: Cenoura 240 → 230 on SQLite and 240 → 250 on Access; `BV-003`
+left a 14-animal herd; the operations page then listed both movements newest-first
+with their reasons. The console shows statements at all only because the scenario
+opts into `DatabaseGatewayOptions.EmitRawSqlInEvents` — the library's default redacts
+them to `[SQL redacted]`.

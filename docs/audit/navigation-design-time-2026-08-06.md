@@ -120,19 +120,63 @@ Two guards, in all three WinForms bases:
 - The deferral goes through a `RunWhenHandleReady` helper that uses `BeginInvoke`
   when a handle exists and otherwise parks the action for `OnHandleCreated`.
 
-## Verification
+## Results
 
-- `SurfaceBaseDesignTimeTests` — a theory over every public surface base found by
-  reflection across both platform assemblies asserting none is abstract, plus a
-  behavioural test that parents a dialog, a popover and a prompt into a handle-less
-  host and asserts no throw. The theory's type filter compares the name **before the
-  backtick**, because a generic type reflects as `PromptViewBase\`1`; an earlier
-  draft matched the raw name and silently skipped both prompt bases — the exact types
-  the test exists for.
-- Navigation suite: 267 → 278 tests, passing on `net481` and `net9.0-windows`.
-- Full solution: 22 test assemblies, zero failures.
-- Designer, before and after: `ReasonPrompt` failed to load with the handle error at
-  `f169ab6` and renders its full layout at `73ddbdb`.
+### Designer, measured before and after
+
+Both observations are from the Visual Studio 2026 WinForms designer opening
+`runtime_tests/Data/FarmDatabase/.../Overlays/ReasonPrompt.cs`, whose base chain is
+`ReasonPromptBase : PromptViewBase<string>`.
+
+| | At `f169ab6` (before) | At `73ddbdb` (after) |
+|---|---|---|
+| Outcome | Refused to load | Loaded as `ReasonPrompt.cs [Design]` |
+| Reported error | `Invoke or BeginInvoke cannot be called on a control until the window handle has been created.` | none |
+| Rendered | error page only | full layout: title, preset combo, reason box, hint, Cancel/Remove buttons with selection handles |
+
+`ConnectionPage` was checked the same way and rendered its `PageHeader`, both `Card`
+surfaces with their custom-painted headers, the combo, the checkbox, the themed
+buttons and the footer `StatusLine`. The `Format` menu — present only in design mode
+— appeared in both cases after the fix.
+
+One consumer-side correction was needed before any of this could be observed: the
+scenario's pages carried `[DesignerCategory("Code")]`, which made the designer open
+the code editor instead. That is recorded in the residual-gaps section, and is not a
+module defect.
+
+### Automated coverage
+
+```powershell
+dotnet test tests/NekoLib.Navigation.Tests/Unit/NekoLib.Navigation.Tests.Unit.csproj
+dotnet test NekoLib.sln
+```
+
+| Measure | Before | After |
+|---|---|---|
+| Navigation unit tests, `net481` | 267 passed | 278 passed |
+| Navigation unit tests, `net9.0-windows` | 267 passed | 278 passed |
+| Whole solution | — | 22 test assemblies, 0 failed |
+| Solution build | — | 0 errors; no new warning identities |
+
+The 11 added tests are 10 theory cases — one per public surface base, five types on
+each platform — plus one behavioural test.
+
+`SurfaceBaseDesignTimeTests` came within one commit of being worthless. Its theory
+filters candidate types by name, and a generic type reflects as `PromptViewBase\`1`,
+which does not end in `Base`. The first draft therefore ran green over **eight**
+types while silently skipping both prompt bases — the very types the test exists for.
+The filter now compares the segment before the backtick, and the run enumerates all
+ten by name.
+
+### Scenario evidence behind the review
+
+The `FarmDatabase` scenario that produced these findings was itself driven before the
+review, and its own results are recorded in
+[`runtime_tests/Data/FarmDatabase/README.md`](../../runtime_tests/Data/FarmDatabase/README.md).
+The part relevant here is that the overlay path was exercised end to end: removing an
+animal opened the prompt, blocked background interaction, refused to complete without
+a reason, and committed the delete and its audit row in one transaction. That is the
+behaviour the `DesignMode` guard must not change, and it still holds after the fix.
 
 ## Residual gaps
 
