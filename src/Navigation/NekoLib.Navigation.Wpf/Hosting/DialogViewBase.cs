@@ -13,7 +13,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// within the host using the designer-defined Width/Height (or default
     /// UserControl sizing).
     /// </summary>
-    public abstract class DialogViewBase : UserControl, IDialogView
+    public class DialogViewBase : UserControl, IDialogView
     {
         private Action<bool> _completionCallback;
 

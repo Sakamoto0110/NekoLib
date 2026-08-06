@@ -22,7 +22,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// The WinForms base is stricter — see the overlay section of the Navigation
     /// README.
     /// </remarks>
-    public abstract class ToastViewBase : UserControl, IToastView
+    public class ToastViewBase : UserControl, IToastView
     {
         private Action _dismissCallback;
 

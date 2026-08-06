@@ -22,7 +22,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// <see cref="Dismiss"/>; "tap anywhere to dismiss" does not hold across it.
     /// The WPF base differs — see the overlay section of the Navigation README.
     /// </remarks>
-    public abstract class ToastViewBase : UserControl, IToastView
+    public class ToastViewBase : UserControl, IToastView
     {
         private Action _dismissCallback;
         private Size _designSize = Size.Empty;

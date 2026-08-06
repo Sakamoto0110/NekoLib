@@ -12,7 +12,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// <see cref="CompletePrompt"/> to resolve the awaiting service task.
     /// Centered, like <see cref="DialogViewBase"/>.
     /// </summary>
-    public abstract class PromptViewBase<TResult> : UserControl, IPromptView<TResult>
+    public class PromptViewBase<TResult> : UserControl, IPromptView<TResult>
     {
         private Action<TResult> _completionCallback;
 

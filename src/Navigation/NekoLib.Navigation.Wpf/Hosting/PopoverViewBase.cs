@@ -19,7 +19,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// <see cref="IUnfocusAware"/> directly.
     /// </para>
     /// </summary>
-    public abstract class PopoverViewBase : UserControl, IPopoverView
+    public class PopoverViewBase : UserControl, IPopoverView
     {
         private Action<bool> _completionCallback;
 

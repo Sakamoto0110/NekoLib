@@ -19,11 +19,12 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// <see cref="IUnfocusAware"/> directly.
     /// </para>
     /// </summary>
-    public abstract class PopoverViewBase : UserControl, IPopoverView
+    public class PopoverViewBase : UserControl, IPopoverView
     {
         private Action<bool> _completionCallback;
         private Size _naturalSize;
         private Point _naturalLocation;
+        private Action? _pendingLayout;
 
         public object NativeView => this;
         public new bool IsDisposed { get; private set; }
@@ -71,6 +72,15 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         private void OnParentChanged(object sender, EventArgs e)
         {
+            // The WinForms designer parents the control too, and none of the layout
+            // fixup below applies there: the design surface must keep the layout the
+            // designer itself defined. Skipping it is also what makes the view
+            // loadable at all - the deferred call further down needs a window handle,
+            // and at design time there is none, so the designer would report
+            // "Invoke or BeginInvoke cannot be called ... until the window handle has
+            // been created" and refuse to open the view.
+            if (DesignMode) return;
+
             if (Parent == null) return;
 
             if (_naturalSize.IsEmpty || _naturalSize.Width <= 0 || _naturalSize.Height <= 0)
@@ -79,7 +89,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 _naturalLocation = Location;
             }
 
-            BeginInvoke((Action)(() =>
+            RunWhenHandleReady(() =>
             {
                 if (IsDisposed || Parent == null) return;
 
@@ -87,7 +97,34 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 Size = _naturalSize;
                 Location = _naturalLocation;
-            }));
+            });
+        }
+
+        /// <summary>
+        /// Queues <paramref name="action"/> onto the message loop, waiting for the
+        /// window handle when it does not exist yet. <see cref="Control.BeginInvoke"/>
+        /// throws outright on a handle-less control rather than deferring, so calling
+        /// it straight from a parenting notification is not safe.
+        /// </summary>
+        private void RunWhenHandleReady(Action action)
+        {
+            if (IsHandleCreated)
+            {
+                BeginInvoke(action);
+                return;
+            }
+
+            _pendingLayout = action;
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            Action? pending = _pendingLayout;
+            _pendingLayout = null;
+            if (pending != null)
+                BeginInvoke(pending);
         }
 
         protected override void Dispose(bool disposing)

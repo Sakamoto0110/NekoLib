@@ -20,7 +20,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// not dismiss it either. See <see cref="IUnfocusAware"/> and the overlay
     /// section of the Navigation README.
     /// </remarks>
-    public abstract class AutoDismissPopoverBase : PopoverViewBase, IUnfocusAware
+    public class AutoDismissPopoverBase : PopoverViewBase, IUnfocusAware
     {
         public virtual Task OnUnfocusAsync()
         {
