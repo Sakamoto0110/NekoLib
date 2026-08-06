@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Data.RuntimeTests.FarmDatabase.Core</RootNamespace>
+    <AssemblyName>NekoLib.Data.RuntimeTests.FarmDatabase.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Data\NekoLib.Data\NekoLib.Data.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Mvvm\NekoLib.Mvvm\NekoLib.Mvvm.csproj" />
+  </ItemGroup>
+
+  <!--
+    SQLite comes from NuGet on both target families: Microsoft.Data.Sqlite carries
+    SQLitePCLRaw plus the native e_sqlite3 payload per architecture.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
+
+  <!--
+    OleDb is built into the .NET Framework BCL, but is a separate Windows-only
+    package on modern .NET. The ACE driver itself is an OS prerequisite in both
+    cases - see the scenario README.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-windows'">
+    <PackageReference Include="System.Data.OleDb" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

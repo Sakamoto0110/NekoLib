@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+
+    <!--
+      Nullable is disabled here to match the sibling WinFormsSmoke scenario: the
+      designer emits generated partials that predate nullable annotations, and the
+      noise would bury real warnings. The Core project keeps it enabled.
+    -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!--
+      Pinned rather than AnyCPU on purpose. The ACE OLEDB driver is registered per
+      bitness: an x64 install is invisible to an x86 process. AnyCPU on net481 also
+      carries the Prefer32Bit trap, which would silently pick the wrong one.
+    -->
+    <PlatformTarget>x64</PlatformTarget>
+
+    <RootNamespace>NekoLib.Data.RuntimeTests.FarmDatabase.WinForms</RootNamespace>
+    <AssemblyName>NekoLib.Data.RuntimeTests.FarmDatabase.WinForms</AssemblyName>
+    <StartupObject>NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NekoLib.Data.RuntimeTests.FarmDatabase.Core\NekoLib.Data.RuntimeTests.FarmDatabase.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
+  </ItemGroup>
+
+</Project>
