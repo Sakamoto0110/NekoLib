@@ -108,18 +108,34 @@ services, no registry writes.
 
 ## Known defect
 
-**The *Executar* and *Limpar* buttons on the Consulta livre page do not respond to
-clicks while the window is maximized.** They render correctly and report as enabled,
-but receive no mouse input — not even hover. Un-maximized they work normally, and
-**Ctrl+Enter runs the query in both states**, so the page's behaviour is fully
-verifiable.
+**Some `FarmButton` instances stop receiving mouse input after the window changes
+size or state, until another layout pass happens.** They render correctly and report
+as enabled, but receive nothing — not even hover.
 
-Four causes were investigated and ruled out: `Anchor` versus docking, the
-`SplitContainer` that originally hosted the editor, the dock direction of the button
-bar, and stale paint (an `Invalidate` on layout did not fix it, though it did prove
-the controls move on repaint). The equivalent buttons on the Controle de estoque page
-share the same container structure and work. Unresolved; it affects the scenario's
-ergonomics, not the database behaviour under test.
+It is *not* tied to maximizing, which an earlier revision of this file claimed.
+Observed both ways:
+
+| Page | Button | Maximized | Restored |
+|---|---|---|---|
+| Consulta livre | *Executar*, *Limpar* | dead | works |
+| Controle de estoque | *Remover do rebanho* | works | dead |
+
+Every non-`FarmButton` control — grids, combos, the sidebar, the numeric input — kept
+working in every state, which is what points at the custom-painted button rather than
+at the containers.
+
+Workarounds that reliably recover a dead button: toggle the window state, or navigate
+away and back. **Ctrl+Enter runs the query in every state**, so the Consulta livre
+page is fully verifiable regardless.
+
+Ruled out so far: `Anchor` versus docking, the `SplitContainer` that originally hosted
+the editor, the dock direction of the button bar, and stale paint — an `Invalidate` on
+every layout pass did not fix it, though it did prove the controls move position on
+repaint, so what is drawn and what is clickable can disagree.
+
+Unresolved. It affects the scenario's ergonomics, not the database behaviour under
+test, and it is scenario-local: the button is defined in `Theme/FarmControls.cs`, not
+in any NekoLib module.
 
 ## Verification record
 
@@ -129,6 +145,7 @@ ergonomics, not the database behaviour under test.
 | 2026-08-05 | `net9.0-windows` | Access (ACE 12.0) | **Interactive pass, core paths.** Steps 1, 2 and 4 driven: `.accdb` created through ADOX and seeded, catalog read from the OleDb schema rowset, `SELECT TOP n` rendered, stock movement 240→250 transactional with positional binding. Steps 3, 5 and 6 not repeated on this provider. |
 | 2026-08-05 | `net481` | — | **Build only.** Compiles clean; the executable was never driven. |
 | 2026-08-06 | Visual Studio designer | — | **Interactive pass.** `ConnectionPage` and `ReasonPrompt` both opened on the design surface with their layout and custom-painted controls rendered. Opening the prompt is what surfaced the `BeginInvoke`-before-handle defect in the Navigation surface bases, fixed in `73ddbdb`. |
+| 2026-08-06 | `net9.0-windows` | SQLite | **Re-run against `378663a`.** The earlier pass predated the Navigation surface-base change, and the removal prompt goes straight through the modified code, so it was driven again: prompt opened centered, background blocked, `BV-001` removed with `DELETE` plus its audit insert. No regression. This run is also where the button defect was observed with maximize and restore swapped, correcting how it is described above. |
 
 A separate throwaway console harness exercised the whole `Core` surface against both
 providers before any UI existed, and passed on both — including the negative cases
