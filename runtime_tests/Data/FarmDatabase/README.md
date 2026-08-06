@@ -31,6 +31,23 @@ It is also the only place in the repository where `NekoLib.Mvvm` is exercised th
 a real binding surface, and where Navigation pages are registered **entirely by
 attribute** — the shell contains no `ConfigurePages` call.
 
+## Design time
+
+Every page and the removal prompt open in the Visual Studio WinForms designer,
+confirmed by opening them rather than by inference. Two things this scenario exposed
+are worth knowing before adding a page:
+
+- **Do not put `[DesignerCategory("Code")]` on a page or a surface.** It tells the
+  designer the type is code-only and makes it open the editor instead of the design
+  view. It belongs on the custom-painted controls under `Theme/`, and nothing warns
+  you when it is applied to the wrong kind of type.
+- Prompts derive from `ReasonPromptBase`, not from `PromptViewBase<string>` directly,
+  because a generic base is the one shape the designer still refuses. Dialogs, toasts
+  and popovers need no such shim.
+
+The project multi-targets, and the designer uses the **first** entry in
+`TargetFrameworks` — `net481` here, which is the in-proc designer.
+
 ## Prerequisites in detail
 
 The ACE driver is an OS install, not a package, and it is registered per bitness: an
@@ -111,6 +128,7 @@ ergonomics, not the database behaviour under test.
 | 2026-08-05 | `net9.0-windows` | SQLite | **Interactive pass.** Steps 1–6 driven. Stock movement 240→230 and animal `BV-003` removed, both transactional; log showed both with reasons. |
 | 2026-08-05 | `net9.0-windows` | Access (ACE 12.0) | **Interactive pass, core paths.** Steps 1, 2 and 4 driven: `.accdb` created through ADOX and seeded, catalog read from the OleDb schema rowset, `SELECT TOP n` rendered, stock movement 240→250 transactional with positional binding. Steps 3, 5 and 6 not repeated on this provider. |
 | 2026-08-05 | `net481` | — | **Build only.** Compiles clean; the executable was never driven. |
+| 2026-08-06 | Visual Studio designer | — | **Interactive pass.** `ConnectionPage` and `ReasonPrompt` both opened on the design surface with their layout and custom-painted controls rendered. Opening the prompt is what surfaced the `BeginInvoke`-before-handle defect in the Navigation surface bases, fixed in `73ddbdb`. |
 
 A separate throwaway console harness exercised the whole `Core` surface against both
 providers before any UI existed, and passed on both — including the negative cases

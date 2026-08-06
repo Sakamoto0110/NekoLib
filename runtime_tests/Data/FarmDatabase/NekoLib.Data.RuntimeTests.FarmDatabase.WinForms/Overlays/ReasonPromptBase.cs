@@ -7,17 +7,16 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Overlays
     /// Non-generic, concrete shim over <see cref="PromptViewBase{TResult}"/>.
     /// <para/>
     /// This class exists purely so the WinForms designer can open
-    /// <see cref="ReasonPrompt"/>. The designer instantiates the base class of
-    /// whatever it loads, and it refuses two shapes: an <c>abstract</c> base and a
-    /// <em>generic</em> base. <c>PromptViewBase&lt;TResult&gt;</c> is both, so a
-    /// prompt deriving from it directly cannot be laid out visually - the designer
-    /// reports that it cannot load the type and falls back to the code view.
+    /// <see cref="ReasonPrompt"/>. The designer instantiates the base class of the
+    /// type it is loading, and it refuses a <em>generic</em> base outright.
     /// <para/>
-    /// Closing <c>TResult</c> to <see cref="string"/> and dropping <c>abstract</c>
-    /// fixes it, and costs one empty class per prompt result type. The same applies
-    /// to <c>DialogViewBase</c>, <c>ToastViewBase</c> and <c>PopoverViewBase</c>,
-    /// which are abstract but not generic - those only need the abstract removed by
-    /// a shim, not the type argument.
+    /// Closing <c>TResult</c> to <see cref="string"/> is what fixes that, at the
+    /// cost of one empty class per prompt result type. The other two blockers this
+    /// shim used to work around are gone: the surface bases are no longer
+    /// <c>abstract</c>, and they no longer schedule work on a handle that does not
+    /// exist yet. Only the type argument is left, so the dialog, toast and popover
+    /// bases need no shim at all - this one stays until <c>IPromptView</c> stops
+    /// carrying its result type on the view.
     /// </summary>
     public class ReasonPromptBase : PromptViewBase<string>
     {
