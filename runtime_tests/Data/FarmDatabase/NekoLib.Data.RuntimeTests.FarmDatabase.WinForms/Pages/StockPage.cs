@@ -68,10 +68,17 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
             _vm.RequestRemovalReason = animal =>
                 NavigationService.ShowPromptAsync<ReasonPrompt, string>(animal);
 
+            // The second prompt result type in the app. Written as an async lambda
+            // because Task<T> is invariant, so a Task<NewAnimalRequest> does not
+            // convert to the view-model's Task<NewAnimalRequest?>.
+            _vm.RequestNewAnimal = async () =>
+                await NavigationService.ShowPromptAsync<NewAnimalPrompt, NewAnimalRequest>();
+
             Bind(_refreshButton, _vm.RefreshCommand);
             Bind(_addButton, _vm.AddCommand);
             Bind(_removeButton, _vm.RemoveCommand);
             Bind(_removeAnimalButton, _vm.RemoveAnimalCommand);
+            Bind(_addAnimalButton, _vm.AddAnimalCommand);
         }
 
         private static T CurrentRow<T>(DataGridView grid) where T : class

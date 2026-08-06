@@ -27,6 +27,14 @@ library has to abstract, using the same application code for both:
 | DDL | `INTEGER PRIMARY KEY AUTOINCREMENT`, `TEXT` | `COUNTER`, `TEXT(n)`, `LONG` |
 | File creation | on first connect | ADOX catalog, no `CREATE DATABASE` |
 
+The herd also carries a `TagSequence` table — one row per tag prefix holding the last
+number issued. New animals draw from it, and it is read, incremented and written
+inside the same transaction as the insert, so two registrations cannot agree on the
+same tag. Deriving the next number from the surviving rows would not work: a hard
+delete takes its own evidence with it, and the whole point is that `BV-003` leaving
+does not free that number. A database created before this table existed gets it added
+and seeded on connect rather than failing.
+
 It is also the only place in the repository where `NekoLib.Mvvm` is exercised through
 a real binding surface, and where Navigation pages are registered **entirely by
 attribute** — the shell contains no `ConfigurePages` call.
@@ -96,8 +104,13 @@ Run every step once per provider.
    prompt appears, the background is blocked, and *Remover* stays disabled until a
    reason is present. Confirming issues `DELETE FROM [Animals]` plus the audit
    insert, again in one transaction; cancelling leaves the herd untouched.
-6. **Log de operações** — both movements appear newest-first, each carrying the
-   reason recorded with it.
+6. **Registro de animal** — press *Registrar animal*. A second modal collects species,
+   gender, age and an optional note, but **no tag**: the database assigns one. Confirm
+   and the new arrival must carry the *next* number for its prefix, never a number a
+   removed animal used. Remove `BV-001` and `BV-003` first and the herd should end up
+   reading `BV-002, BV-004, BV-005, BV-006` — the gaps are the point.
+7. **Log de operações** — every movement appears newest-first: removals with their
+   reason, registrations as `Entrada`.
 
 ## Cleanup and side effects
 
@@ -145,6 +158,7 @@ in any NekoLib module.
 | 2026-08-05 | `net9.0-windows` | Access (ACE 12.0) | **Interactive pass, core paths.** Steps 1, 2 and 4 driven: `.accdb` created through ADOX and seeded, catalog read from the OleDb schema rowset, `SELECT TOP n` rendered, stock movement 240→250 transactional with positional binding. Steps 3, 5 and 6 not repeated on this provider. |
 | 2026-08-05 | `net481` | — | **Build only.** Compiles clean; the executable was never driven. |
 | 2026-08-06 | Visual Studio designer | — | **Interactive pass.** `ConnectionPage` and `ReasonPrompt` both opened on the design surface with their layout and custom-painted controls rendered. Opening the prompt is what surfaced the `BeginInvoke`-before-handle defect in the Navigation surface bases, fixed in `73ddbdb`. |
+| 2026-08-06 | `net9.0-windows` | SQLite | **Interactive pass on the registration flow.** `BV-001` and `BV-003` removed with reasons, then a cow registered: it was assigned `BV-006`, leaving the herd at `BV-002, BV-004, BV-005, BV-006` and the log at three entries. The counter read, its update, the insert, the identity read-back and the audit row all landed in one transaction. |
 | 2026-08-06 | `net9.0-windows` | SQLite | **Re-run against `378663a`.** The earlier pass predated the Navigation surface-base change, and the removal prompt goes straight through the modified code, so it was driven again: prompt opened centered, background blocked, `BV-001` removed with `DELETE` plus its audit insert. No regression. This run is also where the button defect was observed with maximize and restore swapped, correcting how it is described above. |
 
 A separate throwaway console harness exercised the whole `Core` surface against both
@@ -187,8 +201,29 @@ gerado      INSERT INTO OperationLog (...) VALUES (@p1, ..., @p7)
 despachado  INSERT INTO OperationLog (...) VALUES (...)
 ```
 
+**Registering an animal is seven statements in one transaction**, including a
+read-modify-write on the counter and a read-back that only exists because the gateway
+cannot return an inserted identity — `Insert` reports affected rows and nothing else:
+
+```
+despachado  SELECT [LastNumber] FROM [TagSequence] WHERE [Prefix] = @p1
+gerado      UPDATE TagSequence SET LastNumber = @p2 WHERE [Prefix] = @p1
+despachado  UPDATE TagSequence SET LastNumber = @p2 WHERE [Prefix] = @p1
+gerado      INSERT INTO Animals (Species, Tag, AgeYears, Gender, Notes)
+            VALUES (@p1, @p2, @p3, @p4, @p5)
+despachado  INSERT INTO Animals (...) VALUES (...)
+despachado  SELECT [Id] FROM [Animals] WHERE [Tag] = @p1
+gerado      INSERT INTO OperationLog (...) VALUES (@p1, ..., @p7)
+despachado  INSERT INTO OperationLog (...) VALUES (...)
+```
+
 Measured outcomes: Cenoura 240 → 230 on SQLite and 240 → 250 on Access; `BV-003`
 left a 14-animal herd; the operations page then listed both movements newest-first
-with their reasons. The console shows statements at all only because the scenario
-opts into `DatabaseGatewayOptions.EmitRawSqlInEvents` — the library's default redacts
-them to `[SQL redacted]`.
+with their reasons. On the 2026-08-06 run, removing `BV-001` and `BV-003` and then
+registering a cow produced a herd reading `BV-002, BV-004, BV-005, BV-006` and a log
+of three entries — one `Entrada`, two `Saída` — which is the numbering rule holding
+end to end.
+
+The console shows statements at all only because the scenario opts into
+`DatabaseGatewayOptions.EmitRawSqlInEvents` — the library's default redacts them to
+`[SQL redacted]`.

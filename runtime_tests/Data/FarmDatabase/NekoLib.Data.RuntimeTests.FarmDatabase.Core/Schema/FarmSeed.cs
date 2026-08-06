@@ -1,5 +1,7 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NekoLib.Data.RuntimeTests.FarmDatabase.Core.Model;
 
 namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Schema
@@ -78,5 +80,71 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Schema
             new Animal { Species = "Galinha", Tag = "GA-204", AgeYears = 1, Gender = "Macho", Notes = "Galo do lote"              },
             new Animal { Species = "Galinha", Tag = "GA-205", AgeYears = 2, Gender = "Fêmea", Notes = null                        }
         };
+
+        /// <summary>The species a new animal can be registered as, in seed order.</summary>
+        public static IReadOnlyList<string> Species
+        {
+            get
+            {
+                var species = new List<string>();
+                foreach (Animal animal in Animals)
+                    if (!species.Contains(animal.Species))
+                        species.Add(animal.Species);
+                return species;
+            }
+        }
+
+        /// <summary>The genders a new animal can be registered as.</summary>
+        public static IReadOnlyList<string> Genders => new[] { "Fêmea", "Macho" };
+
+        /// <summary>
+        /// The tag prefix a species uses, read out of the seed rather than declared
+        /// twice: `Vaca` yields `BV` because the seeded cows are tagged `BV-00n`.
+        /// </summary>
+        public static string PrefixFor(string species)
+        {
+            foreach (Animal animal in Animals)
+                if (animal.Species == species)
+                    return SplitTag(animal.Tag).Prefix;
+
+            throw new ArgumentOutOfRangeException(
+                nameof(species), species, "No seeded animal uses that species.");
+        }
+
+        /// <summary>
+        /// Starting counter per prefix: the highest number the seed itself used. New
+        /// arrivals continue from here, so the first cow registered after seeding is
+        /// `BV-006` regardless of how many have been removed.
+        /// </summary>
+        public static IReadOnlyDictionary<string, int> InitialTagNumbers()
+        {
+            var highest = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            foreach (Animal animal in Animals)
+            {
+                (string prefix, int number) = SplitTag(animal.Tag);
+                if (!highest.TryGetValue(prefix, out int current) || number > current)
+                    highest[prefix] = number;
+            }
+
+            return highest;
+        }
+
+        /// <summary>Splits <c>"BV-003"</c> into <c>("BV", 3)</c>.</summary>
+        public static (string Prefix, int Number) SplitTag(string tag)
+        {
+            if (tag == null) throw new ArgumentNullException(nameof(tag));
+
+            int dash = tag.IndexOf('-');
+            if (dash <= 0 || dash == tag.Length - 1)
+                throw new FormatException("Tag '" + tag + "' is not in PREFIX-NUMBER form.");
+
+            return (tag.Substring(0, dash), int.Parse(
+                tag.Substring(dash + 1), CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>Formats <c>("BV", 6)</c> as <c>"BV-006"</c>.</summary>
+        public static string FormatTag(string prefix, int number) =>
+            prefix + "-" + number.ToString("000", CultureInfo.InvariantCulture);
     }
 }

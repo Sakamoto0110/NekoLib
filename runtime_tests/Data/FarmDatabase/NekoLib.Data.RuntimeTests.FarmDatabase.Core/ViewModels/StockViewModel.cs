@@ -37,7 +37,20 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.ViewModels
             RemoveAnimalCommand = new RelayCommand(
                 () => Run(RemoveAnimalAsync),
                 () => IsIdle && IsConnected && SelectedAnimal != null);
+
+            AddAnimalCommand = new RelayCommand(
+                () => Run(AddAnimalAsync),
+                () => IsIdle && IsConnected);
         }
+
+        /// <summary>
+        /// Asks the view to collect a new animal's details, returning <c>null</c> when
+        /// the user backs out. The counterpart of
+        /// <see cref="RequestRemovalReason"/>, and deliberately typed: it is the second
+        /// prompt result type in the scenario, which is what makes the cost of a
+        /// generic prompt base visible rather than theoretical.
+        /// </summary>
+        public Func<Task<NewAnimalRequest?>>? RequestNewAnimal { get; set; }
 
         /// <summary>
         /// Asks the view for a removal reason, returning <c>null</c> when the user
@@ -95,6 +108,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.ViewModels
         public RelayCommand AddCommand { get; }
         public RelayCommand RemoveCommand { get; }
         public RelayCommand RemoveAnimalCommand { get; }
+        public RelayCommand AddAnimalCommand { get; }
 
         public string ProductSummary => SelectedProduct == null
             ? "Nenhum produto selecionado"
@@ -182,12 +196,40 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.ViewModels
             StatusMessage = animal.Tag + " removido. Motivo registrado no log.";
         }
 
+        private async Task AddAnimalAsync()
+        {
+            if (RequestNewAnimal == null)
+            {
+                throw new InvalidOperationException(
+                    "Nenhum coletor de cadastro foi ligado ao view-model.");
+            }
+
+            NewAnimalRequest? request = await RequestNewAnimal().ConfigureAwait(true);
+            if (request == null)
+            {
+                StatusMessage = "Cadastro cancelado.";
+                return;
+            }
+
+            Animal created = await Workspace.Require()
+                .AddAnimalAsync(request)
+                .ConfigureAwait(true);
+
+            _animals.Add(created);
+            _animals.ResetBindings();
+            SelectedAnimal = created;
+
+            StatusMessage = created.Tag + " registrado. A numeração não reaproveita " +
+                "brincos de animais removidos.";
+        }
+
         protected override void RaiseCommandStates()
         {
             RefreshCommand.RaiseCanExecuteChanged();
             AddCommand.RaiseCanExecuteChanged();
             RemoveCommand.RaiseCanExecuteChanged();
             RemoveAnimalCommand.RaiseCanExecuteChanged();
+            AddAnimalCommand.RaiseCanExecuteChanged();
         }
 
         public override void OnConnectionChanged()

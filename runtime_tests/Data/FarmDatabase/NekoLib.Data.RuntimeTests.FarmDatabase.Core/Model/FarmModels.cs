@@ -80,6 +80,19 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Model
                 : DateTime.MinValue;
     }
 
+    /// <summary>
+    /// What the registration prompt collects. The tag is deliberately absent: it is
+    /// assigned by the database inside the same transaction as the insert, so the
+    /// caller never gets to pick one.
+    /// </summary>
+    public sealed class NewAnimalRequest
+    {
+        public string Species { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public int AgeYears { get; set; }
+        public string? Notes { get; set; }
+    }
+
     /// <summary>Entity families the operation log can reference.</summary>
     public static class EntityKinds
     {

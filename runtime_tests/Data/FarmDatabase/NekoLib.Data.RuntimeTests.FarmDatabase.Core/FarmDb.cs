@@ -100,6 +100,10 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     await db.CreateSchemaAsync(ct).ConfigureAwait(false);
                     await db.SeedAsync(ct).ConfigureAwait(false);
                 }
+                else
+                {
+                    await db.EnsureTagSequenceAsync(ct).ConfigureAwait(false);
+                }
 
                 return db;
             }
@@ -166,6 +170,40 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     ["Notes"] = animal.Notes
                 }, ct).ConfigureAwait(false);
             }
+
+            await SeedTagSequenceAsync(ct).ConfigureAwait(false);
+        }
+
+        private async Task SeedTagSequenceAsync(CancellationToken ct, DbSession? session = null)
+        {
+            foreach (KeyValuePair<string, int> entry in FarmSeed.InitialTagNumbers())
+            {
+                await InsertRowAsync("TagSequence", new Dictionary<string, object?>
+                {
+                    ["Prefix"] = entry.Key,
+                    ["LastNumber"] = entry.Value
+                }, ct, session).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates and seeds <c>TagSequence</c> when an existing database predates it.
+        /// The scenario's databases are disposable, but failing to connect to one made
+        /// earlier is a worse first impression than a silent forward step.
+        /// </summary>
+        private async Task EnsureTagSequenceAsync(CancellationToken ct)
+        {
+            IReadOnlyList<string> tables = await ListTablesAsync(ct).ConfigureAwait(false);
+
+            foreach (string table in tables)
+                if (string.Equals(table, "TagSequence", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+            foreach (string ddl in Profile.SchemaDdl())
+                if (ddl.IndexOf("TagSequence", StringComparison.Ordinal) >= 0)
+                    await Gateway.Insert(ddl, null, ct).ConfigureAwait(false);
+
+            await SeedTagSequenceAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -357,6 +395,108 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             }
 
             product.Quantity = updated;
+        }
+
+        /// <summary>
+        /// Registers a new animal and returns it with the tag the database assigned.
+        /// <para/>
+        /// The tag comes from a persisted per-prefix counter that is read, incremented
+        /// and written inside the same transaction as the insert, so numbers are never
+        /// reused: a herd showing <c>BV-002, BV-004, BV-006</c> is telling you what
+        /// happened to <c>BV-001</c>, <c>BV-003</c> and <c>BV-005</c>. Deriving the
+        /// next number from the surviving rows could not do that, because a hard
+        /// delete takes its own evidence with it.
+        /// </para>
+        /// </summary>
+        public async Task<Animal> AddAnimalAsync(
+            NewAnimalRequest request,
+            CancellationToken ct = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (string.IsNullOrWhiteSpace(request.Species))
+                throw new ArgumentException("Espécie é obrigatória.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.Gender))
+                throw new ArgumentException("Gênero é obrigatório.", nameof(request));
+            if (request.AgeYears < 0)
+                throw new ArgumentException("Idade não pode ser negativa.", nameof(request));
+
+            string prefix = FarmSeed.PrefixFor(request.Species);
+            var animal = new Animal();
+
+            using (DbSession session = await Gateway.OpenSessionAsync(ct).ConfigureAwait(false))
+            {
+                session.BeginTransaction();
+                try
+                {
+                    // Read-modify-write on the counter, inside the transaction. Two
+                    // concurrent registrations would otherwise be able to agree on the
+                    // same number.
+                    List<Dictionary<string, RecordItem>> counter = await Gateway.GetRaw(
+                        "SELECT [LastNumber] FROM [TagSequence] WHERE [Prefix] = @p1",
+                        new Dictionary<string, object?> { ["@p1"] = prefix },
+                        session,
+                        ct).ConfigureAwait(false);
+
+                    if (counter.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Nenhum contador de tag para o prefixo '" + prefix + "'.");
+                    }
+
+                    int next = counter[0]["LastNumber"].As<int>() + 1;
+                    string tag = FarmSeed.FormatTag(prefix, next);
+
+                    var bump = new QueryBuilder()
+                        .Update("TagSequence", new Dictionary<string, object?> { ["LastNumber"] = next })
+                        .Where("[Prefix] = @p1", prefix);
+
+                    await Gateway.Update(bump, session, ct).ConfigureAwait(false);
+
+                    await InsertRowAsync("Animals", new Dictionary<string, object?>
+                    {
+                        ["Species"] = request.Species,
+                        ["Tag"] = tag,
+                        ["AgeYears"] = request.AgeYears,
+                        ["Gender"] = request.Gender,
+                        ["Notes"] = request.Notes
+                    }, ct, session).ConfigureAwait(false);
+
+                    // The gateway has no way to return an inserted identity - Insert
+                    // reports affected rows only - so the row is read back by its tag,
+                    // which is unique and was just assigned above.
+                    List<Dictionary<string, RecordItem>> inserted = await Gateway.GetRaw(
+                        "SELECT [Id] FROM [Animals] WHERE [Tag] = @p1",
+                        new Dictionary<string, object?> { ["@p1"] = tag },
+                        session,
+                        ct).ConfigureAwait(false);
+
+                    animal.Id = inserted.Count > 0 ? inserted[0]["Id"].As<int>() : 0;
+                    animal.Species = request.Species;
+                    animal.Tag = tag;
+                    animal.AgeYears = request.AgeYears;
+                    animal.Gender = request.Gender;
+                    animal.Notes = request.Notes;
+
+                    await WriteLogAsync(
+                        session,
+                        EntityKinds.Animal,
+                        animal.Id,
+                        tag + " (" + request.Species + ")",
+                        Operations.Add,
+                        1,
+                        request.Notes,
+                        ct).ConfigureAwait(false);
+
+                    session.Commit();
+                }
+                catch
+                {
+                    session.Rollback();
+                    throw;
+                }
+            }
+
+            return animal;
         }
 
         /// <summary>

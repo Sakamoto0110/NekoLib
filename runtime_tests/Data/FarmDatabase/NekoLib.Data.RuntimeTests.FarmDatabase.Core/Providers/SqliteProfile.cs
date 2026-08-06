@@ -123,6 +123,14 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Providers
                 Notes     TEXT    NULL
               )",
 
+            // The herd never reuses a tag: removing BV-003 does not free that number
+            // for the next arrival. A persisted counter is what makes that survive,
+            // because a hard DELETE takes the row's evidence with it.
+            @"CREATE TABLE TagSequence (
+                Prefix      TEXT    NOT NULL PRIMARY KEY,
+                LastNumber  INTEGER NOT NULL
+              )",
+
             @"CREATE TABLE OperationLog (
                 Id          INTEGER  PRIMARY KEY AUTOINCREMENT,
                 OccurredAt  TEXT     NOT NULL,

@@ -21,6 +21,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
         private System.Windows.Forms.DataGridView _animalGrid;
         private System.Windows.Forms.Panel _animalBar;
         private Theme.FarmButton _removeAnimalButton;
+        private Theme.FarmButton _addAnimalButton;
         private System.Windows.Forms.Label _animalSummary;
 
         private Theme.FarmButton _refreshButton;
@@ -54,6 +55,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
             this._animalGrid = new System.Windows.Forms.DataGridView();
             this._animalBar = new System.Windows.Forms.Panel();
             this._removeAnimalButton = new Theme.FarmButton();
+            this._addAnimalButton = new Theme.FarmButton();
             this._animalSummary = new System.Windows.Forms.Label();
             this._headerActions.SuspendLayout();
             this._layout.SuspendLayout();
@@ -231,6 +233,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
             //
             // _animalBar
             //
+            this._animalBar.Controls.Add(this._addAnimalButton);
             this._animalBar.Controls.Add(this._removeAnimalButton);
             this._animalBar.Controls.Add(this._animalSummary);
             this._animalBar.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -255,9 +258,18 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
             this._removeAnimalButton.Kind = Theme.FarmButtonKind.Danger;
             this._removeAnimalButton.Location = new System.Drawing.Point(2, 41);
             this._removeAnimalButton.Name = "_removeAnimalButton";
-            this._removeAnimalButton.Size = new System.Drawing.Size(220, 30);
+            this._removeAnimalButton.Size = new System.Drawing.Size(190, 30);
             this._removeAnimalButton.TabIndex = 1;
             this._removeAnimalButton.Text = "Remover do rebanho";
+            //
+            // _addAnimalButton
+            //
+            this._addAnimalButton.Glyph = "＋";
+            this._addAnimalButton.Location = new System.Drawing.Point(200, 41);
+            this._addAnimalButton.Name = "_addAnimalButton";
+            this._addAnimalButton.Size = new System.Drawing.Size(170, 30);
+            this._addAnimalButton.TabIndex = 2;
+            this._addAnimalButton.Text = "Registrar animal";
             //
             // StockPage
             //
