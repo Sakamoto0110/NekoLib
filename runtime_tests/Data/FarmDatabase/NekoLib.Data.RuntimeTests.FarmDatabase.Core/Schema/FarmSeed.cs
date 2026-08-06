@@ -95,7 +95,8 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Schema
         }
 
         /// <summary>The genders a new animal can be registered as.</summary>
-        public static IReadOnlyList<string> Genders => new[] { "Fêmea", "Macho" };
+        public static IReadOnlyList<string> GenderOptions =>
+            new[] { Model.Genders.Female, Model.Genders.Male };
 
         /// <summary>
         /// The tag prefix a species uses, read out of the seed rather than declared

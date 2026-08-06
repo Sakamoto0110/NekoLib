@@ -109,6 +109,11 @@ Run every step once per provider.
    and the new arrival must carry the *next* number for its prefix, never a number a
    removed animal used. Remove `BV-001` and `BV-003` first and the herd should end up
    reading `BV-002, BV-004, BV-005, BV-006` — the gaps are the point.
+   When the note is left empty the herd book often fills it in, recording the arrival
+   as the offspring of a living female of the same species that is older than it —
+   `Filha de BV-002`. The candidate query runs on the transaction's own connection, so
+   a female removed a moment earlier can never be credited. It is decorative and
+   deliberately not certain, so a run where the note stays empty is not a failure.
 7. **Log de operações** — every movement appears newest-first: removals with their
    reason, registrations as `Entrada`.
 
@@ -158,6 +163,7 @@ in any NekoLib module.
 | 2026-08-05 | `net9.0-windows` | Access (ACE 12.0) | **Interactive pass, core paths.** Steps 1, 2 and 4 driven: `.accdb` created through ADOX and seeded, catalog read from the OleDb schema rowset, `SELECT TOP n` rendered, stock movement 240→250 transactional with positional binding. Steps 3, 5 and 6 not repeated on this provider. |
 | 2026-08-05 | `net481` | — | **Build only.** Compiles clean; the executable was never driven. |
 | 2026-08-06 | Visual Studio designer | — | **Interactive pass.** `ConnectionPage` and `ReasonPrompt` both opened on the design surface with their layout and custom-painted controls rendered. Opening the prompt is what surfaced the `BeginInvoke`-before-handle defect in the Navigation surface bases, fixed in `73ddbdb`. |
+| 2026-08-06 | `net9.0-windows` | SQLite | **Interactive pass on the herd book.** Two cows registered back to back came out as `BV-006 — Filha de BV-001` and `BV-007 — Filha de BV-002`, both mothers living and older, and both notes carried through to the operation log's reason column. |
 | 2026-08-06 | `net9.0-windows` | SQLite | **Interactive pass on the registration flow.** `BV-001` and `BV-003` removed with reasons, then a cow registered: it was assigned `BV-006`, leaving the herd at `BV-002, BV-004, BV-005, BV-006` and the log at three entries. The counter read, its update, the insert, the identity read-back and the audit row all landed in one transaction. |
 | 2026-08-06 | `net9.0-windows` | SQLite | **Re-run against `378663a`.** The earlier pass predated the Navigation surface-base change, and the removal prompt goes straight through the modified code, so it was driven again: prompt opened centered, background blocked, `BV-001` removed with `DELETE` plus its audit insert. No regression. This run is also where the button defect was observed with maximize and restore swapped, correcting how it is described above. |
 

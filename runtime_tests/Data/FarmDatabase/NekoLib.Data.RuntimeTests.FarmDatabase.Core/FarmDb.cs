@@ -25,6 +25,11 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
     /// </summary>
     public sealed class FarmDb : IDisposable
     {
+        /// <summary>How often a new arrival gets its parentage recorded.</summary>
+        private const double ParentageChance = 0.6;
+
+        private static readonly Random _parentage = new Random();
+
         private readonly QueryExecutionContext _ctx;
         private readonly DatabaseGateway _gateway;
         private bool _disposed;
@@ -446,6 +451,13 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     int next = counter[0]["LastNumber"].As<int>() + 1;
                     string tag = FarmSeed.FormatTag(prefix, next);
 
+                    string? notes = request.Notes;
+                    if (string.IsNullOrWhiteSpace(notes))
+                    {
+                        notes = await TryDescribeParentageAsync(request, session, ct)
+                            .ConfigureAwait(false);
+                    }
+
                     var bump = new QueryBuilder()
                         .Update("TagSequence", new Dictionary<string, object?> { ["LastNumber"] = next })
                         .Where("[Prefix] = @p1", prefix);
@@ -458,7 +470,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                         ["Tag"] = tag,
                         ["AgeYears"] = request.AgeYears,
                         ["Gender"] = request.Gender,
-                        ["Notes"] = request.Notes
+                        ["Notes"] = notes
                     }, ct, session).ConfigureAwait(false);
 
                     // The gateway has no way to return an inserted identity - Insert
@@ -475,7 +487,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     animal.Tag = tag;
                     animal.AgeYears = request.AgeYears;
                     animal.Gender = request.Gender;
-                    animal.Notes = request.Notes;
+                    animal.Notes = notes;
 
                     await WriteLogAsync(
                         session,
@@ -484,7 +496,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                         tag + " (" + request.Species + ")",
                         Operations.Add,
                         1,
-                        request.Notes,
+                        notes,
                         ct).ConfigureAwait(false);
 
                     session.Commit();
@@ -497,6 +509,51 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             }
 
             return animal;
+        }
+
+        /// <summary>
+        /// Sometimes records the new arrival as the offspring of a living female of
+        /// the same species, for the herd book.
+        /// <para/>
+        /// Runs on the transaction's own connection, so the mother it names is one
+        /// that exists at the instant the calf is inserted — an animal removed a
+        /// moment earlier can never be credited. Candidates must be older than the
+        /// newborn, which is both sensible and what keeps a one-year-old from
+        /// mothering herself into the record.
+        /// <para/>
+        /// This is decorative, and the only non-deterministic thing in the scenario:
+        /// the seed never varies, but two registrations of the same animal can produce
+        /// different notes. Nothing verified by the procedure depends on it.
+        /// </para>
+        /// </summary>
+        private async Task<string?> TryDescribeParentageAsync(
+            NewAnimalRequest request,
+            DbSession session,
+            CancellationToken ct)
+        {
+            if (_parentage.NextDouble() > ParentageChance)
+                return null;
+
+            List<Dictionary<string, RecordItem>> mothers = await Gateway.GetRaw(
+                "SELECT [Tag] FROM [Animals] " +
+                "WHERE [Species] = @p1 AND [Gender] = @p2 AND [AgeYears] > @p3 " +
+                "ORDER BY [Tag]",
+                new Dictionary<string, object?>
+                {
+                    ["@p1"] = request.Species,
+                    ["@p2"] = Genders.Female,
+                    ["@p3"] = request.AgeYears
+                },
+                session,
+                ct).ConfigureAwait(false);
+
+            if (mothers.Count == 0)
+                return null;
+
+            string mother = mothers[_parentage.Next(mothers.Count)]["Tag"].ToString();
+            string relation = request.Gender == Genders.Male ? "Filho" : "Filha";
+
+            return relation + " de " + mother;
         }
 
         /// <summary>

@@ -26,7 +26,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Overlays
             foreach (string species in FarmSeed.Species)
                 _speciesCombo.Items.Add(species);
 
-            foreach (string gender in FarmSeed.Genders)
+            foreach (string gender in FarmSeed.GenderOptions)
                 _genderCombo.Items.Add(gender);
 
             if (_speciesCombo.Items.Count > 0) _speciesCombo.SelectedIndex = 0;

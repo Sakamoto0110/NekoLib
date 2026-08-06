@@ -107,6 +107,13 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Model
         public const string Remove = "Saída";
     }
 
+    /// <summary>The two genders the herd uses, named so no string floats loose.</summary>
+    public static class Genders
+    {
+        public const string Female = "Fêmea";
+        public const string Male = "Macho";
+    }
+
     /// <summary>Product categories seeded by the scenario.</summary>
     public static class Categories
     {

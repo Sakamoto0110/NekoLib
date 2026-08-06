@@ -169,6 +169,15 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.Pages
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight },
                 FillWeight = 55
             });
+
+            // Where the herd book shows up: a registered animal may carry the tag of
+            // the living female it was recorded as descending from.
+            _animalGrid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = "Observação",
+                DataPropertyName = nameof(Animal.Notes),
+                FillWeight = 150
+            });
         }
 
         public override Task OnNavigatedToAsync(NavigationArgs args)
