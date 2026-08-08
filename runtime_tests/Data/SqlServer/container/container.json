@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "description": "Pinned container definition for the E4-SQL runtime scenario. This file describes the container the evidence claims; it does not create one. The container is owned by the repository owner and only adopted by the scenario.",
+
+  "containerName": "nekolib-sqlserver",
+  "image": "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
+  "imageDigest": "mcr.microsoft.com/mssql/server@sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89",
+  "imageArchitecture": "amd64",
+  "imageOs": "linux",
+
+  "hostPort": 1433,
+  "containerPort": 1433,
+  "requiredHostIp": "127.0.0.1",
+
+  "passwordVariable": "NEKOLIB_SQLSERVER_PASSWORD",
+  "loginUser": "sa",
+
+  "scenarioDatabasePrefix": "NekoLibE4Sql_",
+
+  "notes": [
+    "requiredHostIp is what the specification asks for: the database port published to loopback only. The container as configured on 2026-08-08 publishes with an empty HostIp, which means every host interface. The scenario records that difference as a setup gap and does not attempt to correct it - changing the binding means recreating a user-owned container.",
+    "The container carries no volume, so its data lives in its own writable layer. That layer survives docker stop/start and docker restart, and is lost only if the container is removed. 'Ephemeral' here means 'no named volume', not 'wiped on restart'.",
+    "The password is never stored here, in any script, in any command line, or in any result file. It is read from the environment variable named above, by the scenario process, at startup."
+  ]
+}

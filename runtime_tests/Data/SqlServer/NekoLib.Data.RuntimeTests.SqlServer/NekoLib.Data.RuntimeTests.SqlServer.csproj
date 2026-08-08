@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Data.RuntimeTests.SqlServer</RootNamespace>
+    <AssemblyName>NekoLib.Data.RuntimeTests.SqlServer</AssemblyName>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      x64 only, on both target families. SQL Server itself is remote to this
+      process, so the bitness is not an ACE-style driver constraint - it is the
+      architecture the evidence record claims, and AnyCPU would make that claim
+      depend on how the host launched the process. net481 additionally carries
+      the Prefer32Bit trap, so it is turned off explicitly.
+    -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!--
+    The only NekoLib dependency is the library under test. Logging and Telemetry
+    are deliberately absent: E3-OBS owns those capabilities, and pulling them in
+    here would blur which scenario proves what.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Data\NekoLib.Data\NekoLib.Data.csproj" />
+  </ItemGroup>
+
+  <!--
+    Microsoft.Data.SqlClient lives here and nowhere else. NekoLib.Data has no
+    provider package and must not acquire one because of this scenario: the
+    gateway sees only System.Data.Common types, and the concrete provider is
+    supplied by the scenario through IDbConnectionFactory.
+
+    Pinned to an exact version because the evidence record names it. The same
+    package serves both target families; its net462 assets are what net481
+    resolves.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.6" />
+  </ItemGroup>
+
+  <!--
+    The pinned container definition travels with the executable so the running
+    process can verify the server it connected to against the one the evidence
+    record names. The setup and cleanup scripts read the same file, which is why
+    it is a single versioned document rather than constants in two languages.
+  -->
+  <ItemGroup>
+    <None Include="..\container\container.json" Link="container.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
