@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "description": "Phase E campaign configuration. Scenarios are listed here rather than known to run.ps1, so an incomplete scenario never blocks work on the others: disable it, or leave it out of -Scenarios.",
+
+  "artifactsRoot": "artifacts/validation/phase-e",
+  "campaignPrefix": "campaign",
+
+  "scenarios": [
+    {
+      "id": "E4-SQL",
+      "enabled": true,
+      "description": "NekoLib.Data against the adopted local SQL Server container.",
+      "project": "runtime_tests/Data/SqlServer/NekoLib.Data.RuntimeTests.SqlServer/NekoLib.Data.RuntimeTests.SqlServer.csproj",
+      "targetFramework": "net9.0",
+      "executable": "runtime_tests/Data/SqlServer/NekoLib.Data.RuntimeTests.SqlServer/bin/Debug/net9.0/NekoLib.Data.RuntimeTests.SqlServer.exe",
+
+      "prerequisites": [
+        { "kind": "environmentVariable", "name": "NEKOLIB_SQLSERVER_PASSWORD" }
+      ],
+
+      "adopts": [
+        "container:nekolib-sqlserver"
+      ],
+
+      "faultKinds": [
+        "connect-while-server-down",
+        "transport-loss-during-command",
+        "transport-loss-during-transaction",
+        "transport-loss-during-stream",
+        "stale-pooled-connection",
+        "container-restart",
+        "schema-recreation"
+      ],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--smoke", "--seed", "{seed}", "--artifacts", "{artifacts}"]
+        },
+        "recovery": {
+          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+        },
+        "soak": {
+          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+        }
+      }
+    },
+
+    {
+      "id": "Data-FarmDatabase-SQLite",
+      "enabled": true,
+      "description": "The existing FarmDatabase simulation in headless mode against SQLite. It owns no faults and accepts no schedule; it is here because it is the second worker that already exists, which is what makes aggregation worth proving.",
+      "project": "runtime_tests/Data/FarmDatabase/NekoLib.Data.RuntimeTests.FarmDatabase.WinForms/NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.csproj",
+      "targetFramework": "net9.0-windows",
+      "executable": "runtime_tests/Data/FarmDatabase/NekoLib.Data.RuntimeTests.FarmDatabase.WinForms/bin/Debug/net9.0-windows/NekoLib.Data.RuntimeTests.FarmDatabase.WinForms.exe",
+
+      "prerequisites": [],
+      "adopts": [],
+      "faultKinds": [],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--headless", "sqlite", "{seed}", "3000"]
+        },
+        "recovery": {
+          "arguments": ["--headless", "sqlite", "{seed}", "2000", "--stream"]
+        },
+        "soak": {
+          "arguments": ["--headless", "sqlite", "{seed}", "200000", "--checkpoint", "5000"]
+        }
+      }
+    }
+  ]
+}

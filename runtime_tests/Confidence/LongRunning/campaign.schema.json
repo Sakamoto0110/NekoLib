@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Sakamoto0110/NekoLib/runtime_tests/Confidence/LongRunning/campaign.schema.json",
+  "title": "Phase E campaign configuration",
+  "description": "The versioned shape run.ps1 accepts. Bumping schemaVersion is what tells an older orchestrator to refuse a newer file rather than misread it.",
+  "type": "object",
+  "required": ["schemaVersion", "artifactsRoot", "scenarios"],
+  "additionalProperties": true,
+
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "description": { "type": "string" },
+    "artifactsRoot": {
+      "type": "string",
+      "description": "Repository-relative or absolute. One directory per campaign is created beneath it."
+    },
+    "campaignPrefix": {
+      "type": "string",
+      "description": "Leading component of the generated campaign id."
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/scenario" }
+    }
+  },
+
+  "definitions": {
+    "scenario": {
+      "type": "object",
+      "required": ["id", "enabled", "executable", "modes"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Also the name of the scenario's directory inside the campaign, and the value its own fault events must carry."
+        },
+        "enabled": { "type": "boolean" },
+        "description": { "type": "string" },
+        "project": {
+          "type": "string",
+          "description": "Repository-relative csproj, built explicitly with -Build. Never through dotnet test."
+        },
+        "targetFramework": { "type": "string" },
+        "executable": {
+          "type": "string",
+          "description": "Repository-relative or absolute path. Supports the {seed} {artifacts} {schedule} {duration} {durationSeconds} tokens."
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/prerequisite" }
+        },
+        "adopts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Resources the scenario adopts but does not own, recorded in owned.json for reconciliation. The orchestrator never starts or stops these."
+        },
+        "faultKinds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Kinds this scenario can dispatch. The orchestrator places them in time and never interprets them; an empty list means the scenario receives no faults."
+        },
+        "modes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/mode" },
+          "description": "Keyed by campaign mode: smoke, recovery, soak."
+        }
+      }
+    },
+
+    "prerequisite": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["environmentVariable"],
+          "description": "Checked without being read: preflight reports whether the variable is set, never its value."
+        },
+        "name": { "type": "string" }
+      }
+    },
+
+    "mode": {
+      "type": "object",
+      "required": ["arguments"],
+      "properties": {
+        "arguments": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
