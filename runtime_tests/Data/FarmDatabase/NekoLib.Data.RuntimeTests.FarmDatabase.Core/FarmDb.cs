@@ -23,7 +23,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
     /// caller-disposed - and exposes the gateway through the interface surface so the
     /// scenario exercises the contracts rather than the concrete class.
     /// </summary>
-    public sealed class FarmDb : IDisposable
+    public sealed partial class FarmDb : IDisposable
     {
         /// <summary>How often a new arrival gets its parentage recorded.</summary>
         private const double ParentageChance = 0.6;
@@ -108,6 +108,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 else
                 {
                     await db.EnsureTagSequenceAsync(ct).ConfigureAwait(false);
+                    await db.EnsureSimSchemaAsync(ct).ConfigureAwait(false);
                 }
 
                 return db;
@@ -257,6 +258,19 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             return ReadIntoTableAsync(builder, ct);
         }
 
+        /// <summary>
+        /// Runs a <see cref="QueryBuilder"/> and hands back the raw rows.
+        /// <para/>
+        /// Exists so the builder itself can be exercised. Everything interesting in the
+        /// scenario's own SQL is hand-written, which leaves the builder's per-dialect
+        /// translation — <c>TOP</c> against <c>LIMIT</c>, <c>DISTINCT</c> placement,
+        /// joins, subquery parameter renaming — with no coverage at all.
+        /// </summary>
+        public Task<List<Dictionary<string, RecordItem>>> QueryAsync(
+            QueryBuilder builder,
+            CancellationToken ct = default) =>
+            Gateway.GetRaw(builder, ct);
+
         private async Task<DataTable> ReadIntoTableAsync(QueryBuilder builder, CancellationToken ct)
         {
             List<Dictionary<string, RecordItem>> rows =
@@ -342,6 +356,42 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 "FROM [OperationLog] ORDER BY [Id] DESC",
                 null,
                 ct);
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Reads the operation log one row at a time instead of materializing it.
+        /// <para/>
+        /// The guard is the point as much as the method is. <c>IDatabaseGateway</c>
+        /// composes <c>IDqlStreamingGateway</c> only on net6 and later — on net481 the
+        /// streaming members are not on the interface at all, and the interface itself
+        /// carries <c>[Obsolete(error: true)]</c>. So this is the one place in the
+        /// scenario where the two targets genuinely differ, and the net481 build
+        /// passing is what proves the guard holds.
+        /// <para/>
+        /// It is also the only low-memory pull path the library offers, and the
+        /// operation log of a long run is its natural subject: a simulation left going
+        /// for hours produces a table that <see cref="GetOperationLogAsync"/> would
+        /// bring into memory whole.
+        /// </summary>
+        public async Task<int> StreamOperationLogAsync(
+            Action<OperationLogEntry>? onEntry = null,
+            CancellationToken ct = default)
+        {
+            var builder = new QueryBuilder()
+                .Select("*")
+                .From(Profile.Quote("OperationLog"));
+
+            int seen = 0;
+            await foreach (OperationLogEntry entry in
+                Gateway.StreamDto<OperationLogEntry>(builder, ct).ConfigureAwait(false))
+            {
+                onEntry?.Invoke(entry);
+                seen++;
+            }
+
+            return seen;
+        }
+#endif
 
         // -----------------------------------------------------------------
         // Audited stock movements

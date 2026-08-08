@@ -140,6 +140,44 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Providers
                 Operation   TEXT     NOT NULL,
                 Quantity    INTEGER  NOT NULL,
                 Reason      TEXT     NULL
+              )",
+
+            // --- simulation ------------------------------------------------
+            // One row, Id fixed at 1. Everything needed to resume a run: killing the
+            // process and reopening has to land on the same tick with the same money.
+            @"CREATE TABLE SimState (
+                Id         INTEGER  PRIMARY KEY,
+                Tick       INTEGER  NOT NULL,
+                Seed       INTEGER  NOT NULL,
+                Gold       REAL     NOT NULL,
+                Terrains   INTEGER  NOT NULL,
+                Slots      INTEGER  NOT NULL,
+                Workers    INTEGER  NOT NULL
+              )",
+
+            // NextActionTick is what keeps the tiles out of step: it survives a restart
+            // so a farm that spent hours desynchronising does not snap back into
+            // lockstep on reopen.
+            @"CREATE TABLE SimTiles (
+                Id              INTEGER  PRIMARY KEY AUTOINCREMENT,
+                Terrain         INTEGER  NOT NULL,
+                Slot            INTEGER  NOT NULL,
+                Crop            TEXT     NOT NULL,
+                PlantedAtTick   INTEGER  NOT NULL,
+                HasWorker       INTEGER  NOT NULL,
+                NextActionTick  INTEGER  NOT NULL
+              )",
+
+            // The world market. Hidden from the player - only the price it produces
+            // is ever shown.
+            @"CREATE TABLE SimMarket (
+                Crop      TEXT  NOT NULL PRIMARY KEY,
+                Quantity  REAL  NOT NULL
+              )",
+
+            @"CREATE TABLE SimInventory (
+                Crop      TEXT     NOT NULL PRIMARY KEY,
+                Quantity  INTEGER  NOT NULL
               )"
         };
 

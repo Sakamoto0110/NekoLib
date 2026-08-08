@@ -13,6 +13,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
         private Theme.SidebarButton _navRawQuery;
         private Theme.SidebarButton _navStock;
         private Theme.SidebarButton _navLog;
+        private Theme.SidebarButton _navSimulation;
         private System.Windows.Forms.Panel _sidebarFooter;
         private Theme.Pill _connectionPill;
         private System.Windows.Forms.Label _connectionPath;
@@ -44,6 +45,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             this._navRawQuery = new Theme.SidebarButton();
             this._navStock = new Theme.SidebarButton();
             this._navLog = new Theme.SidebarButton();
+            this._navSimulation = new Theme.SidebarButton();
             this._sidebarFooter = new System.Windows.Forms.Panel();
             this._connectionPill = new Theme.Pill();
             this._connectionPath = new System.Windows.Forms.Label();
@@ -69,6 +71,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             // therefore the reverse of the visual order.
             this._sidebar.BackColor = System.Drawing.Color.FromArgb(13, 17, 20);
             this._sidebar.Controls.Add(this._sidebarFooter);
+            // Docked to the top, so the last one added sits highest: this list reads
+            // bottom-up on screen.
+            this._sidebar.Controls.Add(this._navSimulation);
             this._sidebar.Controls.Add(this._navLog);
             this._sidebar.Controls.Add(this._navStock);
             this._sidebar.Controls.Add(this._navRawQuery);
@@ -163,6 +168,16 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             this._navLog.Size = new System.Drawing.Size(228, 42);
             this._navLog.TabIndex = 5;
             this._navLog.Text = "Log de operações";
+            //
+            // _navSimulation
+            //
+            this._navSimulation.Dock = System.Windows.Forms.DockStyle.Top;
+            this._navSimulation.Glyph = "◷";
+            this._navSimulation.Location = new System.Drawing.Point(0, 294);
+            this._navSimulation.Name = "_navSimulation";
+            this._navSimulation.Size = new System.Drawing.Size(228, 42);
+            this._navSimulation.TabIndex = 6;
+            this._navSimulation.Text = "Simulação";
             //
             // _sidebarFooter
             //

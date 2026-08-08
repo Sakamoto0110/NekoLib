@@ -34,10 +34,11 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             _navRawQuery.PageType = typeof(RawQueryPage);
             _navStock.PageType = typeof(StockPage);
             _navLog.PageType = typeof(LogPage);
+            _navSimulation.PageType = typeof(SimulationPage);
 
             _navButtons.AddRange(new[]
             {
-                _navConnection, _navBrowse, _navRawQuery, _navStock, _navLog
+                _navConnection, _navBrowse, _navRawQuery, _navStock, _navLog, _navSimulation
             });
 
             foreach (SidebarButton button in _navButtons)

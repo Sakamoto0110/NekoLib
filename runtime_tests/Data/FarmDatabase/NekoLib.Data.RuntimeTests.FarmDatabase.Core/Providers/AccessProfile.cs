@@ -245,6 +245,42 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core.Providers
                 [Operation]   TEXT(20)   NOT NULL,
                 [Quantity]    LONG       NOT NULL,
                 [Reason]      TEXT(255)
+              )",
+
+            // --- simulation ------------------------------------------------
+            // [Tick] is LONG, which in Access is a 32-bit integer. At one tick per
+            // second that is comfortable for any run this scenario will do, but it is
+            // the same 2,147,483,647 ceiling that gold would eventually hit - and
+            // finding where the two engines stop agreeing is the point of running the
+            // same seed on both.
+            @"CREATE TABLE SimState (
+                [Id]        LONG    NOT NULL PRIMARY KEY,
+                [Tick]      LONG    NOT NULL,
+                [Seed]      LONG    NOT NULL,
+                [Gold]      DOUBLE  NOT NULL,
+                [Terrains]  LONG    NOT NULL,
+                [Slots]     LONG    NOT NULL,
+                [Workers]   LONG    NOT NULL
+              )",
+
+            @"CREATE TABLE SimTiles (
+                [Id]              COUNTER   PRIMARY KEY,
+                [Terrain]         LONG      NOT NULL,
+                [Slot]            LONG      NOT NULL,
+                [Crop]            TEXT(40)  NOT NULL,
+                [PlantedAtTick]   LONG      NOT NULL,
+                [HasWorker]       LONG      NOT NULL,
+                [NextActionTick]  LONG      NOT NULL
+              )",
+
+            @"CREATE TABLE SimMarket (
+                [Crop]      TEXT(40)  NOT NULL PRIMARY KEY,
+                [Quantity]  DOUBLE    NOT NULL
+              )",
+
+            @"CREATE TABLE SimInventory (
+                [Crop]      TEXT(40)  NOT NULL PRIMARY KEY,
+                [Quantity]  LONG      NOT NULL
               )"
         };
 

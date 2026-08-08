@@ -1,5 +1,11 @@
 using System;
+using System.IO;
+using NekoLib.Core.Logging;
+using NekoLib.Logging;
+using NekoLib.Logging.Sinks;
+using NekoLib.Telemetry;
 using NekoLib.Data.RuntimeTests.FarmDatabase.Core;
+using NekoLib.Data.RuntimeTests.FarmDatabase.Core.Simulation;
 
 namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
 {
@@ -17,6 +23,16 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
     public static class AppServices
     {
         private static FarmWorkspace _workspace;
+        private static Logger _logger;
+
+        /// <summary>
+        /// Where the simulation's measurements are written. Beside the databases rather
+        /// than inside the repository, for the same reason they are.
+        /// </summary>
+        public static string MetricsLogPath { get; private set; }
+
+        /// <summary>Live operation timings, bounded in memory. Null before <see cref="Start"/>.</summary>
+        public static TelemetryPipeline Telemetry { get; private set; }
 
         /// <summary>
         /// True once <see cref="Start"/> has run. Pages check this before touching
@@ -37,7 +53,36 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
                 throw new InvalidOperationException("AppServices já foi iniciado.");
 
             _workspace = new FarmWorkspace();
-            ViewModelsBundle = new ViewModels(_workspace);
+
+            // Rolling file for the history, bounded telemetry for the live window.
+            // Neither can do the other's job: the sink persists but keeps no summary,
+            // and the pipeline summarises but does not persist - "no persistence in v1"
+            // is its documented boundary.
+            //
+            // The sink opens and closes the file per entry, so nothing writes to it per
+            // tick. SimMetrics accumulates in memory and emits one rolled-up line per
+            // window.
+            MetricsLogPath = Path.Combine(_workspace.RootDirectory, "simulacao.log");
+
+            var file = new RollingFileLogSink(new RollingFileLogSinkOptions
+            {
+                FilePath = MetricsLogPath,
+                MaximumFileBytes = 2 * 1024 * 1024,
+                RetainedFileCount = 4
+            });
+
+            _logger = new Logger(
+                new LoggerOptions { MinimumLevel = LogLevel.Info, DisposeSinks = true },
+                file);
+
+            Telemetry = new TelemetryPipeline(new TelemetryPipelineOptions
+            {
+                RecentOperationCapacity = 256
+            });
+
+            var metrics = new SimMetrics(_logger, Telemetry, TimeSpan.FromSeconds(10));
+
+            ViewModelsBundle = new ViewModels(_workspace, metrics);
 
             // Every view-model re-reads connection-derived state from one place, so a
             // connect or disconnect on the Connection page is immediately visible to
@@ -57,6 +102,17 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
                 _workspace.Dispose();
                 _workspace = null;
                 ViewModelsBundle = null;
+
+                // Disposing the logger flushes and then disposes the sink, because the
+                // options asked it to own them. Anything still buffered reaches the file
+                // here rather than being lost with the process.
+                if (_logger != null)
+                {
+                    _logger.Dispose();
+                    _logger = null;
+                }
+
+                Telemetry = null;
             }
         }
     }
@@ -68,13 +124,14 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
     /// </summary>
     public sealed class ViewModels
     {
-        public ViewModels(FarmWorkspace workspace)
+        public ViewModels(FarmWorkspace workspace, SimMetrics metrics)
         {
             Connection = new Core.ViewModels.ConnectionViewModel(workspace);
             Browse = new Core.ViewModels.BrowseViewModel(workspace);
             RawQuery = new Core.ViewModels.RawQueryViewModel(workspace);
             Stock = new Core.ViewModels.StockViewModel(workspace);
             Log = new Core.ViewModels.LogViewModel(workspace);
+            Simulation = new Core.ViewModels.SimulationViewModel(workspace, metrics);
         }
 
         public Core.ViewModels.ConnectionViewModel Connection { get; }
@@ -82,6 +139,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
         public Core.ViewModels.RawQueryViewModel RawQuery { get; }
         public Core.ViewModels.StockViewModel Stock { get; }
         public Core.ViewModels.LogViewModel Log { get; }
+        public Core.ViewModels.SimulationViewModel Simulation { get; }
 
         public void NotifyConnectionChanged()
         {
@@ -90,6 +148,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             RawQuery.OnConnectionChanged();
             Stock.OnConnectionChanged();
             Log.OnConnectionChanged();
+            Simulation.OnConnectionChanged();
         }
     }
 }
