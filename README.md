@@ -167,6 +167,8 @@ technical manual.
 
 Navigation and its adapters use their
 [dedicated technical reference](src/Navigation/NekoLib.Navigation/README.md).
+Pipes returns stable protocol errors to clients and reports handler exception
+details only to the configured local metrics/diagnostics surface.
 Run a focused suite with:
 
 ```powershell

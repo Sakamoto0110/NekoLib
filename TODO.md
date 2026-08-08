@@ -1245,15 +1245,28 @@ The review reverified and promoted only the bounded work below.
 
 #### E5.4 — Bound protocol disclosure without inventing privileged IPC
 
-- [ ] Replace raw handler exception messages on the wire with a stable,
+- [x] Replace raw handler exception messages on the wire with a stable,
   sanitized error while retaining detailed local diagnostics. Add focused
   malformed/truncated-frame coverage and make serializer depth explicit only
-  where the accepted payload contract requires it.
-- [ ] Do not add session authentication, replay infrastructure, remote
+  where the accepted payload contract requires it. **Implemented 2026-08-08:**
+  handler failures retain code `exception` but return the stable message `The
+  handler failed.`; the original exception remains available to
+  `IPipeMetrics.OnError`. Framing now distinguishes clean EOF from a partial
+  length/payload and throws `EndOfStreamException` for truncation. Dual-target
+  tests cover clean EOF, truncated frames, malformed JSON, and absence of the
+  handler's private exception text. No depth override was added because the
+  accepted Watchdog DTOs do not require one beyond the existing 1 MiB byte cap.
+- [x] Do not add session authentication, replay infrastructure, remote
   administration, sender-selected CLR types, Instrumentation, or TestControl.
   Revisit authentication and server-identity proof only if hostile same-user
   processes or automatic retries of non-idempotent commands enter an accepted
-  threat model.
+  threat model. **Disposition confirmed 2026-08-08:** none of those surfaces
+  were added by E5.
+
+**E5 closure — 2026-08-08:** complete. E5.1-E5.4 implement the accepted local
+user boundary, bounded single-writer event delivery, owned shutdown, compatible
+legacy shutdown, and sanitized framing/error behavior. Generic Pipes remains a
+cooperative local transport rather than a security framework.
 
 The review must determine:
 

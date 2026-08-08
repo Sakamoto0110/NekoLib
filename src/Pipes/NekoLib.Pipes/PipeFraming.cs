@@ -180,7 +180,7 @@ namespace NekoLib.Pipes
         if (size <= 0 || size > maxBytes)
             throw new InvalidDataException();
 
-        return await TryReadExact(stream, size, ct);
+        return await ReadExact(stream, size, ct);
     }
 
     private static async Task<byte[]> ReadExact(Stream stream, int size, CancellationToken ct)
@@ -201,7 +201,11 @@ namespace NekoLib.Pipes
         {
             int r = await stream.ReadAsync(buffer.AsMemory(read, size - read), ct);
             if (r == 0)
-                return null;
+            {
+                if (read == 0)
+                    return null;
+                throw new EndOfStreamException("The pipe frame ended before the declared length was read.");
+            }
             read += r;
         }
 
@@ -244,7 +248,7 @@ namespace NekoLib.Pipes
             if (size <= 0 || size > maxBytes)
                 throw new InvalidDataException();
 
-            return TryReadExact(stream, size);
+            return ReadExact(stream, size);
         }
 
         private static byte[] ReadExact(Stream stream, int size)
@@ -265,7 +269,11 @@ namespace NekoLib.Pipes
             {
                 int r = stream.Read(buffer, read, size - read);
                 if (r == 0)
-                    return null;
+                {
+                    if (read == 0)
+                        return null;
+                    throw new EndOfStreamException("The pipe frame ended before the declared length was read.");
+                }
                 read += r;
             }
 

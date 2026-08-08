@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes.Tests.Unit.Fakes;
@@ -75,7 +77,7 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
-        public async Task HandlerThatThrows_ReturnsExceptionError()
+        public async Task HandlerThatThrows_ReturnsSanitizedExceptionError()
         {
             var name = PipeTestUtil.UniqueName();
 
@@ -92,7 +94,52 @@ namespace NekoLib.Pipes.Tests.Unit
                 Assert.False(resp.Ok);
                 Assert.NotNull(resp.Error);
                 Assert.Equal("exception", resp.Error.Code);
-                Assert.Contains("kaboom", resp.Error.Message);
+                Assert.Equal("The handler failed.", resp.Error.Message);
+                Assert.DoesNotContain("kaboom", resp.Error.Message);
+            }
+        }
+
+        [Fact]
+        public async Task TryReadAsync_CleanEndOfStream_ReturnsNull()
+        {
+            using (var stream = new MemoryStream())
+            {
+                var message = await PipeFraming.TryReadAsync(stream, default);
+
+                Assert.Null(message);
+            }
+        }
+
+        [Fact]
+        public async Task TryReadAsync_TruncatedFrame_ThrowsEndOfStreamException()
+        {
+            var declaredLength = BitConverter.GetBytes(10);
+            var bytes = new byte[declaredLength.Length + 3];
+            Buffer.BlockCopy(declaredLength, 0, bytes, 0, declaredLength.Length);
+            bytes[4] = (byte)'{';
+            bytes[5] = (byte)'}';
+            bytes[6] = (byte)' ';
+
+            using (var stream = new MemoryStream(bytes))
+            {
+                await Assert.ThrowsAsync<EndOfStreamException>(
+                    () => PipeFraming.TryReadAsync(stream, default));
+            }
+        }
+
+        [Fact]
+        public async Task TryReadAsync_MalformedJson_ThrowsParseException()
+        {
+            var payload = Encoding.UTF8.GetBytes("{not-json}");
+            var length = BitConverter.GetBytes(payload.Length);
+            var bytes = new byte[length.Length + payload.Length];
+            Buffer.BlockCopy(length, 0, bytes, 0, length.Length);
+            Buffer.BlockCopy(payload, 0, bytes, length.Length, payload.Length);
+
+            using (var stream = new MemoryStream(bytes))
+            {
+                await Assert.ThrowsAnyAsync<Exception>(
+                    () => PipeFraming.TryReadAsync(stream, default));
             }
         }
 

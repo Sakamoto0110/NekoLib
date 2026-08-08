@@ -230,7 +230,7 @@ namespace NekoLib.Pipes
                         Error = new PipeError
                         {
                             Code = "exception",
-                            Message = ex.Message
+                            Message = "The handler failed."
                         }
                     };
                 }
