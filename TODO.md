@@ -1301,21 +1301,21 @@ does not authorize TestControl or Instrumentation IPC.
 **Original review baseline:** `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
 
 Phase D already implemented DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
-TEST-01, and the accepted DBG-01 rename/boundary direction. The only remaining
-review-only decisions are CRASH-01, CRASH-02, and WIN-01:
+TEST-01, and the accepted DBG-01 rename/boundary direction. E6 resolved the
+remaining CRASH-01, CRASH-02, and WIN-01 decisions:
 
-- **CRASH-01 — proposed no-code disposition:** retain `CrashDumpLevel`, the
+- **CRASH-01 — accepted no-code disposition:** retain `CrashDumpLevel`, the
   `crash.dmp` convention, and the Windows implementation boundary during Phase
   E. Do not invent a neutral artifact API or Linux adapter without a concrete
   second-platform requirement and an explicit migration plan.
-- **CRASH-02 — proposed implementation:** remove active Watchdog-environment
+- **CRASH-02 — implemented:** remove active Watchdog-environment
   policy from Diagnostics. A configured `ExternalNotifier` runs after artifact
   creation regardless of `NEKO_UNDER_WATCHDOG`; the application owns whether to
   wire Watchdog notification. Keep callback failure isolated and preserve
   `NotifyWatchdog` only as an obsolete source-compatibility gate during Phase E.
   Removing it remains a separately approved breaking-release decision. Preserve
   the end-to-end Watchdog bundle test and add direct generic-callback coverage.
-- **WIN-01 — proposed implementation:** make `HookWinForms()` an idempotent,
+- **WIN-01 — implemented:** make `HookWinForms()` an idempotent,
   one-shot process-lifetime installation with a named handler. Do not add a
   reversible handle. Correct the physical filenames and add Windows-targeted
   coverage proving repeated calls do not multiply dispatch.
@@ -1327,23 +1327,34 @@ append reconciliation rather than rewriting the original snapshot.
 
 #### E6.1 — Make external crash notification generic
 
-- [ ] Remove `NEKO_UNDER_WATCHDOG` detection from Diagnostics. Invoke a
+- [x] Remove `NEKO_UNDER_WATCHDOG` detection from Diagnostics. Invoke a
   configured `ExternalNotifier` after artifact creation while isolating callback
   failures. The application composition root owns whether Watchdog notification
-  is wired.
-- [ ] Preserve `NotifyWatchdog` only as an obsolete source-compatibility gate
+  is wired. **Implemented 2026-08-08:** commit
+  `68b2f3d42eca047ad70aa44d7c905dce090448d3`.
+- [x] Preserve `NotifyWatchdog` only as an obsolete source-compatibility gate
   during Phase E. Its removal requires a separately approved breaking release.
-- [ ] Preserve the end-to-end Watchdog crash-bundle integration and add direct
+- [x] Preserve the end-to-end Watchdog crash-bundle integration and add direct
   dual-target coverage for callback behavior without a Watchdog environment.
+  Diagnostics tests pass 6/6 per target; the three Watchdog crash-bundle tests
+  pass per target without setting `NEKO_UNDER_WATCHDOG`.
 
 #### E6.2 — Make the WinForms hook one-shot
 
-- [ ] Make `WindowsCrash.HookWinForms()` idempotent with one named handler for
+- [x] Make `WindowsCrash.HookWinForms()` idempotent with one named handler for
   the process lifetime. Do not add a reversible handle.
-- [ ] Rename `CrashSupressor.cs` to `CrashSuppressor.cs` and `DumpWritter.cs` to
+- [x] Rename `CrashSupressor.cs` to `CrashSuppressor.cs` and `DumpWritter.cs` to
   `MiniDumpWriter.cs`; public type names and package boundaries remain unchanged.
-- [ ] Add Windows-targeted dual-target coverage proving repeated hook calls do
-  not multiply crash dispatch.
+- [x] Add Windows-targeted dual-target coverage proving repeated hook calls do
+  not multiply crash dispatch. **Implemented 2026-08-08:** commit
+  `d93004c2f93898f49edd10dfe1518ecf80136382`; Diagnostics tests pass 7/7 per
+  target and exercise `Application.OnThreadException` directly.
+
+**E6 closure — 2026-08-08:** complete. CRASH-01 has an accepted no-code
+disposition; CRASH-02 and WIN-01 are implemented and validated on both target
+families. The full solution test also passed serially on Windows. Real minidump
+and WER-dialog behavior remains outside this focused automated evidence and is
+not required to close the boundary review.
 
 ### E7 — Confidence stabilization closure
 
@@ -1381,7 +1392,7 @@ Phase E may be marked complete only when:
 - [x] Devices COM-port validation has an executed or explicitly accepted
   disposition.
 - [x] Pipes/IPC hardening leads have been reverified.
-- [ ] The Diagnostics-sector review is complete.
+- [x] The Diagnostics-sector review is complete.
 - [x] No confirmed high-impact correctness issue lacks an accepted
   disposition.
 - [ ] Both target families build successfully on Windows.

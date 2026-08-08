@@ -755,3 +755,42 @@ contended for the same Core intermediate assemblies (`CS2012`); the sequential
 commands above are the authoritative results. No real minidump, WER dialog, or
 live WinForms `Application.ThreadException` dispatch was exercised, and no Linux
 runtime validation was attempted.
+
+### E6 implementation outcome — 2026-08-08
+
+The accepted CRASH-02 and WIN-01 work was implemented without changing the
+CRASH-01 compatibility surface:
+
+- Commit `68b2f3d42eca047ad70aa44d7c905dce090448d3` removed Watchdog environment
+  detection from Diagnostics. A configured `ExternalNotifier` now runs after
+  artifact creation regardless of `NEKO_UNDER_WATCHDOG`; callback failures
+  remain isolated. `NotifyWatchdog` is retained as an obsolete compatibility
+  gate rather than removed during stabilization.
+- Commit `d93004c2f93898f49edd10dfe1518ecf80136382` made the explicit WinForms hook
+  process-idempotent with one named handler, renamed the internal source files
+  to `CrashSuppressor.cs` and `MiniDumpWriter.cs`, and added direct Windows
+  adapter coverage to the existing dual-target Diagnostics test project.
+
+Focused validation on Windows passed:
+
+```text
+dotnet test tests/NekoLib.Diagnostics.Tests/Unit/NekoLib.Diagnostics.Tests.Unit.csproj
+  --no-restore
+  net481: 7 passed
+  net9.0-windows: 7 passed
+
+dotnet test tests/NekoLib.Watchdog.Tests/Unit/NekoLib.Watchdog.Tests.Unit.csproj
+  --no-restore --filter "FullyQualifiedName~WatchdogCrashBundleTests"
+  net481: 3 passed
+  net9.0-windows: 3 passed
+
+dotnet test NekoLib.sln --no-restore -m:1 -v:minimal
+  all solution test projects passed across both supported target families
+```
+
+The WinForms regression calls `Application.OnThreadException` after repeated
+`HookWinForms()` calls and observes one dispatch. Real minidump generation and
+WER-dialog suppression remain unexecuted platform probes. The solution run
+emitted the repository's existing nullable warnings; no warning-baseline
+comparison was claimed. CRASH-01 remains the accepted future migration point if
+a concrete Linux adapter is required.

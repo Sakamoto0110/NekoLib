@@ -145,6 +145,14 @@ var crashes = new CrashHandler(new CrashHandlerOptions
 crashes.Install();
 ```
 
+`ExternalNotifier` is a generic composition callback: when supplied, Diagnostics
+invokes it after crash artifacts are written and isolates callback failures. The
+application decides whether that callback notifies Watchdog or another local
+integration; Diagnostics does not inspect Watchdog environment state.
+`NotifyWatchdog` remains only as an obsolete compatibility gate. WinForms
+applications call `WindowsCrash.HookWinForms()` explicitly; repeated calls are
+safe and retain one process-lifetime hook.
+
 ## Module entry points and limits
 
 The root module map below owns targets and project dependencies. This table is
@@ -157,8 +165,8 @@ technical manual.
 | Logging | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition and disposal | `NekoLib.Logging.Tests.Unit` |
 | Telemetry | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1 | `NekoLib.Telemetry.Tests.Unit` |
 | Inspection | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; at most one global runtime; broad module rollout is frozen | `NekoLib.Inspection.Tests.Unit` |
-| Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production is injected and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
-| Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
+| Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production and external notification are composition-owned, and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
+| Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |
 | Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; shutdown closes and tracks admitted work | `NekoLib.Pipes.Tests.Unit` |
