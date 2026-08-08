@@ -1220,15 +1220,28 @@ The review reverified and promoted only the bounded work below.
 
 #### E5.3 — Own admitted work through shutdown
 
-- [ ] Track active RPC client tasks and connected streams. Disposal must stop
+- [x] Track active RPC client tasks and connected streams. Disposal must stop
   admission, cancel and close active transports, perform a bounded drain, and
   avoid cleanup against already-disposed synchronization primitives. Apply the
-  equivalent ownership rule to event accepts where required.
-- [ ] Make the obsolete `WatchdogLogPipeServer` shutdown truthful while it is
+  equivalent ownership rule to event accepts where required. **Implemented
+  2026-08-08:** a shared internal operation registry admits each RPC/event
+  connection before scheduling it, owns its current server stream, closes all
+  transports on stop, and exposes a completion that reaches zero only after
+  operation cleanup. Synchronous disposal waits up to two seconds; if a user
+  handler ignores cancellation, semaphore/token cleanup is deferred until that
+  handler actually returns instead of racing its late `Release()`.
+- [x] Make the obsolete `WatchdogLogPipeServer` shutdown truthful while it is
   shipped. Its removal remains a breaking-release decision under F1; Phase E
-  does not silently remove the public type.
-- [ ] Cover disposal during a cooperative handler, a handler that ignores
+  does not silently remove the public type. **Implemented 2026-08-08:** the
+  pending accept is now owned by the instance and disposed before joining; all
+  connected writers/streams are also closed before the bounded joins. The
+  public obsolete type and its line-oriented protocol remain intact.
+- [x] Cover disposal during a cooperative handler, a handler that ignores
   cancellation, a pending accept, and a connected event subscriber.
+  **Implemented 2026-08-08:** dual-target Pipes tests cover all four states,
+  including deferred completion after the ignoring handler is explicitly
+  released. Watchdog tests cover both a pending legacy accept and a connected
+  non-reading legacy client, and assert that both background threads terminate.
 
 #### E5.4 — Bound protocol disclosure without inventing privileged IPC
 
