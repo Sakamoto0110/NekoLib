@@ -988,6 +988,15 @@ Validation requirements:
   makes automation possible — but nothing runs it. A script and a schedule are the
   remaining gap between "reproducible" and "unattended".
 
+The accepted implementation brief is the versioned
+[`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md). It divides
+the work into independent Navigation, Observability, Pipes, Watchdog, Devices,
+Data/SQL Server, and orchestration scenarios without creating a new runtime
+framework. The final campaign is 16 hours, preceded by a 15–30 minute smoke and
+a 60–90 minute recovery rehearsal. Faults are generated deterministically from
+an integer seed, persisted before launch as monotonic offsets, and injected only
+by scenario-owned processes or the orchestrator.
+
 Required coverage:
 
 - **Navigation:** thousands of page switches; forward/back and login/logout
@@ -1086,10 +1095,16 @@ Data:
   target frameworks, and positional binding was exercised through DML,
   transactions, and every `QueryBuilder` clause. Two defects were found and fixed
   as DATA-021 and DATA-022 below;
-- [ ] select at most one initial server provider from SQL Server, PostgreSQL, or
-  MySQL based on an actual consumer, then validate pooling/data-source ownership,
-  network failure, cancellation, transactions, and mapping before claiming
-  support;
+- [x] select at most one initial server provider from SQL Server, PostgreSQL, or
+  MySQL based on an actual consumer. **Selected 2026-08-08:** SQL Server, hosted
+  locally as an official Linux container on WSL 2 on the Windows AMD64 validation
+  machine. This is a development-validation topology, not a production-hosting
+  claim;
+- [ ] implement and execute the versioned SQL Server scenario specified by the
+  [`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md), validating
+  pooling/data-source ownership, network failure and recovery, mid-flight
+  cancellation, transactions, mapping, streaming cleanup, and dynamic-result
+  lifetime before claiming support;
 - keep concrete provider packages outside the relational core and record exact
   package, target, architecture, and server versions in validation evidence;
 - promote provider-native parameter hooks, data-source lifecycle adapters, or

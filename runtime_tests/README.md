@@ -27,6 +27,18 @@ Organize scenarios first by module or capability. UI technology and target
 framework belong in the scenario name or metadata, not as the only top-level
 identity.
 
+## Planned Phase E suite
+
+[`PHASE_E_SCENARIO_SUITE.md`](PHASE_E_SCENARIO_SUITE.md) is the implementation
+brief for the remaining long-running, recovery, and SQL Server scenarios. It is
+not runtime evidence and none of its planned paths are active until their source
+builds, their assertions return process exit codes, and their operational
+README records truthful prerequisites, procedures, cleanup, and verification.
+
+The suite deliberately keeps roadmap state in `TODO.md`; its own role is to
+specify scenario boundaries, deterministic fault scheduling, artifact contracts,
+per-module workloads, and acceptance criteria for the implementer.
+
 ## Active shared scenarios
 
 | Scenario | Scope | Status | Instructions |
