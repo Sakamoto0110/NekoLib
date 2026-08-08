@@ -1153,11 +1153,73 @@ deployed sidecar layout.
 
 ### E5 — Pipes and IPC hardening review
 
-- [ ] Reverify the current IPC boundary before promoting hardening work.
+- [x] Reverify the current IPC boundary before promoting hardening work.
+  Completed 2026-08-08 by the commit-bound
+  [`Pipes and Watchdog IPC hardening review`](docs/audit/pipes-ipc-hardening-review-2026-08-08.md)
+  against `941e17e`. The review confirms that current Pipes is a local transport,
+  not an authorization boundary; Watchdog places read-only, ingestion, and
+  process-changing commands on the same unauthenticated endpoint. It also
+  confirms the event single-writer gap, subscriber backpressure, and untracked
+  in-flight server work during disposal. No product fix is authorized by the
+  review itself.
+- [x] Accept the E5 threat model and disposition. **Decision 2026-08-08:**
+  generic Pipes supports local, same-machine, cooperative callers and is not an
+  authorization boundary. Watchdog must restrict RPC and event access to the
+  current Windows user on both targets, but resistance to a hostile process
+  already running as that same user is explicitly outside the Phase E threat
+  model. Do not claim privilege separation from the pipe name, its hash, the
+  attach token, or the current-user restriction. The correctness and lifecycle
+  items below are accepted independently of this security boundary.
 
 Historical leads include pipe ACL/security, a per-subscriber bounded queue, an
 explicit drop policy, and graceful drain of in-flight work during disposal.
-They are not automatically accepted tasks.
+The review reverified and promoted only the bounded work below.
+
+#### E5.1 — Declare and enforce the local-user boundary
+
+- [ ] Document the generic Pipes trust contract and add an opt-in current-user
+  server policy without changing the compatibility default for generic callers.
+  Use `PipeOptions.CurrentUserOnly` on `net9.0-windows` and an explicit
+  current-user ACL on `net481`.
+- [ ] Enable that policy for both Watchdog RPC and event endpoints. Add focused
+  same-user success coverage on both targets and a Windows identity-boundary
+  probe where the test environment can provide another account or elevation.
+  Record an explicit manual disposition when that environment is unavailable;
+  do not represent constructor inspection alone as an access-denial test.
+
+#### E5.2 — Serialize and bound event delivery
+
+- [ ] Give each event subscriber one bounded single-writer queue so concurrent
+  `PublishAsync` calls cannot interleave frames. Define observable queue-full
+  behavior as best-effort drop or subscriber disconnect; never block Watchdog
+  supervision indefinitely in pursuit of lossless telemetry.
+- [ ] Cover concurrent publishers, a non-reading subscriber, queue overflow,
+  cancellation, removal, and unaffected delivery to healthy subscribers on
+  both target families.
+
+#### E5.3 — Own admitted work through shutdown
+
+- [ ] Track active RPC client tasks and connected streams. Disposal must stop
+  admission, cancel and close active transports, perform a bounded drain, and
+  avoid cleanup against already-disposed synchronization primitives. Apply the
+  equivalent ownership rule to event accepts where required.
+- [ ] Make the obsolete `WatchdogLogPipeServer` shutdown truthful while it is
+  shipped. Its removal remains a breaking-release decision under F1; Phase E
+  does not silently remove the public type.
+- [ ] Cover disposal during a cooperative handler, a handler that ignores
+  cancellation, a pending accept, and a connected event subscriber.
+
+#### E5.4 — Bound protocol disclosure without inventing privileged IPC
+
+- [ ] Replace raw handler exception messages on the wire with a stable,
+  sanitized error while retaining detailed local diagnostics. Add focused
+  malformed/truncated-frame coverage and make serializer depth explicit only
+  where the accepted payload contract requires it.
+- [ ] Do not add session authentication, replay infrastructure, remote
+  administration, sender-selected CLR types, Instrumentation, or TestControl.
+  Revisit authentication and server-identity proof only if hostile same-user
+  processes or automatic retries of non-idempotent commands enter an accepted
+  threat model.
 
 The review must determine:
 
@@ -1171,8 +1233,10 @@ The review must determine:
 - subscriber backpressure and shutdown behavior;
 - target-specific `net481`/`net9.0` differences.
 
-Only after confirmation and an accepted decision may hardening be promoted as
-implementation work. Rejected alternatives and rationale stay in the audit.
+The threat model and bounded implementation direction are now accepted.
+Rejected alternatives and rationale stay in the audit. E5 closes only after
+E5.1-E5.4 are implemented, validated on both target families, and reconciled
+into current technical documentation.
 Do not turn Pipes into a service bus or generic security framework. This phase
 does not authorize TestControl or Instrumentation IPC.
 
@@ -1238,7 +1302,7 @@ Phase E may be marked complete only when:
 - [ ] Data real-provider validation has a deliberate scope and outcome.
 - [x] Devices COM-port validation has an executed or explicitly accepted
   disposition.
-- [ ] Pipes/IPC hardening leads have been reverified.
+- [x] Pipes/IPC hardening leads have been reverified.
 - [ ] The Diagnostics-sector review is complete.
 - [x] No confirmed high-impact correctness issue lacks an accepted
   disposition.
