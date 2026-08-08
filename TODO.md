@@ -1289,8 +1289,14 @@ does not authorize TestControl or Instrumentation IPC.
 
 ### E6 — Complete the Diagnostics-sector review
 
-- [ ] Complete the remaining decisions in
+- [x] Revalidate the three remaining findings in
   [`docs/audit/diagnostics-boundaries-review-2026-07-30.md`](docs/audit/diagnostics-boundaries-review-2026-07-30.md).
+  Completed 2026-08-08 against committed `HEAD`
+  `6e91aea58f08e6227dc26259d1aec1e2911aeb7e`; all three remain confirmed and no
+  product code changed during the review.
+- [x] Accept the bounded E6 disposition below. **Decision 2026-08-08:** CRASH-01
+  closes without a product change; only CRASH-02 and WIN-01 are authorized for
+  implementation. The audit is complete and historical.
 
 **Original review baseline:** `1727a1cac3f66666b2df02bc618ad6ab45807a49`.
 
@@ -1298,21 +1304,46 @@ Phase D already implemented DGN-01, CORE-01, BND-01, LOG-01, CORE-02,
 TEST-01, and the accepted DBG-01 rename/boundary direction. The only remaining
 review-only decisions are CRASH-01, CRASH-02, and WIN-01:
 
-- **CRASH-01:** decide whether cross-platform Diagnostics should expose Windows
-  minidump vocabulary. Preserve current Windows behavior unless a migration is
-  accepted; do not build a Linux adapter merely to resolve vocabulary.
-- **CRASH-02:** decide whether Watchdog-specific notification policy remains in
-  `CrashHandler`; consider composition-root ownership while preserving the
-  working IPC integration. Do not break crash notification while cleaning the
-  architecture.
-- **WIN-01:** decide hook lifecycle, including one-shot versus reversible
-  installation, idempotence, duplicate handlers, physical filename cleanup,
-  and Windows-only validation.
+- **CRASH-01 — proposed no-code disposition:** retain `CrashDumpLevel`, the
+  `crash.dmp` convention, and the Windows implementation boundary during Phase
+  E. Do not invent a neutral artifact API or Linux adapter without a concrete
+  second-platform requirement and an explicit migration plan.
+- **CRASH-02 — proposed implementation:** remove active Watchdog-environment
+  policy from Diagnostics. A configured `ExternalNotifier` runs after artifact
+  creation regardless of `NEKO_UNDER_WATCHDOG`; the application owns whether to
+  wire Watchdog notification. Keep callback failure isolated and preserve
+  `NotifyWatchdog` only as an obsolete source-compatibility gate during Phase E.
+  Removing it remains a separately approved breaking-release decision. Preserve
+  the end-to-end Watchdog bundle test and add direct generic-callback coverage.
+- **WIN-01 — proposed implementation:** make `HookWinForms()` an idempotent,
+  one-shot process-lifetime installation with a named handler. Do not add a
+  reversible handle. Correct the physical filenames and add Windows-targeted
+  coverage proving repeated calls do not multiply dispatch.
 
 Completing the review does not authorize implementation. Accepted work is
 promoted selectively to this roadmap; rejected alternatives remain in the
 review. Mark the review historical only when every decision is resolved, and
 append reconciliation rather than rewriting the original snapshot.
+
+#### E6.1 — Make external crash notification generic
+
+- [ ] Remove `NEKO_UNDER_WATCHDOG` detection from Diagnostics. Invoke a
+  configured `ExternalNotifier` after artifact creation while isolating callback
+  failures. The application composition root owns whether Watchdog notification
+  is wired.
+- [ ] Preserve `NotifyWatchdog` only as an obsolete source-compatibility gate
+  during Phase E. Its removal requires a separately approved breaking release.
+- [ ] Preserve the end-to-end Watchdog crash-bundle integration and add direct
+  dual-target coverage for callback behavior without a Watchdog environment.
+
+#### E6.2 — Make the WinForms hook one-shot
+
+- [ ] Make `WindowsCrash.HookWinForms()` idempotent with one named handler for
+  the process lifetime. Do not add a reversible handle.
+- [ ] Rename `CrashSupressor.cs` to `CrashSuppressor.cs` and `DumpWritter.cs` to
+  `MiniDumpWriter.cs`; public type names and package boundaries remain unchanged.
+- [ ] Add Windows-targeted dual-target coverage proving repeated hook calls do
+  not multiply crash dispatch.
 
 ### E7 — Confidence stabilization closure
 

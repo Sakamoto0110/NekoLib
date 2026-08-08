@@ -2,11 +2,11 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** Diagnostics-sector boundaries and naming
 
-**Status:** in progress; core boundary decisions promoted to the roadmap
+**Status:** complete; E6 dispositions accepted and promoted to the roadmap
 
 **Reference date:** 2026-07-30
 
@@ -16,11 +16,12 @@
 
 **Reference commit:** `1727a1cac3f66666b2df02bc618ad6ab45807a49`
 
-**Last reconciliation:** 2026-08-01
+**Last reconciliation:** 2026-08-08
 
 **Current state:** [`TODO.md`](../../TODO.md) and [`README.md`](../../README.md)
 
-**Product-code coverage:** reviewed source matches the reference commit
+**Product-code coverage:** original snapshot at the reference commit; remaining
+findings revalidated against `6e91aea58f08e6227dc26259d1aec1e2911aeb7e`
 
 **Open-work authority:** [`TODO.md`](../../TODO.md)
 
@@ -675,3 +676,82 @@ This reconciliation resolves the original pending rename compatibility,
 logging persistence, telemetry persistence, and read-side composition choices.
 CRASH-01, CRASH-02, and WIN-01 were not promoted or implemented and remain the
 only review decisions keeping this artifact in progress.
+
+### E6 revalidation and accepted disposition — 2026-08-08
+
+The three remaining findings were revalidated against committed `HEAD`
+`6e91aea58f08e6227dc26259d1aec1e2911aeb7e`. The worktree was clean when E6
+started, `master` was six local commits ahead of `origin/master`, and this pass
+made no product-code changes.
+
+Current source still confirms every finding:
+
+- **CRASH-01 remains confirmed.** The plain `net9.0` Diagnostics assembly still
+  exposes `CrashDumpLevel`, defaults to `MiniDumpNormal`, passes that enum to the
+  injected `CrashDumpWriter`, and reserves `crash.dmp` as the artifact path.
+  Windows P/Invoke remains correctly isolated in `NekoLib.Diagnostics.Windows`.
+- **CRASH-02 remains confirmed.** The optional `ExternalNotifier` still runs
+  only when `NotifyWatchdog` is true and the Diagnostics assembly itself finds
+  `NEKO_UNDER_WATCHDOG`. The application already supplies the actual Watchdog
+  callback at its composition boundary, and the integration test proves that
+  callback can notify the current Watchdog endpoint and finalize a bundle.
+- **WIN-01 remains confirmed.** `HookWinForms()` still adds a new anonymous
+  `Application.ThreadException` handler on every call and provides no removal
+  handle. The physical filenames remain `CrashSupressor.cs` and
+  `DumpWritter.cs`, while their type names are correctly spelled.
+
+The bounded dispositions accepted on 2026-08-08 are:
+
+1. **CRASH-01 — retain the current compatibility surface.** Keep
+   `CrashDumpLevel`, the `crash.dmp` convention, and the Windows implementation
+   boundary unchanged in Phase E. Do not invent a platform-neutral artifact API
+   or a Linux adapter without a concrete second-platform requirement. Revisit
+   this choice only with such a requirement and an explicit migration plan.
+2. **CRASH-02 — move active policy to composition.** Make the configured
+   `ExternalNotifier` independent of `NEKO_UNDER_WATCHDOG`; Diagnostics should
+   invoke it after artifact creation and isolate callback failures, while the
+   application decides whether to wire Watchdog notification. Preserve
+   `NotifyWatchdog` only as an obsolete source-compatibility gate during Phase E;
+   removing that public member requires a separately approved breaking release.
+   Preserve the existing end-to-end Watchdog integration test while adding
+   direct generic-callback coverage.
+3. **WIN-01 — use a one-shot process policy.** Make `HookWinForms()` idempotent
+   and retain one named handler for the process lifetime. A reversible handle is
+   unnecessary because `CrashHandler` already controls active recipients in its
+   installed-handler registry. Correct the two physical filenames and add
+   Windows-targeted regression coverage that repeated calls do not multiply
+   dispatch.
+
+CRASH-01 closes with no product change. CRASH-02 and WIN-01 are promoted to
+`TODO.md` as the only authorized implementation work from this reconciliation.
+The review is now complete and historical; implementation outcomes must be
+appended here without rewriting the original snapshot.
+
+Successful focused validation on Windows:
+
+```text
+dotnet build src/Diagnostics/NekoLib.Diagnostics/NekoLib.Diagnostics.csproj
+  --no-restore
+  net481 and net9.0: succeeded, 0 warnings, 0 errors
+
+dotnet build src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj
+  --no-restore
+  net481 and net9.0-windows: succeeded, 0 warnings, 0 errors
+
+dotnet test tests/NekoLib.Diagnostics.Tests/Unit/NekoLib.Diagnostics.Tests.Unit.csproj
+  --no-restore
+  net481: 4 passed
+  net9.0-windows: 4 passed
+
+dotnet test tests/NekoLib.Watchdog.Tests/Unit/NekoLib.Watchdog.Tests.Unit.csproj
+  --no-restore --filter "FullyQualifiedName~WatchdogCrashBundleTests"
+  net481: 3 passed
+  net9.0-windows: 3 passed
+```
+
+The Watchdog test build emitted the repository's existing nullable warnings.
+An initial parallel validation attempt was discarded after concurrent builds
+contended for the same Core intermediate assemblies (`CS2012`); the sequential
+commands above are the authoritative results. No real minidump, WER dialog, or
+live WinForms `Application.ThreadException` dispatch was exercised, and no Linux
+runtime validation was attempted.
