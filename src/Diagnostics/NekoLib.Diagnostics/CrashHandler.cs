@@ -23,6 +23,8 @@ namespace NekoLib.Diagnostics
 
     public sealed class CrashHandlerOptions
     {
+        private bool _externalNotificationEnabled = true;
+
         public string? CrashRootDirectory { get; set; }
         public CrashDumpLevel DumpLevel { get; set; } = CrashDumpLevel.MiniDumpNormal;
 
@@ -71,9 +73,24 @@ namespace NekoLib.Diagnostics
         /// </summary>
         public Func<string, string>? Redact { get; set; }
 
-        // NEW
-        public bool NotifyWatchdog { get; set; } = true;
+        /// <summary>
+        /// Compatibility gate for external notification. New code should leave
+        /// <see cref="ExternalNotifier"/> unset when no notification is required.
+        /// </summary>
+        [Obsolete("Set ExternalNotifier to null when external notification is not required.")]
+        public bool NotifyWatchdog
+        {
+            get { return _externalNotificationEnabled; }
+            set { _externalNotificationEnabled = value; }
+        }
+
+        /// <summary>
+        /// Optional notification callback supplied by the application composition
+        /// root. Diagnostics invokes it after crash artifacts are written.
+        /// </summary>
         public Action<CrashDetectedEventArgs>? ExternalNotifier { get; set; }
+
+        internal bool ExternalNotificationEnabled => _externalNotificationEnabled;
     }
 
     public sealed class CrashDetectedEventArgs : EventArgs
@@ -220,7 +237,7 @@ namespace NekoLib.Diagnostics
                 var evidence = CaptureEvidence();
                 WriteCrashArtifacts(args, incidentNotes, evidence);
 
-                if (_o.NotifyWatchdog && IsUnderWatchdog())
+                if (_o.ExternalNotificationEnabled && _o.ExternalNotifier != null)
                     NotifyExternal(args);
             }
             catch
@@ -522,17 +539,6 @@ namespace NekoLib.Diagnostics
                 catch { }
             }
         }
-
-        // ============================================================
-        // WATCHDOG AUTO-DETECTION
-        // ============================================================
-
-        private static bool IsUnderWatchdog()
-        {
-            return Environment.GetEnvironmentVariable("NEKO_UNDER_WATCHDOG") != null;
-        }
-
-       
 
         // ============================================================
         // FILE / DUMP

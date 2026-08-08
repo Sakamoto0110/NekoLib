@@ -156,6 +156,56 @@ namespace NekoLib.Diagnostics.Tests.Unit
             }
         }
 
+        [Fact]
+        public void HandleCrash_WithExternalNotifierOutsideWatchdog_InvokesAfterArtifacts()
+        {
+            var root = NewTempRoot();
+            var previous = Environment.GetEnvironmentVariable("NEKO_UNDER_WATCHDOG");
+
+            try
+            {
+                Environment.SetEnvironmentVariable("NEKO_UNDER_WATCHDOG", null);
+                var calls = new List<string>();
+                var handler = new CrashHandler(new CrashHandlerOptions
+                {
+                    CrashRootDirectory = root,
+                    DumpLevel = CrashDumpLevel.None,
+                    ExternalNotifier = _ => calls.Add("notify")
+                });
+
+                handler.CrashBundleWritten += (_, __) => calls.Add("bundle");
+
+                InvokeHandleCrash(handler);
+
+                Assert.Equal(new[] { "bundle", "notify" }, calls.ToArray());
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("NEKO_UNDER_WATCHDOG", previous);
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
+        public void HandleCrash_WithCompatibilityNotificationGateDisabled_DoesNotNotify()
+        {
+            var notified = false;
+            var options = new CrashHandlerOptions
+            {
+                WriteCrashFolder = false,
+                DumpLevel = CrashDumpLevel.None,
+                ExternalNotifier = _ => notified = true
+            };
+
+#pragma warning disable CS0618
+            options.NotifyWatchdog = false;
+#pragma warning restore CS0618
+
+            InvokeHandleCrash(new CrashHandler(options));
+
+            Assert.False(notified);
+        }
+
         private static void InvokeHandleCrash(
             CrashHandler handler,
             string source = "unit-test",

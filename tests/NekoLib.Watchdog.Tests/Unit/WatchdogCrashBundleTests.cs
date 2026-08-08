@@ -78,7 +78,7 @@ namespace NekoLib.Watchdog.Tests.Unit
 
             try
             {
-                Environment.SetEnvironmentVariable("NEKO_UNDER_WATCHDOG", "1");
+                Environment.SetEnvironmentVariable("NEKO_UNDER_WATCHDOG", null);
 
                 var options = WatchdogTestUtil.NewOptions(root, "/c ping -n 3 127.0.0.1 > nul");
 
