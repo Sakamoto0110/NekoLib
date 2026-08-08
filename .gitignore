@@ -55,3 +55,6 @@ CLAUDE.md
 # Runtime scenario source and instructions are versioned. Global bin/obj/log
 # rules above keep their generated output out of Git.
 /.codex/environments
+
+# Machine-local working notes
+/NekoTodo.md

@@ -85,6 +85,7 @@ reference commit.
 | [`.agents/skills/nekolib-devices/SKILL.md`](../.agents/skills/nekolib-devices/SKILL.md) | guide | current | Devices workflow |
 | [`.agents/skills/nekolib-navigation/SKILL.md`](../.agents/skills/nekolib-navigation/SKILL.md) | guide | current | Navigation workflow |
 | [`.agents/skills/nekolib-repository-hygiene/SKILL.md`](../.agents/skills/nekolib-repository-hygiene/SKILL.md) | guide | current | Repository hygiene workflow |
+| [`.agents/skills/nekolib-repository-inventory/SKILL.md`](../.agents/skills/nekolib-repository-inventory/SKILL.md) | guide | current | Repository file inventory workflow |
 | [`docs/audit/`](audit/README.md) | audit | historical or explicitly current | Dated review snapshots; each artifact is classified in the audit index |
 
 Local ignored guidance files are outside this registry. They may help a local

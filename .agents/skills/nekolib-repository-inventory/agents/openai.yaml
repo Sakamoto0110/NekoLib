@@ -1,0 +1,7 @@
+interface:
+  display_name: "NekoLib Repository File Inventory"
+  short_description: "Inventory relevant files in the NekoLib repository"
+  default_prompt: "Use $repo-file-inventory to produce a compact inventory of relevant files in the NekoLib repository."
+
+policy:
+  allow_implicit_invocation: true
