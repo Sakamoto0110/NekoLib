@@ -997,6 +997,52 @@ a 60–90 minute recovery rehearsal. Faults are generated deterministically from
 an integer seed, persisted before launch as monotonic offsets, and injected only
 by scenario-owned processes or the orchestrator.
 
+#### Phase E runtime scenario delivery
+
+The checkbox for a scenario closes only after its source is versioned, the
+declared target matrix builds, smoke and recovery rehearsal pass with automated
+exit codes, cleanup is reconciled, and the required long-running evidence is
+recorded. A pre-existing smoke or partial consumer is useful evidence but does
+not mean the corresponding Phase E scenario is complete.
+
+- [ ] **E3-ORCH — deterministic campaign orchestration.** The specification
+  exists; implementation, schedule reproducibility, aggregate exit codes,
+  recovery rehearsal, and the 16-hour campaign remain open.
+- [ ] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
+  and WPF smoke applications exist and have interactive evidence; the dedicated
+  unattended workload, resource assertions, recovery rehearsal, and long run
+  remain open.
+- [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** FarmDatabase is a
+  partial low-rate Logging/Telemetry consumer; the dedicated capacity,
+  rotation, failure-isolation, snapshot, provider-budget, lifecycle, and soak
+  scenario remains open.
+- [ ] **E3-PIPE — Pipes long-running and recovery.** Automated contract coverage
+  exists; the separate-process real named-pipe load, churn, fault, active-dispose,
+  resource-growth, and recovery scenario remains open.
+- [ ] **E3-WDOG — deployed-Host crash and recovery.** Supervisor481 exists with
+  build-only evidence; the deployed sidecar, deterministic crash loop,
+  forwarding, bundle, duplicate-supervision, recovery, and soak evidence remains
+  open.
+- [ ] **E3-DEV — Devices virtual-COM soak and recovery.** The independent
+  com0com/PCB oracle scenario exists and passed its interactive parity matrix;
+  its automated smoke, recovery-rehearsal, delayed/late-response, repeated
+  reconnect, resource, and soak modes remain open.
+- [ ] **E4-SQL — Data against local SQL Server.** The provider and local
+  WSL 2/container topology are selected and the specification exists; scenario
+  source, exact version record, dual-target build, smoke, mid-flight
+  cancellation, network/server recovery, dynamic-shape lifetime, and long run
+  remain open.
+
+**Failure intake:** record every initial failure in the owning scenario's
+verification record and artifacts with repository commit and dirty state,
+environment/version matrix, command, seed and schedule event where applicable,
+expected versus actual result, and a minimal reproduction. Classify it first as
+an environment/setup failure, a scenario/oracle defect, or a reproducible
+product defect. Only a product defect confirmed against current source and given
+an accepted implementation direction receives a stable item in this roadmap.
+Unconfirmed observations remain scenario evidence; build failures and missing
+prerequisites are not silently promoted into product work.
+
 Required coverage:
 
 - **Navigation:** thousands of page switches; forward/back and login/logout
