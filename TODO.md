@@ -1031,7 +1031,10 @@ not mean the corresponding Phase E scenario is complete.
   WSL 2/container topology are selected and the specification exists; scenario
   source, exact version record, dual-target build, smoke, mid-flight
   cancellation, network/server recovery, dynamic-shape lifetime, and long run
-  remain open.
+  remain open. **Local prerequisite reported configured 2026-08-08:** the named
+  `nekolib-sqlserver` container uses the pinned SQL Server 2022 CU26 Ubuntu 22.04
+  image and maps host/container port `1433`. This is machine-setup state, not
+  runtime evidence; the scenario must revalidate it before execution.
 
 **Failure intake:** record every initial failure in the owning scenario's
 verification record and artifacts with repository commit and dirty state,

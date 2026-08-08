@@ -540,6 +540,48 @@ Use one local SQL Server Linux container on WSL 2, hosted on the same Windows
 AMD64 machine as the test process. The NekoLib scenario runs on Windows and
 connects through a loopback TCP port mapped to the container.
 
+### Current local reference setup
+
+The repository owner reported this machine-local prerequisite as configured on
+2026-08-08:
+
+| Setting | Value |
+|---|---|
+| Container name | `nekolib-sqlserver` |
+| Image | `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` |
+| Reported host/container port | `1433:1433` (bind address not yet verified) |
+| Host endpoint | `localhost,1433` |
+
+Use these exact PowerShell commands for the pre-existing container:
+
+```powershell
+docker start nekolib-sqlserver
+docker stop nekolib-sqlserver
+docker restart nekolib-sqlserver
+```
+
+The repository owner confirmed all three commands in a local PowerShell session
+on 2026-08-08. The Docker CLI was not available in the documenting Codex
+process, so the image, resolved digest, bind address, current state, and SQL
+Server readiness were not independently queried here. Before the first scenario
+run, query the container without printing its environment and record those
+values in the run artifacts.
+
+The abbreviated Docker mapping `1433:1433` commonly publishes on every host
+interface rather than proving the loopback-only requirement below. Connecting
+through `localhost,1433` does not establish the bind restriction. The scenario
+must record Docker's actual `HostIp`; if it is not loopback, report the setup gap
+instead of silently claiming local-only exposure. Recreating the user-owned
+container to change that binding is outside the scenario's authority.
+
+Treat this named container as an explicitly adopted, user-owned prerequisite.
+The scenario may start, stop, or restart it only for documented setup and fault
+steps, and must restore its initial running/stopped state during cleanup. It
+must not remove or recreate the container, its volume, network, or credentials.
+Never write the SQL Server password to source, documentation, command arguments,
+logs, result files, or generated connection strings; read it from the scenario's
+documented environment variable at process startup.
+
 Requirements:
 
 - WSL 2 and a Docker- or Podman-compatible container engine;
