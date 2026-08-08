@@ -1005,9 +1005,26 @@ exit codes, cleanup is reconciled, and the required long-running evidence is
 recorded. A pre-existing smoke or partial consumer is useful evidence but does
 not mean the corresponding Phase E scenario is complete.
 
-- [ ] **E3-ORCH — deterministic campaign orchestration.** The specification
-  exists; implementation, schedule reproducibility, aggregate exit codes,
-  recovery rehearsal, and the 16-hour campaign remain open.
+- [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
+  2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
+  a thin PowerShell orchestrator with a versioned configuration schema,
+  deterministic seeded schedule generation persisted before launch, explicit
+  scenario selection, strict process ownership verified by name and start time,
+  aggregate exit codes, and stale-campaign reconciliation. It carries no
+  business assertions; those stay in the workers.
+  **All three acceptance criteria were exercised on 2026-08-08:** the same seed
+  produced `fnv1a64:cfc084039abb71b8` on consecutive runs; a deliberately failed
+  worker made the campaign exit 4 while the other worker completed and exited 0;
+  and an orchestrator killed mid-campaign left its schedule behind and the next
+  run identified the orphaned process, reporting it without touching it and
+  ending it only on request. A two-worker smoke campaign exited 0.
+  **Still open:** a recovery rehearsal and the 16-hour campaign run through the
+  orchestrator. Neither starts merely because the script works.
+  **Recorded load finding:** the first concurrent campaign saturated the host —
+  around 670 MB free, SQL Server logins past 15 seconds — and the provider's
+  pool blocking period then reported one slow login as seven consecutive check
+  failures. That is machine capacity, not a product defect, and it is why the
+  16-hour campaign should not share this host with other heavy work.
 - [ ] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
   and WPF smoke applications exist and have interactive evidence; the dedicated
   unattended workload, resource assertions, recovery rehearsal, and long run
@@ -1027,14 +1044,32 @@ not mean the corresponding Phase E scenario is complete.
   com0com/PCB oracle scenario exists and passed its interactive parity matrix;
   its automated smoke, recovery-rehearsal, delayed/late-response, repeated
   reconnect, resource, and soak modes remain open.
-- [ ] **E4-SQL — Data against local SQL Server.** The provider and local
-  WSL 2/container topology are selected and the specification exists; scenario
-  source, exact version record, dual-target build, smoke, mid-flight
-  cancellation, network/server recovery, dynamic-shape lifetime, and long run
-  remain open. **Local prerequisite reported configured 2026-08-08:** the named
-  `nekolib-sqlserver` container uses the pinned SQL Server 2022 CU26 Ubuntu 22.04
-  image and maps host/container port `1433`. This is machine-setup state, not
-  runtime evidence; the scenario must revalidate it before execution.
+- [ ] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
+  2026-08-08** at [`runtime_tests/Data/SqlServer/`](runtime_tests/Data/SqlServer/README.md):
+  a dual-target x64 console scenario with smoke, recovery-rehearsal and soak
+  modes, `Microsoft.Data.SqlClient` confined to the scenario project, container
+  adoption that restores the state it found, and the artifact and exit-code
+  contracts. Both targets build with no warnings and the exit-code contract was
+  exercised. Schedule determinism is verified: the same seed produces
+  `fnv1a64:49a3ab65b5f249e9` on `net481` and `net9.0`.
+  **Smoke passed on both targets with exit code 0 on 2026-08-08** against SQL
+  Server 16.0.4265.3 Developer Edition — 28 checks on `net9.0`, 27 plus a
+  correctly skipped streaming check on `net481`, zero unexpected failures, both
+  producing the same data digest. This is the repository's first real-server
+  provider evidence: mid-flight cancellation, pool reuse and the
+  `DynamicMode.IL` schema cap are now executed rather than argued.
+  **Still open:** a recovery rehearsal inside the specified 60-90 minute window
+  (a 10-minute `net9.0` run passed all seven fault handlers with exit 0 but is
+  flagged `belowSpecifiedWindow` and is not rehearsal evidence), the rehearsal
+  on `net481`, and the 16-hour soak.
+  **Container revalidated 2026-08-08 by querying Docker directly:** the pinned
+  `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` image resolves to
+  digest `sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89`,
+  the container was found `exited`, and two setup gaps were recorded rather than
+  corrected: the port publishes on **every host interface** rather than
+  loopback only, and there is no volume, so the data lives in the container's
+  writable layer and survives restart. `NEKOLIB_SQLSERVER_PASSWORD` is not set
+  on the machine, which is what currently blocks execution.
 
 **Failure intake:** record every initial failure in the owning scenario's
 verification record and artifacts with repository commit and dirty state,
@@ -1153,7 +1188,11 @@ Data:
   [`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md), validating
   pooling/data-source ownership, network failure and recovery, mid-flight
   cancellation, transactions, mapping, streaming cleanup, and dynamic-result
-  lifetime before claiming support;
+  lifetime before claiming support. **Implemented 2026-08-08, not yet
+  executed** — see the E4-SQL entry under Phase E runtime scenario delivery.
+  The scenario required no change to `NekoLib.Data`: it reaches SQL Server
+  through the existing `IDbConnectionFactory` seam and `SqlServerQueryTranslator`,
+  which is the topology this roadmap asked to preserve;
 - keep concrete provider packages outside the relational core and record exact
   package, target, architecture, and server versions in validation evidence;
 - promote provider-native parameter hooks, data-source lifecycle adapters, or
@@ -1166,17 +1205,40 @@ Data:
 
 Still open in this provider evidence:
 
-- [ ] **Validate dynamic-result lifetime against a real provider.** DATA-012 is
-  implemented, but the dynamic path has only ever been executed with a single row
-  shape, so the process-wide schema cap is never approached and `DynamicMode.IL` —
-  whose emitted types are process-wide and not unloadable — has never been enabled
-  outside unit coverage. A long run that queries varying shapes is what would show
-  whether the cap falls back, fails, or leaks. This is the remaining long-process
-  risk in Data.
-- [ ] **Cancel an operation in flight.** Refusal of an already-cancelled token is
-  proven for every entry point including the insert, but a local file database
-  completes faster than a cancellation can be timed, so interrupting work that has
-  already started remains unproven and needs a slower provider.
+- [x] **Validate dynamic-result lifetime against a real provider — done
+  2026-08-08.** `DynamicMode.IL` was enabled against SQL Server with genuinely
+  varying row shapes (rotating aliases *and* projected SQL types, not values
+  under one shape) on both targets. Measured: eight distinct shapes emitted
+  exactly eight types and repeating them added no cache misses; the process-wide
+  cap was crossed deliberately at twelve; the thirteenth shape threw
+  `InvalidOperationException("Dynamic IL schema limit reached (12)")` and emitted
+  nothing; a context permitting fallback answered the same new shape with Expando
+  and still emitted nothing; already-emitted shapes and ordinary typed queries
+  kept working past the boundary. The cap **falls back or fails as designed and
+  does not leak** — but the emitted count never fell, which is the honest
+  reading: Reflection.Emit types live in a non-collectible assembly for the life
+  of the process, and the cap bounds emission, not lifetime. The per-context
+  `MaxDynamicSchemas` is locked by the first IL use and later contexts cannot
+  reconfigure it, exactly as DATA-012 specified.
+  **Not yet observed over a long run** — this is a boundary crossing inside a
+  short process, not soak evidence.
+- [x] **Cancel an operation in flight — done 2026-08-08.** A remote engine that
+  can be told to wait is what made the question answerable. Each command is
+  marked with a comment, the scenario polls `sys.dm_exec_requests` until SQL
+  Server reports that exact batch executing, and only then cancels — a
+  server-visible start signal rather than a wall-clock sleep. Raw, typed,
+  dynamic, callback, streaming and transaction-bound paths were all interrupted
+  after execution had begun, on both targets, each with one cancellation
+  terminal, **no success terminal**, and a successful probe afterwards through
+  the same gateway and through a freshly pooled connection. A cancelled
+  transaction committed nothing and disposed without throwing.
+  **Recorded consequence for callers:** the terminal is not one type. A command
+  held open by `WAITFOR DELAY` cancels as `SqlException` number 0; one waiting on
+  a row lock cancels as `TaskCanceledException`. Application code catching only
+  `OperationCanceledException` would miss the first. This is provider behaviour,
+  not a NekoLib defect, and it does not by itself justify a Data change — but it
+  belongs in the Data documentation when cancellation is next described.
+  The already-cancelled-token matrix remains a separate claim and still passes.
 - [ ] The scenario's own UI has never been driven automatically; all of its
   evidence is headless. Interactive verification stays manual and is recorded as
   such in the scenario README.
