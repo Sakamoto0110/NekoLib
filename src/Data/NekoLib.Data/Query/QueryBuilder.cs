@@ -30,6 +30,12 @@ namespace NekoLib.Data.Query
 
         private readonly List<string> _columns = new List<string>();
         private readonly List<string> _conditions = new List<string>();
+
+        /// <summary>
+        /// Positions in <see cref="_conditions"/> that carry a subquery. Kept so the
+        /// WHERE clause can put them first - see <see cref="OrderedConditions"/>.
+        /// </summary>
+        private readonly HashSet<int> _subQueryConditions = new HashSet<int>();
         private readonly List<string> _groupByColumns = new List<string>();
         private readonly List<string> _orderByColumns = new List<string>();
         private readonly List<string> _joins = new List<string>();
@@ -62,6 +68,7 @@ namespace NekoLib.Data.Query
             _table = null;
             _columns.Clear();
             _conditions.Clear();
+            _subQueryConditions.Clear();
             _groupByColumns.Clear();
             _orderByColumns.Clear();
             _joins.Clear();
@@ -428,7 +435,49 @@ namespace NekoLib.Data.Query
                 _parameters[newName] = kv.Value;
             }
 
+            _subQueryConditions.Add(_conditions.Count);
             _conditions.Add(keyword + " (" + sql + ")");
+        }
+
+        /// <summary>
+        /// The WHERE conditions with any subquery predicate placed first.
+        /// <para/>
+        /// Ordering here is not cosmetic; on a positional provider it decides whether
+        /// the query is answered correctly. Placeholders are rewritten to <c>?</c> and
+        /// bound in the order they appear in the text, but the ACE/Jet engine consumes
+        /// them with the subquery's first regardless of where it sits in the clause. A
+        /// predicate written before an <c>EXISTS</c> therefore receives the subquery's
+        /// value and vice versa.
+        /// <para/>
+        /// Measured against a real database: with an integer predicate before an
+        /// <c>EXISTS</c> carrying a string, Access answered <i>Data type mismatch in
+        /// criteria expression</i>. With two compatible predicates it silently returned
+        /// zero rows where the correct answer was six — the same builder returning the
+        /// right answer on SQLite. Emitting the subquery first makes the text order and
+        /// the consumption order agree, and both engines then return the same rows.
+        /// <para/>
+        /// Predicates combine with AND, so reordering them cannot change the result;
+        /// queries without a subquery keep their original order and their original SQL.
+        /// <para/>
+        /// Verified for a single subquery. Where two or more carry parameters, the
+        /// relative order among them is authoring order and has not been measured.
+        /// </summary>
+        private List<string> OrderedConditions()
+        {
+            if (_subQueryConditions.Count == 0)
+                return _conditions;
+
+            List<string> ordered = new List<string>(_conditions.Count);
+
+            for (int index = 0; index < _conditions.Count; index++)
+                if (_subQueryConditions.Contains(index))
+                    ordered.Add(_conditions[index]);
+
+            for (int index = 0; index < _conditions.Count; index++)
+                if (!_subQueryConditions.Contains(index))
+                    ordered.Add(_conditions[index]);
+
+            return ordered;
         }
 
         private static string ReplaceParameterName(string sql, string oldName, string newName)
@@ -618,7 +667,7 @@ namespace NekoLib.Data.Query
                 sb.Append(" ").Append(string.Join(" ", _joins));
 
             if (_conditions.Count > 0)
-                sb.Append(" WHERE ").Append(string.Join(" AND ", _conditions));
+                sb.Append(" WHERE ").Append(string.Join(" AND ", OrderedConditions()));
 
             if (_groupByColumns.Count > 0)
                 sb.Append(" GROUP BY ").Append(string.Join(", ", _groupByColumns));
@@ -683,7 +732,7 @@ namespace NekoLib.Data.Query
             sb.Append("UPDATE ").Append(_table).Append(" SET ").Append(string.Join(", ", sets));
 
             if (_conditions.Count > 0)
-                sb.Append(" WHERE ").Append(string.Join(" AND ", _conditions));
+                sb.Append(" WHERE ").Append(string.Join(" AND ", OrderedConditions()));
 
             return sb.ToString();
         }

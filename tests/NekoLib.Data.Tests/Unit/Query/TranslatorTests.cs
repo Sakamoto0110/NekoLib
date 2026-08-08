@@ -100,6 +100,34 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Equal("SELECT * FROM Customers", dq.Sql);
         }
 
+        [Fact]
+        public void Access_DistinctCount_RewritesAsAliasedDistinctSubquery()
+        {
+            QueryModel model = new QueryBuilder()
+                .DistinctCount("[Category]")
+                .From("[Products]")
+                .Build();
+
+            DatabaseQuery dq = new AccessQueryTranslator().Translate(model);
+
+            Assert.Equal(
+                "SELECT COUNT(*) FROM (SELECT DISTINCT [Category] FROM [Products]) AS [d]",
+                dq.Sql);
+        }
+
+        [Fact]
+        public void Access_RegularCount_LeavesSqlUnchanged()
+        {
+            QueryModel model = new QueryBuilder()
+                .Count("[Category]")
+                .From("[Products]")
+                .Build();
+
+            DatabaseQuery dq = new AccessQueryTranslator().Translate(model);
+
+            Assert.Equal("SELECT COUNT([Category]) FROM [Products]", dq.Sql);
+        }
+
         // ---------------------------------------------------------------------
         // SQLite: TOP is converted to a trailing LIMIT clause.
         // ---------------------------------------------------------------------

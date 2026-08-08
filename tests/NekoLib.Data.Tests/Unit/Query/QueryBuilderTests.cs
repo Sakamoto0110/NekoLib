@@ -452,6 +452,33 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Contains("NOT EXISTS", model.Sql);
         }
 
+        [Fact]
+        public void WhereExists_AfterOrdinaryPredicate_EmitsSubqueryPredicateFirst()
+        {
+            QueryBuilder sub = new QueryBuilder()
+                .Select("1")
+                .From("Animals")
+                .Where("Species = @p1", "cow");
+
+            QueryModel model = new QueryBuilder()
+                .Select("Name")
+                .From("Products")
+                .Where("Quantity > @p1", 10)
+                .WhereExists(sub)
+                .Build();
+
+            int existsIndex = model.Sql.IndexOf("EXISTS", StringComparison.Ordinal);
+            int quantityIndex = model.Sql.IndexOf("Quantity", StringComparison.Ordinal);
+
+            Assert.True(existsIndex >= 0, "EXISTS clause should be present");
+            Assert.True(quantityIndex >= 0, "ordinary predicate should be present");
+            Assert.True(existsIndex < quantityIndex,
+                "subquery predicates must precede ordinary predicates for positional providers");
+            Assert.Equal(2, model.Parameters.Count);
+            Assert.Equal(10, model.Parameters["@p1"]);
+            Assert.Equal("cow", model.Parameters["@p2"]);
+        }
+
         // ---------------------------------------------------------------------
         // Finding #6 - Build() must be idempotent for INSERT/UPDATE. The
         // previous implementation appended parameters to internal state on
