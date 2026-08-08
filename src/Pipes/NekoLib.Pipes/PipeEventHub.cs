@@ -31,6 +31,7 @@ namespace NekoLib.Pipes
         private readonly int _subscriberQueueCapacity;
         private readonly PipeEventQueueOverflowPolicy _overflowPolicy;
         private readonly SemaphoreSlim _subscriberLimiter;
+        private readonly PipeOperationRegistry _subscriberOperations = new PipeOperationRegistry();
         private readonly ConcurrentDictionary<Guid, EventSubscriber> _subscribers
             = new();
 
@@ -100,9 +101,9 @@ namespace NekoLib.Pipes
         {
             private readonly object _gate = new object();
             private readonly Queue<PendingEvent> _queue = new Queue<PendingEvent>();
+            private readonly SemaphoreSlim _available = new SemaphoreSlim(0);
             private readonly int _capacity;
             private bool _removed;
-            private bool _writerActive;
 
             public NamedPipeServerStream Pipe { get; }
 
@@ -112,38 +113,29 @@ namespace NekoLib.Pipes
                 _capacity = capacity;
             }
 
-            public bool TryEnqueue(PendingEvent pending, out bool startWriter)
+            public bool TryEnqueue(PendingEvent pending)
             {
                 lock (_gate)
                 {
-                    startWriter = false;
                     if (_removed || _queue.Count >= _capacity)
                         return false;
 
                     _queue.Enqueue(pending);
-                    if (!_writerActive)
-                    {
-                        _writerActive = true;
-                        startWriter = true;
-                    }
-
+                    _available.Release();
                     return true;
                 }
             }
 
-            public bool TryDequeue(out PendingEvent? pending)
+            public async Task<PendingEvent?> DequeueAsync(CancellationToken cancellationToken)
             {
+                await _available.WaitAsync(cancellationToken).ConfigureAwait(false);
+
                 lock (_gate)
                 {
                     if (_removed || _queue.Count == 0)
-                    {
-                        _writerActive = false;
-                        pending = null;
-                        return false;
-                    }
+                        return null;
 
-                    pending = _queue.Dequeue();
-                    return true;
+                    return _queue.Dequeue();
                 }
             }
 
@@ -157,16 +149,27 @@ namespace NekoLib.Pipes
                     _removed = true;
                     var pending = _queue.ToArray();
                     _queue.Clear();
+                    try { _available.Release(); } catch { }
                     return pending;
                 }
+            }
+
+            public void Dispose()
+            {
+                _available.Dispose();
             }
         }
 
         private CancellationTokenSource? _cts;
         private Task? _acceptTask;
         private volatile bool _running;
+        private int _disposeStarted;
+        private int _resourcesDisposed;
+        private Task _shutdownCompletion = Task.CompletedTask;
 
         public int SubscriberCount => _subscribers.Count;
+        internal int ActiveSubscriberOperationCount => _subscriberOperations.Count;
+        internal Task ShutdownCompletion => _shutdownCompletion;
 
         public PipeEventHub(
             string basePipeName,
@@ -224,6 +227,8 @@ namespace NekoLib.Pipes
 
         public void Start()
         {
+            if (Volatile.Read(ref _disposeStarted) != 0)
+                throw new ObjectDisposedException(nameof(PipeEventHub));
             if (_running)
                 throw new InvalidOperationException("EventHub already started.");
 
@@ -246,10 +251,12 @@ namespace NekoLib.Pipes
                     break;
                 }
 
-                _ = Task.Run(async () =>
+                if (!_subscriberOperations.TryStart(async operation =>
                 {
                     NamedPipeServerStream? pipe = null;
                     var id = Guid.NewGuid();
+                    EventSubscriber? subscriber = null;
+                    Task? writerTask = null;
 
                     try
                     {
@@ -257,6 +264,8 @@ namespace NekoLib.Pipes
                             _pipeName,
                             PipeDirection.Out,
                             _accessPolicy);
+                        if (!operation.SetPipe(pipe))
+                            return;
 
 #if NET9
                     await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
@@ -277,12 +286,16 @@ namespace NekoLib.Pipes
                         ct.ThrowIfCancellationRequested();
 #endif
 
-                        var subscriber = new EventSubscriber(pipe, _subscriberQueueCapacity);
+                        subscriber = new EventSubscriber(pipe, _subscriberQueueCapacity);
                         _subscribers[id] = subscriber;
                         _metrics.OnServerClientConnected(_pipeName);
+                        writerTask = DrainSubscriber(id, subscriber, ct);
 
                         // Keep subscriber alive until disconnect
-                        while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
+                        while (_running &&
+                               pipe.IsConnected &&
+                               !ct.IsCancellationRequested &&
+                               !writerTask.IsCompleted)
                         {
                             await Task.Delay(500, ct).ConfigureAwait(false);
                         }
@@ -302,14 +315,22 @@ namespace NekoLib.Pipes
                     finally
                     {
                         RemoveSubscriber(id);
+                        if (writerTask != null)
+                        {
+                            try { await writerTask.ConfigureAwait(false); } catch { }
+                        }
+                        try { subscriber?.Dispose(); } catch { }
                         // Dispose the accept pipe even if it never registered a subscriber
                         // (e.g. WaitForConnection cancelled on shutdown) so it doesn't
                         // linger and intercept a later client connect (audit M6).
                         try { pipe?.Dispose(); } catch { }
                         _subscriberLimiter.Release();
                     }
-
-                }, ct);
+                }))
+                {
+                    _subscriberLimiter.Release();
+                    break;
+                }
             }
         }
 
@@ -368,12 +389,8 @@ namespace NekoLib.Pipes
                 }
 
                 var pending = new PendingEvent(msg, tracker);
-                if (pair.Value.TryEnqueue(pending, out var startWriter))
-                {
-                    if (startWriter)
-                        _ = Task.Run(() => DrainSubscriber(pair.Key, pair.Value));
+                if (pair.Value.TryEnqueue(pending))
                     continue;
-                }
 
                 tracker.Complete(success: false);
                 if (_overflowPolicy == PipeEventQueueOverflowPolicy.DisconnectSubscriber)
@@ -385,24 +402,35 @@ namespace NekoLib.Pipes
 
         private async Task DrainSubscriber(
             Guid id,
-            EventSubscriber subscriber)
+            EventSubscriber subscriber,
+            CancellationToken cancellationToken)
         {
-            while (subscriber.TryDequeue(out var pending))
+            while (!cancellationToken.IsCancellationRequested)
             {
+                PendingEvent? pending = null;
                 try
                 {
+                    pending = await subscriber.DequeueAsync(cancellationToken).ConfigureAwait(false);
+                    if (pending == null)
+                        return;
+
                     if (!subscriber.Pipe.IsConnected)
                         throw new InvalidOperationException("Disconnected subscriber.");
 
                     await PipeFraming.WriteAsync(
                         subscriber.Pipe,
-                        pending!.Message,
-                        _cts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+                        pending.Message,
+                        cancellationToken).ConfigureAwait(false);
                     pending.Tracker.Complete(success: true);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    pending!.Tracker.Complete(success: false);
+                    if (pending != null)
+                        pending.Tracker.Complete(success: false);
                     if (!(_cts?.IsCancellationRequested ?? false))
                         _metrics.OnError(_pipeName, "event_publish", ex);
                     RemoveSubscriber(id);
@@ -425,44 +453,41 @@ namespace NekoLib.Pipes
 
         public void Dispose()
         {
-            if (!_running)
+            if (Interlocked.Exchange(ref _disposeStarted, 1) != 0)
                 return;
 
             _running = false;
 
             try { _cts?.Cancel(); } catch { }
-            try { _acceptTask?.Wait(2000); } catch { }
+            _subscriberOperations.BeginStop();
 
             foreach (var kv in _subscribers)
             {
                 try { RemoveSubscriber(kv.Key); } catch { }
             }
 
-            _subscribers.Clear();
-            _subscriberLimiter.Dispose();
-            _cts?.Dispose();
+            var acceptTask = _acceptTask ?? Task.CompletedTask;
+            _shutdownCompletion = Task.WhenAll(acceptTask, _subscriberOperations.Completion)
+                .ContinueWith(
+                    _ => DisposeResources(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+            try { _shutdownCompletion.Wait(2000); } catch { }
         }
 #if NET9
-public ValueTask DisposeAsync()
-{
-    DisposeCore();
-    return ValueTask.CompletedTask;
-}
-#endif
-        private void DisposeCore()
+        public async ValueTask DisposeAsync()
         {
-            if (!_running)
+            Dispose();
+            await _shutdownCompletion.ConfigureAwait(false);
+        }
+#endif
+
+        private void DisposeResources()
+        {
+            if (Interlocked.Exchange(ref _resourcesDisposed, 1) != 0)
                 return;
-
-            _running = false;
-
-            try { _cts?.Cancel(); } catch { }
-            try { _acceptTask?.Wait(2000); } catch { }
-
-            foreach (var kv in _subscribers)
-            {
-                try { RemoveSubscriber(kv.Key); } catch { }
-            }
 
             _subscribers.Clear();
             _subscriberLimiter.Dispose();

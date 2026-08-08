@@ -13,6 +13,7 @@ namespace NekoLib.Pipes
         private readonly IPipeMetrics _metrics;
 
         private readonly SemaphoreSlim _clientLimiter;
+        private readonly PipeOperationRegistry _clientOperations = new PipeOperationRegistry();
         // ConcurrentDictionary so Map() (typically before Start, but not enforced) can
         // never race the concurrent TryGetValue reads in Dispatch (audit M2).
         private readonly ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
@@ -21,10 +22,16 @@ namespace NekoLib.Pipes
         private CancellationTokenSource? _cts;
         private Task? _acceptTask;
         private volatile bool _running;
+        private int _disposeStarted;
+        private int _resourcesDisposed;
+        private Task _shutdownCompletion = Task.CompletedTask;
 
         public PipeEventHub? Events { get; private set; }
 
         public PipeAccessPolicy AccessPolicy => _o.AccessPolicy;
+
+        internal int ActiveClientOperationCount => _clientOperations.Count;
+        internal Task ShutdownCompletion => _shutdownCompletion;
 
         public PipeServer(PipeServerOptions options)
         {
@@ -52,6 +59,8 @@ namespace NekoLib.Pipes
 
         public void Start()
         {
+            if (Volatile.Read(ref _disposeStarted) != 0)
+                throw new ObjectDisposedException(nameof(PipeServer));
             if (_running)
                 throw new InvalidOperationException("PipeServer already started.");
 
@@ -91,7 +100,7 @@ namespace NekoLib.Pipes
                     break;
                 }
 
-                _ = Task.Run(async () =>
+                if (!_clientOperations.TryStart(async operation =>
                 {
                     NamedPipeServerStream? pipe = null;
                     bool connected = false;
@@ -102,6 +111,8 @@ namespace NekoLib.Pipes
                             _o.PipeName,
                             PipeDirection.InOut,
                             _o.AccessPolicy);
+                        if (!operation.SetPipe(pipe))
+                            return;
 
 #if NET9
                         await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
@@ -153,8 +164,11 @@ namespace NekoLib.Pipes
 
                         _clientLimiter.Release();
                     }
-
-                }, ct);
+                }))
+                {
+                    _clientLimiter.Release();
+                    break;
+                }
             }
         }
 
@@ -299,14 +313,30 @@ namespace NekoLib.Pipes
 
         public void Dispose()
         {
-            if (!_running)
+            if (Interlocked.Exchange(ref _disposeStarted, 1) != 0)
                 return;
 
             _running = false;
 
             try { _cts?.Cancel(); } catch { }
+            _clientOperations.BeginStop();
             try { Events?.Dispose(); } catch { }
-            try { _acceptTask?.Wait(2000); } catch { }
+
+            var acceptTask = _acceptTask ?? Task.CompletedTask;
+            _shutdownCompletion = Task.WhenAll(acceptTask, _clientOperations.Completion)
+                .ContinueWith(
+                    _ => DisposeResources(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+            try { _shutdownCompletion.Wait(2000); } catch { }
+        }
+
+        private void DisposeResources()
+        {
+            if (Interlocked.Exchange(ref _resourcesDisposed, 1) != 0)
+                return;
 
             _clientLimiter.Dispose();
             _cts?.Dispose();
