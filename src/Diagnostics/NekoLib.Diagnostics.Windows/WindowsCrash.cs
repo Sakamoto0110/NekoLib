@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace NekoLib.Diagnostics.Windows
@@ -14,6 +15,9 @@ namespace NekoLib.Diagnostics.Windows
     /// </summary>
     public static class WindowsCrash
     {
+        private static readonly object WinFormsHookLock = new object();
+        private static bool _winFormsHookInstalled;
+
         /// <summary>
         /// Routes crash dumps through the dbghelp.dll minidump writer. Call before
         /// installing the handler. Returns the same options for chaining.
@@ -28,18 +32,33 @@ namespace NekoLib.Diagnostics.Windows
         /// <summary>
         /// Installs the WinForms <c>Application.ThreadException</c> hook, forwarding to
         /// <see cref="NekoLib.Diagnostics.CrashHandler.ReportExternalCrash"/>. Mirrors the
-        /// legacy auto-hook that used to live inside CrashHandler. Call once at startup,
-        /// after handlers are installed. Never throws.
+        /// legacy auto-hook that used to live inside CrashHandler. The hook is installed
+        /// at most once for the process lifetime. Call at startup, after handlers are
+        /// installed. Never throws.
         /// </summary>
         public static void HookWinForms()
         {
-            try
+            lock (WinFormsHookLock)
             {
-                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-                Application.ThreadException += (s, e) =>
-                    CrashHandler.ReportExternalCrash("Application.ThreadException", e.Exception, false);
+                if (_winFormsHookInstalled)
+                    return;
+
+                try
+                {
+                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                    Application.ThreadException += OnThreadException;
+                    _winFormsHookInstalled = true;
+                }
+                catch { }
             }
-            catch { }
+        }
+
+        private static void OnThreadException(object sender, ThreadExceptionEventArgs e)
+        {
+            CrashHandler.ReportExternalCrash(
+                "Application.ThreadException",
+                e.Exception,
+                false);
         }
     }
 }

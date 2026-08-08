@@ -5,6 +5,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>NekoLib.Diagnostics.Tests.Unit</RootNamespace>
@@ -22,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Diagnostics\NekoLib.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\src\Diagnostics\NekoLib.Diagnostics.Windows\NekoLib.Diagnostics.Windows.csproj" />
     <ProjectReference Include="..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
   </ItemGroup>
 
