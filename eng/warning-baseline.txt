@@ -1,5 +1,5 @@
 ﻿# Normalized warning identities: source path | warning code | message
-# Generated on 2026-08-01 from commit 5caf809a4276a1a27d05a98451ec5df3d71a6842 (dirty tree).
+# Generated on 2026-08-01 from commit 4186e48defc35d887251a68ae248518547eda68b (dirty tree).
 src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs|CS8618|Non-nullable field 'NewLine' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
 src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs|CS8618|Non-nullable field 'Operation' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
 src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs|CS8618|Non-nullable field 'PortName' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
@@ -31,8 +31,8 @@ src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs|CS8612|Nullability of reference types in 
 src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs|CS8618|Non-nullable event 'PropertyChanged' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the event as nullable.
 src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs|CS8625|Cannot convert null literal to non-nullable reference type.
 src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8600|Converting null literal or possible null value to non-nullable type.
-src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'deactivated' in 'Subscription.Subscription(Control control, EventHandler lost, Form form, EventHandler deactivated)'.
-src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'form' in 'Subscription.Subscription(Control control, EventHandler lost, Form form, EventHandler deactivated)'.
+src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'deactivated' in 'Subscription.Subscription(Control control, EventHandler left, Form form, EventHandler deactivated)'.
+src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'form' in 'Subscription.Subscription(Control control, EventHandler left, Form form, EventHandler deactivated)'.
 src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsFocusObserverAdapter.cs|CS8625|Cannot convert null literal to non-nullable reference type.
 src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsInteractionObserver.cs|CS8604|Possible null reference argument for parameter 'control' in 'void WinFormsInteractionObserver.Hook(Control control)'.
 src/Navigation/NekoLib.Navigation.WinForms/Adapters/WinFormsInteractionObserver.cs|CS8604|Possible null reference argument for parameter 'control' in 'void WinFormsInteractionObserver.UnhookTree(Control control)'.
@@ -59,7 +59,6 @@ src/Navigation/NekoLib.Navigation.WinForms/Hosting/PromptViewBase.cs|CS8625|Cann
 src/Navigation/NekoLib.Navigation.WinForms/Hosting/ToastViewBase.cs|CS8618|Non-nullable field '_dismissCallback' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
 src/Navigation/NekoLib.Navigation.WinForms/Hosting/ToastViewBase.cs|CS8622|Nullability of reference types in type of parameter 'sender' of 'void ToastViewBase.OnViewClicked(object sender, EventArgs e)' doesn't match the target delegate 'EventHandler' (possibly because of nullability attributes).
 src/Navigation/NekoLib.Navigation.WinForms/Hosting/ToastViewBase.cs|CS8625|Cannot convert null literal to non-nullable reference type.
-src/Navigation/NekoLib.Navigation.Wpf/Adapters/InteractionObserver.cs|CS8618|Non-nullable event 'InteractionDetected' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the event as nullable.
 src/Navigation/NekoLib.Navigation.Wpf/Adapters/WpfFocusObserverAdapter.cs|CS8600|Converting null literal or possible null value to non-nullable type.
 src/Navigation/NekoLib.Navigation.Wpf/Adapters/WpfFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'deactivated' in 'Subscription.Subscription(UIElement element, KeyboardFocusChangedEventHandler lost, Window window, EventHandler deactivated)'.
 src/Navigation/NekoLib.Navigation.Wpf/Adapters/WpfFocusObserverAdapter.cs|CS8604|Possible null reference argument for parameter 'window' in 'Subscription.Subscription(UIElement element, KeyboardFocusChangedEventHandler lost, Window window, EventHandler deactivated)'.

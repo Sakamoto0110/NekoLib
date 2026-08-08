@@ -73,7 +73,7 @@ reference commit.
 | [`tests/README.md`](../tests/README.md) | reference | current | Automated verification taxonomy and canonical entry points |
 | [`runtime_tests/README.md`](../runtime_tests/README.md) | guide | current | Shared manual runtime-scenario contract and inventory |
 | [`runtime_tests/SCENARIO_TEMPLATE.md`](../runtime_tests/SCENARIO_TEMPLATE.md) | guide | current | Required metadata and procedure template for new scenarios |
-| [`runtime_tests/Data/FarmDatabase/README.md`](../runtime_tests/Data/FarmDatabase/README.md) | guide | current | Data SQLite/Access dual-provider scenario, also covering Mvvm binding and attribute-only page registration |
+| [`runtime_tests/Data/FarmDatabase/README.md`](../runtime_tests/Data/FarmDatabase/README.md) | guide | current | Data SQLite/Access dual-provider and long-running simulation scenario, also covering Mvvm binding, attribute-only Navigation registration, and application-owned Logging/Telemetry measurements |
 | [`runtime_tests/Devices/Com0Com/README.md`](../runtime_tests/Devices/Com0Com/README.md) | guide | current | Devices virtual-COM parity and protocol-readiness scenario |
 | [`runtime_tests/Navigation/WinFormsSmoke/README.md`](../runtime_tests/Navigation/WinFormsSmoke/README.md) | guide | current | Navigation WinForms interactive smoke scenario |
 | [`runtime_tests/Navigation/WpfSmoke/README.md`](../runtime_tests/Navigation/WpfSmoke/README.md) | guide | current | Navigation WPF interactive smoke scenario |

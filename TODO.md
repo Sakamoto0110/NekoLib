@@ -387,6 +387,27 @@ WPF scope:
 - focus, DPI/resize, exception propagation, parity with intended Navigation
   contracts, and behavior that legitimately differs from WinForms.
 
+**Confirmed design-time finding — 2026-08-06, reconciled 2026-08-08:** the
+`designer/runtime interaction` item above is delivered for the WinForms overlay
+bases. The
+[`Navigation design-time loadability`](docs/audit/navigation-design-time-2026-08-06.md)
+review found two defects that no compiler, and no test as the suite then stood,
+could see: every surface base was `abstract`, which the WinForms designer cannot
+instantiate, and the bases scheduled work through `BeginInvoke` before a handle
+existed. The second was never only a design-time problem. Both are implemented in
+`73ddbdb` and locked by `SurfaceBaseDesignTimeTests`.
+
+Worth keeping, because it decides where the next such defect gets found: the
+review came out of **building a real consuming application against the module**
+and opening its pages in the designer, not out of reading the module. The
+consumer was the `runtime_tests/Data/FarmDatabase` scenario.
+
+Two residual gaps stay deliberately unscheduled and are recorded in the review
+rather than here: `PromptViewBase<TResult>` remains generic, which is why that
+scenario carries two shims, and `[DesignerCategory("Code")]` remains an unguarded
+trap — applying it to a page instead of a custom-painted control silently makes
+the page undesignable.
+
 **Confirmed runtime finding — 2026-08-02:** the PCB emulation scenario observed
 the configured 30-second idle tick sign the session out without navigating to
 Home. Current source confirms that `NavigationBootstrapLifetime` validates the
@@ -962,6 +983,10 @@ Validation requirements:
 
 - [ ] Create small, specific, reproducible scenarios for unattended execution
   over long periods without creating a new runtime framework.
+- [ ] **Make the evidence unattended.** The Data scenario now reports every check
+  as a process exit code rather than as output a person has to read, which is what
+  makes automation possible — but nothing runs it. A script and a schedule are the
+  remaining gap between "reproducible" and "unattended".
 
 Required coverage:
 
@@ -973,9 +998,21 @@ Required coverage:
 - **Logging:** sustained writes at expected PDV volume; sink-failure isolation;
   rolling-file rotation; retained-file count; flush during an incident;
   shutdown/disposal; bounded recent snapshots.
+  **First consumption — 2026-08-08, scenario `4186e48`.** The FarmDatabase simulation writes its
+  measurements through `Logger` and `RollingFileLogSink`; this is the first use of
+  the module anywhere in the repository. Only sustained writing and
+  shutdown/disposal are exercised, and deliberately at a low rate: the sink opens
+  and closes the file per entry, so the scenario accumulates in memory and emits
+  one rolled-up line per ten-second window rather than one per tick.
+  **Rotation, retained-file count, sink-failure isolation and flush-during-incident
+  remain unexercised** — the log has never grown past a few kilobytes.
 - **Telemetry:** bounded retention; operation completion; abandoned operations
   if relevant; checkpoint ordering; correlation; snapshot behavior under
   sustained activity.
+  **First consumption — 2026-08-08, scenario `4186e48`**, from the same scenario: one completed
+  operation with measurements per window, under sustained activity, against a
+  bounded pipeline. **Checkpoints, correlation, abandoned operations and snapshot
+  reads have no coverage yet.**
 - **Inspection:** bounded operation retention; state-provider timeout; provider
   failure isolation; enable/dispose cycles; no action rollout.
 - **Pipes:** sustained request/response; reconnect; subscriber churn; slow
@@ -989,6 +1026,19 @@ Required coverage:
   cancellation; late-response isolation.
 - **Data:** repeated connection/session use; disposal; transaction cycles;
   streaming cleanup; provider failures; cancellation where supported.
+  **Partially delivered — 2026-08-07** by the
+  [`Data / FarmDatabase`](runtime_tests/Data/FarmDatabase/README.md) simulation,
+  committed as `4186e48`,
+  which commits one transaction per tick and has been run for tens of thousands of
+  ticks unattended on both engines. Covered: repeated session use and disposal,
+  transaction cycles, streaming, and provider failure through a forced
+  mid-transaction rollback. Each run verifies state against the database, checks
+  invariants every tick, and reconciles the audit trail by delta, reporting the
+  outcome as an exit code. Cancellation is covered separately by an
+  already-cancelled-token probe over every entry point including the insert; only
+  mid-flight cancellation is unclaimed, because a local file database completes
+  faster than a cancellation can be timed. No new runtime framework was
+  introduced: the simulation drives the same gateway calls the UI does.
 
 Measure success where practical: no unbounded memory or handler growth; no
 leaked process, thread, or pipe handles; no deadlock; no unreleased semaphore
@@ -1015,9 +1065,27 @@ Data:
 
 - [ ] use SQLite as the local relational baseline for connection, transaction,
   mapping, cancellation, streaming, and failure behavior with a deliberately
-  created fixture;
-- [ ] verify positional OleDb/Access binding and DML on `net481`, recording the
-  installed provider, architecture, fixture, and machine prerequisites;
+  created fixture. **Partially delivered — 2026-08-07** by the versioned
+  [`Data / FarmDatabase`](runtime_tests/Data/FarmDatabase/README.md) scenario,
+  committed as `4186e48`:
+  connection, transaction, mapping, streaming, and failure behaviour are covered
+  against a created SQLite fixture, including a forced mid-transaction rollback
+  and a streaming read verified against `COUNT(*)`. Cancellation is covered by
+  handing every entry point an already-cancelled token: session opening, raw,
+  typed, dynamic, callback, streaming and insert all refused, on both engines and
+  both target frameworks. Mid-flight cancellation against a local file database
+  cannot be arranged deterministically and is not claimed. The measurement also
+  shows `SynchronousFallbackMode` defaults to `Disabled` and that **neither
+  provider reaches the blocking-fallback path** — no `NotSupportedException` is
+  raised by either, so the fallback is unexercised rather than silently active;
+- [x] verify positional OleDb/Access binding and DML on `net481`, recording the
+  installed provider, architecture, fixture, and machine prerequisites. Delivered
+  2026-08-07 against ACE OLEDB 12.0, x64, `net481`, with a created `.accdb`
+  fixture; prerequisites and the bitness constraint are recorded in the scenario
+  README. The same seed produced identical state on both engines and on both
+  target frameworks, and positional binding was exercised through DML,
+  transactions, and every `QueryBuilder` clause. Two defects were found and fixed
+  as DATA-021 and DATA-022 below;
 - [ ] select at most one initial server provider from SQL Server, PostgreSQL, or
   MySQL based on an actual consumer, then validate pooling/data-source ownership,
   network failure, cancellation, transactions, and mapping before claiming
@@ -1031,6 +1099,53 @@ Data:
   command execution truthfully;
 - do not cite tracked-but-unused fixtures as coverage and do not include MongoDB
   in the relational provider matrix.
+
+Still open in this provider evidence:
+
+- [ ] **Validate dynamic-result lifetime against a real provider.** DATA-012 is
+  implemented, but the dynamic path has only ever been executed with a single row
+  shape, so the process-wide schema cap is never approached and `DynamicMode.IL` —
+  whose emitted types are process-wide and not unloadable — has never been enabled
+  outside unit coverage. A long run that queries varying shapes is what would show
+  whether the cap falls back, fails, or leaks. This is the remaining long-process
+  risk in Data.
+- [ ] **Cancel an operation in flight.** Refusal of an already-cancelled token is
+  proven for every entry point including the insert, but a local file database
+  completes faster than a cancellation can be timed, so interrupting work that has
+  already started remains unproven and needs a slower provider.
+- [ ] The scenario's own UI has never been driven automatically; all of its
+  evidence is headless. Interactive verification stays manual and is recorded as
+  such in the scenario README.
+
+**Promoted from E4 provider evidence — 2026-08-07.** Both are adaptations
+demonstrated by real execution against ACE, which is the only basis E4 accepts for
+promoting them. Neither adds a provider package to the relational core.
+
+- [x] **DATA-021 — Order subquery predicates first so positional binding is
+  correct.** The positional binder rewrites placeholders to `?` in the order they
+  appear in the SQL text, which is right; ACE consumes them with the subquery's
+  first regardless of where it sits in the clause. A predicate authored before an
+  `EXISTS` therefore received the subquery's value. Measured: an integer predicate
+  before an `EXISTS` carrying a string produced *Data type mismatch in criteria
+  expression*, and with two compatible predicates Access **silently returned zero
+  rows where the correct answer was six** — the same builder answering correctly on
+  SQLite. `QueryBuilder` now emits subquery predicates before the others so textual
+  order and consumption order agree. Predicates combine with `AND`, so meaning is
+  preserved, and a query without a subquery keeps its original SQL. Verified for a
+  single subquery; the relative order among two or more parameterized subqueries is
+  authoring order and has not been measured. Implemented with a dual-target
+  regression in `865d90f`.
+- [x] **DATA-022 — Translate `COUNT(DISTINCT …)` for Access.** The builder emits it
+  for every dialect, but Jet and ACE have never supported it and reject the query
+  outright with *Syntax error (missing operator) in query expression*.
+  `AccessQueryTranslator` now rewrites it as a count over an aliased distinct
+  subselect, which Jet does accept. Both engines answer the same value. Anything
+  that is not exactly that shape is left untouched. Implemented with dual-target
+  positive and no-regression coverage in `865d90f`.
+- Unaliased aggregates return under engine-invented column names — SQLite names the
+  column after the expression, Access does not. This is engine behaviour with no
+  library fix; callers reading an aggregate by name must alias it. Recorded as
+  guidance in the scenario README, not as a defect.
 
 Navigation native WinForms/WPF interactive scenarios belong to E2, not generic
 unit coverage. Any Watchdog scenario that claims package behavior must use the
@@ -1112,11 +1227,11 @@ Phase E may be marked complete only when:
 
 - [x] Data has a current commit-bound review.
 - [x] Every promoted Data finding was reverified against current code.
-- [ ] WinForms has a current adapter review.
-- [ ] WPF has a current adapter review.
-- [ ] A current versioned WinForms runtime scenario exists and has truthful
+- [x] WinForms has a current adapter review.
+- [x] WPF has a current adapter review.
+- [x] A current versioned WinForms runtime scenario exists and has truthful
   status.
-- [ ] The WPF runtime scenario has truthful build and interactive status.
+- [x] The WPF runtime scenario has truthful build and interactive status.
 - [ ] Long-running/recovery scenarios are reproducible.
 - [ ] Results distinguish automated, build-only, manual, and interactive
   evidence.
