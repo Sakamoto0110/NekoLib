@@ -161,8 +161,8 @@ technical manual.
 | Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |
-| Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Framed JSON RPC/pub-sub; no service registry or process supervisor | `NekoLib.Pipes.Tests.Unit` |
-| Watchdog | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Windows process supervision plus an out-of-process Host; update orchestration is not implemented | `NekoLib.Watchdog.Tests.Unit` |
+| Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; `PipeAccessPolicy.CurrentUserOnly` is opt-in | `NekoLib.Pipes.Tests.Unit` |
+| Watchdog | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Windows process supervision plus an out-of-process Host; RPC/events are restricted to the current user, not protected from hostile same-user processes; update orchestration is not implemented | `NekoLib.Watchdog.Tests.Unit` |
 | Devices | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
 
 Navigation and its adapters use their

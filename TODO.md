@@ -1177,15 +1177,26 @@ The review reverified and promoted only the bounded work below.
 
 #### E5.1 — Declare and enforce the local-user boundary
 
-- [ ] Document the generic Pipes trust contract and add an opt-in current-user
+- [x] Document the generic Pipes trust contract and add an opt-in current-user
   server policy without changing the compatibility default for generic callers.
   Use `PipeOptions.CurrentUserOnly` on `net9.0-windows` and an explicit
-  current-user ACL on `net481`.
-- [ ] Enable that policy for both Watchdog RPC and event endpoints. Add focused
+  current-user ACL on `net481`. **Implemented 2026-08-08:**
+  `PipeAccessPolicy.PlatformDefault` preserves the existing generic behavior;
+  `CurrentUserOnly` is shared by RPC and event server creation. The root module
+  map records that this policy is an OS-user boundary, not authorization against
+  another process already running as that user.
+- [x] Enable that policy for both Watchdog RPC and event endpoints. Add focused
   same-user success coverage on both targets and a Windows identity-boundary
   probe where the test environment can provide another account or elevation.
   Record an explicit manual disposition when that environment is unavailable;
   do not represent constructor inspection alone as an access-denial test.
+  **Implemented 2026-08-08:** Watchdog selects `CurrentUserOnly`; focused RPC and
+  event round trips pass on both targets. The `net481` test verifies a protected
+  DACL granting the current SID, and the `net9.0-windows` test verifies the
+  `CurrentUserOnly` creation flag. No alternate account or elevation token was
+  available, so cross-identity denial remains an explicitly unexecuted manual
+  probe rather than a claimed runtime result. The `net481` ACL is SID-based;
+  unlike the documented `net9` flag, it does not add an elevation-level check.
 
 #### E5.2 — Serialize and bound event delivery
 

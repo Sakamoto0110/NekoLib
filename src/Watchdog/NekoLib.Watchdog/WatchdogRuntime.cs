@@ -47,6 +47,9 @@ namespace NekoLib.Watchdog
         private bool _ownsInstanceLock;
 
         private PipeServer _rpc;
+
+        internal PipeAccessPolicy ControlPipeAccessPolicy =>
+            _rpc?.AccessPolicy ?? PipeAccessPolicy.PlatformDefault;
         private readonly IPipeMetrics _pipeMetrics;
 
         private IntPtr _hotkeyHwnd;
@@ -125,6 +128,7 @@ namespace NekoLib.Watchdog
                     EnableEvents = true,
                     MaxClients = 8,
                     MaxEventSubscribers = 16,
+                    AccessPolicy = PipeAccessPolicy.CurrentUserOnly,
                     Metrics = _pipeMetrics
                 });
 

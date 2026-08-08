@@ -20,6 +20,10 @@ namespace NekoLib.Watchdog.Tests.Unit
                 {
                     runtime.Start();
 
+                    Assert.Equal(
+                        PipeAccessPolicy.CurrentUserOnly,
+                        runtime.ControlPipeAccessPolicy);
+
                     Assert.True(WatchdogTestUtil.WaitUntil(() =>
                     {
                         try { return WatchdogTestUtil.Send(options.PipeName, "ping").Data.ToString().Contains("pong"); }

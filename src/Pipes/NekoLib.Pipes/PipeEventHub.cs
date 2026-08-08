@@ -27,6 +27,7 @@ namespace NekoLib.Pipes
     {
         private readonly string _pipeName;
         private readonly IPipeMetrics _metrics;
+        private readonly PipeAccessPolicy _accessPolicy;
         private readonly SemaphoreSlim _subscriberLimiter;
         private readonly ConcurrentDictionary<Guid, NamedPipeServerStream> _subscribers
             = new();
@@ -41,10 +42,25 @@ namespace NekoLib.Pipes
             string basePipeName,
             int maxSubscribers,
             IPipeMetrics? metrics = null)
+            : this(
+                basePipeName,
+                maxSubscribers,
+                PipeAccessPolicy.PlatformDefault,
+                metrics)
         {
+        }
+
+        public PipeEventHub(
+            string basePipeName,
+            int maxSubscribers,
+            PipeAccessPolicy accessPolicy,
+            IPipeMetrics? metrics = null)
+        {
+            PipeServerStreamFactory.Validate(accessPolicy);
             _pipeName = basePipeName + ".events";
             _subscriberLimiter = new SemaphoreSlim(maxSubscribers);
             _metrics = metrics ?? NoopPipeMetrics.Instance;
+            _accessPolicy = accessPolicy;
         }
 
         public void Start()
@@ -78,12 +94,10 @@ namespace NekoLib.Pipes
 
                     try
                     {
-                        pipe = new NamedPipeServerStream(
+                        pipe = PipeServerStreamFactory.Create(
                             _pipeName,
                             PipeDirection.Out,
-                            NamedPipeServerStream.MaxAllowedServerInstances,
-                            PipeTransmissionMode.Byte,
-                            PipeOptions.Asynchronous);
+                            _accessPolicy);
 
 #if NET9
                     await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
