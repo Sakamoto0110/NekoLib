@@ -64,6 +64,8 @@ namespace NekoLib.Pipes
                     _o.PipeName,
                     _o.MaxEventSubscribers,
                     _o.AccessPolicy,
+                    _o.EventSubscriberQueueCapacity,
+                    _o.EventQueueOverflowPolicy,
                     _metrics);
 
                 Events.Start();

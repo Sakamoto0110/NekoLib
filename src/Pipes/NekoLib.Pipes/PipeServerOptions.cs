@@ -10,6 +10,13 @@ namespace NekoLib.Pipes
         public bool EnableEvents { get; set; } = true;
         public int MaxEventSubscribers { get; set; } = 16;
 
+        /// <summary>Maximum queued events per subscriber. Default 64.</summary>
+        public int EventSubscriberQueueCapacity { get; set; } = 64;
+
+        /// <summary>Behavior when one subscriber's event queue is full.</summary>
+        public PipeEventQueueOverflowPolicy EventQueueOverflowPolicy { get; set; }
+            = PipeEventQueueOverflowPolicy.DropNewest;
+
         /// <summary>
         /// Operating-system access boundary for the RPC and event servers.
         /// The compatibility default uses platform security and must not be

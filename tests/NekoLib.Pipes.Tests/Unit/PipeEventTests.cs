@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes.Tests.Unit.Fakes;
@@ -99,7 +102,8 @@ namespace NekoLib.Pipes.Tests.Unit
                     for (int i = 0; i < 5 && !(gotA.IsSet && gotB.IsSet); i++)
                     {
                         await server.Events.PublishAsync("e", new { i });
-                        WaitHandle.WaitAll(new[] { gotA.WaitHandle, gotB.WaitHandle }, 800);
+                        gotA.Wait(800);
+                        gotB.Wait(800);
                     }
 
                     Assert.True(gotA.IsSet, "subscriber A did not receive the event");
@@ -125,6 +129,177 @@ namespace NekoLib.Pipes.Tests.Unit
                     () => server.Events.PublishAsync("noone_listening", new { x = 1 }));
 
                 Assert.Null(ex);
+            }
+        }
+
+        [Fact]
+        public async Task ConcurrentPublishers_DeliverIntactFramesThroughSingleWriter()
+        {
+            var name = PipeTestUtil.UniqueName();
+            const int count = 100;
+
+            using (var hub = new PipeEventHub(
+                name,
+                maxSubscribers: 2,
+                PipeAccessPolicy.PlatformDefault,
+                subscriberQueueCapacity: 256,
+                PipeEventQueueOverflowPolicy.DropNewest))
+            {
+                hub.Start();
+
+                var received = new ConcurrentDictionary<string, byte>();
+                using (var client = new PipeEventClient(name))
+                {
+                    client.OnEvent += message => received.TryAdd(message.Name, 0);
+                    client.Start();
+
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                        "subscriber never connected");
+
+                    var publishes = new Task[count];
+                    for (var i = 0; i < count; i++)
+                        publishes[i] = hub.PublishAsync("event." + i, new { index = i });
+
+                    await Task.WhenAll(publishes);
+
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => received.Count == count, 10000),
+                        "not all concurrently published frames were delivered");
+                    for (var i = 0; i < count; i++)
+                        Assert.True(received.ContainsKey("event." + i));
+                }
+            }
+        }
+
+        [Fact]
+        public async Task SlowSubscriber_DoesNotBlockPublisherOrHealthySubscriber_AndDropsAreObservable()
+        {
+            var name = PipeTestUtil.UniqueName();
+            var metrics = new SimplePipeMetrics();
+
+            using (var hub = new PipeEventHub(
+                name,
+                maxSubscribers: 4,
+                PipeAccessPolicy.PlatformDefault,
+                subscriberQueueCapacity: 1,
+                PipeEventQueueOverflowPolicy.DropNewest,
+                metrics))
+            {
+                hub.Start();
+
+                using (var slow = new NamedPipeClientStream(
+                    ".",
+                    name + ".events",
+                    PipeDirection.In,
+                    PipeOptions.Asynchronous))
+                {
+                    slow.Connect(3000);
+
+                    var healthyReceived = new ManualResetEventSlim(false);
+                    using (var healthy = new PipeEventClient(name))
+                    {
+                        healthy.OnEvent += message => healthyReceived.Set();
+                        healthy.Start();
+
+                        Assert.True(
+                            PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 2, 5000),
+                            "both subscribers never connected");
+
+                        var largePayload = new { text = new string('x', 512 * 1024) };
+                        var sw = Stopwatch.StartNew();
+                        for (var i = 0; i < 32; i++)
+                            await hub.PublishAsync("bulk." + i, largePayload);
+                        sw.Stop();
+
+                        Assert.True(
+                            sw.Elapsed < TimeSpan.FromSeconds(2),
+                            "publishing waited for slow subscriber I/O");
+                        Assert.True(
+                            PipeTestUtil.WaitUntil(
+                                () => metrics.Snapshot().Events.Failed > 0,
+                                5000),
+                            "queue overflow was not observable through metrics");
+                        Assert.True(
+                            healthyReceived.Wait(5000),
+                            "healthy subscriber received no event while another subscriber was slow");
+                        Assert.Equal(2, hub.SubscriberCount);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task Publish_WithCancelledToken_DoesNotQueueEvent()
+        {
+            var name = PipeTestUtil.UniqueName();
+            var metrics = new SimplePipeMetrics();
+
+            using (var hub = new PipeEventHub(
+                name,
+                maxSubscribers: 2,
+                PipeAccessPolicy.PlatformDefault,
+                subscriberQueueCapacity: 4,
+                PipeEventQueueOverflowPolicy.DropNewest,
+                metrics))
+            {
+                hub.Start();
+
+                var received = new ManualResetEventSlim(false);
+                using (var client = new PipeEventClient(name))
+                using (var cancellation = new CancellationTokenSource())
+                {
+                    client.OnEvent += message => received.Set();
+                    client.Start();
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                        "subscriber never connected");
+
+                    cancellation.Cancel();
+                    await hub.PublishAsync("cancelled", null, cancellation.Token);
+
+                    Assert.False(received.Wait(500));
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(
+                            () => metrics.Snapshot().Events.Failed == 1,
+                            2000));
+                }
+            }
+        }
+
+        [Fact]
+        public async Task QueueOverflow_DisconnectPolicyRemovesSlowSubscriber()
+        {
+            var name = PipeTestUtil.UniqueName();
+
+            using (var hub = new PipeEventHub(
+                name,
+                maxSubscribers: 2,
+                PipeAccessPolicy.PlatformDefault,
+                subscriberQueueCapacity: 1,
+                PipeEventQueueOverflowPolicy.DisconnectSubscriber))
+            {
+                hub.Start();
+
+                using (var slow = new NamedPipeClientStream(
+                    ".",
+                    name + ".events",
+                    PipeDirection.In,
+                    PipeOptions.Asynchronous))
+                {
+                    slow.Connect(3000);
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                        "slow subscriber never connected");
+
+                    var largePayload = new { text = new string('x', 512 * 1024) };
+                    for (var i = 0; i < 32 && hub.SubscriberCount != 0; i++)
+                        await hub.PublishAsync("bulk." + i, largePayload);
+
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 0, 5000),
+                        "queue overflow did not disconnect the slow subscriber");
+                }
             }
         }
     }

@@ -28,9 +28,139 @@ namespace NekoLib.Pipes
         private readonly string _pipeName;
         private readonly IPipeMetrics _metrics;
         private readonly PipeAccessPolicy _accessPolicy;
+        private readonly int _subscriberQueueCapacity;
+        private readonly PipeEventQueueOverflowPolicy _overflowPolicy;
         private readonly SemaphoreSlim _subscriberLimiter;
-        private readonly ConcurrentDictionary<Guid, NamedPipeServerStream> _subscribers
+        private readonly ConcurrentDictionary<Guid, EventSubscriber> _subscribers
             = new();
+
+        private const int DefaultSubscriberQueueCapacity = 64;
+
+        private sealed class PendingEvent
+        {
+            public PipeMessage Message { get; }
+            public EventDeliveryTracker Tracker { get; }
+
+            public PendingEvent(PipeMessage message, EventDeliveryTracker tracker)
+            {
+                Message = message;
+                Tracker = tracker;
+            }
+        }
+
+        private sealed class EventDeliveryTracker
+        {
+            private readonly IPipeMetrics _metrics;
+            private readonly string _pipeName;
+            private readonly string _eventName;
+            private readonly int _subscribers;
+            private int _remaining;
+            private int _success;
+            private int _failed;
+
+            public EventDeliveryTracker(
+                IPipeMetrics metrics,
+                string pipeName,
+                string eventName,
+                int subscribers)
+            {
+                _metrics = metrics;
+                _pipeName = pipeName;
+                _eventName = eventName;
+                _subscribers = subscribers;
+                _remaining = subscribers;
+
+                if (subscribers == 0)
+                    PublishMetrics();
+            }
+
+            public void Complete(bool success)
+            {
+                if (success)
+                    Interlocked.Increment(ref _success);
+                else
+                    Interlocked.Increment(ref _failed);
+
+                if (Interlocked.Decrement(ref _remaining) == 0)
+                    PublishMetrics();
+            }
+
+            private void PublishMetrics()
+            {
+                _metrics.OnServerEventPublished(
+                    _pipeName,
+                    _eventName,
+                    _subscribers,
+                    Volatile.Read(ref _success),
+                    Volatile.Read(ref _failed));
+            }
+        }
+
+        private sealed class EventSubscriber
+        {
+            private readonly object _gate = new object();
+            private readonly Queue<PendingEvent> _queue = new Queue<PendingEvent>();
+            private readonly int _capacity;
+            private bool _removed;
+            private bool _writerActive;
+
+            public NamedPipeServerStream Pipe { get; }
+
+            public EventSubscriber(NamedPipeServerStream pipe, int capacity)
+            {
+                Pipe = pipe;
+                _capacity = capacity;
+            }
+
+            public bool TryEnqueue(PendingEvent pending, out bool startWriter)
+            {
+                lock (_gate)
+                {
+                    startWriter = false;
+                    if (_removed || _queue.Count >= _capacity)
+                        return false;
+
+                    _queue.Enqueue(pending);
+                    if (!_writerActive)
+                    {
+                        _writerActive = true;
+                        startWriter = true;
+                    }
+
+                    return true;
+                }
+            }
+
+            public bool TryDequeue(out PendingEvent? pending)
+            {
+                lock (_gate)
+                {
+                    if (_removed || _queue.Count == 0)
+                    {
+                        _writerActive = false;
+                        pending = null;
+                        return false;
+                    }
+
+                    pending = _queue.Dequeue();
+                    return true;
+                }
+            }
+
+            public PendingEvent[] Remove()
+            {
+                lock (_gate)
+                {
+                    if (_removed)
+                        return Array.Empty<PendingEvent>();
+
+                    _removed = true;
+                    var pending = _queue.ToArray();
+                    _queue.Clear();
+                    return pending;
+                }
+            }
+        }
 
         private CancellationTokenSource? _cts;
         private Task? _acceptTask;
@@ -46,6 +176,8 @@ namespace NekoLib.Pipes
                 basePipeName,
                 maxSubscribers,
                 PipeAccessPolicy.PlatformDefault,
+                DefaultSubscriberQueueCapacity,
+                PipeEventQueueOverflowPolicy.DropNewest,
                 metrics)
         {
         }
@@ -55,12 +187,39 @@ namespace NekoLib.Pipes
             int maxSubscribers,
             PipeAccessPolicy accessPolicy,
             IPipeMetrics? metrics = null)
+            : this(
+                basePipeName,
+                maxSubscribers,
+                accessPolicy,
+                DefaultSubscriberQueueCapacity,
+                PipeEventQueueOverflowPolicy.DropNewest,
+                metrics)
+        {
+        }
+
+        public PipeEventHub(
+            string basePipeName,
+            int maxSubscribers,
+            PipeAccessPolicy accessPolicy,
+            int subscriberQueueCapacity,
+            PipeEventQueueOverflowPolicy overflowPolicy,
+            IPipeMetrics? metrics = null)
         {
             PipeServerStreamFactory.Validate(accessPolicy);
+            if (subscriberQueueCapacity <= 0)
+                throw new ArgumentOutOfRangeException(nameof(subscriberQueueCapacity));
+            if (overflowPolicy != PipeEventQueueOverflowPolicy.DropNewest &&
+                overflowPolicy != PipeEventQueueOverflowPolicy.DisconnectSubscriber)
+            {
+                throw new ArgumentOutOfRangeException(nameof(overflowPolicy));
+            }
+
             _pipeName = basePipeName + ".events";
             _subscriberLimiter = new SemaphoreSlim(maxSubscribers);
             _metrics = metrics ?? NoopPipeMetrics.Instance;
             _accessPolicy = accessPolicy;
+            _subscriberQueueCapacity = subscriberQueueCapacity;
+            _overflowPolicy = overflowPolicy;
         }
 
         public void Start()
@@ -118,7 +277,8 @@ namespace NekoLib.Pipes
                         ct.ThrowIfCancellationRequested();
 #endif
 
-                        _subscribers[id] = pipe;
+                        var subscriber = new EventSubscriber(pipe, _subscriberQueueCapacity);
+                        _subscribers[id] = subscriber;
                         _metrics.OnServerClientConnected(_pipeName);
 
                         // Keep subscriber alive until disconnect
@@ -153,13 +313,17 @@ namespace NekoLib.Pipes
             }
         }
 
-        public async Task PublishAsync(
+        /// <summary>
+        /// Queues an event for best-effort delivery. The returned task confirms
+        /// the enqueue attempt; it does not wait for subscriber I/O.
+        /// </summary>
+        public Task PublishAsync(
             string eventName,
             object? payload,
             CancellationToken ct = default)
         {
             if (!_running)
-                return;
+                return Task.CompletedTask;
 
             PipeMessage msg;
 
@@ -189,57 +353,72 @@ namespace NekoLib.Pipes
 
             var subs = _subscribers.ToArray();
             int total = subs.Length;
-
-            // Write to every subscriber concurrently so one slow/backed-up subscriber
-            // can't stall delivery to the others (audit M3 — head-of-line blocking).
-            var sends = new Task<bool>[subs.Length];
-            for (int i = 0; i < subs.Length; i++)
-                sends[i] = SendToSubscriber(subs[i].Key, subs[i].Value, msg, ct);
-
-            bool[] results = await Task.WhenAll(sends).ConfigureAwait(false);
-
-            int success = 0, failed = 0;
-            foreach (var r in results)
-            {
-                if (r) success++;
-                else failed++;
-            }
-
-            _metrics.OnServerEventPublished(
+            var tracker = new EventDeliveryTracker(
+                _metrics,
                 _pipeName,
                 eventName,
-                total,
-                success,
-                failed);
+                total);
+
+            foreach (var pair in subs)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    tracker.Complete(success: false);
+                    continue;
+                }
+
+                var pending = new PendingEvent(msg, tracker);
+                if (pair.Value.TryEnqueue(pending, out var startWriter))
+                {
+                    if (startWriter)
+                        _ = Task.Run(() => DrainSubscriber(pair.Key, pair.Value));
+                    continue;
+                }
+
+                tracker.Complete(success: false);
+                if (_overflowPolicy == PipeEventQueueOverflowPolicy.DisconnectSubscriber)
+                    RemoveSubscriber(pair.Key);
+            }
+
+            return Task.CompletedTask;
         }
 
-        private async Task<bool> SendToSubscriber(
+        private async Task DrainSubscriber(
             Guid id,
-            System.IO.Pipes.NamedPipeServerStream pipe,
-            PipeMessage msg,
-            CancellationToken ct)
+            EventSubscriber subscriber)
         {
-            try
+            while (subscriber.TryDequeue(out var pending))
             {
-                if (!pipe.IsConnected)
-                    throw new InvalidOperationException("Disconnected subscriber.");
+                try
+                {
+                    if (!subscriber.Pipe.IsConnected)
+                        throw new InvalidOperationException("Disconnected subscriber.");
 
-                await PipeFraming.WriteAsync(pipe, msg, ct).ConfigureAwait(false);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _metrics.OnError(_pipeName, "event_publish", ex);
-                RemoveSubscriber(id);
-                return false;
+                    await PipeFraming.WriteAsync(
+                        subscriber.Pipe,
+                        pending!.Message,
+                        _cts?.Token ?? CancellationToken.None).ConfigureAwait(false);
+                    pending.Tracker.Complete(success: true);
+                }
+                catch (Exception ex)
+                {
+                    pending!.Tracker.Complete(success: false);
+                    if (!(_cts?.IsCancellationRequested ?? false))
+                        _metrics.OnError(_pipeName, "event_publish", ex);
+                    RemoveSubscriber(id);
+                    return;
+                }
             }
         }
 
         private void RemoveSubscriber(Guid id)
         {
-            if (_subscribers.TryRemove(id, out var pipe))
+            if (_subscribers.TryRemove(id, out var subscriber))
             {
-                try { pipe.Dispose(); } catch { }
+                foreach (var pending in subscriber.Remove())
+                    pending.Tracker.Complete(success: false);
+
+                try { subscriber.Pipe.Dispose(); } catch { }
                 _metrics.OnServerClientDisconnected(_pipeName);
             }
         }
@@ -256,7 +435,7 @@ namespace NekoLib.Pipes
 
             foreach (var kv in _subscribers)
             {
-                try { kv.Value.Dispose(); } catch { }
+                try { RemoveSubscriber(kv.Key); } catch { }
             }
 
             _subscribers.Clear();
@@ -282,7 +461,7 @@ public ValueTask DisposeAsync()
 
             foreach (var kv in _subscribers)
             {
-                try { kv.Value.Dispose(); } catch { }
+                try { RemoveSubscriber(kv.Key); } catch { }
             }
 
             _subscribers.Clear();

@@ -1200,13 +1200,23 @@ The review reverified and promoted only the bounded work below.
 
 #### E5.2 — Serialize and bound event delivery
 
-- [ ] Give each event subscriber one bounded single-writer queue so concurrent
+- [x] Give each event subscriber one bounded single-writer queue so concurrent
   `PublishAsync` calls cannot interleave frames. Define observable queue-full
   behavior as best-effort drop or subscriber disconnect; never block Watchdog
-  supervision indefinitely in pursuit of lossless telemetry.
-- [ ] Cover concurrent publishers, a non-reading subscriber, queue overflow,
+  supervision indefinitely in pursuit of lossless telemetry. **Implemented
+  2026-08-08:** each subscriber owns one bounded queue and one asynchronous
+  writer. `PublishAsync` reports the enqueue attempt rather than waiting for
+  pipe I/O. `DropNewest` is the compatibility default and records a failed
+  delivery through `IPipeMetrics`; `DisconnectSubscriber` is the explicit
+  alternative and fails queued deliveries before removing the subscriber.
+- [x] Cover concurrent publishers, a non-reading subscriber, queue overflow,
   cancellation, removal, and unaffected delivery to healthy subscribers on
-  both target families.
+  both target families. **Implemented 2026-08-08:** dual-target tests exercise
+  100 concurrent publishers, a non-reading 512 KiB subscriber, observable
+  overflow, healthy-subscriber progress, cancelled publication, and the
+  disconnect-on-overflow policy. The existing fan-out test now uses individual
+  waits because `WaitHandle.WaitAll` is unsupported when the net481 runner uses
+  an STA thread.
 
 #### E5.3 — Own admitted work through shutdown
 
