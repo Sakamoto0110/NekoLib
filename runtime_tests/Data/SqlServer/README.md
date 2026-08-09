@@ -11,12 +11,12 @@
 **Prerequisites:** a container engine, the adopted `nekolib-sqlserver` container,
 and the SA password in `NEKOLIB_SQLSERVER_PASSWORD`. See below.
 
-**Last verification:** 2026-08-08 — **automated runtime.** `--smoke` passed with
-exit code 0 on both target frameworks against SQL Server 16.0.4265.3 Developer
-Edition in the pinned container: 28 checks on `net9.0`, and 27 plus one
-correctly skipped streaming check on `net481`. Cleanup reconciled on both and
-the container was restored to the state each run found it in. See the
-verification record for what the recovery rehearsal covered.
+**Last verification:** 2026-08-08 — **automated runtime.** `--smoke` and the
+recovery rehearsal both passed with exit code 0 against SQL Server 16.0.4265.3
+Developer Edition in the pinned container. The rehearsal ran 82 minutes on
+`net9.0`, inside the suite's specified 60–90 minute window, with all seven fault
+handlers passing and no unexpected failures. Smoke passed on both target
+frameworks. **The soak is blocked on two scenario defects** recorded below.
 
 ## Purpose
 
@@ -395,15 +395,40 @@ cheap, and this is the first evidence in the repository that it does.
 | 2026-08-08 | `net9.0` | **Smoke, exit 0.** 28 checks, 0 failed, in 7s against SQL Server 16.0.4265.3 Developer Edition (RTM), image digest `sha256:ba4c…e457c89`, `Microsoft.Data.SqlClient 6.1.6`, x64. 18 read shapes agreed on 6 rows with an identical summed quantity of 924; 24 sequential calls used one server session and 32 concurrent against a pool of 8 used exactly 8; every mid-flight path was cancelled after the server confirmed execution; the IL cap emitted 12 types, rejected the 13th shape, and fell back to Expando for a context that allowed it. Cleanup dropped the database and returned the container to `exited`. Counters: 192 operations, 174 successes, 6 expected failures, **0 unexpected failures**, 12 cancellations. |
 | 2026-08-08 | `net481` | **Smoke, exit 0.** 27 checks passed, 1 correctly skipped — `mid-flight-streaming`, because `IDqlStreamingGateway` carries `[Obsolete(error: true)]` below net6 and is not part of `IDatabaseGateway` at all. 15 read shapes instead of 18, the difference being streaming, and the same summed quantity of 924 as `net9.0`. Same digest `w4 p24 m60 pq4776 pv9541.77 mq1124` on both targets. Counters: 186 operations, 169 successes, 6 expected failures, **0 unexpected failures**, 11 cancellations. |
 | 2026-08-08 | `net9.0` | **Recovery rehearsal, exit 0, but below the specified window.** 31 checks, 0 failed, in 600s with `--rehearsal-duration 10m`; the suite specifies 60 to 90 minutes, so `result.json` carries `belowSpecifiedWindow: true` and **this run is not rehearsal evidence**. It does establish that all seven fault handlers work. Each fault's provider error was recorded: `10054` for transport loss during a command and during a stream, `1225` for a connection attempt while the server was down, `10053` for a commit over a dead transport. The interrupted stream reported exactly one `Failed` terminal. The container restart left the database present and its digest unchanged. Schema recreation from the same seed reproduced the same digest. The stale-pool probe recovered on its first attempt — the pool had already discarded the dead handles rather than serving one. Not yet run on `net481`. |
+| 2026-08-08 | `net9.0` | **Recovery rehearsal inside the specified window, exit 0.** 31 checks, 0 failed, 0 skipped, in 4924s (82 minutes) with `--rehearsal-duration 90m`. All seven fault handlers passed: `transport-loss-during-command` 21.5s, `connect-while-server-down` 73.1s, `transport-loss-during-stream` 22.4s, `schema-recreation` 0.1s, `container-restart` 17.6s, `stale-pooled-connection` 20.9s, `transport-loss-during-transaction` 20.5s. 4871 operations, 4848 successes, 10 expected failures, **0 unexpected failures**, 13 cancellations. The database was dropped and the container returned to `exited`. **This is the run that satisfies the suite's rehearsal requirement**, and it must be `net9.0`: `net481` skips the streaming fault entirely. |
+| 2026-08-08 | `net481` | **Recovery rehearsal, exit 0, below the window.** 29 checks passed, 0 failed, 2 skipped, in 538s with `--rehearsal-duration 10m`. The two skips are `mid-flight-streaming` and `transport-loss-during-stream`, absent below net6 by design, so this target covers six of the seven faults and can never cover the seventh. The six produced the same provider error numbers as `net9.0` — `1225`, `10054`, `10053` — which is the result one wants from a library that promises both targets. 540 operations, 0 unexpected failures. Below the specified window, so it is a second data point rather than rehearsal evidence. |
+| 2026-08-08 | `net9.0` | **Soak, exit 7 — a scenario defect, not a product one.** `--soak 15m` died outside every check with `SqlException 10054` from `ScenarioSchema.DigestAsync`, called on the first line of `TransactionMatrix.RunAsync` while a scheduled fault had the container stopped. See the open defects below. Before dying it had run 8486 checks with 3 failures and 36396 operations in 126s, so the workload itself holds; the coordination does not. Cleanup then could not drop its database because the server was down, leaving one behind. |
 | 2026-08-08 | both TFMs | **Schedule determinism, verified.** `--recovery-rehearsal --seed 20260808 --print-schedule` produced `fnv1a64:49a3ab65b5f249e9` on two consecutive `net481` runs and on `net9.0`, and seed `99` produced a different hash. The generated plan holds 7 faults with 288-second quiet windows at both ends. This is the one acceptance criterion that needs no server, and it is the reason the generator carries its own PRNG and hash rather than the BCL's. |
+
+### Open defects in this scenario
+
+Both are scenario defects found by running the soak. Neither is a product
+finding, and **the soak must not be attempted again until both are fixed.**
+
+**1. The soak runs assertion matrices concurrently with container-stopping
+faults.** `RunSoakAsync` starts `RecoveryMatrix.RunAsync` as a task alongside a
+loop that runs `ReadMatrix` and `TransactionMatrix`. A fault stops the server
+while a matrix is mid-flight. `TransactionMatrix.RunAsync` takes its opening
+digest *outside* any check, so the exception escapes the whole assertion
+mechanism and kills the process with exit 7 instead of failing a check.
+
+Smoke and the rehearsal never exposed it, because in neither of them does
+anything run concurrently with a fault.
+
+The fix is to serialise the two: a semaphore on `PhaseContext` that a fault
+holds while it executes and a workload cycle holds while a matrix runs. Moving
+the stray digest calls inside checks is worth doing as well, but on its own it
+would only convert a crash into a meaningless failed check.
+
+**2. Cleanup gives up on dropping the database when the server is down.** It
+starts the container only if the run *found* it running. A run that found it
+stopped, and whose last fault left it stopped, cannot drop its own database and
+leaves one behind. Cleanup should start the container when it needs to, then
+restore the state the run found.
 
 ### What is still open
 
-- **A rehearsal inside the specified 60–90 minute window.** The 10-minute run
-  above proves the handlers, not the window.
-- **The rehearsal on `net481`.** Only `net9.0` has run it.
-- **The 16-hour soak.** Never started, and it should not start until the two
-  items above are done.
+- **The 16-hour soak.** Never started, and blocked on the two defects above.
 - **The FarmDatabase interactive pass** at campaign start and end, which the
   suite asks for alongside this scenario and which stays SQLite/Access evidence.
 

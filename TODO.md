@@ -1058,10 +1058,21 @@ not mean the corresponding Phase E scenario is complete.
   producing the same data digest. This is the repository's first real-server
   provider evidence: mid-flight cancellation, pool reuse and the
   `DynamicMode.IL` schema cap are now executed rather than argued.
-  **Still open:** a recovery rehearsal inside the specified 60-90 minute window
-  (a 10-minute `net9.0` run passed all seven fault handlers with exit 0 but is
-  flagged `belowSpecifiedWindow` and is not rehearsal evidence), the rehearsal
-  on `net481`, and the 16-hour soak.
+  **Recovery rehearsal passed inside the specified window on 2026-08-08:**
+  82 minutes on `net9.0`, exit 0, 31 checks, 0 failed, all seven fault handlers
+  proven with their provider error numbers recorded, 4871 operations and zero
+  unexpected failures. It has to be `net9.0`: `net481` skips the streaming
+  fault, so it covers six of seven, and it passed a separate 10-minute run.
+  **Still open: the 16-hour soak, and it is blocked.** Running `--soak 15m`
+  before committing a night to it was worth every minute — that path had never
+  executed once, and it failed with exit 7. `RunSoakAsync` runs the assertion
+  matrices concurrently with container-stopping faults, and
+  `TransactionMatrix.RunAsync` takes its opening digest outside any check, so a
+  fault that stops the server while a matrix is in flight kills the process
+  instead of failing a check. Cleanup then cannot drop its own database, because
+  it restarts the container only when the run found it running. Both are
+  scenario defects with accepted fixes recorded in the scenario README; neither
+  is a product finding, and the soak must not be reattempted until both land.
   **Container revalidated 2026-08-08 by querying Docker directly:** the pinned
   `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` image resolves to
   digest `sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89`,
