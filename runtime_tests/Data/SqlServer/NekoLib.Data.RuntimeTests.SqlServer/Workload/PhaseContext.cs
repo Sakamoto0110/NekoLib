@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using NekoLib.Data.RuntimeTests.SqlServer.Container;
-using NekoLib.Data.RuntimeTests.SqlServer.Reporting;
+using NekoLib.RuntimeTests.Harness.Reporting;
 using NekoLib.Data.RuntimeTests.SqlServer.Server;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer.Workload

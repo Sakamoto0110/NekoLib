@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
 using NekoLib.Data.RuntimeTests.SqlServer.Faults;
+using NekoLib.RuntimeTests.Harness.Faults;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer.Schema
 {

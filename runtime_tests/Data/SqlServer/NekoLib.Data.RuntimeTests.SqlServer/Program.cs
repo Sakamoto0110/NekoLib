@@ -6,10 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.RuntimeTests.SqlServer.Container;
 using NekoLib.Data.RuntimeTests.SqlServer.Faults;
-using NekoLib.Data.RuntimeTests.SqlServer.Reporting;
+using NekoLib.RuntimeTests.Harness.Faults;
+using NekoLib.RuntimeTests.Harness.Reporting;
 using NekoLib.Data.RuntimeTests.SqlServer.Schema;
 using NekoLib.Data.RuntimeTests.SqlServer.Server;
-using NekoLib.Data.RuntimeTests.SqlServer.Support;
+using NekoLib.RuntimeTests.Harness;
 using NekoLib.Data.RuntimeTests.SqlServer.Workload;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer
@@ -30,11 +31,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
     {
         private static int Main(string[] args)
         {
-            if (!ScenarioOptions.TryParse(args, out ScenarioOptions options, out string diagnostic))
+            ScenarioOptions options = new ScenarioOptions();
+            if (!options.TryParse(args, out string diagnostic))
             {
                 Console.Error.WriteLine("E4-SQL: " + diagnostic);
                 Console.Error.WriteLine();
-                Console.Error.WriteLine(ScenarioOptions.Usage());
+                Console.Error.WriteLine(ScenarioOptions.UsageText());
                 return ExitCodes.Usage;
             }
 
@@ -408,11 +410,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             return FaultSchedule.Generate(
                 _options.CampaignId,
                 _options.ScenarioId,
+                ScenarioOptions.ScheduleGeneratorVersion,
                 mode,
                 _options.Seed,
                 window,
                 kinds,
-                containerName);
+                new SqlServerFaultVocabulary(containerName));
         }
 
         /// <summary>
@@ -591,9 +594,9 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                 {
                     json.Prop("targetFramework", RuntimeFacts.TargetFrameworkMoniker);
                     json.Prop("runtime", RuntimeFacts.RuntimeDescription);
-                    json.Prop("scenarioVersion", RuntimeFacts.ScenarioVersion);
-                    json.Prop("libraryUnderTest", RuntimeFacts.LibraryVersion);
-                    json.Prop("provider", RuntimeFacts.ProviderVersion);
+                    json.Prop("scenarioVersion", ScenarioFacts.ScenarioVersion);
+                    json.Prop("libraryUnderTest", ScenarioFacts.LibraryVersion);
+                    json.Prop("provider", ScenarioFacts.ProviderVersion);
                 });
 
                 json.Object("container", () =>
@@ -681,7 +684,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                 json.Prop("seed", _options.Seed);
                 json.Prop("scheduleHash", schedule.Hash);
                 json.Prop("targetFramework", RuntimeFacts.TargetFrameworkMoniker);
-                json.Prop("provider", RuntimeFacts.ProviderVersion);
+                json.Prop("provider", ScenarioFacts.ProviderVersion);
                 json.Prop("serverProductVersion", server.ProductVersion);
                 json.Prop("serverEdition", server.Edition);
                 json.Prop("imageDigest", facts == null ? string.Empty : facts.ImageDigest);
@@ -807,8 +810,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             text.AppendLine("|---|---|");
             text.AppendLine("| Target | " + RuntimeFacts.TargetFrameworkMoniker + " |");
             text.AppendLine("| Runtime | " + RuntimeFacts.RuntimeDescription + " |");
-            text.AppendLine("| Provider | " + RuntimeFacts.ProviderVersion + " |");
-            text.AppendLine("| Library | " + RuntimeFacts.LibraryVersion + " |");
+            text.AppendLine("| Provider | " + ScenarioFacts.ProviderVersion + " |");
+            text.AppendLine("| Library | " + ScenarioFacts.LibraryVersion + " |");
             text.AppendLine("| Server | " + server.ProductVersion + " " + server.Edition + " |");
             text.AppendLine("| Image digest | " + (facts == null ? "unknown" : facts.ImageDigest) + " |");
             text.AppendLine("| Seed | " + _options.Seed.ToString(CultureInfo.InvariantCulture) + " |");

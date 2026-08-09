@@ -4,50 +4,32 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using NekoLib.Data.RuntimeTests.SqlServer.Support;
+using NekoLib.RuntimeTests.Harness;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
+namespace NekoLib.RuntimeTests.Harness.Faults
 {
     /// <summary>
-    /// The fault kinds this scenario owns. Each one names a transition the
-    /// recovery rehearsal has to prove at least once.
+    /// What the harness has to ask the owning scenario about each fault kind.
+    /// <para/>
+    /// The harness places faults in time, persists the plan and hashes it. It
+    /// deliberately knows nothing about what a kind means - that knowledge is
+    /// the scenario's, and a shared component carrying one scenario's
+    /// vocabulary would stop being shared at the second consumer.
     /// </summary>
-    internal static class FaultKinds
+    public interface IFaultVocabulary
     {
-        public const string ConnectWhileServerDown = "connect-while-server-down";
-        public const string TransportLossDuringCommand = "transport-loss-during-command";
-        public const string TransportLossDuringTransaction = "transport-loss-during-transaction";
-        public const string TransportLossDuringStream = "transport-loss-during-stream";
-        public const string StalePooledConnection = "stale-pooled-connection";
-        public const string ContainerRestart = "container-restart";
-        public const string SchemaRecreation = "schema-recreation";
+        /// <summary>What the fault acts on, recorded in the plan.</summary>
+        string DescribeTarget(string kind);
 
-        /// <summary>The kinds a rehearsal must cover, in the order they are generated from.</summary>
-        public static readonly string[] RecoveryRehearsalSet =
-        {
-            ConnectWhileServerDown,
-            TransportLossDuringCommand,
-            TransportLossDuringTransaction,
-            TransportLossDuringStream,
-            StalePooledConnection,
-            ContainerRestart,
-            SchemaRecreation
-        };
+        /// <summary>The downtime parameter, in seconds, recorded in the plan.</summary>
+        string DescribeParameters(string kind);
 
-        /// <summary>True when acting on the fault requires stopping the adopted container.</summary>
-        public static bool NeedsContainerControl(string kind)
-        {
-            return kind == ConnectWhileServerDown
-                || kind == TransportLossDuringCommand
-                || kind == TransportLossDuringTransaction
-                || kind == TransportLossDuringStream
-                || kind == StalePooledConnection
-                || kind == ContainerRestart;
-        }
+        /// <summary>What returning to useful work looks like after this fault.</summary>
+        string DescribeExpectedRecovery(string kind);
     }
 
     /// <summary>One planned fault, dispatched at a monotonic offset from campaign start.</summary>
-    internal sealed class FaultEvent
+    public sealed class FaultEvent
     {
         public string Id = string.Empty;
         public double OffsetSeconds;
@@ -72,10 +54,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
     /// random source here is written out rather than taken from the BCL, whose
     /// <c>Random</c> is not the same algorithm on both.
     /// </summary>
-    internal sealed class FaultSchedule
+    public sealed class FaultSchedule
     {
         public const int SchemaVersion = 1;
-        public const string GeneratorVersion = "e4sql-schedule-1";
+
+        /// <summary>Identifies the generator, and is covered by the hash.</summary>
+        public string GeneratorVersion = string.Empty;
 
         public string CampaignId = string.Empty;
         public string ScenarioId = "E4-SQL";
@@ -95,11 +79,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
         public static FaultSchedule Generate(
             string campaignId,
             string scenarioId,
+            string generatorVersion,
             string mode,
             int seed,
             TimeSpan requestedDuration,
             IReadOnlyList<string> kinds,
-            string containerName)
+            IFaultVocabulary vocabulary)
         {
             double total = requestedDuration.TotalSeconds;
 
@@ -113,6 +98,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
             {
                 CampaignId = campaignId,
                 ScenarioId = scenarioId,
+                GeneratorVersion = generatorVersion,
                 Mode = mode,
                 Seed = seed,
                 RequestedDurationSeconds = total,
@@ -152,13 +138,13 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
                     OffsetSeconds = Math.Round(offset, 3),
                     ScenarioId = scenarioId,
                     Kind = kind,
-                    Target = FaultKinds.NeedsContainerControl(kind) ? containerName : "scenario-database",
-                    ExpectedRecovery = DescribeExpectedRecovery(kind)
+                    Target = vocabulary.DescribeTarget(kind),
+                    ExpectedRecovery = vocabulary.DescribeExpectedRecovery(kind)
                 };
 
                 planned.Parameters.Add(new KeyValuePair<string, string>(
                     "downtimeSeconds",
-                    (kind == FaultKinds.ContainerRestart ? 0 : 5).ToString(CultureInfo.InvariantCulture)));
+                    vocabulary.DescribeParameters(kind)));
 
                 schedule.Events.Add(planned);
             }
@@ -166,33 +152,6 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
             schedule.Events.Sort((a, b) => a.OffsetSeconds.CompareTo(b.OffsetSeconds));
             schedule.Hash = ComputeHash(schedule);
             return schedule;
-        }
-
-        private static string DescribeExpectedRecovery(string kind)
-        {
-            switch (kind)
-            {
-                case FaultKinds.ConnectWhileServerDown:
-                    return "the open attempt fails with a provider connection error and no session is left behind; " +
-                           "ordinary work succeeds once the server is back";
-                case FaultKinds.TransportLossDuringCommand:
-                    return "the in-flight command fails with a provider transport error, the connection is disposed, " +
-                           "and a fresh command succeeds after recovery";
-                case FaultKinds.TransportLossDuringTransaction:
-                    return "the transaction does not commit, the session disposes without throwing, " +
-                           "and the database shows no partial effect after recovery";
-                case FaultKinds.TransportLossDuringStream:
-                    return "the stream reports exactly one failed terminal outcome and releases its reader and connection";
-                case FaultKinds.StalePooledConnection:
-                    return "a pooled handle from before the interruption fails or is discarded, and the scenario's own " +
-                           "bounded retry reaches a working connection";
-                case FaultKinds.ContainerRestart:
-                    return "the server returns, the scenario database is reachable again, and ordinary commands succeed";
-                case FaultKinds.SchemaRecreation:
-                    return "the schema is recreated deterministically and ordinary commands succeed against it";
-                default:
-                    return "unspecified";
-            }
         }
 
         private static void Shuffle(List<string> items, DeterministicRandom random)
@@ -360,7 +319,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Faults
     /// between .NET Framework and modern .NET, so the same seed would produce
     /// two different schedules on the two targets this scenario has to compare.
     /// </summary>
-    internal sealed class DeterministicRandom
+    public sealed class DeterministicRandom
     {
         private ulong _state;
 

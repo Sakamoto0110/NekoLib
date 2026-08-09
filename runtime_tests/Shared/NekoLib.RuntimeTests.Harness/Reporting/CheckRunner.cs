@@ -5,10 +5,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
+namespace NekoLib.RuntimeTests.Harness.Reporting
 {
     /// <summary>Raised when a check observes an outcome it did not expect.</summary>
-    internal sealed class CheckFailure : Exception
+    public sealed class CheckFailure : Exception
     {
         public CheckFailure(string message) : base(message) { }
     }
@@ -23,7 +23,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     /// Turning an observation into an assertion before a baseline exists is how
     /// a scenario starts inventing thresholds.
     /// </summary>
-    internal sealed class Check
+    public sealed class Check
     {
         private readonly List<string> _notes = new List<string>();
 
@@ -54,7 +54,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     }
 
     /// <summary>One check's outcome, as it appears in <c>result.json</c>.</summary>
-    internal sealed class CheckResult
+    public sealed class CheckResult
     {
         public string Phase = string.Empty;
         public string Name = string.Empty;
@@ -75,7 +75,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     /// execution, and the whole value of a matrix is knowing which parts of it
     /// held.
     /// </summary>
-    internal sealed class CheckRunner
+    public sealed class CheckRunner
     {
         private readonly List<CheckResult> _results = new List<CheckResult>();
         private readonly Action<string> _write;

@@ -3,10 +3,10 @@ using System;
 using System.Diagnostics;
 using System.Text;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Support
+namespace NekoLib.RuntimeTests.Harness
 {
     /// <summary>The outcome of one external command.</summary>
-    internal sealed class ProcessResult
+    public sealed class ProcessResult
     {
         public ProcessResult(int exitCode, string standardOutput, string standardError, bool timedOut)
         {
@@ -48,7 +48,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Support
     /// visible to every process on the machine, so the SQL Server password is
     /// never allowed to travel this way.
     /// </summary>
-    internal static class ProcessRunner
+    public static class ProcessRunner
     {
         public static ProcessResult Run(string fileName, string arguments, TimeSpan timeout)
         {

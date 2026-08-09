@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.RuntimeTests.Harness</RootNamespace>
+    <AssemblyName>NekoLib.RuntimeTests.Harness</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    No PackageReference and no ProjectReference, and that is the point.
+
+    This project is shared plumbing for the Phase E runtime scenarios: the exit
+    code contract, the check runner, the artifact layout, the environment
+    record, and deterministic schedule generation. It is not a test framework -
+    it defines no concepts a scenario must conform to and drives nothing. What
+    it removes is five divergent copies of the same encanamento.
+
+    Two rules keep it that way, and breaking either is how it would turn into
+    the framework the suite forbids:
+
+      1. It never references a product module. A scenario that needs to name
+         its provider or the module under test passes a Type in.
+      2. Nothing enters it that does not already have two real consumers, or
+         that is not part of an explicitly uniform suite contract - exit codes
+         and the artifact format being the clearest examples.
+
+    Like every scenario, it stays outside NekoLib.sln.
+  -->
+
+</Project>

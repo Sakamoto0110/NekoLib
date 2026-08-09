@@ -6,8 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Query;
 using NekoLib.Data.RuntimeTests.SqlServer.Faults;
+using NekoLib.RuntimeTests.Harness.Faults;
 using NekoLib.Data.RuntimeTests.SqlServer.Model;
-using NekoLib.Data.RuntimeTests.SqlServer.Reporting;
+using NekoLib.RuntimeTests.Harness.Reporting;
 using NekoLib.Data.RuntimeTests.SqlServer.Server;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer.Workload

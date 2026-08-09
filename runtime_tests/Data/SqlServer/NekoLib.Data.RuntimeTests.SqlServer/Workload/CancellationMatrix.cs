@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using NekoLib.Data.Dynamic;
 using NekoLib.Data.Query;
 using NekoLib.Data.RuntimeTests.SqlServer.Model;
-using NekoLib.Data.RuntimeTests.SqlServer.Reporting;
+using NekoLib.RuntimeTests.Harness.Reporting;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
 {

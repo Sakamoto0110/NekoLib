@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Support
+namespace NekoLib.RuntimeTests.Harness
 {
     /// <summary>
     /// A small JSON writer, because the artifact contract is JSON and this
@@ -13,7 +13,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Support
     /// put a dependency in the evidence record that has nothing to do with what
     /// is being measured.
     /// </summary>
-    internal sealed class JsonWriter
+    public sealed class JsonWriter
     {
         private readonly StringBuilder _text = new StringBuilder();
         private readonly Stack<bool> _empty = new Stack<bool>();
@@ -160,7 +160,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Support
     /// <see cref="List{T}"/>, <see cref="string"/>, <see cref="double"/>,
     /// <see cref="bool"/>, or null.
     /// </summary>
-    internal static class JsonParser
+    public static class JsonParser
     {
         public static object? Parse(string text)
         {

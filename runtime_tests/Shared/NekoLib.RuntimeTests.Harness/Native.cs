@@ -3,7 +3,7 @@ using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Support
+namespace NekoLib.RuntimeTests.Harness
 {
     /// <summary>
     /// The two Windows facts the environment record needs that the BCL will not
@@ -14,7 +14,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Support
     /// memory has no portable API before .NET 5. Both are read from the OS
     /// directly so the same number appears in both builds' evidence.
     /// </summary>
-    internal static class Native
+    public static class Native
     {
         [StructLayout(LayoutKind.Sequential)]
         private struct MemoryStatusEx

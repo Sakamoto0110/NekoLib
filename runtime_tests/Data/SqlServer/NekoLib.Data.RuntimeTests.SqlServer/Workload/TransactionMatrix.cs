@@ -5,6 +5,8 @@ using System.Globalization;
 using System.Threading.Tasks;
 using NekoLib.Data.Query;
 
+using NekoLib.RuntimeTests.Harness.Reporting;
+
 namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
 {
     /// <summary>
@@ -184,7 +186,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         catch (CheckFailedSentinel)
                         {
                             session.Rollback();
-                            throw new Reporting.CheckFailure("the engine accepted a NULL into a NOT NULL column");
+                            throw new CheckFailure("the engine accepted a NULL into a NOT NULL column");
                         }
                         catch (Exception ex)
                         {

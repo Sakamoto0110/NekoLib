@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using NekoLib.Data.RuntimeTests.SqlServer.Support;
+using NekoLib.RuntimeTests.Harness;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
+namespace NekoLib.RuntimeTests.Harness.Reporting
 {
     /// <summary>
     /// The run directory, laid out the way the Phase E suite specifies.
@@ -16,7 +16,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     /// the samples it took, and a summary saying it was interrupted — a result
     /// file that only exists on the happy path is not evidence, it is a report.
     /// </summary>
-    internal sealed class RunArtifacts : IDisposable
+    public sealed class RunArtifacts : IDisposable
     {
         private readonly StreamWriter _stdout;
         private readonly StreamWriter _stderr;
@@ -159,7 +159,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     }
 
     /// <summary>One row of <c>samples.csv</c>.</summary>
-    internal sealed class ResourceSample
+    public sealed class ResourceSample
     {
         public DateTime Utc = DateTime.UtcNow;
         public string Phase = string.Empty;
@@ -216,7 +216,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     /// and a single number covering both would make the healthiest run look like
     /// the worst one.
     /// </summary>
-    internal sealed class WorkloadCounters
+    public sealed class WorkloadCounters
     {
         private long _operations;
         private long _successes;
@@ -269,7 +269,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     }
 
     /// <summary>Takes samples at the points the suite requires and hands them to the artifacts.</summary>
-    internal sealed class ResourceSampler
+    public sealed class ResourceSampler
     {
         private readonly RunArtifacts _artifacts;
         private readonly WorkloadCounters _counters;

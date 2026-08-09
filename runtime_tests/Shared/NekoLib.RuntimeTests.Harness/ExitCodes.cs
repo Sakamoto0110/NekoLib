@@ -1,4 +1,4 @@
-namespace NekoLib.Data.RuntimeTests.SqlServer.Support
+namespace NekoLib.RuntimeTests.Harness
 {
     /// <summary>
     /// The scenario's whole result is its exit code. Nothing here requires a
@@ -8,7 +8,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Support
     /// apart: the library behaved wrongly, the run never got far enough to
     /// judge, the machine was not ready, and the scenario itself broke.
     /// </summary>
-    internal static class ExitCodes
+    public static class ExitCodes
     {
         /// <summary>Every selected check passed and cleanup reconciled.</summary>
         public const int Success = 0;

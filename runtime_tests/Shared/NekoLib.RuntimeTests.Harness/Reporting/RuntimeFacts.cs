@@ -4,10 +4,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using Microsoft.Data.SqlClient;
-using NekoLib.Data.RuntimeTests.SqlServer.Support;
 
-namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
+namespace NekoLib.RuntimeTests.Harness.Reporting
 {
     /// <summary>
     /// Everything about this process and this checkout that the evidence record
@@ -18,7 +16,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
     /// is comparing like with like at all: the repository commit with its dirty
     /// flag, and the exact provider package version.
     /// </summary>
-    internal static class RuntimeFacts
+    public static class RuntimeFacts
     {
         public static string TargetFrameworkMoniker =>
 #if NET481
@@ -54,44 +52,39 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Reporting
         public static string WindowsVersion => Native.WindowsVersion();
 
         /// <summary>
-        /// The provider package version, read from the loaded assembly rather
-        /// than from the project file, so it reports what actually ran.
+        /// Describes the assembly a type came from, read from what is loaded
+        /// rather than from a project file, so it reports what actually ran.
+        /// <para/>
+        /// Scenarios use this to name their provider package and the module
+        /// under test. The harness deliberately does not know which those are:
+        /// it references nothing but the BCL, and a shared component that had
+        /// to be edited every time a scenario chose a different dependency
+        /// would not be shared at all.
         /// </summary>
-        public static string ProviderVersion
+        public static string DescribeAssembly(string label, Type type)
         {
-            get
-            {
-                Assembly assembly = typeof(SqlConnection).Assembly;
-                AssemblyInformationalVersionAttribute? informational =
-                    (AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute(
-                        assembly, typeof(AssemblyInformationalVersionAttribute));
+            Assembly assembly = type.Assembly;
+            AssemblyInformationalVersionAttribute? informational =
+                (AssemblyInformationalVersionAttribute?)Attribute.GetCustomAttribute(
+                    assembly, typeof(AssemblyInformationalVersionAttribute));
 
-                string version = informational?.InformationalVersion
-                                 ?? assembly.GetName().Version?.ToString()
-                                 ?? "unknown";
+            string version = informational?.InformationalVersion
+                             ?? assembly.GetName().Version?.ToString()
+                             ?? "unknown";
 
-                return "Microsoft.Data.SqlClient " + version;
-            }
+            return label + " " + version;
         }
 
-        /// <summary>The version of the library actually under test.</summary>
-        public static string LibraryVersion
-        {
-            get
-            {
-                Assembly assembly = typeof(global::NekoLib.Data.Query.QueryBuilder).Assembly;
-                return "NekoLib.Data " + (assembly.GetName().Version?.ToString() ?? "unknown");
-            }
-        }
-
-        public static string ScenarioVersion
-        {
-            get
-            {
-                Assembly assembly = typeof(RuntimeFacts).Assembly;
-                return assembly.GetName().Version?.ToString() ?? "unknown";
-            }
-        }
+        /// <summary>
+        /// The version of the assembly the supplied type lives in.
+        /// <para/>
+        /// Takes a type rather than reading its own assembly: after this code
+        /// moved into a shared harness, "my assembly" stopped meaning "the
+        /// scenario" and a self-read would have quietly recorded the harness
+        /// version in every scenario's environment file.
+        /// </summary>
+        public static string AssemblyVersion(Type type) =>
+            type.Assembly.GetName().Version?.ToString() ?? "unknown";
 
         /// <summary>
         /// The repository commit and whether the tree was dirty when the run

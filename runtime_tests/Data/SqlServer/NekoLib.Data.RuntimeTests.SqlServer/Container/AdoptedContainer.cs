@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using NekoLib.Data.RuntimeTests.SqlServer.Support;
+using NekoLib.RuntimeTests.Harness;
 
 namespace NekoLib.Data.RuntimeTests.SqlServer.Container
 {
