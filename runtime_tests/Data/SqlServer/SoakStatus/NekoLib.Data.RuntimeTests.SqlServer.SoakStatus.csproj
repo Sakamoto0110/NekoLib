@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Data.RuntimeTests.SqlServer.SoakStatus</RootNamespace>
+    <AssemblyName>SoakStatus</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+
+  <!--
+    No reference to NekoLib.Data, and none to the scenario either. This window
+    watches a clock and, optionally, a process id; it must never be able to
+    influence the run it is reporting on.
+  -->
+
+</Project>

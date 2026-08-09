@@ -146,6 +146,36 @@ Both targets are `x64` — `PlatformTarget` is pinned rather than left AnyCPU, s
 the architecture in the evidence record is a fact about the build and not about
 how the process happened to be launched.
 
+## Watching a long run
+
+`SoakStatus` is a small always-on-top window that says how long the run has
+been going. It exists so a sixteen-hour run can be checked with a glance
+instead of a terminal.
+
+```powershell
+dotnet build runtime_tests/Data/SqlServer/SoakStatus/NekoLib.Data.RuntimeTests.SqlServer.SoakStatus.csproj
+.\runtime_tests\Data\SqlServer\SoakStatus\bin\Debug\net10.0-windows\SoakStatus.exe --duration 16h
+```
+
+| Option | Meaning |
+|---|---|
+| `--duration 16h` | adds "time left" and the expected end time |
+| `--started <ISO8601 UTC>` | count from when the run actually began, not from when the window opened |
+| `--pid <n>` | watch the scenario process; the window turns green and shows its exit code when it ends |
+| `--title <text>` | defaults to `--soak running` |
+
+It targets `net10.0-windows` and references neither the scenario nor
+`NekoLib.Data`. That is deliberate: a status window that could disturb the run
+it reports on would be worse than no window.
+
+To have it follow the run and report its outcome, launch the scenario first and
+pass its id:
+
+```powershell
+$soak = Start-Process .\...\NekoLib.Data.RuntimeTests.SqlServer.exe -ArgumentList '--soak','16h','--seed','20260808' -PassThru
+Start-Process .\...\SoakStatus.exe -ArgumentList '--duration','16h','--pid',$soak.Id
+```
+
 ## Procedure and expected result
 
 Every mode is non-interactive and reports its whole result as an exit code.
