@@ -1033,6 +1033,14 @@ not mean the corresponding Phase E scenario is complete.
   partial low-rate Logging/Telemetry consumer; the dedicated capacity,
   rotation, failure-isolation, snapshot, provider-budget, lifecycle, and soak
   scenario remains open.
+  **It also validates the shared harness.** The
+  [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness/`](runtime_tests/Shared/NekoLib.RuntimeTests.Harness/README.md)
+  boundary was accepted and implemented on 2026-08-08, but it has one consumer,
+  and a boundary with one consumer is a guess that happens to compile. E3-OBS is
+  the second, and implementing it is the test. Do not expand the harness
+  preemptively; move in only mechanics that prove genuinely common, and move
+  anything scenario-specific back out if the second consumer exposes a bad
+  boundary. Record the outcome either way, in the harness README and here.
 - [ ] **E3-PIPE — Pipes long-running and recovery.** Automated contract coverage
   exists; the separate-process real named-pipe load, churn, fault, active-dispose,
   resource-growth, and recovery scenario remains open.

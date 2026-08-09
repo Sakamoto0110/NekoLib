@@ -15,6 +15,25 @@ it. Both targets build with no warnings, the E4-SQL smoke passes with exit 0,
 and the recorded schedule determinism hash `fnv1a64:49a3ab65b5f249e9` is
 unchanged on both targets.
 
+## Status: accepted, implemented, and provisional
+
+The boundary drawn here is **accepted and in use, but not yet validated**. It
+has one consumer, and a boundary with one consumer is a guess that happens to
+compile.
+
+`E3-OBS` is the second real consumer, and implementing it is the test. Until
+then:
+
+- **Do not expand the harness preemptively.** Nothing enters it in anticipation
+  of a consumer that does not exist yet.
+- While implementing `E3-OBS`, move in only mechanics that turn out to be
+  genuinely common.
+- If the second consumer shows that something here is not common after all,
+  **move it back out.** A wrong boundary defended is worse than a wrong boundary
+  corrected.
+- Record the outcome of that validation in this README's verification record and
+  in `TODO.md`, whichever way it goes.
+
 ## What this is
 
 The plumbing every Phase E scenario needs and none of them should own a private
@@ -86,4 +105,5 @@ determinism evidence. `E4-SQL` keeps `e4sql-schedule-1` for exactly that reason.
 
 | Date | Result |
 |---|---|
-| 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. One consumer today — the second is what will test whether the boundary was drawn in the right place. |
+| 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. **The extraction changed no check count and no assertion** — E4-SQL's smoke went from 28 checks to 29 earlier the same day, from the `state-baseline` check added while fixing the soak, and that is a separate change from this one. |
+| — | **Second-consumer validation: pending.** `E3-OBS` has not been written. Until it has, this boundary is provisional and no claim should be made that the split is correct. |
