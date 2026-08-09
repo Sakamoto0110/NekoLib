@@ -23,8 +23,26 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
 
         public static async Task RunAsync(PhaseContext context)
         {
-            string before = await Schema.ScenarioSchema.DigestAsync(context.Workspace.Gateway, context.Ct)
-                .ConfigureAwait(false);
+            // Inside a check, not before one. Taken outside, a transport error
+            // here escapes the whole assertion mechanism and ends the process -
+            // which is exactly how the first soak died.
+            string before = string.Empty;
+            await context.Runner.RunAsync(Phase, "state-baseline",
+                "the seeded data is readable before the transaction phase begins",
+                async check =>
+                {
+                    before = await Schema.ScenarioSchema.DigestAsync(context.Workspace.Gateway, context.Ct)
+                        .ConfigureAwait(false);
+                    check.Note("digest " + before);
+                }).ConfigureAwait(false);
+
+            if (before.Length == 0)
+            {
+                context.Runner.Skip(Phase, "state-restored",
+                    "the transaction phase leaves the seeded data exactly as it found it",
+                    "no baseline digest was captured, so there is nothing to compare against");
+                return;
+            }
 
             await ParameterizedDml(context).ConfigureAwait(false);
             await CommitAndRollback(context).ConfigureAwait(false);

@@ -54,9 +54,33 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                 return;
             }
 
+            // Steady-state traffic runs on its own gateway, never the one the
+            // matrices assert against. Several checks zero the workspace's
+            // lifecycle counters and then make claims about them; background
+            // traffic sharing that workspace silently inflates the counts, and
+            // in the soak it made provider-error-propagation report two
+            // dispatches and one success where it expected one and none.
+            using (GatewayWorkspace background = new GatewayWorkspace(
+                context.Endpoint.BuildConnectionString(
+                    context.DatabaseName,
+                    connectTimeoutSeconds: 60,
+                    applicationName: "NekoLib.E4-SQL.steady"),
+                GatewayWorkspace.DefaultOptions()))
+            {
+                await DispatchScheduleAsync(context, schedule, campaignStartUtc, background)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static async Task DispatchScheduleAsync(
+            PhaseContext context,
+            FaultSchedule schedule,
+            DateTime campaignStartUtc,
+            GatewayWorkspace background)
+        {
             foreach (FaultEvent planned in schedule.Events)
             {
-                await WaitForOffsetAsync(context, planned, campaignStartUtc).ConfigureAwait(false);
+                await WaitForOffsetAsync(context, planned, campaignStartUtc, background).ConfigureAwait(false);
 
                 context.Sampler.Take(Phase, "pre-fault");
                 context.Artifacts.Event("fault-dispatch", json =>
@@ -68,7 +92,10 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     json.Prop("expectedRecovery", planned.ExpectedRecovery);
                 });
 
-                await DispatchAsync(context, planned).ConfigureAwait(false);
+                // Exclusive for the whole fault, including its recovery
+                // assertions: taking the server away while a matrix is running
+                // is what killed the first soak.
+                await context.ExclusiveAsync(() => DispatchAsync(context, planned)).ConfigureAwait(false);
                 context.Sampler.Take(Phase, "post-recovery");
             }
         }
@@ -546,7 +573,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
         private static async Task WaitForOffsetAsync(
             PhaseContext context,
             FaultEvent planned,
-            DateTime campaignStartUtc)
+            DateTime campaignStartUtc,
+            GatewayWorkspace background)
         {
             DateTime due = campaignStartUtc.AddSeconds(planned.OffsetSeconds);
 
@@ -556,7 +584,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
 
                 try
                 {
-                    await context.Workspace.Gateway
+                    await background.Gateway
                         .GetRaw("SELECT COUNT(*) AS Total FROM Movement", null, context.Ct).ConfigureAwait(false);
                     context.Counters.Success();
                 }

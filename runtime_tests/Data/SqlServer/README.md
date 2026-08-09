@@ -397,38 +397,56 @@ cheap, and this is the first evidence in the repository that it does.
 | 2026-08-08 | `net9.0` | **Recovery rehearsal, exit 0, but below the specified window.** 31 checks, 0 failed, in 600s with `--rehearsal-duration 10m`; the suite specifies 60 to 90 minutes, so `result.json` carries `belowSpecifiedWindow: true` and **this run is not rehearsal evidence**. It does establish that all seven fault handlers work. Each fault's provider error was recorded: `10054` for transport loss during a command and during a stream, `1225` for a connection attempt while the server was down, `10053` for a commit over a dead transport. The interrupted stream reported exactly one `Failed` terminal. The container restart left the database present and its digest unchanged. Schema recreation from the same seed reproduced the same digest. The stale-pool probe recovered on its first attempt — the pool had already discarded the dead handles rather than serving one. Not yet run on `net481`. |
 | 2026-08-08 | `net9.0` | **Recovery rehearsal inside the specified window, exit 0.** 31 checks, 0 failed, 0 skipped, in 4924s (82 minutes) with `--rehearsal-duration 90m`. All seven fault handlers passed: `transport-loss-during-command` 21.5s, `connect-while-server-down` 73.1s, `transport-loss-during-stream` 22.4s, `schema-recreation` 0.1s, `container-restart` 17.6s, `stale-pooled-connection` 20.9s, `transport-loss-during-transaction` 20.5s. 4871 operations, 4848 successes, 10 expected failures, **0 unexpected failures**, 13 cancellations. The database was dropped and the container returned to `exited`. **This is the run that satisfies the suite's rehearsal requirement**, and it must be `net9.0`: `net481` skips the streaming fault entirely. |
 | 2026-08-08 | `net481` | **Recovery rehearsal, exit 0, below the window.** 29 checks passed, 0 failed, 2 skipped, in 538s with `--rehearsal-duration 10m`. The two skips are `mid-flight-streaming` and `transport-loss-during-stream`, absent below net6 by design, so this target covers six of the seven faults and can never cover the seventh. The six produced the same provider error numbers as `net9.0` — `1225`, `10054`, `10053` — which is the result one wants from a library that promises both targets. 540 operations, 0 unexpected failures. Below the specified window, so it is a second data point rather than rehearsal evidence. |
-| 2026-08-08 | `net9.0` | **Soak, exit 7 — a scenario defect, not a product one.** `--soak 15m` died outside every check with `SqlException 10054` from `ScenarioSchema.DigestAsync`, called on the first line of `TransactionMatrix.RunAsync` while a scheduled fault had the container stopped. See the open defects below. Before dying it had run 8486 checks with 3 failures and 36396 operations in 126s, so the workload itself holds; the coordination does not. Cleanup then could not drop its database because the server was down, leaving one behind. |
+| 2026-08-08 | `net9.0` | **Soak, exit 0, third attempt.** `--soak 15m` ran 911s with **85439 checks passed, 0 failed, 0 skipped** and 335283 operations — 313920 successes, 21363 expected failures, **0 unexpected failures**. All seven faults executed concurrently with the workload cycles and every one recovered. The database was dropped and the container returned to `exited`. The soak path is proven; the 16-hour campaign is now a calendar decision rather than a risk. |
+| 2026-08-08 | `net9.0` | **Soak, exit 4, second attempt.** 88423 checks passed, **12 failed — all of them `provider-error-propagation`**, on counters: two dispatches where one was expected, one success where none was. Steady-state traffic between faults was sharing the workspace whose lifecycle counters that check zeroes and asserts on. 348584 operations, 0 unexpected failures. The crash was gone; the accounting was not. |
+| 2026-08-08 | `net9.0` | **Soak, exit 7, first attempt — a scenario defect, not a product one.** `--soak 15m` died outside every check with `SqlException 10054` from `ScenarioSchema.DigestAsync`, called on the first line of `TransactionMatrix.RunAsync` while a scheduled fault had the container stopped. See the open defects below. Before dying it had run 8486 checks with 3 failures and 36396 operations in 126s, so the workload itself holds; the coordination does not. Cleanup then could not drop its database because the server was down, leaving one behind. |
 | 2026-08-08 | both TFMs | **Schedule determinism, verified.** `--recovery-rehearsal --seed 20260808 --print-schedule` produced `fnv1a64:49a3ab65b5f249e9` on two consecutive `net481` runs and on `net9.0`, and seed `99` produced a different hash. The generated plan holds 7 faults with 288-second quiet windows at both ends. This is the one acceptance criterion that needs no server, and it is the reason the generator carries its own PRNG and hash rather than the BCL's. |
 
-### Open defects in this scenario
+### Three defects the soak found, and what they cost
 
-Both are scenario defects found by running the soak. Neither is a product
-finding, and **the soak must not be attempted again until both are fixed.**
+All three were scenario defects — none touched `NekoLib.Data` — and none of
+them could have been found by smoke or by the rehearsal, because in both of
+those the matrices run before and after the fault window and never during it.
+Only the soak overlaps assertions with faults.
 
-**1. The soak runs assertion matrices concurrently with container-stopping
-faults.** `RunSoakAsync` starts `RecoveryMatrix.RunAsync` as a task alongside a
-loop that runs `ReadMatrix` and `TransactionMatrix`. A fault stops the server
-while a matrix is mid-flight. `TransactionMatrix.RunAsync` takes its opening
-digest *outside* any check, so the exception escapes the whole assertion
-mechanism and kills the process with exit 7 instead of failing a check.
+They were found by running `--soak 15m` three times before committing a night
+to sixteen hours. The first run would have died inside the first twenty
+minutes.
 
-Smoke and the rehearsal never exposed it, because in neither of them does
-anything run concurrently with a fault.
+**1. Assertion matrices ran concurrently with container-stopping faults**
+(exit 7). A fault stopped the server while a matrix was mid-flight, and
+`TransactionMatrix.RunAsync` took its opening digest *outside* any check, so
+the transport error escaped the whole assertion mechanism and killed the
+process. Fixed with `PhaseContext.ExclusiveAsync`: a fault holds it while it
+executes, a workload cycle holds it while a matrix runs. The stray digest now
+lives inside a `state-baseline` check as well, so a future escape becomes a red
+check rather than a dead process.
 
-The fix is to serialise the two: a semaphore on `PhaseContext` that a fault
-holds while it executes and a workload cycle holds while a matrix runs. Moving
-the stray digest calls inside checks is worth doing as well, but on its own it
-would only convert a crash into a meaningless failed check.
+**2. Cleanup gave up on dropping the database when the server was down.** It
+restarted the container only if the run had *found* it running — a condition
+with nothing to do with "there is a database to drop". A run that found it
+stopped, and whose last fault left it stopped, leaked a database. It now starts
+the container whenever it has cleanup to do, and `RestoreInitialState` still
+puts the container back afterwards.
 
-**2. Cleanup gives up on dropping the database when the server is down.** It
-starts the container only if the run *found* it running. A run that found it
-stopped, and whose last fault left it stopped, cannot drop its own database and
-leaves one behind. Cleanup should start the container when it needs to, then
-restore the state the run found.
+**3. Background traffic shared the workspace the matrices assert on** (exit 4,
+twelve failures, all in `provider-error-propagation`). Steady-state traffic
+between faults is deliberately outside the semaphore, since it should be free
+to run and fail — but it was running on `context.Workspace`, whose lifecycle
+counters several checks zero and then make claims about. The check expected one
+dispatch and no successes and saw two and one. Steady traffic now has its own
+gateway; it touches nobody's counters.
+
+The third is the one worth remembering: the first fix was half a fix, and the
+run that proved it was half a fix is the only reason the sixteen-hour campaign
+will not fail on a counter.
 
 ### What is still open
 
-- **The 16-hour soak.** Never started, and blocked on the two defects above.
+- **The 16-hour soak.** Never started. No longer blocked: `--soak 15m` now
+  passes with exit 0, so the path is proven and the remaining question is
+  calendar rather than risk. The host must not share the run with other heavy
+  work — see the load finding in the orchestrator's record.
 - **The FarmDatabase interactive pass** at campaign start and end, which the
   suite asks for alongside this scenario and which stays SQLite/Access evidence.
 

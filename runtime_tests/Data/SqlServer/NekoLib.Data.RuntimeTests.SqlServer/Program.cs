@@ -352,8 +352,11 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                 context.Artifacts.Out("soak cycle " + cycle.ToString(CultureInfo.InvariantCulture) +
                                       "  " + Remaining(deadline) + " remaining");
 
-                await ReadMatrix.RunAsync(context).ConfigureAwait(false);
-                await TransactionMatrix.RunAsync(context).ConfigureAwait(false);
+                // Exclusive against the fault task: a matrix asserts, and an
+                // assertion made while a scheduled fault has the server
+                // stopped is measuring the fault, not the library.
+                await context.ExclusiveAsync(() => ReadMatrix.RunAsync(context)).ConfigureAwait(false);
+                await context.ExclusiveAsync(() => TransactionMatrix.RunAsync(context)).ConfigureAwait(false);
                 context.Sampler.Take("soak", "periodic");
             }
 
@@ -448,19 +451,21 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             {
                 bool serverUp = adopted == null || adopted.IsRunning();
 
-                if (!serverUp)
+                if (!serverUp && databaseCreated && !_options.KeepDatabase)
                 {
-                    // A fault may have left it stopped. If the run found it
-                    // running, it has to be running again before the scenario
-                    // database can be dropped.
-                    if (string.Equals(adopted!.InitialStatus, "running", StringComparison.Ordinal))
-                    {
-                        adopted.Start(out string restartDiagnostic);
-                        artifacts.Out("  container  " + restartDiagnostic);
-                        ReadinessResult ready = await probe
-                            .WaitUntilReadyAsync(TimeSpan.FromMinutes(2), cleanup.Token).ConfigureAwait(false);
-                        serverUp = ready.Ready;
-                    }
+                    // A fault may have left it stopped. Start it regardless of
+                    // the state the run found it in: there is a database to
+                    // drop, and RestoreInitialState below puts the container
+                    // back afterwards either way. Only restarting when the run
+                    // found it running is what left a database behind after the
+                    // first soak.
+                    artifacts.Out("  container  starting it so the scenario database can be dropped");
+                    adopted!.Start(out string restartDiagnostic);
+                    artifacts.Out("  container  " + restartDiagnostic);
+
+                    ReadinessResult ready = await probe
+                        .WaitUntilReadyAsync(TimeSpan.FromMinutes(2), cleanup.Token).ConfigureAwait(false);
+                    serverUp = ready.Ready;
                 }
 
                 if (databaseCreated && serverUp)

@@ -30,6 +30,33 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
         public CancellationToken Ct;
 
         /// <summary>
+        /// Serialises assertion work against faults that take the server away.
+        /// <para/>
+        /// The soak is the only mode where the two can overlap, and the first
+        /// soak run proved they must not: a fault stopped the container while a
+        /// matrix was mid-flight, and the resulting transport error escaped the
+        /// whole check mechanism and killed the process. A matrix holds this
+        /// while it runs; a fault holds it while it executes. Nothing holds it
+        /// during ordinary steady-state traffic, which is free to fail and be
+        /// counted.
+        /// </summary>
+        public readonly SemaphoreSlim ExclusiveAccess = new SemaphoreSlim(1, 1);
+
+        /// <summary>Runs one piece of work with exclusive access to the server.</summary>
+        public async Task ExclusiveAsync(Func<Task> work)
+        {
+            await ExclusiveAccess.WaitAsync(Ct).ConfigureAwait(false);
+            try
+            {
+                await work().ConfigureAwait(false);
+            }
+            finally
+            {
+                ExclusiveAccess.Release();
+            }
+        }
+
+        /// <summary>
         /// Classifies an exception as a cancellation outcome.
         /// <para/>
         /// This exists because the answer is genuinely provider-dependent and
