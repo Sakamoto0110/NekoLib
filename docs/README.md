@@ -75,6 +75,8 @@ reference commit.
 | [`runtime_tests/SCENARIO_TEMPLATE.md`](../runtime_tests/SCENARIO_TEMPLATE.md) | guide | current | Required metadata and procedure template for new scenarios |
 | [`runtime_tests/PHASE_E_SCENARIO_SUITE.md`](../runtime_tests/PHASE_E_SCENARIO_SUITE.md) | guide | current | Build specification and traceability for the planned Phase E long-running, recovery, and SQL Server runtime scenarios |
 | [`runtime_tests/Data/FarmDatabase/README.md`](../runtime_tests/Data/FarmDatabase/README.md) | guide | current | Data SQLite/Access dual-provider and long-running simulation scenario, also covering Mvvm binding, attribute-only Navigation registration, and application-owned Logging/Telemetry measurements |
+| [`runtime_tests/Data/SqlServer/README.md`](../runtime_tests/Data/SqlServer/README.md) | guide | current | Data against a real SQL Server engine in an adopted local container: pooling and ownership, mid-flight cancellation, transport loss and recovery, and dynamic-result schema-cap lifetime |
+| [`runtime_tests/Confidence/LongRunning/README.md`](../runtime_tests/Confidence/LongRunning/README.md) | guide | current | Deterministic Phase E campaign orchestration, process ownership, and aggregate exit codes |
 | [`runtime_tests/Devices/Com0Com/README.md`](../runtime_tests/Devices/Com0Com/README.md) | guide | current | Devices virtual-COM parity and protocol-readiness scenario |
 | [`runtime_tests/Navigation/WinFormsSmoke/README.md`](../runtime_tests/Navigation/WinFormsSmoke/README.md) | guide | current | Navigation WinForms interactive smoke scenario |
 | [`runtime_tests/Navigation/WpfSmoke/README.md`](../runtime_tests/Navigation/WpfSmoke/README.md) | guide | current | Navigation WPF interactive smoke scenario |
