@@ -126,8 +126,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.SoakStatus
             Text = options.Title;
             TopMost = true;
             FormBorderStyle = FormBorderStyle.FixedToolWindow;
-            StartPosition = FormStartPosition.Manual;
-            ClientSize = new Size(300, 96);
+
+            // Centred when it opens, and never again. CenterScreen only places
+            // the window at startup, so dragging it somewhere else keeps it
+            // there - a window that stays on top all night has to be movable.
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(440, 150);
             BackColor = Color.FromArgb(24, 24, 28);
             ShowInTaskbar = true;
 
@@ -136,17 +140,17 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.SoakStatus
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Color.FromArgb(235, 235, 240),
-                Font = new Font("Consolas", 30F, FontStyle.Regular, GraphicsUnit.Point),
+                Font = new Font("Consolas", 46F, FontStyle.Regular, GraphicsUnit.Point),
                 Text = "00:00:00"
             };
 
             _detail = new Label
             {
                 Dock = DockStyle.Bottom,
-                Height = 24,
+                Height = 30,
                 TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Color.FromArgb(150, 150, 158),
-                Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point),
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point),
                 Text = string.Empty
             };
 
@@ -159,26 +163,11 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.SoakStatus
                 catch (ArgumentException) { _watched = null; }
             }
 
-            PlaceBottomRight();
-
             _tick = new System.Windows.Forms.Timer { Interval = 250 };
             _tick.Tick += (_, __) => Refresh(DateTime.UtcNow);
             _tick.Start();
 
             Refresh(DateTime.UtcNow);
-        }
-
-        /// <summary>
-        /// Bottom right of the working area, so a window that stays on top all
-        /// night sits where nothing else wants to be.
-        /// </summary>
-        private void PlaceBottomRight()
-        {
-            Rectangle work = Screen.PrimaryScreen == null
-                ? new Rectangle(0, 0, 1280, 800)
-                : Screen.PrimaryScreen.WorkingArea;
-
-            Location = new Point(work.Right - Width - 16, work.Bottom - Height - 16);
         }
 
         private void Refresh(DateTime nowUtc)
