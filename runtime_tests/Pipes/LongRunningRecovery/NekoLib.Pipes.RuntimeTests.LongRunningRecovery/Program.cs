@@ -76,7 +76,7 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
     }
 
     /// <summary>One controller execution, from preflight to the exit code.</summary>
-    internal sealed class ScenarioRun
+    internal sealed class ScenarioRun : IProcessControl
     {
         private readonly ScenarioOptions _options;
         private readonly CancellationToken _ct;
@@ -143,21 +143,6 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                 return ExitCodes.PrerequisiteMissing;
             }
 
-            // This scenario is a first pass: the workload matrices are
-            // implemented and the schedule is generated, but no fault dispatcher
-            // exists yet. A mode that plans faults and silently fires none would
-            // exit 0 having proved nothing about recovery, which is a far worse
-            // outcome than refusing to start. It refuses.
-            if (_options.Mode != ScenarioMode.Smoke)
-            {
-                artifacts.Error(
-                    "E3-PIPE: " + _options.Mode + " is not implemented yet. The fault schedule is generated and " +
-                    "persisted, but nothing dispatches it, so this mode would report success without having " +
-                    "injected a single fault. Use --smoke until the recovery matrix lands.");
-
-                return ExitCodes.PrerequisiteMissing;
-            }
-
             WriteEnvironment(artifacts);
 
             FaultSchedule schedule = BuildSchedule();
@@ -194,11 +179,23 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     return Finish(artifacts, schedule, counters, ExitCodes.PrerequisiteMissing);
                 }
 
-                samples.ChildProcesses.Set(_children.Count);
+                Server = server;
+
+                if (_options.Mode != ScenarioMode.Smoke)
+                {
+                    TimeSpan lifetime = _options.Mode == ScenarioMode.Soak
+                        ? _options.SoakDuration
+                        : _options.RehearsalDuration;
+
+                    StartClients(context, lifetime + TimeSpan.FromMinutes(5));
+                }
+
+                RefreshChildSamples(context);
                 sampler.Take("preflight", "post-warm-up");
 
                 _startedUtc = DateTime.UtcNow;
-                await RunModeAsync(context).ConfigureAwait(false);
+                await RunModeAsync(context, schedule).ConfigureAwait(false);
+                await ReportClientsAsync(context).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -218,12 +215,30 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
             return Finish(artifacts, schedule, counters, exitCode);
         }
 
-        private async Task RunModeAsync(PhaseContext context)
+        private async Task RunModeAsync(PhaseContext context, FaultSchedule schedule)
         {
-            // Every mode runs the same matrices; only the duration and the fault
-            // schedule differ. The soak and the sustained smoke additionally
-            // keep client children generating background traffic.
-            await RunMatricesAsync(context).ConfigureAwait(false);
+            switch (_options.Mode)
+            {
+                case ScenarioMode.Smoke:
+                    await RunSmokeAsync(context).ConfigureAwait(false);
+                    break;
+
+                case ScenarioMode.RecoveryRehearsal:
+                    // Warm up first: a fault dispatched before ordinary work has
+                    // been shown to succeed would be measuring start-up.
+                    await RunMatricesAsync(context).ConfigureAwait(false);
+                    context.Sampler.Take("recovery", "post-warm-up");
+
+                    await RecoveryMatrix.RunAsync(context, this, schedule, _startedUtc).ConfigureAwait(false);
+
+                    context.Sampler.Take("recovery", "cool-down");
+                    await RunMatricesAsync(context).ConfigureAwait(false);
+                    break;
+
+                case ScenarioMode.Soak:
+                    await RunSoakAsync(context, schedule).ConfigureAwait(false);
+                    break;
+            }
 
             context.Sampler.Take(_options.Mode.ToString().ToLowerInvariant(), "final");
         }
@@ -231,9 +246,193 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         private static async Task RunMatricesAsync(PhaseContext context)
         {
             await RequestMatrix.RunAsync(context).ConfigureAwait(false);
+            await CancellationMatrix.RunAsync(context).ConfigureAwait(false);
             await EventMatrix.RunAsync(context).ConfigureAwait(false);
+            await OverflowMatrix.RunAsync(context).ConfigureAwait(false);
             await ProtocolMatrix.RunAsync(context).ConfigureAwait(false);
             await LifecycleMatrix.RunAsync(context).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Every workload class, then the same classes repeated under the client
+        /// children's traffic until the window closes.
+        /// <para/>
+        /// The matrices finish in well under a minute. Stopping there would give
+        /// a smoke that proves the assertions and nothing about behaviour over
+        /// time, which is what the suite's 15-to-30-minute window is for.
+        /// </summary>
+        private async Task RunSmokeAsync(PhaseContext context)
+        {
+            await RunMatricesAsync(context).ConfigureAwait(false);
+            await SustainAsync(context, _startedUtc + _options.SmokeDuration, "smoke").ConfigureAwait(false);
+        }
+
+        private async Task RunSoakAsync(PhaseContext context, FaultSchedule schedule)
+        {
+            DateTime deadline = _startedUtc + _options.SoakDuration;
+
+            // The fault task and the cycle loop run together, serialised through
+            // the context's gate: an assertion made while a fault has the server
+            // killed is measuring the fault.
+            Task faults = RecoveryMatrix.RunAsync(context, this, schedule, _startedUtc);
+
+            await SustainAsync(context, deadline, "soak").ConfigureAwait(false);
+            await faults.ConfigureAwait(false);
+        }
+
+        private async Task SustainAsync(PhaseContext context, DateTime deadline, string phaseName)
+        {
+            int cycles = 0;
+
+            while (DateTime.UtcNow < deadline && !_ct.IsCancellationRequested)
+            {
+                cycles++;
+                TimeSpan left = deadline - DateTime.UtcNow;
+                if (left < TimeSpan.Zero) left = TimeSpan.Zero;
+
+                context.Artifacts.Out(phaseName + " cycle " + cycles.ToString(CultureInfo.InvariantCulture) +
+                                      "  " + ((int)left.TotalMinutes).ToString(CultureInfo.InvariantCulture) +
+                                      "m remaining");
+
+                // The sample is taken inside the gate, beside the work it
+                // describes, so it can never be taken while a fault has the
+                // server away.
+                await context.ExclusiveAsync(async () =>
+                {
+                    await RunMatricesAsync(context).ConfigureAwait(false);
+                    RefreshChildSamples(context);
+                    context.Sampler.Take(phaseName, "periodic");
+                }).ConfigureAwait(false);
+            }
+
+            context.Artifacts.Out(phaseName + " completed " + cycles + " cycle(s)");
+        }
+
+        private void RefreshChildSamples(PhaseContext context)
+        {
+            int alive = 0;
+            foreach (ChildProcess child in _children)
+                if (!child.HasExited) alive++;
+
+            context.Samples.ChildProcesses.Set(alive);
+        }
+
+        // ------------------------------------------------- IProcessControl
+
+        public ChildProcess? Server { get; private set; }
+
+        public IReadOnlyList<ChildProcess> Clients => _clients;
+
+        private readonly List<ChildProcess> _clients = new List<ChildProcess>();
+
+        public ChildProcess RestartServer()
+        {
+            Server = StartServer(TimeSpan.FromHours(6));
+            return Server;
+        }
+
+        public bool KillOneClient(out string diagnostic)
+        {
+            foreach (ChildProcess client in _clients)
+            {
+                if (client.HasExited) continue;
+
+                bool killed = client.Kill(out diagnostic);
+                diagnostic = "pid " + client.Id + " " + diagnostic;
+                return killed;
+            }
+
+            diagnostic = "no live client child remained";
+            return false;
+        }
+
+        public async Task<bool> WaitForServerAsync(TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+
+            while (DateTime.UtcNow < deadline && !_ct.IsCancellationRequested)
+            {
+                if (Endpoint.IsBound(_pipeName)) return true;
+                await Task.Delay(100, _ct).ConfigureAwait(false);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Starts the client children that make this a multi-process load.
+        /// <para/>
+        /// Smoke runs without them: its value is the assertions, and adding
+        /// three processes of background traffic would make every count in them
+        /// approximate for no gain. The rehearsal and the soak need them,
+        /// because "the server kept serving while a client was killed" has no
+        /// meaning without clients to kill.
+        /// </summary>
+        private void StartClients(PhaseContext context, TimeSpan lifetime)
+        {
+            for (int i = 0; i < _options.Clients; i++)
+            {
+                string result = Path.Combine(
+                    _artifacts!.ScenarioDirectory,
+                    "client-" + i.ToString(CultureInfo.InvariantCulture) + "-result.json");
+
+                string arguments =
+                    "--role client --pipe " + _pipeName +
+                    " --child-duration " + ((int)lifetime.TotalSeconds).ToString(CultureInfo.InvariantCulture) + "s" +
+                    " --child-result \"" + result + "\" --smoke";
+
+                ChildProcess child = ChildProcess.Start("client", arguments, result);
+                _children.Add(child);
+                _clients.Add(child);
+            }
+
+            _artifacts!.Out("clients  " + _clients.Count + " child process(es) started");
+            RefreshChildSamples(context);
+        }
+
+        /// <summary>
+        /// Turns the client children's own result documents into one check, so
+        /// their work is part of the verdict rather than decoration.
+        /// </summary>
+        private Task ReportClientsAsync(PhaseContext context)
+        {
+            if (_clients.Count == 0) return PhaseContext.CompletedTask;
+
+            return context.Runner.RunAsync(Phases.Request, "client-children-correlation",
+                "every client process completed requests and none saw a response meant for another",
+                check =>
+                {
+                    long sent = 0;
+                    long ok = 0;
+                    long failed = 0;
+                    long mismatched = 0;
+                    int reported = 0;
+
+                    foreach (ChildProcess client in _clients)
+                    {
+                        Dictionary<string, object?>? result = client.ReadResult();
+                        if (result == null) continue;
+
+                        reported++;
+                        sent += JsonParser.RequireInt(result, "sent");
+                        ok += JsonParser.RequireInt(result, "ok");
+                        failed += JsonParser.RequireInt(result, "failed");
+                        mismatched += JsonParser.RequireInt(result, "mismatchedCorrelation");
+                    }
+
+                    check.That(reported > 0, "no client child wrote a result document");
+                    check.Equal(0, mismatched, "responses that reached the wrong client process");
+                    check.That(ok > 0, "no client process completed a single request");
+
+                    context.Samples.RequestsSent.Add(sent);
+                    context.Samples.RequestsFailed.Add(failed);
+
+                    check.Note(reported + " client process(es) reported " + sent + " requests, " + ok +
+                               " successful and " + failed + " failed. Failures are expected here: a scheduled " +
+                               "fault takes the server away while these keep sending");
+
+                    return PhaseContext.CompletedTask;
+                });
         }
 
         private ChildProcess StartServer(TimeSpan lifetime)

@@ -1256,16 +1256,20 @@ its automated modes. Those are what the build phase has left.
   produced a different hash on every run. A fault target must describe the class
   of resource, never the instance. Fixed; the schedule is now
   `fnv1a64:42db44086ce556a2` across runs and both targets.
-  **Explicitly incomplete, and it refuses to pretend otherwise.** There is no
-  fault dispatcher: the six kinds are declared and the schedule is generated and
-  persisted, but nothing acts on them, so `--recovery-rehearsal` and `--soak`
-  exit 3 with a message rather than reporting success having injected nothing.
-  Client children are not started yet (`--clients` is parsed and unused), there
-  is no sustained window, and these specified checks are missing: the
-  `DisconnectSubscriber` overflow policy, dropped-event metrics,
-  server-initiated disconnect, token cancellation as distinct from timeout,
-  disposal while publishes and subscribers are active, and metric stability
-  under sustained traffic.
+  **Completed the same day.** All three modes and all six fault kinds are
+  implemented: killing the server and a client, a raw peer closing mid-frame, a
+  handler delay forcing a timeout, a slow subscriber overflowing its queue, and
+  disposal with a connection, a request and a subscriber all live. Client
+  children run for the two fault-bearing modes and their own totals become a
+  check, so a killed client is part of the verdict rather than decoration. The
+  later additions also closed the specified gaps: both bounded-queue overflow
+  policies with the truthful dropped count (`EventMetrics.Failed`, since the hub
+  completes an overflowed delivery as unsuccessful), server-initiated
+  disconnect, and token cancellation as distinct from a deadline expiring.
+  **Still not covered:** metric stability under sustained traffic is sampled but
+  not asserted, for want of a baseline to derive a threshold from — the same
+  position E3-OBS took on memory; `MaxClients` saturation; and event delivery
+  across a server restart via `AutoReconnect`.
   **Never executed.** Build and `--print-schedule` only, per the build-first
   sequencing. A scenario that has never opened a pipe is the least-verified kind
   of pending there is, and it is not shared evidence for any Pipes behaviour.

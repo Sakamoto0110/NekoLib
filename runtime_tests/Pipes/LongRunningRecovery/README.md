@@ -12,9 +12,8 @@
 hardware. The scenario allocates its own named pipe per run.
 
 **Last verification:** 2026-08-10 — **build-only.** See
-[Verification record](#verification-record). **This scenario is a first pass and
-is not complete**; see [What is not implemented yet](#what-is-not-implemented-yet)
-before citing anything from it.
+[Verification record](#verification-record). Every mode is implemented; **the
+scenario has never been executed**, which is the whole of what is pending.
 
 ## Purpose
 
@@ -90,6 +89,18 @@ not meant to be run by hand.
 
 ## What is implemented
 
+All three modes. `--smoke` runs every workload class and then repeats it under
+the client children's traffic until its window closes; `--recovery-rehearsal`
+warms up, dispatches the seeded schedule, then runs the matrices again;
+`--soak` runs the schedule and the cycle loop together, serialised through one
+gate so an assertion is never made while a fault has the server away.
+
+Client children are started for the two fault-bearing modes and not for smoke:
+smoke's value is its assertions, and three processes of background traffic would
+make every count in them approximate for no gain. Their own results become one
+check of their own, so their work is part of the verdict rather than decoration.
+
+
 Each is a check with its own exit-code contribution, in four phases.
 
 **`request`**
@@ -103,13 +114,25 @@ Each is a check with its own exit-code contribution, in four phases.
   timeout fails inside its bound, and the next request on a fresh connection
   receives its own response rather than the abandoned one;
 - `client-reconnect-cycles` — 40 client-initiated connect/request/disconnect
-  cycles.
+  cycles;
+- `token-cancellation` — a caller that withdraws mid-request, which is a
+  different thing from a deadline expiring, and a clean next response;
+- `client-children-correlation` — the client processes' own totals, asserting
+  that no response ever reached the wrong process.
 
 **`events`**
 - `ordered-delivery` — a subscriber receives published events in publication
   order, waited for boundedly rather than slept at;
 - `subscriber-churn` — 10 connect/disconnect cycles, after which the hub still
-  serves.
+  serves;
+- `overflow-drop-newest` and `overflow-disconnect-subscriber` — **both**
+  supported bounded-queue policies, each against a subscriber that connects and
+  never reads, asserting the truthful dropped count and the policy's own
+  outcome: still connected, or disconnected.
+
+  The dropped count is `EventMetrics.Failed`. That is not a guess: on overflow
+  the hub completes the delivery as unsuccessful, so a failed delivery *is* a
+  dropped event.
 
 **`protocol`**
 - `oversize-request-refused` — an over-limit request is refused and the
@@ -123,29 +146,38 @@ Each is a check with its own exit-code contribution, in four phases.
 **`lifecycle`**
 - `dispose-and-rebind-a-private-endpoint` — a server disposed while a request is
   in flight does not throw, releases its name within a bounded wait, and the name
-  is then bound again and served on.
+  is then bound again and served on;
+- `server-initiated-disconnect` — the server goes away and the client learns by
+  failing rather than by hanging.
 
-## What is not implemented yet
+**`recovery`** — six faults, each dispatched at its planned monotonic offset,
+each with a documented terminal and a post-recovery probe:
 
-Stated plainly, because a scenario that looks finished and is not is worse than
-one that is obviously partial. **Non-smoke modes refuse to start** rather than
-report success without injecting anything.
+| Kind | What it proves |
+|---|---|
+| `kill-server-process` | an in-flight request fails rather than hangs, the dead process releases the endpoint, a replacement binds it and answers |
+| `kill-client-process` | the server sheds a client that died abruptly and keeps answering |
+| `raw-peer-closes-mid-frame` | a peer that lies about a frame length does not disturb ordinary requests |
+| `handler-delay-forces-timeout` | the timeout lands inside its bound and the next response is its own, not the abandoned one |
+| `slow-subscriber-overflows-queue` | a subscriber that never drains blocks neither publishing nor ordinary requests |
+| `dispose-while-requests-admitted` | disposal with a connection, a request and a subscriber all live does not throw and releases the name |
 
-- **No fault dispatcher.** The seeded schedule is generated, persisted and
-  hash-stable, and `--recovery-rehearsal` and `--soak` exit `3` with a message
-  saying so. The six fault kinds are declared and described but nothing acts on
-  them: killing the server and a client, closing a raw peer mid-frame, delaying a
-  handler, overflowing a slow subscriber, and disposing under admitted load.
-- **No client children are started.** `--clients` parses and is unused, so the
-  sustained multi-process load and the per-client result documents do not run
-  yet. The concurrency that *is* covered is in-controller, across 8 clients.
-- **No sustained window.** `--smoke-duration` parses but the matrices run once
-  rather than cycling to fill the suite's 15–30 minutes.
-- **Missing checks** from the specification: the `DisconnectSubscriber` overflow
-  policy (only `DropNewest` is configured), truthful dropped-event metrics,
-  server-initiated disconnect as its own check, token cancellation as distinct
-  from timeout, disposal while *publishes and subscribers* are active, and
-  metric stability under sustained traffic.
+Faults that need a server to themselves use a private endpoint, so the shared
+server the rest of the schedule depends on is never taken down by one of them.
+
+## What is not covered
+
+Every mode and every fault kind is implemented. These specified items are not:
+
+- **metric stability under sustained traffic** is sampled but not asserted. The
+  request, event, error and connection counters are recorded in `samples.csv`
+  every cycle, and nothing yet fails a run for an implausible trend, because no
+  baseline exists to derive one from. That is the same position E3-OBS took on
+  memory, and for the same reason.
+- **`MaxClients` saturation** — behaviour when more clients connect than the
+  server admits.
+- **event delivery under a server restart** — subscribers reconnect via
+  `PipeEventClient.AutoReconnect`, which no check exercises across a kill.
 
 ## The fault schedule
 
@@ -194,8 +226,9 @@ Preflight refuses to start if the allocated endpoint is already bound.
    times; a different `--seed` gives a different hash.
 3. `--smoke`. Expected: exit `0`, every check passing, and a cleanup line
    reporting the endpoint released.
-4. `--recovery-rehearsal`. Expected **today**: exit `3` with the message that no
-   dispatcher exists.
+4. `--recovery-rehearsal`. Expected: exit `0`, all six faults reporting `ok`,
+   and the client children's totals showing failures during the fault windows
+   and successes outside them.
 
 ## Verification record
 
@@ -205,7 +238,13 @@ Preflight refuses to start if the allocated endpoint is already bound.
 | 2026-08-10 | both | **Schedule determinism, automated.** `fnv1a64:42db44086ce556a2` on `net481` and `net9.0` and across repeated runs; seed 99 differs. This is a `--print-schedule` result, which starts nothing and touches nothing. |
 
 **No smoke, rehearsal, soak or campaign has been run.** The scenario has never
-opened a pipe outside a build. That is deliberate: the current strategy is to
-build every scenario before the execution phase begins, so this is *pending
-validation*, not a suspected fault — with the honest caveat that a scenario
-never executed is the least-verified kind of pending there is.
+opened a pipe outside a build. That is deliberate — the strategy is to build
+every scenario before the execution phase begins — so this is *pending
+validation* rather than a suspected fault.
+
+The caveat is worth stating plainly all the same: **a scenario that has never
+executed is the least-verified thing in this repository.** E3-OBS's first
+sustained run found two defects in its own assertions within fifteen minutes,
+and this one is more complex — three processes, a killed server, a rebound
+endpoint. Expect its first execution to find something, and prefer a short probe
+over starting with a long run.
