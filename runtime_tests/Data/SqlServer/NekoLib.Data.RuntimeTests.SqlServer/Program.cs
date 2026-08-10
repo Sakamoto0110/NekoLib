@@ -129,10 +129,13 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             }
 
             using (RunArtifacts artifacts = RunArtifacts.Create(
-                _options.ArtifactsRoot, _options.CampaignId, _options.ScenarioId))
+                _options.ArtifactsRoot,
+                _options.CampaignId,
+                _options.ScenarioId,
+                SqlServerSamples.ColumnNamesForHeader))
             {
                 _artifacts = artifacts;
-                _runner = new CheckRunner(artifacts.Out);
+                _runner = new CheckRunner(artifacts.Out, _ct);
 
                 artifacts.Out("E4-SQL  " + _options.CampaignId);
                 artifacts.Out("target  " + RuntimeFacts.TargetFrameworkMoniker +
@@ -245,7 +248,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                     GatewayWorkspace.DefaultOptions());
 
                 ResourceSampler sampler = new ResourceSampler(
-                    artifacts, counters, () => workspace!.Factory.Created);
+                    artifacts, counters, new SqlServerSamples(workspace));
 
                 PhaseContext context = new PhaseContext
                 {
@@ -656,6 +659,15 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             artifacts.WriteText(artifacts.EnvironmentPath, json.ToString());
         }
 
+        /// <summary>
+        /// Hands the run to the shared summary writer.
+        /// <para/>
+        /// The document shape, the exit-code precedence and the markdown table
+        /// are the suite's contract rather than this scenario's, so they moved
+        /// into the harness when E3-OBS turned out to need them unchanged. What
+        /// stayed here is the half only this scenario can supply: the provider,
+        /// the server build and the image digest.
+        /// </summary>
         private int Finish(
             RunArtifacts artifacts,
             FaultSchedule schedule,
@@ -665,212 +677,32 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             WorkloadCounters counters,
             int exitCode)
         {
-            CheckRunner runner = _runner!;
-            DateTime finishedUtc = DateTime.UtcNow;
-            double elapsedSeconds = (finishedUtc - _startedUtc).TotalSeconds;
-
-            bool belowWindow =
-                _options.Mode == ScenarioMode.RecoveryRehearsal &&
-                _options.RehearsalDuration < ScenarioOptions.MinimumSpecifiedRehearsal;
-
-            int resolved = ResolveExitCode(runner, exitCode);
-
-            JsonWriter json = new JsonWriter();
-            json.Object(null, () =>
+            RunSummary summary = new RunSummary
             {
-                json.Prop("campaignId", _options.CampaignId);
-                json.Prop("scenarioId", _options.ScenarioId);
-                json.Prop("mode", _options.Mode.ToString());
-                json.Prop("seed", _options.Seed);
-                json.Prop("scheduleHash", schedule.Hash);
-                json.Prop("targetFramework", RuntimeFacts.TargetFrameworkMoniker);
-                json.Prop("provider", ScenarioFacts.ProviderVersion);
-                json.Prop("serverProductVersion", server.ProductVersion);
-                json.Prop("serverEdition", server.Edition);
-                json.Prop("imageDigest", facts == null ? string.Empty : facts.ImageDigest);
-                json.Prop("database", database);
-                json.Prop("startedUtc", _startedUtc.ToString("o", CultureInfo.InvariantCulture));
-                json.Prop("finishedUtc", finishedUtc.ToString("o", CultureInfo.InvariantCulture));
-                json.Prop("elapsedSeconds", elapsedSeconds);
-                json.Prop("interrupted", _interrupted);
-                json.Prop("belowSpecifiedWindow", belowWindow);
-                json.Prop("exitCode", resolved);
+                CampaignId = _options.CampaignId,
+                ScenarioId = _options.ScenarioId,
+                Mode = _options.Mode.ToString(),
+                Seed = _options.Seed,
+                ScheduleHash = schedule.Hash,
+                ScheduleFaultCount = schedule.Events.Count,
+                StartedUtc = _startedUtc,
+                FinishedUtc = DateTime.UtcNow,
+                Interrupted = _interrupted,
+                BelowSpecifiedWindow =
+                    _options.Mode == ScenarioMode.RecoveryRehearsal &&
+                    _options.RehearsalDuration < ScenarioOptions.MinimumSpecifiedRehearsal,
+                ExplicitExitCode = exitCode
+            };
 
-                json.Object("counters", () =>
-                {
-                    json.Prop("operations", counters.Operations);
-                    json.Prop("successes", counters.Successes);
-                    json.Prop("expectedFailures", counters.ExpectedFailures);
-                    json.Prop("unexpectedFailures", counters.UnexpectedFailures);
-                    json.Prop("cancellations", counters.Cancellations);
-                });
+            summary.SetupGaps.AddRange(_setupGaps);
+            summary.CleanupProblems.AddRange(_cleanupProblems);
 
-                json.Object("checks", () =>
-                {
-                    json.Prop("passed", runner.Passed);
-                    json.Prop("failed", runner.Failed);
-                    json.Prop("skipped", runner.Skipped);
-                });
-
-                json.Array("setupGaps", () =>
-                {
-                    foreach (string gap in _setupGaps) json.Item(gap);
-                });
-
-                json.Array("cleanupProblems", () =>
-                {
-                    foreach (string problem in _cleanupProblems) json.Item(problem);
-                });
-
-                json.Array("results", () =>
-                {
-                    foreach (CheckResult result in runner.Results)
-                    {
-                        json.Object(null, () =>
-                        {
-                            json.Prop("phase", result.Phase);
-                            json.Prop("name", result.Name);
-                            json.Prop("claim", result.Claim);
-                            json.Prop("passed", result.Passed);
-                            json.Prop("skipped", result.Skipped);
-                            json.Prop("detail", result.Detail);
-                            json.Prop("durationMs", result.DurationMs);
-                            json.Array("notes", () =>
-                            {
-                                foreach (string note in result.Notes) json.Item(note);
-                            });
-                        });
-                    }
-                });
-            });
-
-            artifacts.WriteText(artifacts.ResultPath, json.ToString());
-            artifacts.WriteText(artifacts.SummaryJsonPath, json.ToString());
-            artifacts.WriteText(artifacts.SummaryMarkdownPath,
-                BuildMarkdown(runner, schedule, server, facts, counters, elapsedSeconds, belowWindow, resolved));
-
-            artifacts.Out(string.Empty);
-            artifacts.Out("checks     " + runner.Passed + " passed, " + runner.Failed + " failed, " +
-                          runner.Skipped + " skipped in " +
-                          elapsedSeconds.ToString("F0", CultureInfo.InvariantCulture) + "s");
-
-            if (_setupGaps.Count > 0)
-                artifacts.Out("setup      " + _setupGaps.Count + " gap(s) recorded in environment.json");
-
-            if (_cleanupProblems.Count > 0)
-            {
-                foreach (string problem in _cleanupProblems)
-                    artifacts.Error("cleanup    " + problem);
-            }
-
-            artifacts.Out("exit       " + resolved + "  " + Describe(resolved));
-            return resolved;
+            return summary.Write(
+                artifacts,
+                _runner!,
+                counters,
+                new SqlServerSummary(server, facts, database));
         }
-
-        private int ResolveExitCode(CheckRunner runner, int exitCode)
-        {
-            // Order matters: an interrupt explains everything after it, and an
-            // unexpected failure is worth more than the check count it produced.
-            if (_interrupted) return ExitCodes.Interrupted;
-            if (exitCode != ExitCodes.Success) return exitCode;
-            if (runner.Failed > 0) return ExitCodes.CheckFailed;
-            if (_cleanupProblems.Count > 0) return ExitCodes.CleanupFailed;
-            return ExitCodes.Success;
-        }
-
-        private static string Describe(int exitCode)
-        {
-            switch (exitCode)
-            {
-                case ExitCodes.Success: return "every selected check passed and cleanup reconciled";
-                case ExitCodes.Usage: return "the command line could not be understood";
-                case ExitCodes.PrerequisiteMissing: return "a prerequisite was missing; this is not a product finding";
-                case ExitCodes.CheckFailed: return "at least one check observed a wrong outcome";
-                case ExitCodes.Timeout: return "a bounded wait expired";
-                case ExitCodes.CleanupFailed: return "cleanup did not reconcile";
-                case ExitCodes.Interrupted: return "interrupted; the summary is partial";
-                default: return "unexpected failure";
-            }
-        }
-
-        private string BuildMarkdown(
-            CheckRunner runner,
-            FaultSchedule schedule,
-            ServerFacts server,
-            ContainerFacts? facts,
-            WorkloadCounters counters,
-            double elapsedSeconds,
-            bool belowWindow,
-            int exitCode)
-        {
-            System.Text.StringBuilder text = new System.Text.StringBuilder();
-            text.AppendLine("# E4-SQL " + _options.Mode + " - " + _options.CampaignId);
-            text.AppendLine();
-            text.AppendLine("| | |");
-            text.AppendLine("|---|---|");
-            text.AppendLine("| Target | " + RuntimeFacts.TargetFrameworkMoniker + " |");
-            text.AppendLine("| Runtime | " + RuntimeFacts.RuntimeDescription + " |");
-            text.AppendLine("| Provider | " + ScenarioFacts.ProviderVersion + " |");
-            text.AppendLine("| Library | " + ScenarioFacts.LibraryVersion + " |");
-            text.AppendLine("| Server | " + server.ProductVersion + " " + server.Edition + " |");
-            text.AppendLine("| Image digest | " + (facts == null ? "unknown" : facts.ImageDigest) + " |");
-            text.AppendLine("| Seed | " + _options.Seed.ToString(CultureInfo.InvariantCulture) + " |");
-            text.AppendLine("| Schedule | " + schedule.Events.Count + " fault(s), " + schedule.Hash + " |");
-            text.AppendLine("| Elapsed | " + elapsedSeconds.ToString("F0", CultureInfo.InvariantCulture) + "s |");
-            text.AppendLine("| Exit code | " + exitCode + " - " + Describe(exitCode) + " |");
-            text.AppendLine();
-
-            if (belowWindow)
-            {
-                text.AppendLine("> **This run is below the specified rehearsal window.** The suite specifies 60 to " +
-                                "90 minutes; this run used " +
-                                ((int)_options.RehearsalDuration.TotalMinutes).ToString(CultureInfo.InvariantCulture) +
-                                " minutes and must not be cited as rehearsal evidence.");
-                text.AppendLine();
-            }
-
-            if (_setupGaps.Count > 0)
-            {
-                text.AppendLine("## Setup gaps");
-                text.AppendLine();
-                foreach (string gap in _setupGaps) text.AppendLine("- " + gap);
-                text.AppendLine();
-            }
-
-            text.AppendLine("## Checks");
-            text.AppendLine();
-            text.AppendLine("| Phase | Check | Result | Detail |");
-            text.AppendLine("|---|---|---|---|");
-
-            foreach (CheckResult result in runner.Results)
-            {
-                string outcome = result.Skipped ? "skipped" : result.Passed ? "pass" : "**FAIL**";
-                text.AppendLine("| " + result.Phase + " | " + result.Name + " | " + outcome + " | " +
-                                Escape(result.Detail) + " |");
-            }
-
-            text.AppendLine();
-            text.AppendLine("## Counters");
-            text.AppendLine();
-            text.AppendLine("- operations: " + counters.Operations);
-            text.AppendLine("- successes: " + counters.Successes);
-            text.AppendLine("- expected failures: " + counters.ExpectedFailures);
-            text.AppendLine("- unexpected failures: " + counters.UnexpectedFailures);
-            text.AppendLine("- cancellations: " + counters.Cancellations);
-
-            if (_cleanupProblems.Count > 0)
-            {
-                text.AppendLine();
-                text.AppendLine("## Cleanup problems");
-                text.AppendLine();
-                foreach (string problem in _cleanupProblems) text.AppendLine("- " + problem);
-            }
-
-            return text.ToString();
-        }
-
-        private static string Escape(string text) =>
-            (text ?? string.Empty).Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ");
 
         private static string[] ToArray(IReadOnlyList<string> items)
         {

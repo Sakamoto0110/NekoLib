@@ -1029,18 +1029,98 @@ not mean the corresponding Phase E scenario is complete.
   and WPF smoke applications exist and have interactive evidence; the dedicated
   unattended workload, resource assertions, recovery rehearsal, and long run
   remain open.
-- [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** FarmDatabase is a
-  partial low-rate Logging/Telemetry consumer; the dedicated capacity,
-  rotation, failure-isolation, snapshot, provider-budget, lifecycle, and soak
-  scenario remains open.
-  **It also validates the shared harness.** The
-  [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness/`](runtime_tests/Shared/NekoLib.RuntimeTests.Harness/README.md)
-  boundary was accepted and implemented on 2026-08-08, but it has one consumer,
-  and a boundary with one consumer is a guess that happens to compile. E3-OBS is
-  the second, and implementing it is the test. Do not expand the harness
-  preemptively; move in only mechanics that prove genuinely common, and move
-  anything scenario-specific back out if the second consumer exposes a bad
-  boundary. Record the outcome either way, in the harness README and here.
+- [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
+  delivered 2026-08-09** at
+  [`runtime_tests/Observability/LongRunningRecovery/`](runtime_tests/Observability/LongRunningRecovery/README.md):
+  a dual-target console scenario with smoke, recovery-rehearsal and soak modes,
+  the three capabilities given independent phases and result sections, seven
+  scenario-owned fault kinds, and the artifact and exit-code contracts. It needs
+  no container, no service and no hardware, and writes only inside its own run
+  directory. Both targets build with no warnings. Schedule determinism is
+  verified: the same seed produces `fnv1a64:af14ff69cf61b022` on `net481` and
+  `net9.0`.
+  **Smoke passed on both targets with exit code 0 on 2026-08-09**, over the
+  specified 15-minute window rather than merely executing the matrices once:
+  4951 checks on `net9.0` and 4591 on `net481`, **zero failed and zero skipped
+  on either target**, across 164 and 152 cycles of the full matrix under
+  concurrent steady traffic, totalling roughly 1.8M and 1.6M operations with no
+  unexpected failure. Nothing here is target-conditional, so unlike E4-SQL
+  neither target skips a check. Threads moved 14 → 18 and 15 → 27 and handles
+  284 → 314 and 302 → 389 over those runs, the managed heap was non-monotonic on
+  both, and every bounded structure ended exactly at capacity. Deleting the
+  working directory is the handle assertion, and it removed 1819 and 1687 files
+  cleanly.
+  **Recovery rehearsal passed inside the specified window on 2026-08-09:**
+  62.3 minutes elapsed on `net9.0`, exit 0, 68 checks, 0 failed, 0 skipped, with
+  **all seven fault kinds proven** — each with its documented terminal, a
+  successful post-recovery probe, and provider and registration counts back to
+  baseline — across 8071 operations and zero unexpected failures.
+  **The interrupt contract is proven, not assumed:** a real `CTRL_BREAK` to a
+  running soak produced exit 8 with the workspace disposed, the process-wide
+  Inspection slot restored, the working directory removed, and the in-flight
+  checks recorded as skipped rather than failed.
+  **A reporting defect found and fixed while recording this:** the
+  below-specified-window flag compared the *requested* duration, so a rehearsal
+  asking for 60 minutes and elapsing 52.9 reported itself compliant. It now
+  judges elapsed time, and the scenario documents that a rehearsal must request
+  about 70 minutes to land inside 60–90, because the schedule reserves a quiet
+  window at each end.
+  **Every failure it injects is scenario-owned** — failing and blocking sinks, a
+  file lock, and misbehaving state providers — so no product module acquired a
+  fault-injection or `TestControl` surface. It registers no Inspection action
+  and asserts that its own action count stays zero, keeping the frozen action
+  channel out of scope.
+  **Registered in `E3-ORCH`:** `campaign.json` carries the scenario and its
+  seven fault kinds, and the orchestrator's generated schedule round-trips into
+  the scenario through `--fault-schedule` with matching offsets and kinds. No
+  orchestrated campaign has been run with it as a worker yet.
+  **Still open:** the 16-hour soak and a `net481` rehearsal. Nothing in the
+  scenario is target-conditional, so the `net481` smoke plus the `net9.0`
+  rehearsal cover the matrix, but the `net481` rehearsal itself has not run.
+  **Runtime findings recorded, not fixed** (product changes need separate
+  authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
+  stamped before the dispatch lock, so under concurrent writers it is not a
+  delivery-order key — the scenario asserts the documented delivery order and
+  records the inversion count as an observation; an abandoned
+  `ITelemetryOperation` is invisible, with no `IDisposable` and no record, which
+  the scenario asserts as current behaviour rather than as a guarantee;
+  `InspectionProvider.Current` is typed `IInspectionRecorder`, so the
+  process-wide slot is push-only and reading needs `IInspectionSnapshotSource`;
+  and `CaptureState()` applies no budget where `CaptureSnapshot(max, timeout)`
+  does.
+- [x] **Shared harness boundary — validated by its second consumer, 2026-08-09.**
+  The [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness/`](runtime_tests/Shared/NekoLib.RuntimeTests.Harness/README.md)
+  boundary was accepted on 2026-08-08 with one consumer, which made it a guess
+  that happened to compile. E3-OBS was written against it and the split
+  survived, with one piece moved out, one moved in, and two candidates refused:
+  - **Out:** `ResourceSample.ConnectionsCreated` and `.ServerSessions`, which
+    are SQL Server concepts the shared sampler had no business owning. The
+    suite requires "active/retained item counts for bounded components", which
+    is a real requirement with no shared answer, so scenarios now declare their
+    own columns through `IScenarioSamples`. `ServerSessions` turned out to be
+    **dead** — no caller ever passed it, so every E4-SQL row recorded `-1`.
+  - **In:** `RunSummary` — the exit-code precedence and the `result.json`,
+    `summary.json` and `summary.md` documents, which the suite specifies as one
+    contract and which E3-OBS needed byte-identically. About 200 lines left
+    E4-SQL's `Program.cs`. A per-phase breakdown was added so a scenario whose
+    phases are independent capabilities shows one failing at a glance.
+  - **Also in:** `CheckRunner` now takes the run's cancellation token. Without
+    it, Ctrl+C during a soak reported every in-flight check as a failure —
+    E3-OBS's first interrupt test produced "5 failed" for a run that was merely
+    stopped. E4-SQL had the same flaw.
+  - **Refused:** the Ctrl+C handler stays duplicated in both scenarios, because
+    moving it would mean `ScenarioHost.Run(...)` and the harness would start
+    driving, which its README promises it does not. `--smoke-duration` stays in
+    E3-OBS because rule 2 has no exception for symmetry with
+    `--rehearsal-duration`.
+  **Regression evidence:** E4-SQL keeps every check and assertion it had, and
+  its recorded determinism hash is still `fnv1a64:49a3ab65b5f249e9` on both
+  targets. Two artifact details changed and neither is an assertion: the dead
+  `server_sessions` column is gone, and `result.json` gained `checksByPhase`.
+  **The next test is a third consumer.** `E3-NAV` and `E3-PIPE` are the
+  candidates, and both are likely to press on `WorkloadCounters`, whose
+  vocabulary has so far only had to describe two scenarios that both happen to
+  think in operations.
 - [ ] **E3-PIPE — Pipes long-running and recovery.** Automated contract coverage
   exists; the separate-process real named-pipe load, churn, fault, active-dispose,
   resource-growth, and recovery scenario remains open.

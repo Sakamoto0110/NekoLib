@@ -62,7 +62,7 @@ namespace NekoLib.RuntimeTests.Harness.Faults
         public string GeneratorVersion = string.Empty;
 
         public string CampaignId = string.Empty;
-        public string ScenarioId = "E4-SQL";
+        public string ScenarioId = string.Empty;
         public string Mode = string.Empty;
         public int Seed;
         public double RequestedDurationSeconds;

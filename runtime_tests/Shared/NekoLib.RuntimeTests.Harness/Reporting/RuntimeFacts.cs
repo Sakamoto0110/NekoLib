@@ -11,10 +11,11 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
     /// Everything about this process and this checkout that the evidence record
     /// has to name.
     /// <para/>
-    /// A result that says "SQL Server passed" is worth nothing without the
-    /// combination it passed in. Two of these values decide whether a later run
-    /// is comparing like with like at all: the repository commit with its dirty
-    /// flag, and the exact provider package version.
+    /// A result that says a capability passed is worth nothing without the
+    /// combination it passed in. The repository commit with its dirty flag is
+    /// what decides whether a later run is comparing like with like at all; the
+    /// dependency versions that complete the picture are named by the scenario,
+    /// through <see cref="DescribeAssembly"/>.
     /// </summary>
     public static class RuntimeFacts
     {

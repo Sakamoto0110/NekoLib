@@ -10,29 +10,87 @@
 
 **Prerequisites:** none. This project references nothing but the BCL.
 
-**Last verification:** 2026-08-08 — extracted from `E4-SQL`, which now consumes
-it. Both targets build with no warnings, the E4-SQL smoke passes with exit 0,
-and the recorded schedule determinism hash `fnv1a64:49a3ab65b5f249e9` is
-unchanged on both targets.
+**Last verification:** 2026-08-09 — validated by its second consumer, `E3-OBS`.
+Both targets build with no warnings, both consumers pass their smoke with exit
+0, and E4-SQL's recorded determinism hash `fnv1a64:49a3ab65b5f249e9` is
+unchanged on both targets after the boundary corrections below.
 
-## Status: accepted, implemented, and provisional
+## Status: validated by a second consumer
 
-The boundary drawn here is **accepted and in use, but not yet validated**. It
-has one consumer, and a boundary with one consumer is a guess that happens to
-compile.
+The boundary is no longer a guess. `E3-OBS` was written against it on
+2026-08-09, and the split survived with **one thing moved out, one moved in, and
+one deliberately refused**.
 
-`E3-OBS` is the second real consumer, and implementing it is the test. Until
-then:
+That is the outcome worth recording: the harness was right about *what* belongs
+to it and wrong about the *shape* of one piece, which is exactly the kind of
+error only a second consumer can expose.
 
-- **Do not expand the harness preemptively.** Nothing enters it in anticipation
-  of a consumer that does not exist yet.
-- While implementing `E3-OBS`, move in only mechanics that turn out to be
-  genuinely common.
-- If the second consumer shows that something here is not common after all,
-  **move it back out.** A wrong boundary defended is worse than a wrong boundary
-  corrected.
-- Record the outcome of that validation in this README's verification record and
-  in `TODO.md`, whichever way it goes.
+### Moved out — the sampler's scenario columns
+
+`ResourceSample` carried `ConnectionsCreated` and `ServerSessions`, and
+`ResourceSampler` took a `Func<long>` for the first. Both are SQL Server
+concepts. `E3-OBS` has neither; it has retained log entries, rolled files,
+completed operations and registered providers.
+
+The suite's own wording is what settles it: a sample must carry "active/retained
+item counts for bounded components" and "queue/gate depth", which is a real
+requirement with **no shared answer**. So the harness now owns the columns every
+scenario has and asks the scenario for the rest, through `IScenarioSamples`.
+
+A detail found on the way out: **`ServerSessions` was never populated.** No
+caller ever passed it, so every row of every E4-SQL run recorded `-1`. A column
+that exists because one consumer might need it one day is precisely what rule 2
+is against, and it was already dead before the second consumer arrived.
+
+### Moved in — the result and summary writer
+
+`E4-SQL`'s `Program.cs` held about 200 lines that `E3-OBS` needed
+byte-identically: the exit-code precedence, the `result.json` document, the
+duplicate `summary.json`, and the `summary.md` table. That is not one scenario's
+invention — the suite *specifies* the artifact layout — so it qualifies under
+rule 2's second clause, and two divergent `summary.json` documents would have
+defeated the point of having specified one.
+
+`RunSummary` owns it now, with the same split as everywhere else: the harness
+writes the document, and `IScenarioSummary` supplies the half only the scenario
+can name (E4-SQL's provider and image digest; E3-OBS's three module versions).
+
+One thing was added rather than merely moved: a **per-phase breakdown**, derived
+from `CheckResult.Phase`, which the harness already owned. `E3-OBS` needs each
+capability's totals visible so that one failing is legible at a glance, and it
+costs nothing for a scenario whose phases are workload classes instead.
+
+### Refused — the Ctrl+C handler
+
+Both scenarios open with the same fifteen lines wiring `Console.CancelKeyPress`
+to a `CancellationTokenSource`, and the suite mandates the behaviour for every
+scenario. It was still left duplicated.
+
+Moving it would mean `ScenarioHost.Run(options, run)`, and the harness would
+start **driving** — which the section below promises it does not. Fifteen
+duplicated lines are cheaper than that promise. Recording the refusal matters as
+much as recording the moves: this is the boundary being held on purpose, not
+overlooked.
+
+### Refused — `--smoke-duration`
+
+`E3-OBS` needs a smoke window; the harness already carries `--rehearsal-duration`
+for the same reason. It would have been natural to put its sibling beside it.
+
+It stays in `E3-OBS` because rule 2 has no exception for symmetry: `E4-SQL` has
+no smoke-duration concept, so the option has one consumer. It moves when a
+second scenario needs it.
+
+## The rules, still in force
+
+- **Do not expand the harness preemptively.** Nothing enters in anticipation of
+  a consumer that does not exist yet.
+- **Move anything back out** that a later consumer shows is not common after
+  all. A wrong boundary defended is worse than one corrected.
+- A **third** consumer is the next test. `E3-NAV` and `E3-PIPE` are the
+  candidates, and both are likely to press on `WorkloadCounters`, whose
+  vocabulary — successes, expected failures, cancellations — has so far only had
+  to describe two scenarios that both happen to think in operations.
 
 ## What this is
 
@@ -44,10 +102,19 @@ copy of:
 | `ExitCodes` | `E3-ORCH` aggregates exit codes across scenarios; they have to mean the same thing |
 | `CheckRunner`, `Check`, `CheckResult` | one check mechanism, one result shape in `result.json` |
 | `RunArtifacts`, `ResourceSampler`, `WorkloadCounters` | the suite specifies one artifact layout |
+| `RunSummary` | the suite specifies one `result.json`, `summary.json` and `summary.md`, and one exit-code precedence |
 | `RuntimeFacts`, `Native` | the environment record the suite requires |
 | `FaultSchedule`, `DeterministicRandom` | deterministic seeded scheduling, reproducible across targets |
 | `ScenarioOptionsBase` | the common command line: modes, seed, artifacts, schedule |
 | `Json`, `ProcessRunner` | `net481` has no `System.Text.Json`, and every scenario shells out |
+
+Three of these are split down the middle, and the split is the same each time:
+the harness owns the common half and asks the scenario for the rest.
+`ScenarioOptionsBase` parses the modes and hands `TryParseScenarioOption` the
+scenario's own flags; `IScenarioSamples` supplies the sample columns only the
+scenario can name; `IScenarioSummary` supplies the versions only the scenario
+can name. A base class accumulating every scenario's private fields would be the
+wrong kind of sharing.
 
 ## What this is not
 
@@ -106,4 +173,24 @@ determinism evidence. `E4-SQL` keeps `e4sql-schedule-1` for exactly that reason.
 | Date | Result |
 |---|---|
 | 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. **The extraction changed no check count and no assertion** — E4-SQL's smoke went from 28 checks to 29 earlier the same day, from the `state-baseline` check added while fixing the soak, and that is a separate change from this one. |
-| — | **Second-consumer validation: pending.** `E3-OBS` has not been written. Until it has, this boundary is provisional and no claim should be made that the split is correct. |
+| 2026-08-09 | **Second-consumer validation complete.** `E3-OBS` was written against this boundary and consumes `ExitCodes`, `CheckRunner`, `RunArtifacts`, `ResourceSampler`, `WorkloadCounters`, `RunSummary`, `RuntimeFacts`, `FaultSchedule`, `DeterministicRandom`, `IFaultVocabulary`, `ScenarioOptionsBase` and `JsonWriter` by name, plus `Native` and `ProcessRunner` indirectly through `RuntimeFacts`. Nothing in the harness went unused by the second consumer, which is the weaker but still useful half of the result: no piece turned out to be there for E4-SQL alone. One piece moved out (the sampler's SQL-specific columns, one of which was dead), one moved in (`RunSummary`), and two candidates were refused on the rules (the Ctrl+C handler and `--smoke-duration`). **Regression evidence:** both targets build with no warnings; E4-SQL's determinism hash is still `fnv1a64:49a3ab65b5f249e9` on `net481` and `net9.0` after the changes; E3-OBS's own hash `fnv1a64:af14ff69cf61b022` matches across both targets. |
+
+### What the changes cost the existing consumer
+
+**Nothing measurable.** `E4-SQL`'s smoke was re-run against the modified harness
+on 2026-08-09: exit 0, **29 checks, 0 failed, 0 skipped**, against the same
+pinned container, with the adopted container restored to the stopped state the
+run found it in. That is the same check count it had before, so the refactor is
+regression-free at runtime and not merely at build.
+
+Two artifact details changed and neither is an assertion:
+
+- `samples.csv` lost the `server_sessions` column, which had only ever held
+  `-1`, and `connections_created` moved to the end as a scenario column.
+- `result.json` groups the scenario's own properties where `IScenarioSummary`
+  writes them, gained a `checksByPhase` array, and split the old `scheduleHash`
+  into a bare hash plus a `scheduleFaultCount` integer. The bare hash is what
+  makes two runs comparable by equality, which a "7 fault(s), fnv1a64:…"
+  sentence would not be.
+
+The schedule hash — the one recorded value that would matter — is unchanged.

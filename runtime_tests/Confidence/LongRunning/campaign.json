@@ -46,6 +46,40 @@
     },
 
     {
+      "id": "E3-OBS",
+      "enabled": true,
+      "description": "NekoLib Logging, Telemetry and passive Inspection under load, failure and recovery. It owns seven faults but adopts nothing and needs no external resource, so it is the one worker that can run anywhere.",
+      "project": "runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery.csproj",
+      "targetFramework": "net9.0",
+      "executable": "runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/bin/Debug/net9.0/NekoLib.Observability.RuntimeTests.LongRunningRecovery.exe",
+
+      "prerequisites": [],
+      "adopts": [],
+
+      "faultKinds": [
+        "log-sink-throws",
+        "log-file-locked",
+        "log-flush-blocked",
+        "telemetry-sink-throws",
+        "inspection-provider-throws",
+        "inspection-provider-times-out",
+        "inspection-global-teardown"
+      ],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--smoke", "--seed", "{seed}", "--artifacts", "{artifacts}"]
+        },
+        "recovery": {
+          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+        },
+        "soak": {
+          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+        }
+      }
+    },
+
+    {
       "id": "Data-FarmDatabase-SQLite",
       "enabled": true,
       "description": "The existing FarmDatabase simulation in headless mode against SQLite. It owns no faults and accepts no schedule; it is here because it is the second worker that already exists, which is what makes aggregation worth proving.",

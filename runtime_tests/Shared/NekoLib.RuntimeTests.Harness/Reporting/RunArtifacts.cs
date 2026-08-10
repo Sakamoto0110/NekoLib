@@ -50,7 +50,16 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         public string SummaryMarkdownPath => Path.Combine(CampaignDirectory, "summary.md");
         public string ResultPath => Path.Combine(ScenarioDirectory, "result.json");
 
-        public static RunArtifacts Create(string artifactsRoot, string campaignId, string scenarioId)
+        /// <summary>
+        /// Opens the run directory. <paramref name="scenarioColumns"/> are the
+        /// scenario's own sample columns, appended to <c>samples.csv</c> after
+        /// the ones every scenario shares.
+        /// </summary>
+        public static RunArtifacts Create(
+            string artifactsRoot,
+            string campaignId,
+            string scenarioId,
+            IReadOnlyList<string>? scenarioColumns = null)
         {
             string campaign = Path.Combine(artifactsRoot, campaignId);
             string scenario = Path.Combine(campaign, scenarioId);
@@ -62,14 +71,18 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             StreamWriter samples = Open(Path.Combine(scenario, "samples.csv"));
             StreamWriter events = Open(Path.Combine(campaign, "events.jsonl"));
 
-            samples.WriteLine(string.Join(",", new[]
+            List<string> header = new List<string>(new[]
             {
                 "utc", "phase", "marker",
                 "private_bytes", "managed_heap_bytes", "thread_count", "handle_count",
-                "connections_created", "operations", "successes",
+                "operations", "successes",
                 "expected_failures", "unexpected_failures", "cancellations",
-                "server_sessions", "seconds_since_progress"
-            }));
+                "seconds_since_progress"
+            });
+
+            if (scenarioColumns != null) header.AddRange(scenarioColumns);
+
+            samples.WriteLine(string.Join(",", header.ToArray()));
             samples.Flush();
 
             return new RunArtifacts(campaign, scenario, stdout, stderr, samples, events);
@@ -158,6 +171,29 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         }
     }
 
+    /// <summary>
+    /// The scenario half of a sample.
+    /// <para/>
+    /// The suite requires every sample to carry "active/retained item counts for
+    /// bounded components" and "queue/gate depth", which is a real requirement
+    /// with no shared answer: E4-SQL counts connections the factory built,
+    /// E3-OBS counts retained log entries and registered state providers. The
+    /// harness owns the columns every scenario has and asks the scenario for the
+    /// rest, rather than accumulating one column per scenario.
+    /// </summary>
+    public interface IScenarioSamples
+    {
+        /// <summary>Column names, appended to <c>samples.csv</c> in this order.</summary>
+        IReadOnlyList<string> ColumnNames { get; }
+
+        /// <summary>
+        /// Current values, in the same order and of the same length as
+        /// <see cref="ColumnNames"/>. Called on the sampling path, so it must be
+        /// cheap and must not block.
+        /// </summary>
+        long[] Read();
+    }
+
     /// <summary>One row of <c>samples.csv</c>.</summary>
     public sealed class ResourceSample
     {
@@ -171,21 +207,19 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         public long ManagedHeapBytes;
         public int ThreadCount;
         public int HandleCount;
-        public long ConnectionsCreated;
         public long Operations;
         public long Successes;
         public long ExpectedFailures;
         public long UnexpectedFailures;
         public long Cancellations;
-
-        /// <summary>Sessions the server still attributes to this scenario, or -1 when it could not be asked.</summary>
-        public int ServerSessions = -1;
-
         public double SecondsSinceProgress;
+
+        /// <summary>The scenario's own columns, in the order it declared them.</summary>
+        public long[] Scenario = new long[0];
 
         public string ToCsvLine()
         {
-            string[] fields =
+            List<string> fields = new List<string>(new[]
             {
                 Utc.ToString("o", CultureInfo.InvariantCulture),
                 Phase,
@@ -194,17 +228,18 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 ManagedHeapBytes.ToString(CultureInfo.InvariantCulture),
                 ThreadCount.ToString(CultureInfo.InvariantCulture),
                 HandleCount.ToString(CultureInfo.InvariantCulture),
-                ConnectionsCreated.ToString(CultureInfo.InvariantCulture),
                 Operations.ToString(CultureInfo.InvariantCulture),
                 Successes.ToString(CultureInfo.InvariantCulture),
                 ExpectedFailures.ToString(CultureInfo.InvariantCulture),
                 UnexpectedFailures.ToString(CultureInfo.InvariantCulture),
                 Cancellations.ToString(CultureInfo.InvariantCulture),
-                ServerSessions.ToString(CultureInfo.InvariantCulture),
                 SecondsSinceProgress.ToString("F1", CultureInfo.InvariantCulture)
-            };
+            });
 
-            return string.Join(",", fields);
+            foreach (long value in Scenario)
+                fields.Add(value.ToString(CultureInfo.InvariantCulture));
+
+            return string.Join(",", fields.ToArray());
         }
     }
 
@@ -273,19 +308,24 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
     {
         private readonly RunArtifacts _artifacts;
         private readonly WorkloadCounters _counters;
-        private readonly Func<long> _connectionsCreated;
+        private readonly IScenarioSamples? _scenario;
+        private readonly int _scenarioColumnCount;
         private readonly List<ResourceSample> _taken = new List<ResourceSample>();
 
-        public ResourceSampler(RunArtifacts artifacts, WorkloadCounters counters, Func<long> connectionsCreated)
+        public ResourceSampler(
+            RunArtifacts artifacts,
+            WorkloadCounters counters,
+            IScenarioSamples? scenario = null)
         {
             _artifacts = artifacts;
             _counters = counters;
-            _connectionsCreated = connectionsCreated;
+            _scenario = scenario;
+            _scenarioColumnCount = scenario == null ? 0 : scenario.ColumnNames.Count;
         }
 
         public IReadOnlyList<ResourceSample> Taken => _taken;
 
-        public ResourceSample Take(string phase, string marker, int serverSessions = -1)
+        public ResourceSample Take(string phase, string marker)
         {
             RuntimeFacts.SampleProcess(
                 out long privateBytes,
@@ -301,19 +341,41 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 ManagedHeapBytes = managedHeap,
                 ThreadCount = threads,
                 HandleCount = handles,
-                ConnectionsCreated = _connectionsCreated(),
                 Operations = _counters.Operations,
                 Successes = _counters.Successes,
                 ExpectedFailures = _counters.ExpectedFailures,
                 UnexpectedFailures = _counters.UnexpectedFailures,
                 Cancellations = _counters.Cancellations,
-                ServerSessions = serverSessions,
-                SecondsSinceProgress = _counters.SecondsSinceProgress
+                SecondsSinceProgress = _counters.SecondsSinceProgress,
+                Scenario = ReadScenarioColumns()
             };
 
             _taken.Add(sample);
             _artifacts.Sample(sample);
             return sample;
+        }
+
+        /// <summary>
+        /// Reads the scenario's columns, tolerating a reader that throws or
+        /// returns the wrong arity. A sample is an observation; losing the whole
+        /// run because one counter misbehaved during cleanup would be the wrong
+        /// trade, and a row of zeroes is visibly different from a plausible one.
+        /// </summary>
+        private long[] ReadScenarioColumns()
+        {
+            if (_scenario == null || _scenarioColumnCount == 0) return new long[0];
+
+            long[] values;
+            try { values = _scenario.Read() ?? new long[0]; }
+            catch { values = new long[0]; }
+
+            if (values.Length == _scenarioColumnCount) return values;
+
+            long[] fitted = new long[_scenarioColumnCount];
+            for (int i = 0; i < _scenarioColumnCount && i < values.Length; i++)
+                fitted[i] = values[i];
+
+            return fitted;
         }
     }
 }

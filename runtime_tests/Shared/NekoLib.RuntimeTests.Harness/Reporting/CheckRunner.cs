@@ -79,10 +79,18 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
     {
         private readonly List<CheckResult> _results = new List<CheckResult>();
         private readonly Action<string> _write;
+        private readonly System.Threading.CancellationToken _ct;
 
-        public CheckRunner(Action<string> write)
+        /// <summary>
+        /// The run's cancellation token lets an interrupted check be told apart
+        /// from a failing one. Without it, Ctrl+C during a soak reports every
+        /// check that was in flight as a failure, and a summary reading
+        /// "5 failed" for a run that was simply stopped is a false report.
+        /// </summary>
+        public CheckRunner(Action<string> write, System.Threading.CancellationToken ct = default)
         {
             _write = write;
+            _ct = ct;
         }
 
         public IReadOnlyList<CheckResult> Results => _results;
@@ -147,6 +155,17 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             {
                 result.Passed = false;
                 result.Detail = failure.Message;
+            }
+            catch (OperationCanceledException) when (_ct.IsCancellationRequested)
+            {
+                // The run is winding down, so this check never reached a verdict.
+                // Recorded as skipped rather than failed: an interrupted check
+                // proves nothing, and calling it a failure would make Ctrl+C look
+                // like a defect. A cancellation that escapes while the run is not
+                // cancelling is a scenario bug and still falls through below.
+                result.Passed = true;
+                result.Skipped = true;
+                result.Detail = "interrupted before the check reached a verdict";
             }
             catch (Exception ex)
             {

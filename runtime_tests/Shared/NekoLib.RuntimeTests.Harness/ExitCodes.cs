@@ -17,9 +17,10 @@ namespace NekoLib.RuntimeTests.Harness
         public const int Usage = 2;
 
         /// <summary>
-        /// A prerequisite was missing: no password variable, no container
-        /// engine, no adopted container, or the server never became ready.
-        /// This is an environment result, never a product finding.
+        /// A prerequisite the scenario does not own was missing or unusable:
+        /// an external service, a device, a credential variable, a writable
+        /// artifact directory. This is an environment result, never a product
+        /// finding.
         /// </summary>
         public const int PrerequisiteMissing = 3;
 
@@ -30,9 +31,8 @@ namespace NekoLib.RuntimeTests.Harness
         public const int Timeout = 5;
 
         /// <summary>
-        /// Reconciliation failed: a connection, session, transaction, reader,
-        /// scenario database, or the adopted container's initial state was left
-        /// behind.
+        /// Reconciliation failed: a resource the scenario created or adopted was
+        /// left behind, or an environment it changed was not restored.
         /// </summary>
         public const int CleanupFailed = 6;
 

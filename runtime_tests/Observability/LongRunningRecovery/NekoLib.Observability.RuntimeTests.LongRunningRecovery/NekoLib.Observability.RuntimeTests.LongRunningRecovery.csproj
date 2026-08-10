@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Observability.RuntimeTests.LongRunningRecovery</RootNamespace>
+    <AssemblyName>NekoLib.Observability.RuntimeTests.LongRunningRecovery</AssemblyName>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      Not pinned to x64, because nothing here is architecture-sensitive: there
+      is no native provider and no driver. Prefer32Bit is turned off all the
+      same, because leaving it on would run net481 as a 32-bit process and
+      net9.0 as a 64-bit one, and the memory and handle samples the two targets
+      produce are supposed to be comparable. The architecture that actually ran
+      is recorded either way.
+    -->
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!--
+    The three capabilities under test, plus the contracts they are expressed in.
+    No provider package and no container: E3-OBS composes public Logging,
+    Telemetry and Inspection APIs exactly as an application would, and every
+    failure it injects comes from a sink or a state provider this project owns.
+
+    NekoLib.Core is referenced directly rather than inherited, because the
+    scenario names LogLevel, TelemetryOutcome and InspectionSnapshot itself.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Core\NekoLib.Core\NekoLib.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Logging\NekoLib.Logging\NekoLib.Logging.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Telemetry\NekoLib.Telemetry\NekoLib.Telemetry.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Inspection\NekoLib.Inspection\NekoLib.Inspection.csproj" />
+    <ProjectReference Include="..\..\..\Shared\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
+  </ItemGroup>
+
+</Project>
