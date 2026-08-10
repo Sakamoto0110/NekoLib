@@ -30,6 +30,10 @@ namespace BundlerTool
             this.astWarningToolTip = new System.Windows.Forms.ToolTip(this.components);
             this.lblAstWarning = new System.Windows.Forms.Label();
             this.btnOpenAtsFolder = new System.Windows.Forms.Button();
+            this.btnCreateCSharpContractIndex = new System.Windows.Forms.Button();
+            this.btnOpenCSharpContractIndex = new System.Windows.Forms.Button();
+            this.lblContractVisibility = new System.Windows.Forms.Label();
+            this.cmbContractVisibility = new System.Windows.Forms.ComboBox();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -50,7 +54,7 @@ namespace BundlerTool
             this.txtWorkingDir.Margin = new System.Windows.Forms.Padding(4);
             this.txtWorkingDir.Name = "txtWorkingDir";
             this.txtWorkingDir.ReadOnly = true;
-            this.txtWorkingDir.Size = new System.Drawing.Size(408, 22);
+            this.txtWorkingDir.Size = new System.Drawing.Size(560, 22);
             this.txtWorkingDir.TabIndex = 1;
             // 
             // btnCreateBundles
@@ -81,10 +85,10 @@ namespace BundlerTool
             this.statusStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.lblStatus});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 148);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 195);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(663, 26);
+            this.statusStrip1.Size = new System.Drawing.Size(820, 26);
             this.statusStrip1.TabIndex = 4;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -101,7 +105,7 @@ namespace BundlerTool
             this.btnBundleIgnore.Name = "btnBundleIgnore";
             this.btnBundleIgnore.Size = new System.Drawing.Size(200, 37);
             this.btnBundleIgnore.TabIndex = 3;
-            this.btnBundleIgnore.Text = "Edit .BundleIgnore";
+            this.btnBundleIgnore.Text = "Choose Ignored Paths";
             this.btnBundleIgnore.UseVisualStyleBackColor = true;
             this.btnBundleIgnore.Click += new System.EventHandler(this.btnBundleIgnore_Click);
             // 
@@ -132,7 +136,7 @@ namespace BundlerTool
             this.lblAstWarning.Cursor = System.Windows.Forms.Cursors.Help;
             this.lblAstWarning.Font = new System.Drawing.Font("Segoe UI", 12F);
             this.lblAstWarning.ForeColor = System.Drawing.Color.DarkOrange;
-            this.lblAstWarning.Location = new System.Drawing.Point(612, 16);
+            this.lblAstWarning.Location = new System.Drawing.Point(765, 16);
             this.lblAstWarning.Name = "lblAstWarning";
             this.lblAstWarning.Size = new System.Drawing.Size(39, 28);
             this.lblAstWarning.TabIndex = 5;
@@ -150,11 +154,60 @@ namespace BundlerTool
             this.btnOpenAtsFolder.UseVisualStyleBackColor = true;
             this.btnOpenAtsFolder.Click += new System.EventHandler(this.btnOpenAtsFolder_Click);
             // 
+            // btnCreateCSharpContractIndex
+            //
+            this.btnCreateCSharpContractIndex.Enabled = false;
+            this.btnCreateCSharpContractIndex.Location = new System.Drawing.Point(16, 150);
+            this.btnCreateCSharpContractIndex.Margin = new System.Windows.Forms.Padding(4);
+            this.btnCreateCSharpContractIndex.Name = "btnCreateCSharpContractIndex";
+            this.btnCreateCSharpContractIndex.Size = new System.Drawing.Size(200, 37);
+            this.btnCreateCSharpContractIndex.TabIndex = 6;
+            this.btnCreateCSharpContractIndex.Text = "Create C# Contract Index";
+            this.btnCreateCSharpContractIndex.UseVisualStyleBackColor = true;
+            this.btnCreateCSharpContractIndex.Click += new System.EventHandler(this.btnCreateCSharpContractIndex_Click);
+            //
+            // btnOpenCSharpContractIndex
+            //
+            this.btnOpenCSharpContractIndex.Location = new System.Drawing.Point(233, 150);
+            this.btnOpenCSharpContractIndex.Margin = new System.Windows.Forms.Padding(4);
+            this.btnOpenCSharpContractIndex.Name = "btnOpenCSharpContractIndex";
+            this.btnOpenCSharpContractIndex.Size = new System.Drawing.Size(200, 37);
+            this.btnOpenCSharpContractIndex.TabIndex = 7;
+            this.btnOpenCSharpContractIndex.Text = "Open C# Index Folder";
+            this.btnOpenCSharpContractIndex.UseVisualStyleBackColor = true;
+            this.btnOpenCSharpContractIndex.Click += new System.EventHandler(this.btnOpenCSharpContractIndex_Click);
+            //
+            // lblContractVisibility
+            //
+            this.lblContractVisibility.AutoSize = true;
+            this.lblContractVisibility.Location = new System.Drawing.Point(450, 161);
+            this.lblContractVisibility.Name = "lblContractVisibility";
+            this.lblContractVisibility.Size = new System.Drawing.Size(57, 16);
+            this.lblContractVisibility.TabIndex = 8;
+            this.lblContractVisibility.Text = "Visibility";
+            //
+            // cmbContractVisibility
+            //
+            this.cmbContractVisibility.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbContractVisibility.FormattingEnabled = true;
+            this.cmbContractVisibility.Items.AddRange(new object[] {
+            "Public API",
+            "Public + Internal",
+            "All Declarations"});
+            this.cmbContractVisibility.Location = new System.Drawing.Point(520, 157);
+            this.cmbContractVisibility.Name = "cmbContractVisibility";
+            this.cmbContractVisibility.Size = new System.Drawing.Size(237, 24);
+            this.cmbContractVisibility.TabIndex = 9;
+            //
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(663, 174);
+            this.ClientSize = new System.Drawing.Size(820, 221);
+            this.Controls.Add(this.cmbContractVisibility);
+            this.Controls.Add(this.lblContractVisibility);
+            this.Controls.Add(this.btnOpenCSharpContractIndex);
+            this.Controls.Add(this.btnCreateCSharpContractIndex);
             this.Controls.Add(this.lblAstWarning);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.btnBundleIgnore);
@@ -188,5 +241,9 @@ namespace BundlerTool
         private System.Windows.Forms.ToolTip astWarningToolTip;
         private System.Windows.Forms.Label lblAstWarning;
         private System.Windows.Forms.Button btnOpenAtsFolder;
+        private System.Windows.Forms.Button btnCreateCSharpContractIndex;
+        private System.Windows.Forms.Button btnOpenCSharpContractIndex;
+        private System.Windows.Forms.Label lblContractVisibility;
+        private System.Windows.Forms.ComboBox cmbContractVisibility;
     }
 }

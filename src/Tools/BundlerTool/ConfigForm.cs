@@ -58,6 +58,7 @@ namespace BundlerTool
         private void ConfigForm_Load(object sender, EventArgs e)
         {
             lblRootPath.Text = $"Path: {_rootPath}";
+            lblInstructions.Text = "Checked paths are ignored by every bundle mode.";
             PopulateTreeView();
             LoadIgnoreList();
             AdjustFormLayout();
@@ -118,7 +119,7 @@ namespace BundlerTool
             {
                 TreeNode rootNode = new TreeNode(Path.GetFileName(_rootPath));
                 rootNode.Tag = _rootPath;
-                rootNode.Checked = true;
+                rootNode.Checked = false;
                 treeView1.Nodes.Add(rootNode);
                 
                 BuildTree(rootNode, _rootPath);
@@ -131,21 +132,33 @@ namespace BundlerTool
             try
             {
                 string[] dirs = Directory.GetDirectories(path);
-                foreach (string dir in dirs)
+                foreach (string dir in dirs.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
                 {
+                    var directoryInfo = new DirectoryInfo(dir);
+                    if (BundleEngine.IsIgnoredDirectoryName(directoryInfo.Name) ||
+                        (directoryInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        continue;
+                    }
+
                     TreeNode node = new TreeNode(Path.GetFileName(dir));
                     node.Tag = dir;
-                    node.Checked = true;
-                    rootNode.Nodes.Add(node);
+                    node.Checked = false;
                     BuildTree(node, dir);
+                    if (node.Nodes.Count > 0)
+                    {
+                        rootNode.Nodes.Add(node);
+                    }
                 }
 
                 string[] files = Directory.GetFiles(path);
-                foreach (string file in files)
+                foreach (string file in files
+                    .Where(BundleEngine.IsBundledFile)
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
                 {
                     TreeNode node = new TreeNode(Path.GetFileName(file));
                     node.Tag = file;
-                    node.Checked = true;
+                    node.Checked = false;
                     rootNode.Nodes.Add(node);
                 }
             }
@@ -157,24 +170,23 @@ namespace BundlerTool
         {
             if (!string.IsNullOrEmpty(_ignoreFilePath) && File.Exists(_ignoreFilePath))
             {
-                var ignoredPaths = new HashSet<string>(File.ReadAllLines(_ignoreFilePath).Where(l => !string.IsNullOrWhiteSpace(l)), StringComparer.OrdinalIgnoreCase);
-                UncheckIgnoredNodes(treeView1.Nodes, ignoredPaths);
+                var ignoredPaths = BundleEngine.ReadIgnoredPaths(_rootPath);
+                CheckIgnoredNodes(treeView1.Nodes, ignoredPaths);
             }
         }
 
-        private void UncheckIgnoredNodes(TreeNodeCollection nodes, HashSet<string> ignoredPaths)
+        private void CheckIgnoredNodes(TreeNodeCollection nodes, HashSet<string> ignoredPaths)
         {
             foreach (TreeNode node in nodes)
             {
                 string path = node.Tag as string;
                 if (path != null && ignoredPaths.Contains(path))
                 {
-                    node.Checked = false;
-                    // Note: If a parent gets unchecked here, we don't automatically uncheck children in this step
-                    // because we only uncheck those specifically in the .bundleignore. 
-                    // Let the actual state match the file content exactly.
+                    node.Checked = true;
+                    CheckAllChildNodes(node, true);
+                    continue;
                 }
-                UncheckIgnoredNodes(node.Nodes, ignoredPaths);
+                CheckIgnoredNodes(node.Nodes, ignoredPaths);
             }
         }
 
@@ -186,12 +198,12 @@ namespace BundlerTool
                 return;
             }
 
-            List<string> uncheckedPaths = new List<string>();
-            FindUncheckedNodes(treeView1.Nodes, uncheckedPaths);
+            List<string> ignoredPaths = new List<string>();
+            FindCheckedNodes(treeView1.Nodes, ignoredPaths);
 
             try
             {
-                File.WriteAllLines(_ignoreFilePath, uncheckedPaths);
+                File.WriteAllLines(_ignoreFilePath, ignoredPaths);
                 MessageBox.Show(".bundleignore saved successfully.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();
             }
@@ -201,19 +213,20 @@ namespace BundlerTool
             }
         }
 
-        private void FindUncheckedNodes(TreeNodeCollection nodes, List<string> uncheckedPaths)
+        private void FindCheckedNodes(TreeNodeCollection nodes, List<string> ignoredPaths)
         {
             foreach (TreeNode node in nodes)
             {
-                if (!node.Checked)
+                if (node.Checked)
                 {
                     string path = node.Tag as string;
                     if (!string.IsNullOrEmpty(path))
                     {
-                        uncheckedPaths.Add(path);
+                        ignoredPaths.Add(path);
                     }
+                    continue;
                 }
-                FindUncheckedNodes(node.Nodes, uncheckedPaths);
+                FindCheckedNodes(node.Nodes, ignoredPaths);
             }
         }
 
@@ -222,8 +235,20 @@ namespace BundlerTool
             // If the user actively changed the checkbox (not done by code)
             if (e.Action != TreeViewAction.Unknown)
             {
-                // Unsuppress events recursively
                 CheckAllChildNodes(e.Node, e.Node.Checked);
+                if (!e.Node.Checked)
+                {
+                    UncheckParentNodes(e.Node.Parent);
+                }
+            }
+        }
+
+        private static void UncheckParentNodes(TreeNode node)
+        {
+            while (node != null)
+            {
+                node.Checked = false;
+                node = node.Parent;
             }
         }
 
@@ -261,7 +286,7 @@ namespace BundlerTool
         private void btnRestore_Click(object sender, EventArgs e)
         {
             // Restore exact state as when loaded, without closing
-            SetAllNodesChecked(treeView1.Nodes, true);
+            SetAllNodesChecked(treeView1.Nodes, false);
             LoadIgnoreList();
         }
     }

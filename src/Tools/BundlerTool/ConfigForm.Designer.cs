@@ -24,6 +24,7 @@ namespace BundlerTool
             this.btnCheckAll = new System.Windows.Forms.Button();
             this.btnUncheckAll = new System.Windows.Forms.Button();
             this.lblRootPath = new System.Windows.Forms.Label();
+            this.lblInstructions = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // treeView1
@@ -32,10 +33,10 @@ namespace BundlerTool
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.treeView1.CheckBoxes = true;
-            this.treeView1.Location = new System.Drawing.Point(16, 47);
+            this.treeView1.Location = new System.Drawing.Point(16, 66);
             this.treeView1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.treeView1.Name = "treeView1";
-            this.treeView1.Size = new System.Drawing.Size(745, 442);
+            this.treeView1.Size = new System.Drawing.Size(745, 423);
             this.treeView1.TabIndex = 0;
             this.treeView1.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterCheck);
             // 
@@ -71,7 +72,7 @@ namespace BundlerTool
             this.btnCheckAll.Name = "btnCheckAll";
             this.btnCheckAll.Size = new System.Drawing.Size(120, 43);
             this.btnCheckAll.TabIndex = 3;
-            this.btnCheckAll.Text = "Check All";
+            this.btnCheckAll.Text = "Ignore All";
             this.btnCheckAll.UseVisualStyleBackColor = true;
             this.btnCheckAll.Click += new System.EventHandler(this.btnCheckAll_Click);
             // 
@@ -83,7 +84,7 @@ namespace BundlerTool
             this.btnUncheckAll.Name = "btnUncheckAll";
             this.btnUncheckAll.Size = new System.Drawing.Size(120, 43);
             this.btnUncheckAll.TabIndex = 4;
-            this.btnUncheckAll.Text = "Uncheck All";
+            this.btnUncheckAll.Text = "Include All";
             this.btnUncheckAll.UseVisualStyleBackColor = true;
             this.btnUncheckAll.Click += new System.EventHandler(this.btnUncheckAll_Click);
             // 
@@ -96,12 +97,23 @@ namespace BundlerTool
             this.lblRootPath.Size = new System.Drawing.Size(40, 16);
             this.lblRootPath.TabIndex = 2;
             this.lblRootPath.Text = "Path: ";
-            // 
+            //
+            // lblInstructions
+            //
+            this.lblInstructions.AutoSize = true;
+            this.lblInstructions.ForeColor = System.Drawing.Color.DarkOrange;
+            this.lblInstructions.Location = new System.Drawing.Point(16, 40);
+            this.lblInstructions.Name = "lblInstructions";
+            this.lblInstructions.Size = new System.Drawing.Size(301, 16);
+            this.lblInstructions.TabIndex = 6;
+            this.lblInstructions.Text = "Checked paths are ignored by every bundle mode.";
+            //
             // ConfigForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(779, 555);
+            this.Controls.Add(this.lblInstructions);
             this.Controls.Add(this.lblRootPath);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnRestore);
@@ -111,7 +123,7 @@ namespace BundlerTool
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "ConfigForm";
-            this.Text = "Configuration";
+            this.Text = "Ignored Paths (.bundleignore)";
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -125,5 +137,6 @@ namespace BundlerTool
         private System.Windows.Forms.Button btnCheckAll;
         private System.Windows.Forms.Button btnUncheckAll;
         private System.Windows.Forms.Label lblRootPath;
+        private System.Windows.Forms.Label lblInstructions;
     }
 }

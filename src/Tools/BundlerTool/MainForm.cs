@@ -23,6 +23,8 @@ namespace BundlerTool
                 bool isValidDir = !string.IsNullOrWhiteSpace(DefaultPath) && Directory.Exists(DefaultPath);
                 btnCreateBundles.Enabled = isValidDir;
                 btnCreateAstBundles.Enabled = isValidDir;
+                btnCreateCSharpContractIndex.Enabled = isValidDir;
+                btnBundleIgnore.Enabled = isValidDir;
 
                 if (isValidDir)
                 {
@@ -40,6 +42,7 @@ namespace BundlerTool
         {
             InitializeComponent();
             ApplyDarkTheme();
+            cmbContractVisibility.SelectedIndex = 0;
             DefaultPath = GetDefaultDirectory();
         }
 
@@ -66,6 +69,10 @@ namespace BundlerTool
             txtWorkingDir.BackColor = Color.FromArgb(50, 45, 60);
             txtWorkingDir.ForeColor = Color.White;
             txtWorkingDir.BorderStyle = BorderStyle.FixedSingle;
+
+            cmbContractVisibility.BackColor = Color.FromArgb(50, 45, 60);
+            cmbContractVisibility.ForeColor = Color.White;
+            cmbContractVisibility.FlatStyle = FlatStyle.Flat;
 
             statusStrip1.BackColor = Color.FromArgb(50, 45, 60);
             statusStrip1.ForeColor = Color.White;
@@ -190,6 +197,9 @@ namespace BundlerTool
 
             btnCreateBundles.Enabled = false;
             btnCreateAstBundles.Enabled = false;
+            btnCreateCSharpContractIndex.Enabled = false;
+            cmbContractVisibility.Enabled = false;
+            btnBundleIgnore.Enabled = false;
             btnSelectDir.Enabled = false;
             lblStatus.Text = "Processing...";
 
@@ -213,6 +223,9 @@ namespace BundlerTool
             {
                 btnCreateBundles.Enabled = true;
                 btnCreateAstBundles.Enabled = true;
+                btnCreateCSharpContractIndex.Enabled = true;
+                cmbContractVisibility.Enabled = true;
+                btnBundleIgnore.Enabled = true;
                 btnSelectDir.Enabled = true;
              }
         }
@@ -228,6 +241,9 @@ namespace BundlerTool
 
             btnCreateBundles.Enabled = false;
             btnCreateAstBundles.Enabled = false;
+            btnCreateCSharpContractIndex.Enabled = false;
+            cmbContractVisibility.Enabled = false;
+            btnBundleIgnore.Enabled = false;
             btnSelectDir.Enabled = false;
             lblStatus.Text = "Processing AST Bundles...";
 
@@ -251,6 +267,9 @@ namespace BundlerTool
             {
                 btnCreateBundles.Enabled = true;
                 btnCreateAstBundles.Enabled = true;
+                btnCreateCSharpContractIndex.Enabled = true;
+                cmbContractVisibility.Enabled = true;
+                btnBundleIgnore.Enabled = true;
                 btnSelectDir.Enabled = true;
              }
         }
@@ -258,6 +277,85 @@ namespace BundlerTool
         {
             using (var config = new ConfigForm(DefaultPath))
                 config.ShowDialog();
+        }
+
+        private async void btnCreateCSharpContractIndex_Click(object sender, EventArgs e)
+        {
+            string targetDir = txtWorkingDir.Text;
+            if (string.IsNullOrWhiteSpace(targetDir) || !Directory.Exists(targetDir))
+            {
+                MessageBox.Show("Please select a valid directory first.");
+                return;
+            }
+
+            btnCreateBundles.Enabled = false;
+            btnCreateAstBundles.Enabled = false;
+            btnCreateCSharpContractIndex.Enabled = false;
+            cmbContractVisibility.Enabled = false;
+            btnBundleIgnore.Enabled = false;
+            btnSelectDir.Enabled = false;
+            lblStatus.Text = "Creating C# Contract Index...";
+
+            string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CSharpApiIndex");
+            ContractVisibility visibility = GetSelectedContractVisibility();
+            var progress = new Progress<string>(message => lblStatus.Text = message);
+
+            try
+            {
+                await Task.Run(() => CSharpContractIndexEngine.ProcessDirectory(
+                    targetDir,
+                    outputDir,
+                    progress,
+                    visibility));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error: {ex.Message}",
+                    "C# Contract Index Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                lblStatus.Text = "Error while creating C# Contract Index.";
+            }
+            finally
+            {
+                btnCreateBundles.Enabled = true;
+                btnCreateAstBundles.Enabled = true;
+                btnCreateCSharpContractIndex.Enabled = true;
+                cmbContractVisibility.Enabled = true;
+                btnBundleIgnore.Enabled = true;
+                btnSelectDir.Enabled = true;
+            }
+        }
+
+        private void btnOpenCSharpContractIndex_Click(object sender, EventArgs e)
+        {
+            string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CSharpApiIndex");
+            if (Directory.Exists(outputDir))
+            {
+                Process.Start("explorer.exe", outputDir);
+            }
+            else
+            {
+                MessageBox.Show(
+                    "The 'CSharpApiIndex' folder does not exist yet.",
+                    "Folder Not Found",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
+
+        private ContractVisibility GetSelectedContractVisibility()
+        {
+            switch (cmbContractVisibility.SelectedIndex)
+            {
+                case 1:
+                    return ContractVisibility.PublicAndInternal;
+                case 2:
+                    return ContractVisibility.AllDeclarations;
+                default:
+                    return ContractVisibility.PublicApi;
+            }
         }
         private void btnOpenFolder_Click(object sender, EventArgs e)
         {

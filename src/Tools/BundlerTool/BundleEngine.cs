@@ -163,7 +163,11 @@ namespace BundlerTool
             return result;
         }
 
-        public static void ProcessDirectory(string targetDirectory, string outputDirectory, IProgress<string> progress, bool astMode = false)
+        public static void ProcessDirectory(
+            string targetDirectory,
+            string outputDirectory,
+            IProgress<string> progress,
+            bool astMode = false)
         {
             if (!Directory.Exists(targetDirectory))
                 throw new DirectoryNotFoundException($"Directory not found: {targetDirectory}");
@@ -181,22 +185,7 @@ namespace BundlerTool
             Directory.CreateDirectory(solutionOutputDir);
             progress?.Report($"Starting scan in: {targetDirectory}");
 
-            // Parse the .bundleignore file
-            var ignoredPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            string ignoreFilePath = Path.Combine(targetDirectory, ".bundleignore");
-            if (File.Exists(ignoreFilePath))
-            {
-                foreach (var line in File.ReadLines(ignoreFilePath))
-                {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        try { ignoredPaths.Add(Path.GetFullPath(line.Trim())); } catch { }
-                    }
-                }
-            }
-
-            var projectGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            TraverseDirectory(targetDirectory, targetDirectory, projectGroups, progress, ignoredPaths);
+            var projectGroups = DiscoverProjectGroups(targetDirectory, progress);
 
             int totalProcessed = 0;
 
@@ -306,6 +295,60 @@ namespace BundlerTool
             progress?.Report($"Successfully bundled {totalProcessed} files into: {modeDirName}/{rootFolderName}");
         }
 
+        internal static Dictionary<string, List<string>> DiscoverProjectGroups(
+            string targetDirectory,
+            IProgress<string> progress)
+        {
+            var ignoredPaths = ReadIgnoredPaths(targetDirectory);
+
+            var projectGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            TraverseDirectory(targetDirectory, targetDirectory, projectGroups, progress, ignoredPaths);
+            return projectGroups;
+        }
+
+        internal static bool IsIgnoredDirectoryName(string directoryName)
+        {
+            return IgnoredDirs.Contains((directoryName ?? string.Empty).ToLowerInvariant());
+        }
+
+        internal static bool IsBundledFile(string filePath)
+        {
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            string fileName = Path.GetFileName(filePath);
+            return AllowedExtensions.Contains(extension) &&
+                   !IgnoredFiles.Any(ignored =>
+                       string.Equals(ignored, fileName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal static HashSet<string> ReadIgnoredPaths(string targetDirectory)
+        {
+            var ignoredPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string ignoreFilePath = Path.Combine(targetDirectory, ".bundleignore");
+            if (!File.Exists(ignoreFilePath))
+                return ignoredPaths;
+
+            foreach (string line in File.ReadLines(ignoreFilePath))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                try
+                {
+                    string value = line.Trim();
+                    string fullPath = Path.IsPathRooted(value)
+                        ? Path.GetFullPath(value)
+                        : Path.GetFullPath(Path.Combine(targetDirectory, value));
+                    ignoredPaths.Add(fullPath);
+                }
+                catch
+                {
+                    // Ignore malformed local configuration entries.
+                }
+            }
+
+            return ignoredPaths;
+        }
+
         private static void TraverseDirectory(string rootDirectory, string currentDirectory, Dictionary<string, List<string>> projectGroups, IProgress<string> progress, HashSet<string> ignoredPaths)
         {
             string[] files;
@@ -323,10 +366,7 @@ namespace BundlerTool
                 // Respect the .bundleignore list
                 if (ignoredPaths.Contains(Path.GetFullPath(file))) continue;
 
-                string ext = Path.GetExtension(file).ToLower();
-                string fileName = Path.GetFileName(file);
-
-                if (AllowedExtensions.Contains(ext) && !IgnoredFiles.Contains(fileName))
+                if (IsBundledFile(file))
                 {
                     string projectName = FindNearestProjectBoundary(file, rootDirectory);
 
@@ -344,7 +384,7 @@ namespace BundlerTool
                 if (ignoredPaths.Contains(Path.GetFullPath(subdir))) continue;
 
                 string dirName = new DirectoryInfo(subdir).Name;
-                if (!IgnoredDirs.Contains(dirName.ToLower()))
+                if (!IsIgnoredDirectoryName(dirName))
                 {
                     TraverseDirectory(rootDirectory, subdir, projectGroups, progress, ignoredPaths);
                 }
