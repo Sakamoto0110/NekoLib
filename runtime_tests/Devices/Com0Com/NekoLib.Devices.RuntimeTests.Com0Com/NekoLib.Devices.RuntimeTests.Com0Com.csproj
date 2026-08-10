@@ -8,10 +8,30 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <RootNamespace>NekoLib.Devices.RuntimeTests.Com0Com</RootNamespace>
     <AssemblyName>NekoLib.Devices.RuntimeTests.Com0Com</AssemblyName>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!--
+    One executable in two paths.
+
+    Without a mode flag it is the original oracle parity run: it opens the
+    client ends of the com0com pairs and talks to the independent
+    NekoPcbEmulator. That path is unchanged, so its 2026-08-01 evidence still
+    describes what the binary does.
+
+    With a mode flag it is the E3-DEV controller: it opens BOTH ends of the
+    pairs, acting as its own peer, and drives smoke, recovery rehearsal and
+    soak against faults the independent oracle cannot be asked to produce.
+    The two are mutually exclusive by construction, because both want the
+    emulator's ports.
+
+    System.IO.Ports arrives transitively from NekoLib.Devices on net9.0 and is
+    in the framework on net481, so the scenario-owned peer needs no package of
+    its own.
+  -->
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\src\Devices\NekoLib.Devices\NekoLib.Devices.csproj" />
+    <ProjectReference Include="..\..\..\Shared\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
   </ItemGroup>
 
 </Project>

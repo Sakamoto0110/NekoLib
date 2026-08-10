@@ -1025,9 +1025,9 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-Three scenarios still have no source at all — `E3-NAV`, `E3-PIPE` and
-`E3-WDOG` — and `E3-DEV` exists only as the interactive com0com scenario without
-its automated modes. Those are what the build phase has left.
+Two scenarios still have no source at all: `E3-NAV` and `E3-WDOG`. Those are
+what the build phase has left. `E3-PIPE` and `E3-DEV` are implemented and have
+never been executed, which is a gap in evidence rather than in source.
 
 - [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1277,10 +1277,46 @@ its automated modes. Those are what the build phase has left.
   build-only evidence; the deployed sidecar, deterministic crash loop,
   forwarding, bundle, duplicate-supervision, recovery, and soak evidence remains
   open.
-- [ ] **E3-DEV — Devices virtual-COM soak and recovery.** The independent
-  com0com/PCB oracle scenario exists and passed its interactive parity matrix;
-  its automated smoke, recovery-rehearsal, delayed/late-response, repeated
-  reconnect, resource, and soak modes remain open.
+- [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
+  delivered 2026-08-10** inside the existing
+  [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)
+  project: the harness reference, the three-mode contract, a scenario-owned peer
+  on the far end of each pair, and the fault dispatcher. All five fault kinds are
+  implemented — peer delay, silence, malformed frame, disconnect and restart —
+  together with open/close/reopen cycles, finite timeouts, cancellation under
+  both infinite and finite configured port timeouts, endpoint switching through
+  all three entry points, operation serialization, chunked delivery on both sides
+  of the quiet period, configuration and encoding parity, and disposal during an
+  active operation. Both targets build with no warning from the scenario, and
+  the seeded schedule is hash-stable: `fnv1a64:7496700bf4b75339` on `net481` and
+  `net9.0` and across repeated runs, with no COM name in any fault target.
+  **The interactive path is intact**: without a mode flag the executable runs
+  the original oracle parity pass with the same options, output and exit codes,
+  so the 2026-08-01 evidence still describes it. Its code moved from `Program.cs`
+  to `OracleParity.cs` unchanged.
+  **Two requirements were met differently from the literal wording, on purpose.**
+  The suite asks that a timed-out operation's response not be consumed by the
+  next one; a serial line is a byte stream with no correlation, so that is not a
+  property `SerialCommTransport` can offer. It is split into an assertion about
+  the real recovery — close, reopen, and the next request gets its own token —
+  and an assertion about what holds without one: every byte belongs to one
+  identifiable exchange, intact, never mixed. Second, non-`None` handshakes are
+  applied and read back but never opened and written through, because a
+  handshake nobody asserts on the far end can block a write for the whole write
+  timeout.
+  **One limitation recorded, not promoted:** `Configure` assigns `RtsEnable`
+  unconditionally and `SerialPort` refuses any such assignment while the
+  handshake is `RequestToSend` or `RequestToSendXOnXOff`, so a `SerialConfig`
+  asking for RTS/CTS flow control cannot be applied at all. Derived from current
+  source and asserted by a check that has not yet run; it stays scenario
+  evidence until executed and separately authorized.
+  **Never executed.** Build, `--print-schedule` and the dispatch/exit-code paths
+  only, all of which open no COM port, per the build-first sequencing. The pair
+  cross-connection is now probed in preflight rather than assumed, but that probe
+  has not run either.
+  **Still open:** smoke, recovery rehearsal and soak; registration in `E3-ORCH`'s
+  `campaign.json`, deferred because a COM-pair prerequisite and adoption contract
+  the orchestrator cannot validate would be a claim rather than a fact.
   **Design decision taken 2026-08-10, before any code.** The specification asks
   for faults of "emulator delay, silence, malformed frame, disconnect, restart",
   and the emulator cannot supply them: it is an independent oracle in another
@@ -1299,13 +1335,9 @@ its automated modes. Those are what the build phase has left.
   `SerialPort.GetPortNames()` reports COM1, COM3, COM4, COM9, COM10, COM19 and
   COM20, so the documented `COM9 <-> COM19` and `COM10 <-> COM20` pairs appear
   present. No port was opened; whether the pairs are actually cross-connected is
-  unverified until the scenario runs.
-  **Implementation shape:** extend the existing project rather than add a
-  competing one, keeping the current interactive path intact so its 2026-08-01
-  evidence stays valid, and add the harness, the mode contract, the owned peer
-  and the fault dispatcher beside it. `SerialCommTransport` already exposes the
-  surface the endpoint-switching checks need — a settable `PortName` and an
-  `Open(string portName)` overload.
+  unverified until the scenario runs. The scenario now proves it in preflight
+  with a real exchange on each pair, and treats a failure as exit code `3` — an
+  environment result, never a product finding.
 - [ ] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
   2026-08-08** at [`runtime_tests/Data/SqlServer/`](runtime_tests/Data/SqlServer/README.md):
   a dual-target x64 console scenario with smoke, recovery-rehearsal and soak
