@@ -290,6 +290,25 @@ this class of problem and it cost real time.
    expected 1000 lines while seeing 2000. Scratch paths are now unique per
    invocation.
 
+### Three reporting defects this scenario exposed, and their fixes
+
+None of these changed a verdict; all three made a run *describe itself* wrongly,
+which is worse in an unattended suite than a visible failure.
+
+1. **Interrupted checks were reported as failures.** In the harness, not here:
+   `CheckRunner` recorded every `OperationCanceledException` as a failed check,
+   so the first Ctrl+C test summarised a merely-stopped run as "145 passed,
+   5 failed". `CheckRunner` now takes the run's token and records those as
+   skipped. `E4-SQL` had the same flaw. Recorded in the harness README.
+2. **The below-window flag measured the wrong thing.** It compared the
+   *requested* duration, so a rehearsal that asked for 60 minutes and elapsed
+   52.9 declared itself compliant with a 60–90 minute specification. It now
+   judges elapsed time, and the option table says to request about 70 minutes.
+3. **A note that was simply untrue.** The drift check reported "the run was
+   shorter than the specified window" whenever it found no periodic samples —
+   which is every rehearsal, because that mode runs no cycle loop. It now says
+   so instead of blaming the duration.
+
 ## Procedure and expected result
 
 1. Build both targets. Expected: success, no warnings.

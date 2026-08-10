@@ -60,6 +60,28 @@ from `CheckResult.Phase`, which the harness already owned. `E3-OBS` needs each
 capability's totals visible so that one failing is legible at a glance, and it
 costs nothing for a scenario whose phases are workload classes instead.
 
+### Moved in — the run's cancellation token, in `CheckRunner`
+
+This one was a defect rather than a boundary question, and it was in the harness
+already, affecting both consumers.
+
+`CheckRunner.RunAsync` caught everything that was not a `CheckFailure` and
+recorded it as a failed check. During a Ctrl+C that is exactly wrong: every
+check in flight throws `OperationCanceledException` and is reported as a
+failure. `E3-OBS`'s first interrupt test produced **"145 passed, 5 failed"** for
+a run that had simply been stopped — the exit code was a correct `8`, but the
+summary said five things were broken when nothing was.
+
+`CheckRunner` now takes the run's token. A cancellation that escapes while the
+token is cancelled is recorded as **skipped** with "interrupted before the check
+reached a verdict"; one that escapes while the run is *not* cancelling is still
+a failure, because that is a scenario bug. The same interrupt now reports
+"144 passed, 0 failed, 6 skipped".
+
+`E4-SQL` had the identical flaw and now passes its token too. Nothing about this
+was visible with one consumer, because nobody had interrupted a soak and read
+the resulting summary.
+
 ### Refused — the Ctrl+C handler
 
 Both scenarios open with the same fifteen lines wiring `Console.CancelKeyPress`
