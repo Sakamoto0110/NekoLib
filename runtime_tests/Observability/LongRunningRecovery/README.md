@@ -346,10 +346,30 @@ behaviour under load and failure.
 
 ### What is still open
 
-- The 16-hour soak. It is not blocked; it is a calendar decision, and per the
-  suite it starts only after smoke and rehearsal pass. The host must not share
-  it with other heavy work — the `resources` check asserts thread and handle
-  drift, and a contended host would make that measurement meaningless.
+- **`--soak` has never completed a run.** This is the largest gap and it is
+  bigger than the 16-hour campaign. Four soaks were started; two were
+  interrupted at 27 seconds by the Ctrl+C tests, and two were hard-killed after
+  a couple of minutes when an earlier interrupt technique failed to deliver its
+  signal. Between them **three fault dispatches did fire concurrently with the
+  capability cycle loop and all three passed**, which is genuine but partial
+  evidence: it covers three of the seven kinds, and it came from a build
+  predating the fix that moves the periodic sample inside the exclusivity gate.
+  The soak is the only mode where faults and assertions overlap, and the suite's
+  own history says that is where the problems are — E4-SQL's soak took three
+  runs to work. **A short soak of 20–30 minutes that runs to natural completion
+  should come before the 16-hour campaign**, not after it.
+  (The two hard-killed runs left their `work/` directories behind, which is
+  correct: `TerminateProcess` bypasses cleanup entirely, and only a graceful
+  shutdown is claimed to reconcile.)
+- The 16-hour soak. Per the suite it starts only after smoke and rehearsal pass,
+  and it should not start before the point above is settled. The host must not
+  share it with other heavy work — the `resources` check asserts thread and
+  handle drift, and a contended host would make that measurement meaningless.
+- **`--fault-schedule` has never driven a real run.** The round-trip is
+  verified only as far as parsing: `E3-ORCH` generates a schedule, and the
+  scenario loads all seven events back with matching offsets and kinds under
+  `--print-schedule`. No run has actually dispatched faults from a schedule
+  generated elsewhere, which is the path an orchestrated campaign uses.
 - A rehearsal on `net481`. Nothing in this scenario is target-conditional — no
   check is skipped on either target — so the `net9.0` rehearsal and the `net481`
   smoke together cover the matrix, but the `net481` rehearsal has not been run.

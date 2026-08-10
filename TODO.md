@@ -1072,11 +1072,26 @@ not mean the corresponding Phase E scenario is complete.
   channel out of scope.
   **Registered in `E3-ORCH`:** `campaign.json` carries the scenario and its
   seven fault kinds, and the orchestrator's generated schedule round-trips into
-  the scenario through `--fault-schedule` with matching offsets and kinds. No
-  orchestrated campaign has been run with it as a worker yet.
-  **Still open:** the 16-hour soak and a `net481` rehearsal. Nothing in the
-  scenario is target-conditional, so the `net481` smoke plus the `net9.0`
-  rehearsal cover the matrix, but the `net481` rehearsal itself has not run.
+  the scenario with matching offsets and kinds. That round-trip is verified only
+  as far as *parsing*, under `--print-schedule`; no run has dispatched faults
+  from an externally generated schedule, and no orchestrated campaign has been
+  run with this scenario as a worker.
+  **Still open, in the order they should be closed:**
+  1. **A short soak that runs to natural completion.** `--soak` has never
+     finished a run. Four were started; two were interrupted at 27 seconds by
+     the Ctrl+C tests and two were hard-killed. Three fault dispatches did fire
+     concurrently with the cycle loop and all passed, so the path is partially
+     exercised, but that covers three of seven kinds from a build predating the
+     sample-inside-the-gate fix. The soak is the only mode where faults and
+     assertions overlap, and E4-SQL's soak took three runs to work. 20–30
+     minutes would settle it.
+  2. A run driven by an external `--fault-schedule`, which is the path an
+     orchestrated campaign uses.
+  3. The 16-hour soak, after 1 and 2.
+  4. A `net481` rehearsal. Nothing in the scenario is target-conditional, so the
+     `net481` smoke plus the `net9.0` rehearsal cover the matrix, but the
+     `net481` rehearsal itself has not run.
+  5. A campaign actually executed through `E3-ORCH`.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a
