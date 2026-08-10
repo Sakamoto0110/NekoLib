@@ -1281,6 +1281,31 @@ its automated modes. Those are what the build phase has left.
   com0com/PCB oracle scenario exists and passed its interactive parity matrix;
   its automated smoke, recovery-rehearsal, delayed/late-response, repeated
   reconnect, resource, and soak modes remain open.
+  **Design decision taken 2026-08-10, before any code.** The specification asks
+  for faults of "emulator delay, silence, malformed frame, disconnect, restart",
+  and the emulator cannot supply them: it is an independent oracle in another
+  repository with no reference to NekoLib, and giving it a control channel would
+  make it an accomplice rather than an oracle — the same objection that keeps a
+  `TestControl` API out of every product module.
+  The answer is E3-PIPE's raw peer applied to serial: **the scenario opens the
+  other end of the com0com pair and acts as its own peer**, able to delay, fall
+  silent, send a malformed frame and disconnect on demand. That makes the
+  automated modes and the oracle pass **mutually exclusive**, because both want
+  `COM9`/`COM10`, and that is the right trade: they prove different things. The
+  oracle proves protocol parity against an independent implementation; the owned
+  peer proves transport behaviour under faults nobody can ask the oracle to
+  produce. Both remain recorded, neither replaces the other.
+  **Prerequisite state on this machine, checked 2026-08-10 read-only:**
+  `SerialPort.GetPortNames()` reports COM1, COM3, COM4, COM9, COM10, COM19 and
+  COM20, so the documented `COM9 <-> COM19` and `COM10 <-> COM20` pairs appear
+  present. No port was opened; whether the pairs are actually cross-connected is
+  unverified until the scenario runs.
+  **Implementation shape:** extend the existing project rather than add a
+  competing one, keeping the current interactive path intact so its 2026-08-01
+  evidence stays valid, and add the harness, the mode contract, the owned peer
+  and the fault dispatcher beside it. `SerialCommTransport` already exposes the
+  surface the endpoint-switching checks need — a settable `PortName` and an
+  `Open(string portName)` overload.
 - [ ] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
   2026-08-08** at [`runtime_tests/Data/SqlServer/`](runtime_tests/Data/SqlServer/README.md):
   a dual-target x64 console scenario with smoke, recovery-rehearsal and soak
