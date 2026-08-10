@@ -10,7 +10,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "const": 1
+      "enum": [1, 2]
     },
     "description": { "type": "string" },
     "artifactsRoot": {
@@ -36,7 +36,16 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Also the name of the scenario's directory inside the campaign, and the value its own fault events must carry."
+          "description": "The scenario id used in selection, schedules and scenario result paths."
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Schema v2 process identity and directory name beneath workers/. Defaults to id for a v1 entry."
+        },
+        "artifactLayoutVersion": {
+          "type": "integer",
+          "enum": [1, 2],
+          "description": "Version 2 places harness artifacts beneath workers/<workerId>/<scenarioId>. Omitted entries retain the v1 layout."
         },
         "enabled": { "type": "boolean" },
         "description": { "type": "string" },
@@ -47,7 +56,7 @@
         "targetFramework": { "type": "string" },
         "executable": {
           "type": "string",
-          "description": "Repository-relative or absolute path. Supports the {seed} {artifacts} {schedule} {duration} {durationSeconds} tokens."
+          "description": "Repository-relative or absolute path. Supports the {seed} {artifacts} {campaignId} {workerId} {schedule} {duration} {durationSeconds} tokens."
         },
         "prerequisites": {
           "type": "array",

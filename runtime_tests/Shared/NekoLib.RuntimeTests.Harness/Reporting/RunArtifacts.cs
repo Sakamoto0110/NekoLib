@@ -26,23 +26,33 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         private bool _disposed;
 
         private RunArtifacts(
+            string aggregateCampaignDirectory,
             string campaignDirectory,
             string scenarioDirectory,
+            string? workerId,
             StreamWriter stdout,
             StreamWriter stderr,
             StreamWriter samples,
             StreamWriter events)
         {
+            AggregateCampaignDirectory = aggregateCampaignDirectory;
             CampaignDirectory = campaignDirectory;
             ScenarioDirectory = scenarioDirectory;
+            WorkerId = workerId;
             _stdout = stdout;
             _stderr = stderr;
             _samples = samples;
             _events = events;
         }
 
+        /// <summary>The orchestrator-owned campaign root, or the standalone campaign directory.</summary>
+        public string AggregateCampaignDirectory { get; }
+
+        /// <summary>The directory owned by this process.</summary>
         public string CampaignDirectory { get; }
         public string ScenarioDirectory { get; }
+        public string? WorkerId { get; }
+        public int ArtifactLayoutVersion => WorkerId == null ? 1 : 2;
 
         public string EnvironmentPath => Path.Combine(CampaignDirectory, "environment.json");
         public string SchedulePath => Path.Combine(CampaignDirectory, "schedule.json");
@@ -59,9 +69,17 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             string artifactsRoot,
             string campaignId,
             string scenarioId,
-            IReadOnlyList<string>? scenarioColumns = null)
+            IReadOnlyList<string>? scenarioColumns = null,
+            string? workerId = null)
         {
-            string campaign = Path.Combine(artifactsRoot, campaignId);
+            ValidatePathSegment(campaignId, nameof(campaignId));
+            ValidatePathSegment(scenarioId, nameof(scenarioId));
+            if (workerId != null) ValidatePathSegment(workerId, nameof(workerId));
+
+            string aggregateCampaign = Path.Combine(artifactsRoot, campaignId);
+            string campaign = workerId == null
+                ? aggregateCampaign
+                : Path.Combine(aggregateCampaign, "workers", workerId);
             string scenario = Path.Combine(campaign, scenarioId);
 
             Directory.CreateDirectory(scenario);
@@ -85,7 +103,26 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             samples.WriteLine(string.Join(",", header.ToArray()));
             samples.Flush();
 
-            return new RunArtifacts(campaign, scenario, stdout, stderr, samples, events);
+            return new RunArtifacts(
+                aggregateCampaign,
+                campaign,
+                scenario,
+                workerId,
+                stdout,
+                stderr,
+                samples,
+                events);
+        }
+
+        private static void ValidatePathSegment(string value, string parameterName)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value == "." || value == ".." ||
+                value.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
+                value.IndexOf(Path.AltDirectorySeparatorChar) >= 0 ||
+                value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentException("Expected one safe directory name.", parameterName);
+            }
         }
 
         private static StreamWriter Open(string path)

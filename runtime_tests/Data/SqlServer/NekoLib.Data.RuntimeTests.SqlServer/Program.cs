@@ -132,7 +132,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                 _options.ArtifactsRoot,
                 _options.CampaignId,
                 _options.ScenarioId,
-                SqlServerSamples.ColumnNamesForHeader))
+                SqlServerSamples.ColumnNamesForHeader,
+                _options.WorkerId))
             {
                 _artifacts = artifacts;
                 _runner = new CheckRunner(artifacts.Out, _ct);
@@ -574,6 +575,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
             {
                 json.Prop("campaignId", _options.CampaignId);
                 json.Prop("scenarioId", _options.ScenarioId);
+                json.Prop("artifactLayoutVersion", artifacts.ArtifactLayoutVersion);
+                if (artifacts.WorkerId != null) json.Prop("workerId", artifacts.WorkerId);
                 json.Prop("startedUtc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
 
                 json.Object("repository", () =>

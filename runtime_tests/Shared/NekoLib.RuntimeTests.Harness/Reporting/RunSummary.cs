@@ -113,13 +113,13 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             IScenarioSummary? scenario = null)
         {
             int resolved = Resolve(runner);
-            string json = BuildJson(runner, counters, scenario, resolved);
+            string json = BuildJson(artifacts, runner, counters, scenario, resolved);
 
             artifacts.WriteText(artifacts.ResultPath, json);
             artifacts.WriteText(artifacts.SummaryJsonPath, json);
             artifacts.WriteText(
                 artifacts.SummaryMarkdownPath,
-                BuildMarkdown(runner, counters, scenario, resolved));
+                BuildMarkdown(artifacts, runner, counters, scenario, resolved));
 
             artifacts.Out(string.Empty);
             artifacts.Out("checks     " + runner.Passed + " passed, " + runner.Failed + " failed, " +
@@ -137,6 +137,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         }
 
         private string BuildJson(
+            RunArtifacts artifacts,
             CheckRunner runner,
             WorkloadCounters counters,
             IScenarioSummary? scenario,
@@ -147,6 +148,8 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             {
                 json.Prop("campaignId", CampaignId);
                 json.Prop("scenarioId", ScenarioId);
+                json.Prop("artifactLayoutVersion", artifacts.ArtifactLayoutVersion);
+                if (artifacts.WorkerId != null) json.Prop("workerId", artifacts.WorkerId);
                 json.Prop("mode", Mode);
                 json.Prop("seed", Seed);
                 json.Prop("scheduleHash", ScheduleHash);
@@ -231,6 +234,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         }
 
         private string BuildMarkdown(
+            RunArtifacts artifacts,
             CheckRunner runner,
             WorkloadCounters counters,
             IScenarioSummary? scenario,
@@ -243,6 +247,9 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             text.AppendLine("|---|---|");
             text.AppendLine("| Target | " + RuntimeFacts.TargetFrameworkMoniker + " |");
             text.AppendLine("| Runtime | " + RuntimeFacts.RuntimeDescription + " |");
+            text.AppendLine("| Artifact layout | v" + artifacts.ArtifactLayoutVersion + " |");
+            if (artifacts.WorkerId != null)
+                text.AppendLine("| Worker | " + Escape(artifacts.WorkerId) + " |");
 
             if (scenario != null)
             {

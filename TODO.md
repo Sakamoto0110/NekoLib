@@ -1025,11 +1025,14 @@ not mean the corresponding Phase E scenario is complete.
   `fnv1a64:57d4189e5a941ecf` and fired its faults in the orchestrator's order.
   **Still open:** the 16-hour campaign, and a multi-worker campaign in any mode
   other than smoke. Neither starts merely because the script works.
-  **Recorded, not fixed:** a worker's artifacts land at
-  `<campaign-id>/<worker-campaign-id>/<scenario-id>/` rather than at the
-  `<campaign-id>/<scenario-id>/` the suite specifies, because each scenario
-  builds its own campaign id from the `--artifacts` root it is given. It affects
-  every worker equally.
+  **Artifact layout v2 implemented and verified on 2026-08-10:** orchestrated
+  scenarios now receive explicit campaign and worker identities and write below
+  `<campaign-id>/workers/<worker-id>/<scenario-id>/`. Process capture uses
+  separate `process.stdout.log` / `process.stderr.log` files, and reconciliation
+  requires and indexes the worker's `result.json`. An `E3-OBS` regression exited
+  0 with 91 checks, 0 failed, matching worker/aggregate schedule hash and the
+  indexed v2 result. A direct standalone regression exited 0 with 61 checks and
+  retained v1. Historical artifact directories are not moved.
   **Recorded load finding:** the first concurrent campaign saturated the host —
   around 670 MB free, SQL Server logins past 15 seconds — and the provider's
   pool blocking period then reported one slow login as seven consecutive check
@@ -1081,11 +1084,8 @@ not mean the corresponding Phase E scenario is complete.
   and asserts that its own action count stays zero, keeping the frozen action
   channel out of scope.
   **Registered in `E3-ORCH`:** `campaign.json` carries the scenario and its
-  seven fault kinds, and the orchestrator's generated schedule round-trips into
-  the scenario with matching offsets and kinds. That round-trip is verified only
-  as far as *parsing*, under `--print-schedule`; no run has dispatched faults
-  from an externally generated schedule, and no orchestrated campaign has been
-  run with this scenario as a worker.
+  seven fault kinds. The end-to-end recovery evidence below supersedes the
+  earlier parse-only registration check.
   **The soak path is proven as of 2026-08-09:** `--soak 15m` exited 0 with 3848
   checks, 0 failed, 0 skipped, 128 cycles and 1 324 827 operations at zero
   unexpected failures, and **all seven fault kinds fired while the assertion
@@ -1117,12 +1117,15 @@ not mean the corresponding Phase E scenario is complete.
      host into false failures; multi-worker aggregation is already proven in
      E3-ORCH's acceptance record.
   2. The 16-hour soak. Now a question of duration rather than correctness.
-  **Recorded, not fixed:** under an orchestrated campaign the artifact layout
-  nests one level deeper than the suite specifies, because each scenario builds
-  its own campaign id from the `--artifacts` root it is given. The worker's
-  `result.json` therefore is not at `<campaign-id>/<scenario-id>/`. This is
-  orchestrator and harness behaviour and `E4-SQL` nests identically, so changing
-  it would move that scenario's recorded artifact paths too.
+  **Artifact layout finding closed on 2026-08-10:** layout v2 places this
+  worker's result at
+  `<campaign-id>/workers/E3-OBS-net9.0/E3-OBS/result.json`, records the layout
+  and worker id in its evidence, and lets the orchestrator reconcile the exact
+  indexed path. A 12-second orchestrated regression exited 0 with 91 checks and
+  matching worker/aggregate schedule hash. The standalone v1 path remains
+  supported and its historical artifacts were not moved. This regression is
+  layout evidence, not a replacement for the completed 15-minute smoke or the
+  still-open 16-hour soak.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a

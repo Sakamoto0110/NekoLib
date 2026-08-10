@@ -149,6 +149,15 @@ function Get-ResourceSample {
     }
 }
 
+function Test-SafePathSegment {
+    param([string] $Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value) -or $Value -eq '.' -or $Value -eq '..') { return $false }
+    if ($Value.IndexOf([System.IO.Path]::DirectorySeparatorChar) -ge 0 -or
+        $Value.IndexOf([System.IO.Path]::AltDirectorySeparatorChar) -ge 0) { return $false }
+    return $Value.IndexOfAny([System.IO.Path]::GetInvalidFileNameChars()) -lt 0
+}
+
 # ---------------------------------------------------------------- preflight --
 
 $repositoryRoot = Get-RepositoryRoot
@@ -160,7 +169,7 @@ if (-not (Test-Path $Config)) {
 }
 
 $configuration = Get-Content -Path $Config -Raw | ConvertFrom-Json
-if ($configuration.schemaVersion -ne 1) {
+if ($configuration.schemaVersion -notin @(1, 2)) {
     Write-Host "E3-ORCH: configuration schemaVersion $($configuration.schemaVersion) is not supported by this orchestrator."
     exit $ExitUsage
 }
@@ -250,6 +259,7 @@ foreach ($entry in $stale) {
 }
 
 $commands = @()
+$workerIds = @{}
 foreach ($scenario in $selected) {
     if ($Build) {
         $built = Build-Worker -Scenario $scenario -RepositoryRoot $repositoryRoot
@@ -257,12 +267,43 @@ foreach ($scenario in $selected) {
         if (-not $built.Built) { $problems += "$($scenario.id) did not build" }
     }
 
-    $scenarioDirectory = Join-Path $campaignDirectory $scenario.id
-    $null = New-Item -ItemType Directory -Path $scenarioDirectory -Force
+    $workerId = if ($scenario.PSObject.Properties.Name -contains 'workerId') {
+        [string] $scenario.workerId
+    } else {
+        [string] $scenario.id
+    }
+    $scenarioId = [string] $scenario.id
+    $artifactLayoutVersion = if ($scenario.PSObject.Properties.Name -contains 'artifactLayoutVersion') {
+        [int] $scenario.artifactLayoutVersion
+    } else {
+        1
+    }
+
+    if (-not (Test-SafePathSegment $workerId)) {
+        $problems += "$scenarioId has an unsafe workerId '$workerId'"
+    } elseif ($workerIds.ContainsKey($workerId)) {
+        $problems += "$scenarioId duplicates workerId '$workerId'"
+    } else {
+        $workerIds[$workerId] = $true
+    }
+    if ($artifactLayoutVersion -notin @(1, 2)) {
+        $problems += "$scenarioId has unsupported artifactLayoutVersion $artifactLayoutVersion"
+    }
+
+    $workerDirectory = if ($artifactLayoutVersion -eq 2) {
+        Join-Path (Join-Path $campaignDirectory 'workers') $workerId
+    } else {
+        Join-Path $campaignDirectory $scenarioId
+    }
+    $null = New-Item -ItemType Directory -Path $workerDirectory -Force
+
+    $workerArtifactsRoot = if ($artifactLayoutVersion -eq 2) { $ArtifactsRoot } else { $campaignDirectory }
 
     $tokens = @{
         'seed'            = $Seed
-        'artifacts'       = $campaignDirectory
+        'artifacts'       = $workerArtifactsRoot
+        'campaignId'      = $campaignId
+        'workerId'        = $workerId
         'schedule'        = (Join-Path $campaignDirectory 'schedule.json')
         'duration'        = $Duration
         'durationSeconds' = [int] $window.TotalSeconds
@@ -271,7 +312,7 @@ foreach ($scenario in $selected) {
 
     $modeConfiguration = $scenario.modes.$Mode
     $withArguments = [pscustomobject]@{
-        id         = $scenario.id
+        id         = $workerId
         executable = $scenario.executable
         arguments  = @($modeConfiguration.arguments)
     }
@@ -309,10 +350,29 @@ foreach ($scenario in $selected) {
     }
 
     $commands += [pscustomobject]@{
-        Scenario  = $scenario
-        Command   = $command
-        Directory = $scenarioDirectory
+        Scenario              = $scenario
+        ScenarioId            = $scenarioId
+        WorkerId              = $workerId
+        ArtifactLayoutVersion = $artifactLayoutVersion
+        Command               = $command
+        Directory             = $workerDirectory
+        ResultPath            = if ($artifactLayoutVersion -eq 2) {
+            Join-Path (Join-Path $workerDirectory $scenarioId) 'result.json'
+        } else {
+            $null
+        }
+        ResultRelativePath    = if ($artifactLayoutVersion -eq 2) {
+            Join-Path (Join-Path (Join-Path 'workers' $workerId) $scenarioId) 'result.json'
+        } else {
+            $null
+        }
     }
+}
+
+$aggregateArtifactLayoutVersion = if (@($commands | Where-Object { $_.ArtifactLayoutVersion -eq 2 }).Count -gt 0) {
+    2
+} else {
+    1
 }
 
 $schedulePath = Save-CampaignSchedule -Schedule $schedule -Path (Join-Path $campaignDirectory 'schedule.json')
@@ -353,10 +413,19 @@ $adoptedAll = @()
 foreach ($entry in $commands) {
     foreach ($adopted in @($entry.Scenario.adopts)) { $adoptedAll += $adopted }
 
+    $processStdoutName = if ($entry.ArtifactLayoutVersion -eq 2) { 'process.stdout.log' } else { 'stdout.log' }
+    $processStderrName = if ($entry.ArtifactLayoutVersion -eq 2) { 'process.stderr.log' } else { 'stderr.log' }
+
     $worker = Start-Worker -Command $entry.Command `
         -WorkingDirectory $repositoryRoot `
-        -StandardOutputPath (Join-Path $entry.Directory 'stdout.log') `
-        -StandardErrorPath (Join-Path $entry.Directory 'stderr.log')
+        -StandardOutputPath (Join-Path $entry.Directory $processStdoutName) `
+        -StandardErrorPath (Join-Path $entry.Directory $processStderrName)
+
+    $worker | Add-Member -NotePropertyName ScenarioId -NotePropertyValue $entry.ScenarioId
+    $worker | Add-Member -NotePropertyName WorkerId -NotePropertyValue $entry.WorkerId
+    $worker | Add-Member -NotePropertyName ArtifactLayoutVersion -NotePropertyValue $entry.ArtifactLayoutVersion
+    $worker | Add-Member -NotePropertyName ResultPath -NotePropertyValue $entry.ResultPath
+    $worker | Add-Member -NotePropertyName ResultRelativePath -NotePropertyValue $entry.ResultRelativePath
 
     $workers += $worker
     Write-Phase ("started   {0} as PID {1}" -f $worker.Id, $worker.ProcessId)
@@ -421,9 +490,13 @@ foreach ($worker in $workers) {
 }
 
 foreach ($entry in $commands) {
-    $stdout = Join-Path $entry.Directory 'stdout.log'
+    $stdoutName = if ($entry.ArtifactLayoutVersion -eq 2) { 'process.stdout.log' } else { 'stdout.log' }
+    $stdout = Join-Path $entry.Directory $stdoutName
     if (-not (Test-Path $stdout)) {
-        $reconciliation += "$($entry.Scenario.id) produced no stdout.log"
+        $reconciliation += "$($entry.WorkerId) produced no $stdoutName"
+    }
+    if ($entry.ArtifactLayoutVersion -eq 2 -and -not (Test-Path $entry.ResultPath)) {
+        $reconciliation += "$($entry.WorkerId) produced no scenario result at $($entry.ResultPath)"
     }
 }
 
@@ -445,6 +518,7 @@ elseif ($reconciliation.Count -gt 0) { $exitCode = $ExitReconciliation }
 
 $summary = [pscustomobject]@{
     campaignId       = $campaignId
+    artifactLayoutVersion = $aggregateArtifactLayoutVersion
     mode             = $Mode
     seed             = $Seed
     windowSeconds    = [int] $window.TotalSeconds
@@ -459,11 +533,14 @@ $summary = [pscustomobject]@{
     samples          = $samples
     workers          = @($workers | ForEach-Object {
         [pscustomobject]@{
-            scenarioId = $_.Id
-            processId  = $_.ProcessId
-            exitCode   = $_.ExitCode
-            outcome    = $_.Outcome
-            arguments  = $_.Arguments
+            workerId              = $_.WorkerId
+            scenarioId            = $_.ScenarioId
+            artifactLayoutVersion = $_.ArtifactLayoutVersion
+            resultPath            = $_.ResultRelativePath
+            processId             = $_.ProcessId
+            exitCode              = $_.ExitCode
+            outcome               = $_.Outcome
+            arguments             = $_.Arguments
         }
     })
 }
@@ -477,6 +554,7 @@ $null = $markdown.AppendLine('')
 $null = $markdown.AppendLine("| | |")
 $null = $markdown.AppendLine("|---|---|")
 $null = $markdown.AppendLine("| Mode | $Mode |")
+$null = $markdown.AppendLine("| Artifact layout | v$aggregateArtifactLayoutVersion |")
 $null = $markdown.AppendLine("| Seed | $Seed |")
 $null = $markdown.AppendLine("| Window | $window |")
 $null = $markdown.AppendLine("| Schedule | $($schedule.events.Count) fault(s), $($schedule.hash) |")
@@ -485,10 +563,10 @@ $null = $markdown.AppendLine("| Exit code | $exitCode |")
 $null = $markdown.AppendLine('')
 $null = $markdown.AppendLine('## Workers')
 $null = $markdown.AppendLine('')
-$null = $markdown.AppendLine('| Scenario | PID | Exit | Outcome |')
-$null = $markdown.AppendLine('|---|---|---|---|')
+$null = $markdown.AppendLine('| Worker | Scenario | Layout | PID | Exit | Outcome |')
+$null = $markdown.AppendLine('|---|---|---|---|---|---|')
 foreach ($worker in $workers) {
-    $null = $markdown.AppendLine("| $($worker.Id) | $($worker.ProcessId) | $($worker.ExitCode) | $($worker.Outcome) |")
+    $null = $markdown.AppendLine("| $($worker.WorkerId) | $($worker.ScenarioId) | v$($worker.ArtifactLayoutVersion) | $($worker.ProcessId) | $($worker.ExitCode) | $($worker.Outcome) |")
 }
 if ($reconciliation.Count -gt 0) {
     $null = $markdown.AppendLine('')

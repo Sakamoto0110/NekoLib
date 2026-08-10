@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "description": "Phase E campaign configuration. Scenarios are listed here rather than known to run.ps1, so an incomplete scenario never blocks work on the others: disable it, or leave it out of -Scenarios.",
 
   "artifactsRoot": "artifacts/validation/phase-e",
@@ -8,6 +8,8 @@
   "scenarios": [
     {
       "id": "E4-SQL",
+      "workerId": "E4-SQL-net9.0",
+      "artifactLayoutVersion": 2,
       "enabled": true,
       "description": "NekoLib.Data against the adopted local SQL Server container.",
       "project": "runtime_tests/Data/SqlServer/NekoLib.Data.RuntimeTests.SqlServer/NekoLib.Data.RuntimeTests.SqlServer.csproj",
@@ -34,19 +36,21 @@
 
       "modes": {
         "smoke": {
-          "arguments": ["--smoke", "--seed", "{seed}", "--artifacts", "{artifacts}"]
+          "arguments": ["--smoke", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         },
         "recovery": {
-          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         },
         "soak": {
-          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         }
       }
     },
 
     {
       "id": "E3-OBS",
+      "workerId": "E3-OBS-net9.0",
+      "artifactLayoutVersion": 2,
       "enabled": true,
       "description": "NekoLib Logging, Telemetry and passive Inspection under load, failure and recovery. It owns seven faults but adopts nothing and needs no external resource, so it is the one worker that can run anywhere.",
       "project": "runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery.csproj",
@@ -68,13 +72,13 @@
 
       "modes": {
         "smoke": {
-          "arguments": ["--smoke", "--seed", "{seed}", "--artifacts", "{artifacts}"]
+          "arguments": ["--smoke", "--smoke-duration", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         },
         "recovery": {
-          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+          "arguments": ["--recovery-rehearsal", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         },
         "soak": {
-          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--fault-schedule", "{schedule}"]
+          "arguments": ["--soak", "{duration}", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
         }
       }
     },

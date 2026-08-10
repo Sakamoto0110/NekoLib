@@ -86,6 +86,8 @@ even if exact option spelling differs by module:
 --seed <integer>
 --artifacts <absolute-directory>
 --fault-schedule <absolute-file>
+--campaign-id <identifier>       # orchestrated runs only
+--worker-id <identifier>         # orchestrated runs only
 ```
 
 Requirements:
@@ -127,21 +129,38 @@ unless a scenario explicitly owns and validates that combination.
 
 ### Measurements and artifacts
 
-Use one run directory under `artifacts/validation/phase-e/`:
+Use one aggregate campaign directory under `artifacts/validation/phase-e/`.
+Layout v2 gives each process an explicit worker identity so process capture and
+scenario evidence cannot collide:
 
 ```text
 <campaign-id>/
-  environment.json
   schedule.json
-  events.jsonl
   summary.json
   summary.md
-  <scenario-id>/
-    stdout.log
-    stderr.log
-    samples.csv
-    result.json
+  owned.json
+  workers/
+    <worker-id>/
+      process.stdout.log
+      process.stderr.log
+      environment.json
+      schedule.json
+      events.jsonl
+      summary.json
+      summary.md
+      <scenario-id>/
+        stdout.log
+        stderr.log
+        samples.csv
+        result.json
 ```
+
+`worker-id` identifies the process/target instance; `scenario-id` identifies
+the assertions it executes. An orchestrator supplies both `--campaign-id` and
+`--worker-id`, and the aggregate `summary.json` indexes every worker result.
+Standalone scenarios keep the original v1 layout directly under their generated
+run directory. Existing v1 artifacts are historical evidence and are never
+moved or rewritten.
 
 The environment record must include the repository commit and dirty state,
 Windows version, process architecture, target framework, .NET runtime/SDK,

@@ -304,9 +304,23 @@ One run directory under `artifacts/validation/phase-e/`:
     result.json        every check with its claim, outcome, timing and notes
 ```
 
-The campaign-level files are written by the scenario when it runs standalone. An
-orchestrator that owns the campaign directory can supply the schedule instead;
-the layout is the same either way.
+That is standalone artifact layout v1. When `E3-ORCH` supplies both
+`--campaign-id` and `--worker-id`, E4-SQL uses layout v2 instead:
+
+```text
+<campaign-id>/
+  schedule.json  owned.json  summary.json  summary.md
+  workers/
+    E4-SQL-net9.0/
+      process.stdout.log  process.stderr.log
+      environment.json  schedule.json  events.jsonl  summary.json  summary.md
+      E4-SQL/
+        stdout.log  stderr.log  samples.csv  result.json
+```
+
+The orchestrator indexes that exact result path and treats its absence as a
+reconciliation failure. Runs without both orchestration arguments keep v1, so
+recorded E4-SQL evidence is neither moved nor reinterpreted.
 
 `environment.json` records `passwordRecorded: false` as a standing assertion
 about what the file contains.

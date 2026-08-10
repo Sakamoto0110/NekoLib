@@ -177,6 +177,24 @@ e3obs-<mode>-<tfm>-s<seed>-<timestamp>/
     result.json
 ```
 
+That is standalone layout v1. Under `E3-ORCH`, the orchestrator supplies the
+campaign and worker identities and the same files land in layout v2:
+
+```text
+<campaign-id>/
+  schedule.json  owned.json  summary.json  summary.md
+  workers/
+    E3-OBS-net9.0/
+      process.stdout.log  process.stderr.log
+      environment.json  schedule.json  events.jsonl  summary.json  summary.md
+      E3-OBS/
+        stdout.log  stderr.log  samples.csv  result.json
+```
+
+`environment.json`, `result.json` and the readable summary state the artifact
+layout version and worker id. Runs without both `--campaign-id` and
+`--worker-id` keep v1; existing v1 artifacts are not moved.
+
 `samples.csv` carries the columns every scenario shares plus this scenario's
 own: `log_entries_written`, `log_files_rolled`, `log_recent_retained`,
 `telemetry_completed`, `telemetry_retained`, `inspection_recorded`,
@@ -370,26 +388,27 @@ behaviour under load and failure.
   measurement. Multi-worker aggregation is already proven separately in
   `E3-ORCH`'s own acceptance record.
 
-### An artifact-layout deviation, found by the orchestrated campaign
+### Artifact-layout deviation resolved
 
-The suite specifies one run directory as `<campaign-id>/<scenario-id>/…`. Under
-an orchestrated campaign the real layout is one level deeper, because the
-scenario builds its own campaign id from whatever `--artifacts` root it is
-given:
+The first orchestrated recovery campaign found that v1 gave the orchestrator
+and worker separate `E3-OBS` directories and hid the real result below a
+worker-generated campaign id. That historical run remains at its original path.
+Layout v2 now produces one unambiguous worker subtree:
 
 ```text
 campaign-recovery-…/
-  E3-OBS/                       <- the orchestrator's capture of the worker's streams
-    stdout.log  stderr.log
-  e3obs-recovery-net9.0-…/      <- the scenario's own run directory
-    environment.json  schedule.json  summary.json  summary.md
-    E3-OBS/
-      result.json  samples.csv  stdout.log  stderr.log
   schedule.json  summary.json  summary.md  owned.json
+  workers/
+    E3-OBS-net9.0/
+      process.stdout.log  process.stderr.log
+      environment.json  schedule.json  summary.json  summary.md
+      E3-OBS/
+        result.json  samples.csv  stdout.log  stderr.log
 ```
 
-So there are two `E3-OBS` directories with different contents, and the worker's
-`result.json` is not where the suite's layout says to look for it. This is
-orchestrator and harness behaviour, not something specific to this scenario —
-`E4-SQL` nests the same way. It is recorded rather than fixed: changing it would
-move `E4-SQL`'s recorded artifact paths too, and that is a separate decision.
+An automated 12-second orchestrated regression exited 0 with 91 checks, no
+failures, matching aggregate/worker schedule hash
+`fnv1a64:683eb00b749a22bb`, and the result indexed at
+`workers/E3-OBS-net9.0/E3-OBS/result.json`. A direct standalone regression also
+exited 0 and retained v1. Neither shortened run replaces the already recorded
+15-minute smoke or rehearsal evidence.

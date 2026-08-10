@@ -46,10 +46,18 @@ namespace NekoLib.RuntimeTests.Harness
         public string ArtifactsRoot = string.Empty;
         public string? FaultSchedulePath;
 
+        /// <summary>
+        /// Identifies this process inside an orchestrated campaign. It is null
+        /// for a standalone run, which keeps the original artifact layout.
+        /// </summary>
+        public string? WorkerId;
+
         /// <summary>Generates the schedule, prints it and exits, touching nothing.</summary>
         public bool PrintScheduleOnly;
 
         public string CampaignId = string.Empty;
+
+        private string? _campaignIdOverride;
 
         /// <summary>Identifies the scenario in artifacts and in schedule events.</summary>
         public abstract string ScenarioId { get; }
@@ -134,6 +142,28 @@ namespace NekoLib.RuntimeTests.Harness
                         FaultSchedulePath = schedule;
                         break;
 
+                    case "--campaign-id":
+                        if (!TryTakeValue(args, ref i, "--campaign-id", out string campaignId, out diagnostic))
+                            return false;
+                        if (!IsSafePathSegment(campaignId))
+                        {
+                            diagnostic = "--campaign-id expects one safe directory name, got '" + campaignId + "'";
+                            return false;
+                        }
+                        _campaignIdOverride = campaignId;
+                        break;
+
+                    case "--worker-id":
+                        if (!TryTakeValue(args, ref i, "--worker-id", out string workerId, out diagnostic))
+                            return false;
+                        if (!IsSafePathSegment(workerId))
+                        {
+                            diagnostic = "--worker-id expects one safe directory name, got '" + workerId + "'";
+                            return false;
+                        }
+                        WorkerId = workerId;
+                        break;
+
                     case "--print-schedule":
                         PrintScheduleOnly = true;
                         break;
@@ -158,8 +188,23 @@ namespace NekoLib.RuntimeTests.Harness
 
             if (ArtifactsRoot.Length == 0) ArtifactsRoot = DefaultArtifactsRoot();
 
-            CampaignId = BuildCampaignId();
+            if ((_campaignIdOverride == null) != (WorkerId == null))
+            {
+                diagnostic = "--campaign-id and --worker-id must be supplied together";
+                return false;
+            }
+
+            CampaignId = _campaignIdOverride ?? BuildCampaignId();
             return true;
+        }
+
+        private static bool IsSafePathSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value == "." || value == "..") return false;
+            if (value.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
+                value.IndexOf(Path.AltDirectorySeparatorChar) >= 0) return false;
+
+            return value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
         }
 
         /// <summary>
@@ -283,6 +328,8 @@ namespace NekoLib.RuntimeTests.Harness
                 "  --seed <integer>            seeds the deterministic fault schedule",
                 "  --artifacts <absolute-dir>  run directory root",
                 "  --fault-schedule <file>     use a schedule generated elsewhere",
+                "  --campaign-id <id>          orchestrator-owned campaign directory",
+                "  --worker-id <id>            worker directory inside that campaign",
                 "  --print-schedule            print the schedule for this seed and exit, touching nothing"
             };
 

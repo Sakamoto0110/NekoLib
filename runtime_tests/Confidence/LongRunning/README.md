@@ -11,9 +11,10 @@
 **Prerequisites:** the `dotnet` CLI, plus whatever each selected scenario needs.
 The orchestrator reports a scenario's prerequisites; it never installs them.
 
-**Last verification:** 2026-08-08 — **automated runtime.** A two-worker smoke
-campaign exited 0, and all three of the suite's acceptance criteria were
-exercised. See the verification record.
+**Last verification:** 2026-08-10 — **automated runtime.** An `E3-OBS` smoke
+campaign exercised artifact layout v2 and exited 0 with the worker result
+reconciled and indexed. The earlier two-worker acceptance campaign also exited
+0; see the verification record.
 
 ## Purpose
 
@@ -46,18 +47,23 @@ Ownership is the rule the whole script is built around.
 accepts, and a `schemaVersion` it does not recognise is refused rather than
 guessed at.
 
+The checked-in configuration is schema v2. The script still accepts schema v1;
+entries that omit `artifactLayoutVersion` retain the old directory convention.
+This is configuration compatibility, not an artifact migration.
+
 Scenarios are configuration rather than knowledge baked into the script, which
 is what lets an unfinished scenario sit disabled without blocking work on the
 others. Each entry supplies its own executable, its arguments per mode, the
 fault kinds it can dispatch, the prerequisites to report, and anything it
-adopts. Arguments support the tokens `{seed}`, `{artifacts}`, `{schedule}`,
-`{duration}` and `{durationSeconds}`.
+adopts. Arguments support the tokens `{seed}`, `{artifacts}`, `{campaignId}`,
+`{workerId}`, `{schedule}`, `{duration}` and `{durationSeconds}`.
 
-Two workers are registered today, because two is what exists:
+Three scenarios are registered today:
 
 | Id | What it is |
 |---|---|
 | `E4-SQL` | `NekoLib.Data` against the adopted SQL Server container; owns seven fault kinds |
+| `E3-OBS` | Logging, Telemetry and passive Inspection; owns seven scenario-local fault kinds |
 | `Data-FarmDatabase-SQLite` | the existing FarmDatabase simulation, headless; owns no faults and accepts no schedule |
 
 ## Usage
@@ -121,14 +127,28 @@ artifacts/validation/phase-e/<campaign-id>/
   owned.json        every process this campaign started, updated as each starts
   summary.json      aggregate result, worker exit codes, resource samples
   summary.md        the same, plus the orchestrator's own log
-  <scenario-id>/
-    stdout.log
-    stderr.log
+  workers/
+    <worker-id>/
+      process.stdout.log
+      process.stderr.log
+      environment.json
+      schedule.json
+      events.jsonl
+      summary.json
+      summary.md
+      <scenario-id>/
+        stdout.log
+        stderr.log
+        samples.csv
+        result.json
 ```
 
-Each worker also writes its own run directory beneath the campaign directory,
-in its own layout. The orchestrator does not rewrite or summarise a worker's
-evidence; `summary.json` indexes it.
+This is artifact layout v2. The worker owns everything below its `worker-id`;
+the orchestrator owns the campaign-level files and redirects the process streams
+to the separately named `process.*.log` files. It requires a v2 worker result at
+the indexed path during reconciliation. Scenario configuration without
+`artifactLayoutVersion: 2` retains the v1 directory convention, so old config
+files and historical artifacts remain valid and are never migrated.
 
 `owned.json` without a `summary.json` is what marks a campaign as unfinished,
 and it is how the next run finds stale processes.
@@ -139,7 +159,7 @@ and it is how the next run finds stale processes.
    `normalized-hash`; a different seed prints a different one.
 2. `-PreflightOnly` reports the engine, disk, each executable, each
    prerequisite, and anything stale, without starting a worker.
-3. `-Mode smoke` runs both workers to completion and exits 0.
+3. `-Mode smoke` runs every selected worker to completion and exits 0.
 4. `-FailWorker E4-SQL` exits 4 while the other worker still completes.
 5. Killing the orchestrator mid-campaign leaves `schedule.json` and
    `owned.json` behind; the next run reports the orphan and ends it only with
@@ -152,8 +172,9 @@ worker processes. It removes nothing.
 
 Each worker's own side effects are its own and are documented in its scenario:
 `E4-SQL` creates and drops one SQL Server database and restores the adopted
-container to the state it found; `Data-FarmDatabase-SQLite` recreates its SQLite
-fixture under `%LOCALAPPDATA%\NekoLib\FarmDatabase\`.
+container to the state it found; `E3-OBS` writes only beneath its worker
+directory; `Data-FarmDatabase-SQLite` recreates its SQLite fixture under
+`%LOCALAPPDATA%\NekoLib\FarmDatabase\`.
 
 ## Known limits
 
@@ -176,22 +197,23 @@ fixture under `%LOCALAPPDATA%\NekoLib\FarmDatabase\`.
 | 2026-08-08 | **Failed worker, aggregate exit 4.** `-FailWorker E4-SQL` launched that worker with an invalid argument; it exited 2 immediately, `Data-FarmDatabase-SQLite` still ran to completion and exited 0, and the campaign failed as a whole. |
 | 2026-08-08 | **Orchestrator killed mid-campaign.** A FarmDatabase-only campaign was killed after it had recorded ownership. `schedule.json` survived and no `summary.json` was written. The next run identified the orphan by PID, process name and start time, reported it without touching it, and ended it only when `-StopStale` was passed. |
 | 2026-08-08 | **Load finding, not a defect.** The first concurrent campaign ran with about 670 MB of free physical memory and SQL Server logins began exceeding 15 seconds in the post-login phase. `Microsoft.Data.SqlClient` then blocks further attempts to that pool for several seconds and rethrows the cached exception, so **one slow login was reported by seven consecutive checks with identical timing text**. The scenario's non-measured connections now allow 60 seconds and it no longer mints a separate pool per probe. This is machine capacity, and it is the reason a 16-hour campaign should not share this host with other heavy work. |
-
 | 2026-08-10 | **First recovery campaign, aggregate exit 0.** A single-worker `recovery` campaign with `-Duration 70m` drove `E3-OBS` for 59 minutes through all eight phases. It is also the first proof that a worker actually **dispatches from the orchestrator's schedule** rather than merely parsing it: the worker recorded the campaign's own hash `fnv1a64:57d4189e5a941ecf` and fired its seven faults in the orchestrator's order, which differs from the order that scenario generates for itself. `E4-SQL` was left out on purpose — see the load finding above. |
+| 2026-08-10 | **Artifact layout v2, aggregate exit 0.** `-Mode smoke -Duration 12s -Scenarios E3-OBS` wrote the worker result at `workers/E3-OBS-net9.0/E3-OBS/result.json`, indexed that exact path from the aggregate summary, and reconciled with no problems. Worker and aggregate both recorded `fnv1a64:683eb00b749a22bb`; 91 checks passed and none failed. A direct 8-second standalone run also exited 0 with 61 checks and retained layout v1 without a `workerId`. These shortened runs are contract regression evidence, not smoke-duration evidence. |
 
 **A recovery campaign has now run; the soak campaign has not.** The 16-hour
 campaign remains open, and the suite is explicit that it does not start merely
 because this script works. The recovery campaign that ran had a single worker,
 so multi-worker aggregation still rests on the smoke campaign above.
 
-### An artifact-layout deviation this exposed
+### Artifact-layout deviation resolved
 
-The suite specifies one run directory as `<campaign-id>/<scenario-id>/…`, but a
-worker builds its own campaign id from whatever `--artifacts` root it is handed,
-so its real output lands at
-`<campaign-id>/<worker-campaign-id>/<scenario-id>/result.json` while the
-orchestrator separately writes `<campaign-id>/<scenario-id>/stdout.log`. Two
-directories end up sharing a scenario's name with different contents, and a
-reader following the suite's layout will not find `result.json`. This affects
-every worker equally and is recorded rather than changed, because moving it
-would relocate `E4-SQL`'s recorded artifact paths as well.
+The first recovery campaign exposed a v1 nesting ambiguity: process capture and
+scenario evidence used separate directories with the same scenario name, while
+the real `result.json` sat beneath a worker-generated campaign id. Layout v2
+resolves it with explicit `--campaign-id` and `--worker-id` arguments and the
+`workers/<worker-id>/<scenario-id>/result.json` contract above. The orchestrator
+now fails reconciliation if a configured v2 worker does not write that result.
+
+The change is additive. A scenario launched without both orchestration arguments
+still generates its own campaign id and writes the standalone v1 layout. Prior
+artifact directories keep their original paths and remain historical evidence.

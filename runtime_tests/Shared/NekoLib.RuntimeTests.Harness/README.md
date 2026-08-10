@@ -10,10 +10,10 @@
 
 **Prerequisites:** none. This project references nothing but the BCL.
 
-**Last verification:** 2026-08-09 — validated by its second consumer, `E3-OBS`.
-Both targets build with no warnings, both consumers pass their smoke with exit
-0, and E4-SQL's recorded determinism hash `fnv1a64:49a3ab65b5f249e9` is
-unchanged on both targets after the boundary corrections below.
+**Last verification:** 2026-08-10 — both harness targets and both consumer
+target matrices build with no warnings. An orchestrated `E3-OBS` regression
+verified artifact layout v2, and a direct run verified that standalone layout
+v1 remains unchanged.
 
 ## Status: validated by a second consumer
 
@@ -190,12 +190,29 @@ what recovery from it looks like.
 schedule hash, so a scenario that changes it invalidates its own recorded
 determinism evidence. `E4-SQL` keeps `e4sql-schedule-1` for exactly that reason.
 
+## Artifact layout versions
+
+`RunArtifacts` has two deliberate modes:
+
+- **v1 standalone:** without orchestration arguments, the scenario generates
+  its own campaign id and writes `<campaign-id>/<scenario-id>/result.json`;
+- **v2 orchestrated:** `--campaign-id` and `--worker-id` must be supplied
+  together, and the scenario writes
+  `<campaign-id>/workers/<worker-id>/<scenario-id>/result.json`.
+
+The pair is validated as safe single path segments before any run starts.
+`environment.json`, `result.json` and `summary.md` identify the chosen layout;
+v2 also records the worker id. The harness does not move, rewrite or infer old
+artifact directories. This keeps existing evidence stable while giving a
+multi-process campaign one collision-free contract.
+
 ## Verification record
 
 | Date | Result |
 |---|---|
 | 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. **The extraction changed no check count and no assertion** — E4-SQL's smoke went from 28 checks to 29 earlier the same day, from the `state-baseline` check added while fixing the soak, and that is a separate change from this one. |
 | 2026-08-09 | **Second-consumer validation complete.** `E3-OBS` was written against this boundary and consumes `ExitCodes`, `CheckRunner`, `RunArtifacts`, `ResourceSampler`, `WorkloadCounters`, `RunSummary`, `RuntimeFacts`, `FaultSchedule`, `DeterministicRandom`, `IFaultVocabulary`, `ScenarioOptionsBase` and `JsonWriter` by name, plus `Native` and `ProcessRunner` indirectly through `RuntimeFacts`. Nothing in the harness went unused by the second consumer, which is the weaker but still useful half of the result: no piece turned out to be there for E4-SQL alone. One piece moved out (the sampler's SQL-specific columns, one of which was dead), one moved in (`RunSummary`), and two candidates were refused on the rules (the Ctrl+C handler and `--smoke-duration`). **Regression evidence:** both targets build with no warnings; E4-SQL's determinism hash is still `fnv1a64:49a3ab65b5f249e9` on `net481` and `net9.0` after the changes; E3-OBS's own hash `fnv1a64:af14ff69cf61b022` matches across both targets. |
+| 2026-08-10 | **Artifact layout v2 validated without breaking v1.** Harness, E3-OBS and E4-SQL build clean on both declared targets. A 12-second E3-ORCH/E3-OBS regression exited 0 with 91 checks, no failures, matching worker/aggregate schedule hash `fnv1a64:683eb00b749a22bb`, and the indexed result at `workers/E3-OBS-net9.0/E3-OBS/result.json`. A direct 8-second E3-OBS run exited 0 with 61 checks and wrote the original v1 shape with no `workerId`. These short runs validate the contract only; the earlier duration evidence remains authoritative. |
 
 ### What the changes cost the existing consumer
 
