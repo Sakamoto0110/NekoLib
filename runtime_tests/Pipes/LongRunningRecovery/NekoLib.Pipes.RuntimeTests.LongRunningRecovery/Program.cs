@@ -176,26 +176,28 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                 if (!await WaitForServerAsync(artifacts).ConfigureAwait(false))
                 {
                     artifacts.Error("E3-PIPE: the server child never bound '" + _pipeName + "'");
-                    return Finish(artifacts, schedule, counters, ExitCodes.PrerequisiteMissing);
+                    exitCode = ExitCodes.PrerequisiteMissing;
                 }
-
-                Server = server;
-
-                if (_options.Mode != ScenarioMode.Smoke)
+                else
                 {
-                    TimeSpan lifetime = _options.Mode == ScenarioMode.Soak
-                        ? _options.SoakDuration
-                        : _options.RehearsalDuration;
+                    Server = server;
 
-                    StartClients(context, lifetime + TimeSpan.FromMinutes(5));
+                    if (_options.Mode != ScenarioMode.Smoke)
+                    {
+                        TimeSpan lifetime = _options.Mode == ScenarioMode.Soak
+                            ? _options.SoakDuration
+                            : _options.RehearsalDuration;
+
+                        StartClients(context, lifetime + TimeSpan.FromMinutes(5));
+                    }
+
+                    RefreshChildSamples(context);
+                    sampler.Take("preflight", "post-warm-up");
+
+                    _startedUtc = DateTime.UtcNow;
+                    await RunModeAsync(context, schedule).ConfigureAwait(false);
+                    await ReportClientsAsync(context).ConfigureAwait(false);
                 }
-
-                RefreshChildSamples(context);
-                sampler.Take("preflight", "post-warm-up");
-
-                _startedUtc = DateTime.UtcNow;
-                await RunModeAsync(context, schedule).ConfigureAwait(false);
-                await ReportClientsAsync(context).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
