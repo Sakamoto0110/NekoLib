@@ -1018,8 +1018,18 @@ not mean the corresponding Phase E scenario is complete.
   and an orchestrator killed mid-campaign left its schedule behind and the next
   run identified the orphaned process, reporting it without touching it and
   ending it only on request. A two-worker smoke campaign exited 0.
-  **Still open:** a recovery rehearsal and the 16-hour campaign run through the
-  orchestrator. Neither starts merely because the script works.
+  **A recovery campaign ran on 2026-08-10:** single-worker, `-Duration 70m`,
+  driving `E3-OBS` for 59 minutes through all eight phases, aggregate exit 0. It
+  is also the first proof that a worker dispatches from the orchestrator's
+  schedule rather than only parsing it — the worker recorded the campaign's hash
+  `fnv1a64:57d4189e5a941ecf` and fired its faults in the orchestrator's order.
+  **Still open:** the 16-hour campaign, and a multi-worker campaign in any mode
+  other than smoke. Neither starts merely because the script works.
+  **Recorded, not fixed:** a worker's artifacts land at
+  `<campaign-id>/<worker-campaign-id>/<scenario-id>/` rather than at the
+  `<campaign-id>/<scenario-id>/` the suite specifies, because each scenario
+  builds its own campaign id from the `--artifacts` root it is given. It affects
+  every worker equally.
   **Recorded load finding:** the first concurrent campaign saturated the host —
   around 670 MB free, SQL Server logins past 15 seconds — and the provider's
   pool blocking period then reported one slow login as seven consecutive check
@@ -1093,11 +1103,26 @@ not mean the corresponding Phase E scenario is complete.
   `net9.0` rehearsal — 8071 operations, 8046 successes, 23 expected failures,
   2 cancellations — so the rehearsal is deterministic in its workload and not
   only in its plan.
-  **Still open, in the order they should be closed:**
-  1. A run driven by an external `--fault-schedule`, which is the path an
-     orchestrated campaign uses. Verified so far only as far as parsing.
-  2. A campaign actually executed through `E3-ORCH`.
-  3. The 16-hour soak. Now a question of duration rather than correctness.
+  **Orchestrated end to end as of 2026-08-10:** an `E3-ORCH` recovery campaign
+  ran this scenario as its worker and returned aggregate exit 0 with the worker
+  at 68 checks and 0 failed. That single run also closed the external-schedule
+  gap: the worker's recorded `scheduleHash` is the orchestrator's own
+  `fnv1a64:57d4189e5a941ecf`, and the faults fired in the orchestrator's order,
+  which differs from the order the scenario generates for itself. At 59.1
+  minutes elapsed it is correctly flagged below the rehearsal window, so it is
+  orchestration evidence rather than a third rehearsal.
+  **Still open:**
+  1. A campaign with more than one worker. `E4-SQL` was deliberately excluded
+     because E3-ORCH's own record shows a concurrent campaign saturating this
+     host into false failures; multi-worker aggregation is already proven in
+     E3-ORCH's acceptance record.
+  2. The 16-hour soak. Now a question of duration rather than correctness.
+  **Recorded, not fixed:** under an orchestrated campaign the artifact layout
+  nests one level deeper than the suite specifies, because each scenario builds
+  its own campaign id from the `--artifacts` root it is given. The worker's
+  `result.json` therefore is not at `<campaign-id>/<scenario-id>/`. This is
+  orchestrator and harness behaviour and `E4-SQL` nests identically, so changing
+  it would move that scenario's recorded artifact paths too.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a

@@ -352,7 +352,8 @@ behaviour under load and failure.
 | 2026-08-09 | `net9.0` | `--recovery-rehearsal` (default 60m) | **Exit 0**, 68 checks, 0 failed, all seven faults — but only **52.9 minutes elapsed**, below the suite's lower bound. Superseded by the 70m run above and kept here because it is why the window flag is now judged on elapsed time rather than on the requested duration. |
 | 2026-08-09 | `net9.0` | `--soak 15m` | **Exit 0 — the first soak to run to natural completion.** 3848 checks, 0 failed, 0 skipped, 903s, 128 cycles, 1 324 827 operations, **zero unexpected failures**. **All seven fault kinds fired while the capability cycles were running** and all seven passed, which is the claim the earlier interrupted soaks could not make. Threads 14 → 19, handles 283 → 311 — in line with the smoke despite the added fault traffic. Managed heap 2.1 → 4.5 MiB, rising at 67 of 127 periodic samples. 1413 files removed at cleanup. Schedule `fnv1a64:173b5243f59382ef`. |
 | 2026-08-09 | `net9.0` | Ctrl+C on `--soak` | **Exit 8.** A real `CTRL_BREAK` to the process reached the handler; 144 checks passed, 6 skipped as interrupted, 0 failed; the workspace disposed, the process-wide slot was restored, and the working directory was removed. |
-| 2026-08-09 | `net9.0` | `E3-ORCH` schedule | The orchestrator generates a 7-fault schedule for this scenario from `campaign.json`, and the scenario loads all 7 events back through `--fault-schedule` with matching offsets and kinds. |
+| 2026-08-10 | `net9.0` | `E3-ORCH` campaign, `recovery`, `-Duration 70m` | **Aggregate exit 0, worker exit 0.** All eight campaign phases ran, and the worker passed 68 checks with 0 failed across all four phases. **This is the run that proves `--fault-schedule` end to end**: the worker's recorded `scheduleHash` is the orchestrator's own `fnv1a64:57d4189e5a941ecf`, and the seven faults fired in the orchestrator's order, which differs from the order the scenario generates for itself. Elapsed 59.1 minutes, so `belowSpecifiedWindow: true` — correctly, and this run is therefore orchestration evidence, not rehearsal evidence. |
+| 2026-08-09 | `net9.0` | `E3-ORCH` schedule parsing | The orchestrator generates a 7-fault schedule for this scenario from `campaign.json`, and the scenario loads all 7 events back through `--fault-schedule` with matching offsets and kinds. Superseded by the campaign above, which dispatches from it rather than only parsing it. |
 
 ### What is still open
 
@@ -361,11 +362,34 @@ behaviour under load and failure.
   — so what remains is duration, not correctness. The host must not share it
   with other heavy work: the `resources` check asserts thread and handle drift,
   and a contended host would make that measurement meaningless.
-- **`--fault-schedule` has never driven a real run.** The round-trip is
-  verified only as far as parsing: `E3-ORCH` generates a schedule, and the
-  scenario loads all seven events back with matching offsets and kinds under
-  `--print-schedule`. No run has actually dispatched faults from a schedule
-  generated elsewhere, which is the path an orchestrated campaign uses.
-- A campaign actually executed through `E3-ORCH`. The scenario is registered in
-  `campaign.json` and the schedule round-trip is verified, but no orchestrated
-  campaign has been run with it as a worker.
+- A campaign with **more than one worker**. The orchestrated campaign that ran
+  used this scenario alone. `E4-SQL` was left out deliberately: `E3-ORCH`'s own
+  record documents that a concurrent campaign saturated this host and turned one
+  slow SQL Server login into seven consecutive check failures, which would be a
+  false negative, and it would also contaminate this scenario's resource-drift
+  measurement. Multi-worker aggregation is already proven separately in
+  `E3-ORCH`'s own acceptance record.
+
+### An artifact-layout deviation, found by the orchestrated campaign
+
+The suite specifies one run directory as `<campaign-id>/<scenario-id>/…`. Under
+an orchestrated campaign the real layout is one level deeper, because the
+scenario builds its own campaign id from whatever `--artifacts` root it is
+given:
+
+```text
+campaign-recovery-…/
+  E3-OBS/                       <- the orchestrator's capture of the worker's streams
+    stdout.log  stderr.log
+  e3obs-recovery-net9.0-…/      <- the scenario's own run directory
+    environment.json  schedule.json  summary.json  summary.md
+    E3-OBS/
+      result.json  samples.csv  stdout.log  stderr.log
+  schedule.json  summary.json  summary.md  owned.json
+```
+
+So there are two `E3-OBS` directories with different contents, and the worker's
+`result.json` is not where the suite's layout says to look for it. This is
+orchestrator and harness behaviour, not something specific to this scenario —
+`E4-SQL` nests the same way. It is recorded rather than fixed: changing it would
+move `E4-SQL`'s recorded artifact paths too, and that is a separate decision.

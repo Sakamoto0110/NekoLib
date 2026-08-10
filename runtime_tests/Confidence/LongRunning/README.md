@@ -177,6 +177,21 @@ fixture under `%LOCALAPPDATA%\NekoLib\FarmDatabase\`.
 | 2026-08-08 | **Orchestrator killed mid-campaign.** A FarmDatabase-only campaign was killed after it had recorded ownership. `schedule.json` survived and no `summary.json` was written. The next run identified the orphan by PID, process name and start time, reported it without touching it, and ended it only when `-StopStale` was passed. |
 | 2026-08-08 | **Load finding, not a defect.** The first concurrent campaign ran with about 670 MB of free physical memory and SQL Server logins began exceeding 15 seconds in the post-login phase. `Microsoft.Data.SqlClient` then blocks further attempts to that pool for several seconds and rethrows the cached exception, so **one slow login was reported by seven consecutive checks with identical timing text**. The scenario's non-measured connections now allow 60 seconds and it no longer mints a separate pool per probe. This is machine capacity, and it is the reason a 16-hour campaign should not share this host with other heavy work. |
 
-**No recovery or soak campaign has been run through the orchestrator.** Only
-smoke has. The 60–90 minute rehearsal and the 16-hour campaign remain open, and
-the suite is explicit that neither starts merely because this script works.
+| 2026-08-10 | **First recovery campaign, aggregate exit 0.** A single-worker `recovery` campaign with `-Duration 70m` drove `E3-OBS` for 59 minutes through all eight phases. It is also the first proof that a worker actually **dispatches from the orchestrator's schedule** rather than merely parsing it: the worker recorded the campaign's own hash `fnv1a64:57d4189e5a941ecf` and fired its seven faults in the orchestrator's order, which differs from the order that scenario generates for itself. `E4-SQL` was left out on purpose — see the load finding above. |
+
+**A recovery campaign has now run; the soak campaign has not.** The 16-hour
+campaign remains open, and the suite is explicit that it does not start merely
+because this script works. The recovery campaign that ran had a single worker,
+so multi-worker aggregation still rests on the smoke campaign above.
+
+### An artifact-layout deviation this exposed
+
+The suite specifies one run directory as `<campaign-id>/<scenario-id>/…`, but a
+worker builds its own campaign id from whatever `--artifacts` root it is handed,
+so its real output lands at
+`<campaign-id>/<worker-campaign-id>/<scenario-id>/result.json` while the
+orchestrator separately writes `<campaign-id>/<scenario-id>/stdout.log`. Two
+directories end up sharing a scenario's name with different contents, and a
+reader following the suite's layout will not find `result.json`. This affects
+every worker equally and is recorded rather than changed, because moving it
+would relocate `E4-SQL`'s recorded artifact paths as well.
