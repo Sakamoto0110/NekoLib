@@ -1076,22 +1076,23 @@ not mean the corresponding Phase E scenario is complete.
   as far as *parsing*, under `--print-schedule`; no run has dispatched faults
   from an externally generated schedule, and no orchestrated campaign has been
   run with this scenario as a worker.
+  **The soak path is proven as of 2026-08-09:** `--soak 15m` exited 0 with 3848
+  checks, 0 failed, 0 skipped, 128 cycles and 1 324 827 operations at zero
+  unexpected failures, and **all seven fault kinds fired while the assertion
+  cycles were running**, each passing. Thread and handle drift matched the
+  smoke's despite the added fault traffic. It completed on the first attempt,
+  where E4-SQL's soak needed three — because the two concurrency defects the
+  *sustained smoke* had already exposed were fixed before any fault and
+  assertion first overlapped. A sustained smoke is far cheaper than a soak and
+  finds the same class of problem.
   **Still open, in the order they should be closed:**
-  1. **A short soak that runs to natural completion.** `--soak` has never
-     finished a run. Four were started; two were interrupted at 27 seconds by
-     the Ctrl+C tests and two were hard-killed. Three fault dispatches did fire
-     concurrently with the cycle loop and all passed, so the path is partially
-     exercised, but that covers three of seven kinds from a build predating the
-     sample-inside-the-gate fix. The soak is the only mode where faults and
-     assertions overlap, and E4-SQL's soak took three runs to work. 20–30
-     minutes would settle it.
-  2. A run driven by an external `--fault-schedule`, which is the path an
-     orchestrated campaign uses.
-  3. The 16-hour soak, after 1 and 2.
-  4. A `net481` rehearsal. Nothing in the scenario is target-conditional, so the
+  1. A run driven by an external `--fault-schedule`, which is the path an
+     orchestrated campaign uses. Verified so far only as far as parsing.
+  2. A `net481` rehearsal. Nothing in the scenario is target-conditional, so the
      `net481` smoke plus the `net9.0` rehearsal cover the matrix, but the
      `net481` rehearsal itself has not run.
-  5. A campaign actually executed through `E3-ORCH`.
+  3. A campaign actually executed through `E3-ORCH`.
+  4. The 16-hour soak. Now a question of duration rather than correctness.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a

@@ -290,6 +290,14 @@ this class of problem and it cost real time.
    expected 1000 lines while seeing 2000. Scratch paths are now unique per
    invocation.
 
+Both were found by the *smoke*, not the soak, because the sustained smoke runs
+the same cycle loop. That is why the soak later completed on its first attempt
+where `E4-SQL`'s needed three: the two defects above, plus moving the periodic
+sample inside the exclusivity gate, were already fixed by the time a fault and
+an assertion first overlapped. A sustained smoke is much cheaper than a soak and
+finds the same class of problem — it is worth running one before any long
+campaign.
+
 ### Three reporting defects this scenario exposed, and their fixes
 
 None of these changed a verdict; all three made a run *describe itself* wrongly,
@@ -341,30 +349,17 @@ behaviour under load and failure.
 | 2026-08-09 | `net481` | `--smoke` (15m) | **Exit 0.** 4591 checks, 0 failed, 0 skipped, 903s. 152 cycles; 1 575 277 operations with **zero unexpected failures**. Threads 15 → 27, handles 302 → 389 — a larger drift than `net9.0` showed, and still flat against 152 cycles that each build and dispose a dozen loggers. Managed heap 3.8 → 6.3 MiB, rising at 80 of 151 periodic samples. 1687 files removed at cleanup. The process ran **x64**, so its memory samples are comparable with the other target's. |
 | 2026-08-09 | `net9.0` | `--recovery-rehearsal --rehearsal-duration 70m` | **Exit 0.** 68 checks, 0 failed, 0 skipped, **62.3 minutes elapsed — inside the specified 60–90 window**, `belowSpecifiedWindow: false`. **All seven fault kinds proven**, each with its documented terminal, a successful post-recovery probe, and provider/registration counts back to baseline. 8071 operations, 23 expected failures, **zero unexpected failures**. Threads 14 → 18, handles 282 → 306. Schedule `fnv1a64:962fea82f7477901`. |
 | 2026-08-09 | `net9.0` | `--recovery-rehearsal` (default 60m) | **Exit 0**, 68 checks, 0 failed, all seven faults — but only **52.9 minutes elapsed**, below the suite's lower bound. Superseded by the 70m run above and kept here because it is why the window flag is now judged on elapsed time rather than on the requested duration. |
+| 2026-08-09 | `net9.0` | `--soak 15m` | **Exit 0 — the first soak to run to natural completion.** 3848 checks, 0 failed, 0 skipped, 903s, 128 cycles, 1 324 827 operations, **zero unexpected failures**. **All seven fault kinds fired while the capability cycles were running** and all seven passed, which is the claim the earlier interrupted soaks could not make. Threads 14 → 19, handles 283 → 311 — in line with the smoke despite the added fault traffic. Managed heap 2.1 → 4.5 MiB, rising at 67 of 127 periodic samples. 1413 files removed at cleanup. Schedule `fnv1a64:173b5243f59382ef`. |
 | 2026-08-09 | `net9.0` | Ctrl+C on `--soak` | **Exit 8.** A real `CTRL_BREAK` to the process reached the handler; 144 checks passed, 6 skipped as interrupted, 0 failed; the workspace disposed, the process-wide slot was restored, and the working directory was removed. |
 | 2026-08-09 | `net9.0` | `E3-ORCH` schedule | The orchestrator generates a 7-fault schedule for this scenario from `campaign.json`, and the scenario loads all 7 events back through `--fault-schedule` with matching offsets and kinds. |
 
 ### What is still open
 
-- **`--soak` has never completed a run.** This is the largest gap and it is
-  bigger than the 16-hour campaign. Four soaks were started; two were
-  interrupted at 27 seconds by the Ctrl+C tests, and two were hard-killed after
-  a couple of minutes when an earlier interrupt technique failed to deliver its
-  signal. Between them **three fault dispatches did fire concurrently with the
-  capability cycle loop and all three passed**, which is genuine but partial
-  evidence: it covers three of the seven kinds, and it came from a build
-  predating the fix that moves the periodic sample inside the exclusivity gate.
-  The soak is the only mode where faults and assertions overlap, and the suite's
-  own history says that is where the problems are — E4-SQL's soak took three
-  runs to work. **A short soak of 20–30 minutes that runs to natural completion
-  should come before the 16-hour campaign**, not after it.
-  (The two hard-killed runs left their `work/` directories behind, which is
-  correct: `TerminateProcess` bypasses cleanup entirely, and only a graceful
-  shutdown is claimed to reconcile.)
-- The 16-hour soak. Per the suite it starts only after smoke and rehearsal pass,
-  and it should not start before the point above is settled. The host must not
-  share it with other heavy work — the `resources` check asserts thread and
-  handle drift, and a contended host would make that measurement meaningless.
+- The 16-hour soak. The path itself is now proven — a 15-minute soak completed
+  with exit 0 and fired all seven faults concurrently with the assertion cycles
+  — so what remains is duration, not correctness. The host must not share it
+  with other heavy work: the `resources` check asserts thread and handle drift,
+  and a contended host would make that measurement meaningless.
 - **`--fault-schedule` has never driven a real run.** The round-trip is
   verified only as far as parsing: `E3-ORCH` generates a schedule, and the
   scenario loads all seven events back with matching offsets and kinds under
