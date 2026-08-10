@@ -19,7 +19,7 @@
     smoke, recovery, or soak.
 
 .PARAMETER Duration
-    Campaign window, for example 20m, 90m, 16h. Defaults per mode.
+    Campaign window, for example 20m, 90m, 4h. Defaults per mode.
 
 .PARAMETER Seed
     Integer seed. The same seed and duration must produce the same normalized
@@ -116,7 +116,7 @@ function ConvertTo-Duration {
 
     $amount = 0.0
     if (-not [double]::TryParse($number, [ref] $amount) -or $amount -le 0) {
-        throw "'$Text' is not a positive duration; use a form like 20m, 90m or 16h."
+        throw "'$Text' is not a positive duration; use a form like 20m, 90m or 4h."
     }
 
     switch ($suffix.ToLowerInvariant()) {
@@ -132,7 +132,7 @@ function Get-DefaultDuration {
     switch ($ForMode) {
         'smoke' { return [timespan]::FromMinutes(20) }
         'recovery' { return [timespan]::FromMinutes(60) }
-        default { return [timespan]::FromHours(16) }
+        default { return [timespan]::FromHours(4) }
     }
 }
 

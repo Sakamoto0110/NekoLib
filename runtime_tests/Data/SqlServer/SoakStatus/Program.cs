@@ -10,7 +10,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.SoakStatus
     /// <summary>
     /// A window that says how long the soak has been running, and nothing else.
     /// <para/>
-    /// It exists so a sixteen-hour run can be checked with a glance instead of
+    /// It exists so a four-hour run can be checked with a glance instead of
     /// a terminal. It references neither the scenario nor the library, watches
     /// a clock and optionally a process id, and has no way to influence the run
     /// it reports on - a status window that could disturb the measurement would

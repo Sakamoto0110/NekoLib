@@ -992,10 +992,20 @@ The accepted implementation brief is the versioned
 [`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md). It divides
 the work into independent Navigation, Observability, Pipes, Watchdog, Devices,
 Data/SQL Server, and orchestration scenarios without creating a new runtime
-framework. The final campaign is 16 hours, preceded by a 15–30 minute smoke and
+framework. The final campaign is 4 hours, preceded by a 15–30 minute smoke and
 a 60–90 minute recovery rehearsal. Faults are generated deterministically from
 an integer seed, persisted before launch as monotonic offsets, and injected only
 by scenario-owned processes or the orchestrator.
+
+**Duration decision, 2026-08-10:** the final campaign requirement was reduced
+prospectively from 16 hours to 4 hours. Sixteen uninterrupted idle hours require
+machine preparation disproportionate to the remaining confidence gain after
+smoke, rehearsal and deterministic fault coverage. Four hours is the accepted
+long-run gate; previous short runs remain path evidence and are not promoted to
+full-duration evidence by this decision. A later 16-hour soak remains a valid
+optional confidence campaign, especially for very slow leaks or drift, but it
+is not a Phase E completion requirement and does not block closure after a
+passing 4-hour campaign.
 
 #### Phase E runtime scenario delivery
 
@@ -1023,7 +1033,7 @@ not mean the corresponding Phase E scenario is complete.
   is also the first proof that a worker dispatches from the orchestrator's
   schedule rather than only parsing it — the worker recorded the campaign's hash
   `fnv1a64:57d4189e5a941ecf` and fired its faults in the orchestrator's order.
-  **Still open:** the 16-hour campaign, and a multi-worker campaign in any mode
+  **Still open:** the 4-hour campaign, and a multi-worker campaign in any mode
   other than smoke. Neither starts merely because the script works.
   **Artifact layout v2 implemented and verified on 2026-08-10:** orchestrated
   scenarios now receive explicit campaign and worker identities and write below
@@ -1037,7 +1047,7 @@ not mean the corresponding Phase E scenario is complete.
   around 670 MB free, SQL Server logins past 15 seconds — and the provider's
   pool blocking period then reported one slow login as seven consecutive check
   failures. That is machine capacity, not a product defect, and it is why the
-  16-hour campaign should not share this host with other heavy work.
+  multi-hour campaign should not share this host with other heavy work.
 - [ ] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
   and WPF smoke applications exist and have interactive evidence; the dedicated
   unattended workload, resource assertions, recovery rehearsal, and long run
@@ -1116,7 +1126,7 @@ not mean the corresponding Phase E scenario is complete.
      because E3-ORCH's own record shows a concurrent campaign saturating this
      host into false failures; multi-worker aggregation is already proven in
      E3-ORCH's acceptance record.
-  2. The 16-hour soak. Now a question of duration rather than correctness.
+  2. The 4-hour soak. Now a question of duration rather than correctness.
   **Artifact layout finding closed on 2026-08-10:** layout v2 places this
   worker's result at
   `<campaign-id>/workers/E3-OBS-net9.0/E3-OBS/result.json`, records the layout
@@ -1125,7 +1135,7 @@ not mean the corresponding Phase E scenario is complete.
   matching worker/aggregate schedule hash. The standalone v1 path remains
   supported and its historical artifacts were not moved. This regression is
   layout evidence, not a replacement for the completed 15-minute smoke or the
-  still-open 16-hour soak.
+  still-open 4-hour soak.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a
@@ -1212,7 +1222,7 @@ not mean the corresponding Phase E scenario is complete.
   leaked its database; and steady-state background traffic shared the workspace
   whose lifecycle counters several checks zero and assert on. All three are
   fixed and recorded in the scenario README.
-  **Still open: the 16-hour campaign itself**, which is now a calendar decision
+  **Still open: the 4-hour campaign itself**, which is now a calendar decision
   rather than a risk. It must not share the host with other heavy work.
   **Container revalidated 2026-08-08 by querying Docker directly:** the pinned
   `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` image resolves to

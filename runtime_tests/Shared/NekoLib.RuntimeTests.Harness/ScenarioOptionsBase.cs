@@ -266,7 +266,7 @@ namespace NekoLib.RuntimeTests.Harness
 
             if (string.IsNullOrWhiteSpace(text))
             {
-                diagnostic = "a duration is required, for example 16h, 90m or 45s";
+                diagnostic = "a duration is required, for example 4h, 90m or 45s";
                 return false;
             }
 
@@ -322,7 +322,7 @@ namespace NekoLib.RuntimeTests.Harness
                 string.Empty,
                 "  --smoke                     every workload class, no destructive fault density",
                 "  --recovery-rehearsal        every enabled failure and recovery transition",
-                "  --soak <duration>           sustained run, for example 16h",
+                "  --soak <duration>           sustained run, for example 4h",
                 string.Empty,
                 "  --rehearsal-duration <d>    rehearsal window, default 60m (the suite specifies 60-90m)",
                 "  --seed <integer>            seeds the deterministic fault schedule",

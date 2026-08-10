@@ -13,7 +13,7 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Sinks
     /// The message shape every scenario write uses, so a sink can verify
     /// ordering without keeping the entries.
     /// <para/>
-    /// A sink that retained what it received would be a leak in a 16-hour soak,
+    /// A sink that retained what it received would be a leak in a multi-hour soak,
     /// and a leak in the measuring instrument is worse than no measurement. The
     /// writer and sequence are encoded in the message and checked incrementally,
     /// which costs a fixed number of bytes however long the run is.

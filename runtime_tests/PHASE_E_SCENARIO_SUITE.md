@@ -96,7 +96,9 @@ Requirements:
   class without destructive fault density.
 - `--recovery-rehearsal` lasts approximately 60 to 90 minutes and proves every
   enabled failure and recovery transition at least once.
-- the final campaign lasts 16 hours after smoke and rehearsal pass;
+- the final campaign lasts 4 hours after smoke and rehearsal pass;
+- an optional 16-hour extended soak may add confidence in very slow leaks or
+  drift, but it is not required for scenario or Phase E completion;
 - success returns exit code `0`; assertion, timeout, leak, cleanup, or
   unexpected terminal outcomes return a nonzero code;
 - Ctrl+C and normal process termination perform bounded cleanup and still write
@@ -324,7 +326,7 @@ successful navigation.
 
 ### Acceptance
 
-All three target/platform combinations must complete smoke mode. The 16-hour
+All three target/platform combinations must complete smoke mode. The 4-hour
 claim requires at least one native host to complete the full soak and the other
 combinations to complete smoke plus recovery rehearsal. Record the exact matrix
 instead of generalizing one adapter to the other. No change to the canonical
@@ -749,7 +751,7 @@ extended and verified for that provider.
 Both target frameworks must pass the smoke and cancellation matrices against
 the same recorded server image. Recovery rehearsal must prove command,
 transaction, streaming, pool, network, and container restart behavior. The
-16-hour Data claim requires sustained sessions/transactions/reads plus the
+4-hour Data claim requires sustained sessions/transactions/reads plus the
 dynamic-shape workload and deterministic failure schedule, with no leaked
 connection, command, transaction, reader, stream, or container resource.
 
@@ -776,7 +778,8 @@ be expressed through the current seam.
 | Repeated Data connection/session use; disposal; transactions; streaming cleanup | `E4-SQL` plus existing FarmDatabase evidence |
 | Data provider failures and cancellation | `E4-SQL` |
 | Unattended script, schedule, deterministic cleanup, and aggregate exit code | `E3-ORCH` |
-| Sixteen-hour deterministic seeded crash/failure campaign | `E3-ORCH` and each fault-owning scenario |
+| Required four-hour deterministic seeded crash/failure campaign | `E3-ORCH` and each fault-owning scenario |
+| Optional sixteen-hour extended confidence campaign | `E3-ORCH` and any selected fault-owning scenario |
 | No unbounded memory/handler growth, leaked resources, deadlocks, or unreleased gates | Every scenario, aggregated by `E3-ORCH` |
 | Real/emulated COM with an independent oracle and explicit physical limits | Existing Com0Com plus `E3-DEV` extension |
 | SQLite baseline and Access positional binding | Existing FarmDatabase evidence |
@@ -802,7 +805,7 @@ be expressed through the current seam.
    merging the two scenarios' assertions.
 6. Run smoke for every implemented target, then recovery rehearsal.
 7. Freeze the exact scenario/source commit, dependency versions, environment,
-   and schedule generator before starting the 16-hour campaign.
+   and schedule generator before starting the 4-hour campaign.
 
 Do not start the final campaign merely because a project builds. Every selected
 scenario must first pass its smoke and recovery rehearsal with automated exit

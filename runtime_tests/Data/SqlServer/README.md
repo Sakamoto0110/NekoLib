@@ -132,7 +132,7 @@ dotnet build runtime_tests/Data/SqlServer/NekoLib.Data.RuntimeTests.SqlServer/Ne
 |---|---|
 | `--smoke` | every workload class, no destructive fault density |
 | `--recovery-rehearsal` | every enabled failure and recovery transition |
-| `--soak <duration>` | sustained run, for example `16h` |
+| `--soak <duration>` | sustained run, for example `4h` |
 | `--rehearsal-duration <d>` | rehearsal window, default `60m` |
 | `--seed <integer>` | seeds the schema, the data, and the fault schedule |
 | `--artifacts <absolute-dir>` | run directory root |
@@ -149,17 +149,17 @@ how the process happened to be launched.
 ## Watching a long run
 
 `SoakStatus` is a small always-on-top window that says how long the run has
-been going. It exists so a sixteen-hour run can be checked with a glance
+been going. It exists so a four-hour run can be checked with a glance
 instead of a terminal.
 
 ```powershell
 dotnet build runtime_tests/Data/SqlServer/SoakStatus/NekoLib.Data.RuntimeTests.SqlServer.SoakStatus.csproj
-.\runtime_tests\Data\SqlServer\SoakStatus\bin\Debug\net10.0-windows\SoakStatus.exe --duration 16h
+.\runtime_tests\Data\SqlServer\SoakStatus\bin\Debug\net10.0-windows\SoakStatus.exe --duration 4h
 ```
 
 | Option | Meaning |
 |---|---|
-| `--duration 16h` | adds "time left" and the expected end time |
+| `--duration 4h` | adds "time left" and the expected end time |
 | `--started <ISO8601 UTC>` | count from when the run actually began, not from when the window opened |
 | `--pid <n>` | watch the scenario process; the window turns green and shows its exit code when it ends |
 | `--title <text>` | defaults to `--soak running` |
@@ -172,8 +172,8 @@ To have it follow the run and report its outcome, launch the scenario first and
 pass its id:
 
 ```powershell
-$soak = Start-Process .\...\NekoLib.Data.RuntimeTests.SqlServer.exe -ArgumentList '--soak','16h','--seed','20260808' -PassThru
-Start-Process .\...\SoakStatus.exe -ArgumentList '--duration','16h','--pid',$soak.Id
+$soak = Start-Process .\...\NekoLib.Data.RuntimeTests.SqlServer.exe -ArgumentList '--soak','4h','--seed','20260808' -PassThru
+Start-Process .\...\SoakStatus.exe -ArgumentList '--duration','4h','--pid',$soak.Id
 ```
 
 ## Procedure and expected result
@@ -442,7 +442,7 @@ cheap, and this is the first evidence in the repository that it does.
 | 2026-08-08 | `net9.0` | **Recovery rehearsal inside the specified window, exit 0.** 31 checks, 0 failed, 0 skipped, in 4924s (82 minutes) with `--rehearsal-duration 90m`. All seven fault handlers passed: `transport-loss-during-command` 21.5s, `connect-while-server-down` 73.1s, `transport-loss-during-stream` 22.4s, `schema-recreation` 0.1s, `container-restart` 17.6s, `stale-pooled-connection` 20.9s, `transport-loss-during-transaction` 20.5s. 4871 operations, 4848 successes, 10 expected failures, **0 unexpected failures**, 13 cancellations. The database was dropped and the container returned to `exited`. **This is the run that satisfies the suite's rehearsal requirement**, and it must be `net9.0`: `net481` skips the streaming fault entirely. |
 | 2026-08-08 | `net481` | **Recovery rehearsal, exit 0, below the window.** 29 checks passed, 0 failed, 2 skipped, in 538s with `--rehearsal-duration 10m`. The two skips are `mid-flight-streaming` and `transport-loss-during-stream`, absent below net6 by design, so this target covers six of the seven faults and can never cover the seventh. The six produced the same provider error numbers as `net9.0` — `1225`, `10054`, `10053` — which is the result one wants from a library that promises both targets. 540 operations, 0 unexpected failures. Below the specified window, so it is a second data point rather than rehearsal evidence. |
 | 2026-08-08 | both TFMs | **Shared harness extracted; behaviour unchanged.** The scenario-agnostic half moved to `runtime_tests/Shared/NekoLib.RuntimeTests.Harness/`. Both targets build clean, smoke exits 0 with the same data digest, and the recorded schedule hash `fnv1a64:49a3ab65b5f249e9` is byte-identical on both — which is what proves the move did not disturb determinism. **The extraction changed no check count:** smoke reports 29 rather than the 28 recorded below because of the `state-baseline` check added while fixing the soak earlier the same day, which is a separate change. |
-| 2026-08-08 | `net9.0` | **Soak, exit 0, third attempt.** `--soak 15m` ran 911s with **85439 checks passed, 0 failed, 0 skipped** and 335283 operations — 313920 successes, 21363 expected failures, **0 unexpected failures**. All seven faults executed concurrently with the workload cycles and every one recovered. The database was dropped and the container returned to `exited`. The soak path is proven; the 16-hour campaign is now a calendar decision rather than a risk. |
+| 2026-08-08 | `net9.0` | **Soak, exit 0, third attempt.** `--soak 15m` ran 911s with **85439 checks passed, 0 failed, 0 skipped** and 335283 operations — 313920 successes, 21363 expected failures, **0 unexpected failures**. All seven faults executed concurrently with the workload cycles and every one recovered. The database was dropped and the container returned to `exited`. The soak path is proven; the full-duration campaign is now a calendar decision rather than a risk. |
 | 2026-08-08 | `net9.0` | **Soak, exit 4, second attempt.** 88423 checks passed, **12 failed — all of them `provider-error-propagation`**, on counters: two dispatches where one was expected, one success where none was. Steady-state traffic between faults was sharing the workspace whose lifecycle counters that check zeroes and asserts on. 348584 operations, 0 unexpected failures. The crash was gone; the accounting was not. |
 | 2026-08-08 | `net9.0` | **Soak, exit 7, first attempt — a scenario defect, not a product one.** `--soak 15m` died outside every check with `SqlException 10054` from `ScenarioSchema.DigestAsync`, called on the first line of `TransactionMatrix.RunAsync` while a scheduled fault had the container stopped. See the open defects below. Before dying it had run 8486 checks with 3 failures and 36396 operations in 126s, so the workload itself holds; the coordination does not. Cleanup then could not drop its database because the server was down, leaving one behind. |
 | 2026-08-08 | both TFMs | **Schedule determinism, verified.** `--recovery-rehearsal --seed 20260808 --print-schedule` produced `fnv1a64:49a3ab65b5f249e9` on two consecutive `net481` runs and on `net9.0`, and seed `99` produced a different hash. The generated plan holds 7 faults with 288-second quiet windows at both ends. This is the one acceptance criterion that needs no server, and it is the reason the generator carries its own PRNG and hash rather than the BCL's. |
@@ -454,8 +454,8 @@ them could have been found by smoke or by the rehearsal, because in both of
 those the matrices run before and after the fault window and never during it.
 Only the soak overlaps assertions with faults.
 
-They were found by running `--soak 15m` three times before committing a night
-to sixteen hours. The first run would have died inside the first twenty
+They were found by running `--soak 15m` three times before committing a long
+unattended window. The first run would have died inside the first twenty
 minutes.
 
 **1. Assertion matrices ran concurrently with container-stopping faults**
@@ -483,15 +483,17 @@ dispatch and no successes and saw two and one. Steady traffic now has its own
 gateway; it touches nobody's counters.
 
 The third is the one worth remembering: the first fix was half a fix, and the
-run that proved it was half a fix is the only reason the sixteen-hour campaign
+run that proved it was half a fix is the only reason the full-duration campaign
 will not fail on a counter.
 
 ### What is still open
 
-- **The 16-hour soak.** Never started. No longer blocked: `--soak 15m` now
+- **The 4-hour soak.** Never started. No longer blocked: `--soak 15m` now
   passes with exit 0, so the path is proven and the remaining question is
   calendar rather than risk. The host must not share the run with other heavy
   work — see the load finding in the orchestrator's record.
+  A 16-hour run remains supported as optional extended confidence, but does not
+  block closure once the required 4-hour soak passes.
 - **The FarmDatabase interactive pass** at campaign start and end, which the
   suite asks for alongside this scenario and which stays SQLite/Access evidence.
 

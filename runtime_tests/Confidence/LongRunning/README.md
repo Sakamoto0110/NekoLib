@@ -75,7 +75,7 @@ Three scenarios are registered today:
 | Option | Meaning |
 |---|---|
 | `-Mode smoke\|recovery\|soak` | which mode each scenario is asked for |
-| `-Duration 90m` | campaign window; defaults are 20m, 60m and 16h |
+| `-Duration 90m` | campaign window; defaults are 20m, 60m and 4h |
 | `-Seed 20260808` | seeds the fault schedule |
 | `-Scenarios E4-SQL,...` | explicit list; defaults to every enabled scenario |
 | `-Build` | builds each selected project first, explicitly |
@@ -83,6 +83,10 @@ Three scenarios are registered today:
 | `-PrintScheduleOnly` | prints the schedule and stops, touching nothing |
 | `-FailWorker <id>` | launches one worker with an invalid argument, on purpose |
 | `-StopStale` | ends processes an earlier unfinished campaign recorded |
+
+Soak defaults to the required 4-hour gate. `-Duration 16h` remains supported as
+an optional extended-confidence run for slow leak or drift detection; it never
+blocks Phase E closure after the 4-hour gate passes.
 
 Exit codes match the scenarios' own contract: `0` success, `2` usage, `3`
 prerequisite, `4` a worker failed, `5` a worker outlived the deadline, `6`
@@ -196,14 +200,16 @@ directory; `Data-FarmDatabase-SQLite` recreates its SQLite fixture under
 | 2026-08-08 | **Two-worker smoke campaign, aggregate exit 0.** `E4-SQL` and `Data-FarmDatabase-SQLite` both exited 0. Two orchestrator defects were found and fixed by earlier attempts at this same run: `Start-Process -PassThru` returns a process whose `ExitCode` is null after exit unless its `Handle` is touched first, so **every worker was initially reported as failed**, including one that had passed; and two campaigns starting inside the same second produced the same campaign id and the second silently reused the first's directory. |
 | 2026-08-08 | **Failed worker, aggregate exit 4.** `-FailWorker E4-SQL` launched that worker with an invalid argument; it exited 2 immediately, `Data-FarmDatabase-SQLite` still ran to completion and exited 0, and the campaign failed as a whole. |
 | 2026-08-08 | **Orchestrator killed mid-campaign.** A FarmDatabase-only campaign was killed after it had recorded ownership. `schedule.json` survived and no `summary.json` was written. The next run identified the orphan by PID, process name and start time, reported it without touching it, and ended it only when `-StopStale` was passed. |
-| 2026-08-08 | **Load finding, not a defect.** The first concurrent campaign ran with about 670 MB of free physical memory and SQL Server logins began exceeding 15 seconds in the post-login phase. `Microsoft.Data.SqlClient` then blocks further attempts to that pool for several seconds and rethrows the cached exception, so **one slow login was reported by seven consecutive checks with identical timing text**. The scenario's non-measured connections now allow 60 seconds and it no longer mints a separate pool per probe. This is machine capacity, and it is the reason a 16-hour campaign should not share this host with other heavy work. |
+| 2026-08-08 | **Load finding, not a defect.** The first concurrent campaign ran with about 670 MB of free physical memory and SQL Server logins began exceeding 15 seconds in the post-login phase. `Microsoft.Data.SqlClient` then blocks further attempts to that pool for several seconds and rethrows the cached exception, so **one slow login was reported by seven consecutive checks with identical timing text**. The scenario's non-measured connections now allow 60 seconds and it no longer mints a separate pool per probe. This is machine capacity, and it is the reason a multi-hour campaign should not share this host with other heavy work. |
 | 2026-08-10 | **First recovery campaign, aggregate exit 0.** A single-worker `recovery` campaign with `-Duration 70m` drove `E3-OBS` for 59 minutes through all eight phases. It is also the first proof that a worker actually **dispatches from the orchestrator's schedule** rather than merely parsing it: the worker recorded the campaign's own hash `fnv1a64:57d4189e5a941ecf` and fired its seven faults in the orchestrator's order, which differs from the order that scenario generates for itself. `E4-SQL` was left out on purpose — see the load finding above. |
 | 2026-08-10 | **Artifact layout v2, aggregate exit 0.** `-Mode smoke -Duration 12s -Scenarios E3-OBS` wrote the worker result at `workers/E3-OBS-net9.0/E3-OBS/result.json`, indexed that exact path from the aggregate summary, and reconciled with no problems. Worker and aggregate both recorded `fnv1a64:683eb00b749a22bb`; 91 checks passed and none failed. A direct 8-second standalone run also exited 0 with 61 checks and retained layout v1 without a `workerId`. These shortened runs are contract regression evidence, not smoke-duration evidence. |
 
-**A recovery campaign has now run; the soak campaign has not.** The 16-hour
+**A recovery campaign has now run; the soak campaign has not.** The 4-hour
 campaign remains open, and the suite is explicit that it does not start merely
 because this script works. The recovery campaign that ran had a single worker,
 so multi-worker aggregation still rests on the smoke campaign above.
+After a passing 4-hour campaign, a 16-hour repetition is optional additional
+confidence rather than a completion gate.
 
 ### Artifact-layout deviation resolved
 
