@@ -136,7 +136,12 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
                 _options.WorkerId))
             {
                 _artifacts = artifacts;
-                _runner = new CheckRunner(artifacts.Out, _ct);
+                // Bounded only for the soak, where the result detail would
+                // otherwise grow for hours and the heap it occupies is exactly
+                // what this scenario's own drift check is watching. Counts stay
+                // exact either way; the full detail goes to checks.ndjson.
+                CheckRetention retention = CheckRetention.ForMode(_options.Mode);
+                _runner = new CheckRunner(artifacts.Out, _ct, retention, artifacts.AppendCheck);
 
                 artifacts.Out("E4-SQL  " + _options.CampaignId);
                 artifacts.Out("target  " + RuntimeFacts.TargetFrameworkMoniker +

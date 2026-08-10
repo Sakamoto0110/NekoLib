@@ -10,6 +10,11 @@
 
 **Prerequisites:** none. This project references nothing but the BCL.
 
+**Automated tests:** [`../NekoLib.RuntimeTests.Harness.Tests/`](../NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj) — a console executable that
+asserts the retention contract and returns an exit code. Like everything
+here it stays outside `NekoLib.sln` and is never invoked through
+`dotnet test`; build it and run it directly.
+
 **Last verification:** 2026-08-10 — both harness targets and both consumer
 target matrices build with no warnings. An orchestrated `E3-OBS` regression
 verified artifact layout v2, and a direct run verified that standalone layout
@@ -103,6 +108,57 @@ It stays in `E3-OBS` because rule 2 has no exception for symmetry: `E4-SQL` has
 no smoke-duration concept, so the option has one consumer. It moves when a
 second scenario needs it.
 
+## Bounded check retention — the instrument was distorting the measurement
+
+**This was a defect in the test harness, not in any library under test.** No
+product module was involved and none was changed.
+
+`CheckRunner` held every `CheckResult` alive until the process ended, and
+computed its totals by walking that list. The 15-minute E3-OBS soak produced
+3848 results; the required four-hour soak projects to roughly **61 500**, whose
+detail measures about 27 MB as JSON and rather more as live objects.
+
+That is the problem, because `E3-OBS`'s `resources` check fails a managed heap
+that rises at *every* periodic sample. A long enough run would have reported the
+harness's own accumulation as a leak in Logging, Telemetry or Inspection — the
+instrument producing exactly the signal it exists to detect. It had never
+surfaced, because only a soak runs long enough to reach it and no soak had ever
+run to completion until 2026-08-10.
+
+### The policy
+
+Counting and retention are now separate concerns.
+
+- **Counts are counters.** `Passed`, `Failed`, `Skipped`, `TotalRecorded` and
+  the new per-phase `PhaseTotals` are incremented as each result arrives and are
+  exact whatever is discarded. `RunSummary` no longer derives per-phase totals
+  by walking the retained list, which would have quietly under-reported them.
+- **Failures and skips are never sampled away.** They are what a reader acts on.
+- **Successes are sampled by distinct check, not by arrival.** A soak runs the
+  same matrix thousands of times; the first occurrence of a check carries its
+  claim and its notes, the ten-thousandth carries nothing new. The retained set
+  therefore still shows every check that ran, and is bounded by how many checks
+  a scenario defines rather than by how long the run lasted.
+- **The complete detail is still written**, incrementally, to
+  `checks.ndjson` — one object per line, flushed as it goes, so a killed run
+  keeps everything up to the last complete line. It costs disk instead of heap.
+- **Short modes are untouched.** `CheckRetention.ForMode` bounds only the soak,
+  so smoke and rehearsal keep their previous behaviour *and* their previous
+  artifact set: `checks.ndjson` is created lazily and never appears when nothing
+  is dropped.
+
+`result.json`, `summary.json` and `summary.md` all declare the real total, how
+much was retained, the policy, its capacity, and the path to the incremental
+log. `summary.md` additionally states in plain words when its table is a sample,
+because a truncated table that looked complete would be the most misleading
+artifact here.
+
+### What it is not
+
+It is not a relaxation of the drift check. `ResourceMatrix` is unchanged, and
+the point of the change is to let that check measure the libraries rather than
+the harness.
+
 ## The rules, still in force
 
 - **Do not expand the harness preemptively.** Nothing enters in anticipation of
@@ -129,6 +185,7 @@ copy of:
 | `FaultSchedule`, `DeterministicRandom` | deterministic seeded scheduling, reproducible across targets |
 | `ScenarioOptionsBase` | the common command line: modes, seed, artifacts, schedule |
 | `Json`, `ProcessRunner` | `net481` has no `System.Text.Json`, and every scenario shells out |
+| `CheckRetention` | a long run must not have its own result record become the drift it measures |
 
 Three of these are split down the middle, and the split is the same each time:
 the harness owns the common half and asks the scenario for the rest.
@@ -200,6 +257,10 @@ determinism evidence. `E4-SQL` keeps `e4sql-schedule-1` for exactly that reason.
   together, and the scenario writes
   `<campaign-id>/workers/<worker-id>/<scenario-id>/result.json`.
 
+Beside `result.json` the scenario directory holds `stdout.log`, `stderr.log`,
+`samples.csv`, and — only when retention is bounded — `checks.ndjson` with the
+complete per-check detail, one object per line.
+
 The pair is validated as safe single path segments before any run starts.
 `environment.json`, `result.json` and `summary.md` identify the chosen layout;
 v2 also records the worker id. The harness does not move, rewrite or infer old
@@ -210,6 +271,7 @@ multi-process campaign one collision-free contract.
 
 | Date | Result |
 |---|---|
+| 2026-08-10 | **Bounded check retention, no runtime evidence produced.** `CheckRunner` accumulated every result, which a four-hour soak would have turned into the very heap growth `E3-OBS`'s drift check exists to catch. Counting moved to counters, success detail became a bounded per-check sample, and the full detail moved to `checks.ndjson`. Verified by [`NekoLib.RuntimeTests.Harness.Tests`](../NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj): **9 of 9 assertions pass on `net481` and on `net9.0`**, covering exact counts under sampling, the bound holding across 10 000 results, failures and skips surviving, per-phase totals, an exit code driven by a failure that arrives after the cap, the incremental log's completeness and order, short modes keeping their old behaviour and artifact set, and an interrupted run still leaving a usable summary. The harness and both consumers build with no warnings on both targets. **No scenario, smoke, rehearsal, soak or campaign was executed for this change**, so it adds no runtime evidence and supersedes none. |
 | 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. **The extraction changed no check count and no assertion** — E4-SQL's smoke went from 28 checks to 29 earlier the same day, from the `state-baseline` check added while fixing the soak, and that is a separate change from this one. |
 | 2026-08-09 | **Second-consumer validation complete.** `E3-OBS` was written against this boundary and consumes `ExitCodes`, `CheckRunner`, `RunArtifacts`, `ResourceSampler`, `WorkloadCounters`, `RunSummary`, `RuntimeFacts`, `FaultSchedule`, `DeterministicRandom`, `IFaultVocabulary`, `ScenarioOptionsBase` and `JsonWriter` by name, plus `Native` and `ProcessRunner` indirectly through `RuntimeFacts`. Nothing in the harness went unused by the second consumer, which is the weaker but still useful half of the result: no piece turned out to be there for E4-SQL alone. One piece moved out (the sampler's SQL-specific columns, one of which was dead), one moved in (`RunSummary`), and two candidates were refused on the rules (the Ctrl+C handler and `--smoke-duration`). **Regression evidence:** both targets build with no warnings; E4-SQL's determinism hash is still `fnv1a64:49a3ab65b5f249e9` on `net481` and `net9.0` after the changes; E3-OBS's own hash `fnv1a64:af14ff69cf61b022` matches across both targets. |
 | 2026-08-10 | **Artifact layout v2 validated without breaking v1.** Harness, E3-OBS and E4-SQL build clean on both declared targets. A 12-second E3-ORCH/E3-OBS regression exited 0 with 91 checks, no failures, matching worker/aggregate schedule hash `fnv1a64:683eb00b749a22bb`, and the indexed result at `workers/E3-OBS-net9.0/E3-OBS/result.json`. A direct 8-second E3-OBS run exited 0 with 61 checks and wrote the original v1 shape with no `workerId`. These short runs validate the contract only; the earlier duration evidence remains authoritative. |

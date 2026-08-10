@@ -144,6 +144,7 @@ artifacts/validation/phase-e/<campaign-id>/
         stdout.log
         stderr.log
         samples.csv
+        checks.ndjson    only when check retention is bounded, i.e. soak
         result.json
 ```
 

@@ -22,6 +22,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         private readonly StreamWriter _stderr;
         private readonly StreamWriter _samples;
         private readonly StreamWriter _events;
+        private StreamWriter? _checks;
         private readonly object _sync = new object();
         private bool _disposed;
 
@@ -172,6 +173,50 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             }
         }
 
+        /// <summary>
+        /// Appends one check to <c>checks.ndjson</c>, creating the file on the
+        /// first call.
+        /// <para/>
+        /// This is where the full per-check detail lives when memory retention
+        /// is bounded: one object per line, flushed as it is written, so a run
+        /// that is killed still leaves everything up to the last complete line.
+        /// Creating it lazily is what keeps a short run's artifact set exactly
+        /// what it was before this existed.
+        /// </summary>
+        public void AppendCheck(CheckResult result)
+        {
+            lock (_sync)
+            {
+                if (_disposed) return;
+
+                if (_checks == null)
+                    _checks = Open(Path.Combine(ScenarioDirectory, "checks.ndjson"));
+
+                JsonWriter json = new JsonWriter();
+                json.Object(null, () =>
+                {
+                    json.Prop("phase", result.Phase);
+                    json.Prop("name", result.Name);
+                    json.Prop("claim", result.Claim);
+                    json.Prop("passed", result.Passed);
+                    json.Prop("skipped", result.Skipped);
+                    json.Prop("detail", result.Detail);
+                    json.Prop("durationMs", result.DurationMs);
+                    json.Array("notes", () =>
+                    {
+                        foreach (string note in result.Notes) json.Item(note);
+                    });
+                });
+
+                _checks.WriteLine(json.ToString().Replace("\n", " ").Replace("  ", " "));
+                _checks.Flush();
+            }
+        }
+
+        /// <summary>The incremental check log's path, or null if none was written.</summary>
+        public string? CheckLogPath =>
+            _checks == null ? null : Path.Combine(ScenarioDirectory, "checks.ndjson");
+
         public void Sample(ResourceSample sample)
         {
             lock (_sync)
@@ -199,6 +244,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 Safely(() => { _stderr.Flush(); _stderr.Dispose(); });
                 Safely(() => { _samples.Flush(); _samples.Dispose(); });
                 Safely(() => { _events.Flush(); _events.Dispose(); });
+                if (_checks != null) Safely(() => { _checks.Flush(); _checks.Dispose(); });
             }
         }
 

@@ -66,6 +66,17 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         public List<string> Notes = new List<string>();
     }
 
+    /// <summary>One phase's totals, counted rather than derived from what was retained.</summary>
+    public sealed class CheckPhaseTotals
+    {
+        internal CheckPhaseTotals(string phase) { Phase = phase; }
+
+        public string Phase { get; }
+        public int Passed { get; internal set; }
+        public int Failed { get; internal set; }
+        public int Skipped { get; internal set; }
+    }
+
     /// <summary>
     /// Runs checks, records their outcomes, and never lets one failure hide the
     /// rest.
@@ -74,62 +85,78 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
     /// one would make an unattended campaign report a single symptom per
     /// execution, and the whole value of a matrix is knowing which parts of it
     /// held.
+    /// <para/>
+    /// Counts are counters and detail is a sample. That split is what lets a
+    /// four-hour soak report exactly what happened without the record of it
+    /// growing until the record itself is what the run measures - see
+    /// <see cref="CheckRetention"/>.
     /// </summary>
     public sealed class CheckRunner
     {
         private readonly List<CheckResult> _results = new List<CheckResult>();
+        private readonly List<CheckPhaseTotals> _phases = new List<CheckPhaseTotals>();
+        private readonly Dictionary<string, CheckPhaseTotals> _phaseIndex =
+            new Dictionary<string, CheckPhaseTotals>(StringComparer.Ordinal);
+        private readonly HashSet<string> _retainedNames = new HashSet<string>(StringComparer.Ordinal);
         private readonly Action<string> _write;
         private readonly System.Threading.CancellationToken _ct;
+        private readonly CheckRetention _retention;
+        private readonly Action<CheckResult>? _onResult;
+
+        private int _passed;
+        private int _failed;
+        private int _skipped;
 
         /// <summary>
         /// The run's cancellation token lets an interrupted check be told apart
         /// from a failing one. Without it, Ctrl+C during a soak reports every
         /// check that was in flight as a failure, and a summary reading
         /// "5 failed" for a run that was simply stopped is a false report.
+        /// <para/>
+        /// <paramref name="retention"/> bounds only what is kept in memory;
+        /// every count below is a counter and stays exact whatever is discarded.
+        /// <paramref name="onResult"/> receives every result in order and is
+        /// invoked only when retention is bounded, so a short run neither writes
+        /// nor pays for an incremental log it does not need.
         /// </summary>
-        public CheckRunner(Action<string> write, System.Threading.CancellationToken ct = default)
+        public CheckRunner(
+            Action<string> write,
+            System.Threading.CancellationToken ct = default,
+            CheckRetention? retention = null,
+            Action<CheckResult>? onResult = null)
         {
             _write = write;
             _ct = ct;
+            _retention = retention ?? CheckRetention.All;
+            _onResult = onResult;
         }
 
+        /// <summary>
+        /// The results still held in memory, which is every result unless
+        /// retention is bounded. Never use this to count anything: use
+        /// <see cref="Passed"/>, <see cref="Failed"/>, <see cref="Skipped"/> and
+        /// <see cref="PhaseTotals"/>, which are exact by construction.
+        /// </summary>
         public IReadOnlyList<CheckResult> Results => _results;
 
-        public int Passed
-        {
-            get
-            {
-                int count = 0;
-                foreach (CheckResult result in _results)
-                    if (result.Passed && !result.Skipped) count++;
+        public CheckRetention Retention => _retention;
 
-                return count;
-            }
-        }
+        /// <summary>Every result the run produced, retained or not.</summary>
+        public int TotalRecorded => _passed + _failed + _skipped;
 
-        public int Failed
-        {
-            get
-            {
-                int count = 0;
-                foreach (CheckResult result in _results)
-                    if (!result.Passed && !result.Skipped) count++;
+        public int RetainedCount => _results.Count;
 
-                return count;
-            }
-        }
+        /// <summary>True when detail was dropped and only the counts are complete.</summary>
+        public bool DetailTruncated => _results.Count < TotalRecorded;
 
-        public int Skipped
-        {
-            get
-            {
-                int count = 0;
-                foreach (CheckResult result in _results)
-                    if (result.Skipped) count++;
+        /// <summary>Per-phase totals, in the order the phases first appeared.</summary>
+        public IReadOnlyList<CheckPhaseTotals> PhaseTotals => _phases;
 
-                return count;
-            }
-        }
+        public int Passed => _passed;
+
+        public int Failed => _failed;
+
+        public int Skipped => _skipped;
 
         public bool AllPassed => Failed == 0;
 
@@ -180,7 +207,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 clock.Stop();
                 result.DurationMs = clock.Elapsed.TotalMilliseconds;
                 result.Notes.AddRange(check.Notes);
-                _results.Add(result);
+                Record(result);
             }
 
             Report(result);
@@ -199,8 +226,59 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 Detail = reason
             };
 
-            _results.Add(result);
+            Record(result);
             Report(result);
+        }
+
+        /// <summary>
+        /// The one place a result is counted, retained and streamed.
+        /// <para/>
+        /// Counting happens first and unconditionally, so no retention decision
+        /// can ever change a total. Failures and skips are always kept: they are
+        /// what a reader needs, and a run producing them without limit is
+        /// already failing for a reason the counts will show.
+        /// </summary>
+        private void Record(CheckResult result)
+        {
+            if (result.Skipped) _skipped++;
+            else if (result.Passed) _passed++;
+            else _failed++;
+
+            CheckPhaseTotals? totals;
+            if (!_phaseIndex.TryGetValue(result.Phase, out totals))
+            {
+                totals = new CheckPhaseTotals(result.Phase);
+                _phaseIndex.Add(result.Phase, totals);
+                _phases.Add(totals);
+            }
+
+            if (result.Skipped) totals.Skipped++;
+            else if (result.Passed) totals.Passed++;
+            else totals.Failed++;
+
+            if (!_retention.RetainsEverything && _onResult != null)
+            {
+                // Streamed before the retention decision, so the incremental log
+                // holds every result in order even though memory does not.
+                try { _onResult(result); } catch { }
+            }
+
+            if (ShouldRetain(result)) _results.Add(result);
+        }
+
+        private bool ShouldRetain(CheckResult result)
+        {
+            if (_retention.RetainsEverything) return true;
+
+            // A failure or a skip is always evidence and is never sampled away.
+            if (!result.Passed || result.Skipped) return true;
+
+            if (_retainedNames.Count >= _retention.SuccessCapacity) return false;
+
+            // The separator is a unit separator, which cannot occur in a phase
+            // or a check name, so ("a","bc") and ("ab","c") never collide
+            // into one sample slot.
+            return _retainedNames.Add(result.Phase + "\u001f" + result.Name);
         }
 
         private void Report(CheckResult result)

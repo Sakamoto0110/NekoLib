@@ -1121,6 +1121,20 @@ not mean the corresponding Phase E scenario is complete.
   which differs from the order the scenario generates for itself. At 59.1
   minutes elapsed it is correctly flagged below the rehearsal window, so it is
   orchestration evidence rather than a third rehearsal.
+  **Harness defect fixed 2026-08-10, with no runtime evidence produced.** The
+  four-hour soak would have measured the test harness rather than the libraries:
+  `CheckRunner` held every `CheckResult` alive, this scenario emits about 3848
+  of them in 15 minutes — roughly 61 500 over four hours — and its own
+  `resources` check fails a managed heap that rises at every periodic sample. So
+  the instrument would have produced exactly the signal it exists to detect.
+  Counts are now counters and stay exact, failures and skips are never sampled
+  away, successful detail is a bounded per-check sample, and the complete detail
+  is streamed to `checks.ndjson`. Short modes keep their previous behaviour and
+  artifact set. `ResourceMatrix` is untouched; the point was to let it measure
+  the libraries. Verified by a new console test project,
+  [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness.Tests/`](runtime_tests/Shared/NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj),
+  9 of 9 assertions passing on both targets. **No scenario or campaign was
+  executed for this change.**
   **Still open:**
   1. A campaign with more than one worker. `E4-SQL` was deliberately excluded
      because E3-ORCH's own record shows a concurrent campaign saturating this

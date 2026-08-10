@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.RuntimeTests.Harness.Tests</RootNamespace>
+    <AssemblyName>NekoLib.RuntimeTests.Harness.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!--
+    A console executable rather than an xUnit project, for the same reason the
+    scenarios are: runtime_tests stays outside NekoLib.sln and is never invoked
+    through `dotnet test`. This runs in under a second, asserts, and returns an
+    exit code - which is the contract the suite asks of everything here.
+
+    It exists because the retention policy is the one part of the harness whose
+    defect is invisible in a short run. The bug it guards against only appears
+    after tens of thousands of checks, which is precisely the situation nobody
+    will re-create by hand before a four-hour campaign.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -66,6 +66,12 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         /// <summary>Set when the run failed outside any check.</summary>
         public int ExplicitExitCode = ExitCodes.Success;
 
+        /// <summary>
+        /// Where the complete per-check detail was streamed, when memory
+        /// retention was bounded. Null when nothing was dropped.
+        /// </summary>
+        public string? CheckLogPath;
+
         public readonly List<string> SetupGaps = new List<string>();
         public readonly List<string> CleanupProblems = new List<string>();
 
@@ -112,6 +118,8 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             WorkloadCounters counters,
             IScenarioSummary? scenario = null)
         {
+            CheckLogPath = artifacts.CheckLogPath;
+
             int resolved = Resolve(runner);
             string json = BuildJson(artifacts, runner, counters, scenario, resolved);
 
@@ -179,6 +187,16 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                     json.Prop("passed", runner.Passed);
                     json.Prop("failed", runner.Failed);
                     json.Prop("skipped", runner.Skipped);
+
+                    // What the counts describe and what `results` below
+                    // describes are not the same set once retention is bounded,
+                    // and a reader must never have to guess which.
+                    json.Prop("total", runner.TotalRecorded);
+                    json.Prop("detailRetained", runner.RetainedCount);
+                    json.Prop("detailTruncated", runner.DetailTruncated);
+                    json.Prop("retentionPolicy", runner.Retention.Describe());
+                    json.Prop("retentionSuccessCapacity", runner.Retention.SuccessCapacity);
+                    json.Prop("detailLog", CheckLogPath);
                 });
 
                 // Per-phase totals, so a scenario whose phases are independent
@@ -186,7 +204,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 // decide from a flat list which claims survived.
                 json.Array("checksByPhase", () =>
                 {
-                    foreach (PhaseTotals totals in Totals(runner))
+                    foreach (CheckPhaseTotals totals in runner.PhaseTotals)
                     {
                         json.Object(null, () =>
                         {
@@ -286,7 +304,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 text.AppendLine();
             }
 
-            List<PhaseTotals> phases = Totals(runner);
+            IReadOnlyList<CheckPhaseTotals> phases = runner.PhaseTotals;
             if (phases.Count > 1)
             {
                 text.AppendLine("## Phases");
@@ -294,7 +312,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 text.AppendLine("| Phase | Passed | Failed | Skipped |");
                 text.AppendLine("|---|---|---|---|");
 
-                foreach (PhaseTotals totals in phases)
+                foreach (CheckPhaseTotals totals in phases)
                 {
                     text.AppendLine("| " + totals.Phase + " | " + totals.Passed + " | " +
                                     (totals.Failed > 0 ? "**" + totals.Failed + "**" : "0") + " | " +
@@ -306,6 +324,27 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
 
             text.AppendLine("## Checks");
             text.AppendLine();
+            text.AppendLine(runner.TotalRecorded.ToString(CultureInfo.InvariantCulture) +
+                            " check(s) ran. Retention: " + runner.Retention.Describe() + ".");
+            text.AppendLine();
+
+            if (runner.DetailTruncated)
+            {
+                // Said plainly, because a table that silently showed a sample of
+                // a long run would be the most misleading artifact here.
+                text.AppendLine("> **The table below is a sample, not the whole run.** " +
+                                runner.RetainedCount.ToString(CultureInfo.InvariantCulture) + " of " +
+                                runner.TotalRecorded.ToString(CultureInfo.InvariantCulture) +
+                                " results are shown: every failure and skip, plus the first success for each " +
+                                "distinct check. The counts above and the per-phase totals are complete and " +
+                                "unaffected." +
+                                (CheckLogPath == null
+                                    ? string.Empty
+                                    : " Every result, in order, is in `" +
+                                      System.IO.Path.GetFileName(CheckLogPath) + "`."));
+                text.AppendLine();
+            }
+
             text.AppendLine("| Phase | Check | Result | Detail |");
             text.AppendLine("|---|---|---|---|");
 
@@ -336,42 +375,8 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             return text.ToString();
         }
 
-        /// <summary>Totals per phase, in the order the phases first appeared.</summary>
-        private static List<PhaseTotals> Totals(CheckRunner runner)
-        {
-            List<PhaseTotals> ordered = new List<PhaseTotals>();
-            Dictionary<string, PhaseTotals> byPhase =
-                new Dictionary<string, PhaseTotals>(StringComparer.Ordinal);
-
-            foreach (CheckResult result in runner.Results)
-            {
-                PhaseTotals? totals;
-                if (!byPhase.TryGetValue(result.Phase, out totals))
-                {
-                    totals = new PhaseTotals(result.Phase);
-                    byPhase.Add(result.Phase, totals);
-                    ordered.Add(totals);
-                }
-
-                if (result.Skipped) totals.Skipped++;
-                else if (result.Passed) totals.Passed++;
-                else totals.Failed++;
-            }
-
-            return ordered;
-        }
-
         private static string Escape(string text) =>
             (text ?? string.Empty).Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ");
 
-        private sealed class PhaseTotals
-        {
-            public PhaseTotals(string phase) { Phase = phase; }
-
-            public string Phase;
-            public int Passed;
-            public int Failed;
-            public int Skipped;
-        }
     }
 }

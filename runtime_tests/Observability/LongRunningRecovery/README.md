@@ -375,13 +375,23 @@ behaviour under load and failure.
 
 ### What is still open
 
-- The 4-hour soak. The path itself is now proven — a 15-minute soak completed
-  with exit 0 and fired all seven faults concurrently with the assertion cycles
-  — so what remains is duration, not correctness. The host must not share it
-  with other heavy work: the `resources` check asserts thread and handle drift,
-  and a contended host would make that measurement meaningless.
+- The 4-hour soak. The path itself is proven — a 15-minute soak completed with
+  exit 0 and fired all seven faults concurrently with the assertion cycles — so
+  what remains is duration, not correctness. The host must not share it with
+  other heavy work: the `resources` check asserts thread and handle drift, and a
+  contended host would make that measurement meaningless.
   A later 16-hour soak is welcome as extended confidence for slow drift, but is
   optional and does not block closure after this 4-hour gate passes.
+
+  **A harness defect that would have corrupted this run was fixed on 2026-08-10,
+  without running anything.** `CheckRunner` kept every result alive, and this
+  scenario produces about 3848 of them in 15 minutes — roughly 61 500 over four
+  hours. That heap only ever grows, and the `resources` check fails a heap that
+  rises at *every* periodic sample, so the harness would have reported its own
+  accumulation as a leak in Logging, Telemetry or Inspection. Soak runs now keep
+  exact counts, a bounded per-check sample, and the full detail in
+  `checks.ndjson`. The drift check itself is unchanged — the whole point was to
+  let it measure the libraries. See the harness README.
 - A campaign with **more than one worker**. The orchestrated campaign that ran
   used this scenario alone. `E4-SQL` was left out deliberately: `E3-ORCH`'s own
   record documents that a concurrent campaign saturated this host and turned one
