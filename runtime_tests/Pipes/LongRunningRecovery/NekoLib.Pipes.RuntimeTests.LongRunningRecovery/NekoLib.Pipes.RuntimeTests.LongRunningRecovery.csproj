@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Pipes.RuntimeTests.LongRunningRecovery</RootNamespace>
+    <AssemblyName>NekoLib.Pipes.RuntimeTests.LongRunningRecovery</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!--
+    One executable in three roles (controller, server, client) rather than three
+    projects. The suite asks for separate server and client *processes*, which
+    this satisfies: the controller launches its own binary with a role argument,
+    and the operating system sees three unrelated processes talking over a real
+    named pipe. Three csproj files would add build surface without adding a
+    single byte of separation.
+
+    NekoLib.Pipes is the only product reference. There is no provider package
+    and no container: every fault this scenario injects comes from a process it
+    started, a handler it wrote, or a raw pipe peer it opened itself.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+    <ProjectReference Include="..\..\..\Shared\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1234,9 +1234,41 @@ its automated modes. Those are what the build phase has left.
   candidates, and both are likely to press on `WorkloadCounters`, whose
   vocabulary has so far only had to describe two scenarios that both happen to
   think in operations.
-- [ ] **E3-PIPE — Pipes long-running and recovery.** Automated contract coverage
-  exists; the separate-process real named-pipe load, churn, fault, active-dispose,
-  resource-growth, and recovery scenario remains open.
+- [ ] **E3-PIPE — Pipes long-running and recovery.** **First pass delivered
+  2026-08-10** at [`runtime_tests/Pipes/LongRunningRecovery/`](runtime_tests/Pipes/LongRunningRecovery/README.md):
+  one executable in three roles — controller, server child, client child — so the
+  suite's separate processes are real processes on a real named pipe without
+  three project files. Twelve checks across four phases cover payload sizes,
+  concurrent correlation, the `not_found` and `exception` error contracts,
+  timeout without corrupting the next response, reconnect cycles, event ordering
+  and subscriber churn, over-limit inbound and outbound frames, malformed and
+  truncated raw peers, and disposal followed by endpoint release and rebinding.
+  Both targets build with no warnings.
+  **It answered the harness question negatively, which is the useful outcome:**
+  the harness gained nothing. The controller owns the single `RunArtifacts` and
+  writes the one `result.json` the suite specifies; children are workload rather
+  than workers. Multi-process support would have been speculative generality for
+  a shape one scenario needs.
+  **Determinism defect caught by its own check:** the first fault vocabulary
+  interpolated the run's pipe name into each fault target, and that string is
+  covered by the schedule hash while the pipe name derives from a campaign id
+  carrying the target framework and a millisecond timestamp — so the same seed
+  produced a different hash on every run. A fault target must describe the class
+  of resource, never the instance. Fixed; the schedule is now
+  `fnv1a64:42db44086ce556a2` across runs and both targets.
+  **Explicitly incomplete, and it refuses to pretend otherwise.** There is no
+  fault dispatcher: the six kinds are declared and the schedule is generated and
+  persisted, but nothing acts on them, so `--recovery-rehearsal` and `--soak`
+  exit 3 with a message rather than reporting success having injected nothing.
+  Client children are not started yet (`--clients` is parsed and unused), there
+  is no sustained window, and these specified checks are missing: the
+  `DisconnectSubscriber` overflow policy, dropped-event metrics,
+  server-initiated disconnect, token cancellation as distinct from timeout,
+  disposal while publishes and subscribers are active, and metric stability
+  under sustained traffic.
+  **Never executed.** Build and `--print-schedule` only, per the build-first
+  sequencing. A scenario that has never opened a pipe is the least-verified kind
+  of pending there is, and it is not shared evidence for any Pipes behaviour.
 - [ ] **E3-WDOG — deployed-Host crash and recovery.** Supervisor481 exists with
   build-only evidence; the deployed sidecar, deterministic crash loop,
   forwarding, bundle, duplicate-supervision, recovery, and soak evidence remains
