@@ -91,6 +91,13 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             if (ExplicitExitCode != ExitCodes.Success) return ExplicitExitCode;
             if (runner.Failed > 0) return ExitCodes.CheckFailed;
             if (CleanupProblems.Count > 0) return ExitCodes.CleanupFailed;
+
+            // Last, because it is a statement about the record rather than about
+            // the subject: a real finding or a leaked resource is the more
+            // useful thing to surface first, and both remain visible in the
+            // document either way.
+            if (!runner.DetailLogComplete) return ExitCodes.EvidenceIncomplete;
+
             return ExitCodes.Success;
         }
 
@@ -105,6 +112,8 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                 case ExitCodes.Timeout: return "a bounded wait expired";
                 case ExitCodes.CleanupFailed: return "cleanup did not reconcile";
                 case ExitCodes.Interrupted: return "interrupted; the summary is partial";
+                case ExitCodes.EvidenceIncomplete:
+                    return "every check passed but the incremental log is incomplete, so the run is not reproducible";
                 default: return "unexpected failure";
             }
         }
@@ -197,6 +206,12 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                     json.Prop("retentionPolicy", runner.Retention.Describe());
                     json.Prop("retentionSuccessCapacity", runner.Retention.SuccessCapacity);
                     json.Prop("detailLog", CheckLogPath);
+                    json.Prop("detailLogComplete", runner.DetailLogComplete);
+                    json.Prop("detailLogFailures", runner.DetailLogFailureCount);
+                    json.Array("detailLogFailureSamples", () =>
+                    {
+                        foreach (string failure in runner.DetailLogFailures) json.Item(failure);
+                    });
                 });
 
                 // Per-phase totals, so a scenario whose phases are independent
@@ -340,8 +355,30 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
                                 "unaffected." +
                                 (CheckLogPath == null
                                     ? string.Empty
-                                    : " Every result, in order, is in `" +
-                                      System.IO.Path.GetFileName(CheckLogPath) + "`."));
+                                    : runner.DetailLogComplete
+                                        ? " Every result, in order, is in `" +
+                                          System.IO.Path.GetFileName(CheckLogPath) + "`."
+                                        : string.Empty));
+                text.AppendLine();
+            }
+
+            if (!runner.DetailLogComplete)
+            {
+                // The loudest thing in the document, because every other
+                // statement about completeness in it is now qualified by this
+                // one.
+                text.AppendLine("> **The incremental check log is incomplete.** " +
+                                runner.DetailLogFailureCount.ToString(CultureInfo.InvariantCulture) +
+                                " write(s) to `" +
+                                (CheckLogPath == null ? "checks.ndjson" : System.IO.Path.GetFileName(CheckLogPath)) +
+                                "` failed, so it does **not** hold every result and this run cannot be " +
+                                "reproduced from its own artifacts. The counts and per-phase totals above are " +
+                                "still exact. First failure(s):");
+                text.AppendLine();
+
+                foreach (string failure in runner.DetailLogFailures)
+                    text.AppendLine("> - " + Escape(failure));
+
                 text.AppendLine();
             }
 

@@ -392,6 +392,13 @@ behaviour under load and failure.
   exact counts, a bounded per-check sample, and the full detail in
   `checks.ndjson`. The drift check itself is unchanged — the whole point was to
   let it measure the libraries. See the harness README.
+
+  Two sizing figures for that run, both **estimates rather than measurements**,
+  since no four-hour soak has been executed. The incremental log measured
+  9.4 MiB for 65 000 minimal results in an isolated benchmark; this scenario's
+  results carry claims and notes, so plan nearer the ~27 MB that `result.json`'s
+  own density implies. Either figure is far inside the 2 GB the campaign
+  preflight requires, and writing that log costs well under a second.
 - A campaign with **more than one worker**. The orchestrated campaign that ran
   used this scenario alone. `E4-SQL` was left out deliberately: `E3-ORCH`'s own
   record documents that a concurrent campaign saturated this host and turned one

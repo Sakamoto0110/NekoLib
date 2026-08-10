@@ -16,21 +16,47 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
     /// would have reported the harness's accumulation as a leak in the library
     /// under test.
     /// <para/>
-    /// The fix is not to measure less. Counts stay exact, failures and skips are
-    /// kept in full, and the complete detail is still written — incrementally,
-    /// to <c>checks.ndjson</c>, where it costs disk instead of heap. What is
-    /// bounded is only the successful detail held in memory, and only for the
-    /// modes where it would otherwise grow without limit.
+    /// The fix is not to measure less. Counts stay exact and the complete detail
+    /// is still written — incrementally, to <c>checks.ndjson</c>, where it costs
+    /// disk instead of heap. What is bounded is only the detail held in memory,
+    /// and only for the modes where it would otherwise grow without limit.
+    /// <para/>
+    /// Every category is bounded, failures included. Keeping failures unbounded
+    /// was the obvious first instinct and it is wrong: a soak whose subject
+    /// breaks in its first minutes fails every check of every cycle for hours,
+    /// so the unbounded set is the failing run rather than the healthy one — and
+    /// running out of memory there costs exactly the two things still worth
+    /// having, a written summary and a clean cleanup. Preserving a failure
+    /// "in full" therefore means its count and its line in the log, not its
+    /// object.
     /// </summary>
     public sealed class CheckRetention
     {
-        private CheckRetention(int successCapacity)
+        private CheckRetention(int successCapacity, int failureCapacity, int skipCapacity)
         {
             SuccessCapacity = successCapacity;
+            FailureCapacity = failureCapacity;
+            SkipCapacity = skipCapacity;
         }
 
         /// <summary>Distinct successful checks kept, or -1 for all of them.</summary>
         public int SuccessCapacity { get; }
+
+        /// <summary>
+        /// Distinct failing checks kept, or -1 for all of them.
+        /// <para/>
+        /// Failures are bounded too, and the reason is a failure storm: a soak
+        /// whose subject breaks early can fail every check of every cycle for
+        /// hours. Keeping each object would exhaust memory and cost the run the
+        /// two things still worth having at that point — a written summary and a
+        /// clean cleanup. "Preserved in full" is therefore satisfied by the
+        /// exact counts and by <c>checks.ndjson</c>; what lives in memory is a
+        /// diagnostic sample.
+        /// </summary>
+        public int FailureCapacity { get; }
+
+        /// <summary>Distinct skipped checks kept, or -1 for all of them.</summary>
+        public int SkipCapacity { get; }
 
         public bool RetainsEverything => SuccessCapacity < 0;
 
@@ -38,7 +64,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         /// Keeps every result. The default, and what every short mode uses, so
         /// their artifacts are byte-for-byte what they were before.
         /// </summary>
-        public static readonly CheckRetention All = new CheckRetention(-1);
+        public static readonly CheckRetention All = new CheckRetention(-1, -1, -1);
 
         /// <summary>
         /// Keeps the first success for each distinct phase and name, up to
@@ -51,12 +77,16 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         /// check that ran at least once, and is bounded by how many checks the
         /// scenario defines rather than by how long the run lasted.
         /// </summary>
-        public static CheckRetention Bounded(int successCapacity)
-        {
-            if (successCapacity < 0)
-                throw new ArgumentOutOfRangeException(nameof(successCapacity));
+        public static CheckRetention Bounded(int successCapacity) =>
+            Bounded(successCapacity, successCapacity, successCapacity);
 
-            return new CheckRetention(successCapacity);
+        public static CheckRetention Bounded(int successCapacity, int failureCapacity, int skipCapacity)
+        {
+            if (successCapacity < 0) throw new ArgumentOutOfRangeException(nameof(successCapacity));
+            if (failureCapacity < 0) throw new ArgumentOutOfRangeException(nameof(failureCapacity));
+            if (skipCapacity < 0) throw new ArgumentOutOfRangeException(nameof(skipCapacity));
+
+            return new CheckRetention(successCapacity, failureCapacity, skipCapacity);
         }
 
         /// <summary>
@@ -81,7 +111,10 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         public string Describe() =>
             RetainsEverything
                 ? "all: every result is retained"
-                : "bounded: all failures and skips, plus the first success for each distinct check, up to " +
-                  SuccessCapacity.ToString(CultureInfo.InvariantCulture) + " of them";
+                : "bounded: the first result for each distinct check, up to " +
+                  SuccessCapacity.ToString(CultureInfo.InvariantCulture) + " successes, " +
+                  FailureCapacity.ToString(CultureInfo.InvariantCulture) + " failures and " +
+                  SkipCapacity.ToString(CultureInfo.InvariantCulture) +
+                  " skips; counts stay exact and the full detail goes to checks.ndjson";
     }
 }

@@ -97,7 +97,10 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         private readonly List<CheckPhaseTotals> _phases = new List<CheckPhaseTotals>();
         private readonly Dictionary<string, CheckPhaseTotals> _phaseIndex =
             new Dictionary<string, CheckPhaseTotals>(StringComparer.Ordinal);
-        private readonly HashSet<string> _retainedNames = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _retainedSuccesses = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _retainedFailures = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _retainedSkips = new HashSet<string>(StringComparer.Ordinal);
+        private readonly List<string> _sinkFailures = new List<string>();
         private readonly Action<string> _write;
         private readonly System.Threading.CancellationToken _ct;
         private readonly CheckRetention _retention;
@@ -106,6 +109,7 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
         private int _passed;
         private int _failed;
         private int _skipped;
+        private long _sinkFailureCount;
 
         /// <summary>
         /// The run's cancellation token lets an interrupted check be told apart
@@ -148,6 +152,21 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
 
         /// <summary>True when detail was dropped and only the counts are complete.</summary>
         public bool DetailTruncated => _results.Count < TotalRecorded;
+
+        /// <summary>How many writes to the incremental log failed.</summary>
+        public long DetailLogFailureCount => _sinkFailureCount;
+
+        /// <summary>The first few write failures, for the result record.</summary>
+        public IReadOnlyList<string> DetailLogFailures => _sinkFailures;
+
+        /// <summary>
+        /// False once any write to the incremental log failed.
+        /// <para/>
+        /// When retention is bounded the log is the only complete record, so a
+        /// run in this state cannot be read as full evidence and says so in
+        /// every artifact and in its exit code.
+        /// </summary>
+        public bool DetailLogComplete => _sinkFailureCount == 0;
 
         /// <summary>Per-phase totals, in the order the phases first appeared.</summary>
         public IReadOnlyList<CheckPhaseTotals> PhaseTotals => _phases;
@@ -260,25 +279,82 @@ namespace NekoLib.RuntimeTests.Harness.Reporting
             {
                 // Streamed before the retention decision, so the incremental log
                 // holds every result in order even though memory does not.
-                try { _onResult(result); } catch { }
+                try
+                {
+                    _onResult(result);
+                }
+                catch (Exception ex)
+                {
+                    // A write that fails here is not a reason to stop checking -
+                    // the run's subject is fine and its counts are still exact -
+                    // but it does mean the log no longer holds every result, and
+                    // the run must stop claiming that it does. Silently swallowing
+                    // this was the earlier behaviour and it produced artifacts
+                    // that asserted a completeness they no longer had.
+                    RecordSinkFailure(ex);
+                }
             }
 
             if (ShouldRetain(result)) _results.Add(result);
         }
 
+        /// <summary>
+        /// Accounts for a failed write to the incremental log.
+        /// <para/>
+        /// Bounded in three ways, because the failure mode this guards against
+        /// is a disk that has stopped accepting writes and will now reject tens
+        /// of thousands of them in a row: the console is told about the first
+        /// one and then every thousandth, only the first few messages are kept,
+        /// and the rest are a counter.
+        /// </summary>
+        private void RecordSinkFailure(Exception ex)
+        {
+            _sinkFailureCount++;
+
+            string message = ex.GetType().Name + ": " + Flatten(ex.Message);
+
+            if (_sinkFailures.Count < MaxRetainedSinkFailures)
+                _sinkFailures.Add(message);
+
+            if (_sinkFailureCount == 1 || _sinkFailureCount % 1000 == 0)
+            {
+                _write("!!  incremental check log write #" +
+                       _sinkFailureCount.ToString(CultureInfo.InvariantCulture) +
+                       " failed; the log is now incomplete: " + message);
+            }
+        }
+
+        private const int MaxRetainedSinkFailures = 5;
+
+        /// <summary>
+        /// Whether this result's object is kept, which is a question about
+        /// memory and never about the counts.
+        /// <para/>
+        /// Each category has its own budget so a storm in one cannot crowd out
+        /// the sample of another: hours of failures still leave every distinct
+        /// success visible, and the other way round.
+        /// </summary>
         private bool ShouldRetain(CheckResult result)
         {
             if (_retention.RetainsEverything) return true;
 
-            // A failure or a skip is always evidence and is never sampled away.
-            if (!result.Passed || result.Skipped) return true;
+            if (result.Skipped)
+                return Sample(_retainedSkips, _retention.SkipCapacity, result);
 
-            if (_retainedNames.Count >= _retention.SuccessCapacity) return false;
+            if (!result.Passed)
+                return Sample(_retainedFailures, _retention.FailureCapacity, result);
+
+            return Sample(_retainedSuccesses, _retention.SuccessCapacity, result);
+        }
+
+        private static bool Sample(HashSet<string> seen, int capacity, CheckResult result)
+        {
+            if (seen.Count >= capacity) return false;
 
             // The separator is a unit separator, which cannot occur in a phase
             // or a check name, so ("a","bc") and ("ab","c") never collide
             // into one sample slot.
-            return _retainedNames.Add(result.Phase + "\u001f" + result.Name);
+            return seen.Add(result.Phase + "\u001f" + result.Name);
         }
 
         private void Report(CheckResult result)

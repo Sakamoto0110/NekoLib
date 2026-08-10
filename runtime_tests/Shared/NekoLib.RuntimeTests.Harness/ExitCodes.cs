@@ -41,5 +41,19 @@ namespace NekoLib.RuntimeTests.Harness
 
         /// <summary>Ctrl+C or process termination; bounded cleanup ran and a partial summary was written.</summary>
         public const int Interrupted = 8;
+
+        /// <summary>
+        /// The checks reached their verdicts but the evidence is incomplete: a
+        /// write to the incremental check log failed, so the one complete record
+        /// of a bounded-retention run no longer holds every result.
+        /// <para/>
+        /// Distinct from <see cref="CheckFailed"/> on purpose. Nothing was
+        /// observed to be wrong with the subject; what is wrong is the record,
+        /// and a run that cannot be reproduced from its own artifacts must not
+        /// report success. The orchestrator needs no change to understand it: it
+        /// treats any nonzero worker code as a failed worker and records the
+        /// exact value.
+        /// </summary>
+        public const int EvidenceIncomplete = 9;
     }
 }

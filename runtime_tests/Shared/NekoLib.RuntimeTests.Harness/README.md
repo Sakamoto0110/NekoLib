@@ -116,7 +116,8 @@ product module was involved and none was changed.
 `CheckRunner` held every `CheckResult` alive until the process ended, and
 computed its totals by walking that list. The 15-minute E3-OBS soak produced
 3848 results; the required four-hour soak projects to roughly **61 500**, whose
-detail measures about 27 MB as JSON and rather more as live objects.
+detail is roughly 27 MB at the density `result.json` measures, and rather
+more as live objects.
 
 That is the problem, because `E3-OBS`'s `resources` check fails a managed heap
 that rises at *every* periodic sample. A long enough run would have reported the
@@ -133,7 +134,14 @@ Counting and retention are now separate concerns.
   the new per-phase `PhaseTotals` are incremented as each result arrives and are
   exact whatever is discarded. `RunSummary` no longer derives per-phase totals
   by walking the retained list, which would have quietly under-reported them.
-- **Failures and skips are never sampled away.** They are what a reader acts on.
+- **Every category is bounded, failures included.** Leaving failures unbounded
+  was the obvious first instinct and it is wrong: a soak whose subject breaks in
+  its first minutes fails every check of every cycle for hours, so the unbounded
+  set is the *failing* run rather than the healthy one — and running out of
+  memory there costs the two things still worth having, a written summary and a
+  clean cleanup. Each category has its own budget, so a storm in one cannot
+  crowd out the sample of another. Preserving a failure "in full" means its
+  exact count and its line in the log, not its object.
 - **Successes are sampled by distinct check, not by arrival.** A soak runs the
   same matrix thousands of times; the first occurrence of a check carries its
   claim and its notes, the ten-thousandth carries nothing new. The retained set
@@ -152,6 +160,49 @@ much was retained, the policy, its capacity, and the path to the incremental
 log. `summary.md` additionally states in plain words when its table is a sample,
 because a truncated table that looked complete would be the most misleading
 artifact here.
+
+### What it costs, measured
+
+Flush-per-line was kept, because the measurement says the alternative buys
+nothing worth its cost. `NekoLib.RuntimeTests.Harness.Tests` writes 65 000
+results — the scale a four-hour soak reaches — through the real sink:
+
+| Target | Elapsed | Throughput | Written |
+|---|---|---|---|
+| `net9.0` | 0.64 s | ~101 000/s | 9.4 MiB |
+| `net481` | 0.68 s | ~95 000/s | 9.5 MiB |
+
+That is under 0.005% of a four-hour run spent on its own bookkeeping. Buffering
+would trade that for the property the log exists to have: a killed process still
+leaves everything up to the last complete line.
+
+The written size is a **floor, not a projection**. Those results carry a
+one-word claim and no notes; a real scenario's carry both, so plan for the
+larger figure the `result.json` density implies. Either way it is well inside
+the 2 GB the campaign preflight requires.
+
+### When the log itself fails
+
+The first version swallowed a failed write — `try { sink(result); } catch { }` —
+which is the worst possible handling, because the artifacts went on asserting
+that `checks.ndjson` held every result while it silently did not. Under bounded
+retention that log is the *only* complete record, so a lie about it is a lie
+about the whole run.
+
+A failed write now:
+
+- **does not stop the checks.** The subject is fine and its counts are still
+  exact, so aborting would destroy good evidence over a bad disk;
+- **is reported boundedly** — the first failure and then every thousandth, since
+  the realistic cause is a disk that will now reject tens of thousands in a row;
+- **keeps the first few messages** and counts the rest;
+- **marks the log incomplete**, in `result.json` (`detailLogComplete`,
+  `detailLogFailures`, `detailLogFailureSamples`) and as the loudest paragraph in
+  `summary.md`, which also stops claiming the log is complete;
+- **returns `ExitCodes.EvidenceIncomplete` (9)**, last in the precedence order
+  because a real finding or a leaked resource is the more useful thing to
+  surface first. The orchestrator needs no change: it treats any nonzero worker
+  code as a failed worker and records the exact value.
 
 ### What it is not
 
@@ -271,6 +322,7 @@ multi-process campaign one collision-free contract.
 
 | Date | Result |
 |---|---|
+| 2026-08-10 | **Retention follow-up, still no runtime evidence.** Failures and skips became bounded like successes, each with its own budget, after the first pass left them unbounded and therefore left a failure storm able to exhaust memory and cost the run its summary. The swallowed sink failure was replaced by the accounted contract above, with `ExitCodes.EvidenceIncomplete = 9`. The incremental log was measured rather than guessed at: 65 000 results in **0.64 s on `net9.0` and 0.68 s on `net481`**, about 9.4 MiB, so flush-per-line was kept. `NekoLib.RuntimeTests.Harness.Tests` now runs **14 of 14 assertions green on both targets**. Harness and both consumers build with no warnings. **No scenario, smoke, rehearsal, soak or campaign was executed.** |
 | 2026-08-10 | **Bounded check retention, no runtime evidence produced.** `CheckRunner` accumulated every result, which a four-hour soak would have turned into the very heap growth `E3-OBS`'s drift check exists to catch. Counting moved to counters, success detail became a bounded per-check sample, and the full detail moved to `checks.ndjson`. Verified by [`NekoLib.RuntimeTests.Harness.Tests`](../NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj): **9 of 9 assertions pass on `net481` and on `net9.0`**, covering exact counts under sampling, the bound holding across 10 000 results, failures and skips surviving, per-phase totals, an exit code driven by a failure that arrives after the cap, the incremental log's completeness and order, short modes keeping their old behaviour and artifact set, and an interrupted run still leaving a usable summary. The harness and both consumers build with no warnings on both targets. **No scenario, smoke, rehearsal, soak or campaign was executed for this change**, so it adds no runtime evidence and supersedes none. |
 | 2026-08-08 | **Extraction verified.** Moved out of `E4-SQL` with `git mv` so history follows. Both targets build clean; E4-SQL smoke exits 0 with the same data digest as before; the schedule hash is byte-identical on `net481` and `net9.0`, which is what proves the move did not disturb determinism. **The extraction changed no check count and no assertion** — E4-SQL's smoke went from 28 checks to 29 earlier the same day, from the `state-baseline` check added while fixing the soak, and that is a separate change from this one. |
 | 2026-08-09 | **Second-consumer validation complete.** `E3-OBS` was written against this boundary and consumes `ExitCodes`, `CheckRunner`, `RunArtifacts`, `ResourceSampler`, `WorkloadCounters`, `RunSummary`, `RuntimeFacts`, `FaultSchedule`, `DeterministicRandom`, `IFaultVocabulary`, `ScenarioOptionsBase` and `JsonWriter` by name, plus `Native` and `ProcessRunner` indirectly through `RuntimeFacts`. Nothing in the harness went unused by the second consumer, which is the weaker but still useful half of the result: no piece turned out to be there for E4-SQL alone. One piece moved out (the sampler's SQL-specific columns, one of which was dead), one moved in (`RunSummary`), and two candidates were refused on the rules (the Ctrl+C handler and `--smoke-duration`). **Regression evidence:** both targets build with no warnings; E4-SQL's determinism hash is still `fnv1a64:49a3ab65b5f249e9` on `net481` and `net9.0` after the changes; E3-OBS's own hash `fnv1a64:af14ff69cf61b022` matches across both targets. |

@@ -1135,6 +1135,21 @@ not mean the corresponding Phase E scenario is complete.
   [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness.Tests/`](runtime_tests/Shared/NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj),
   9 of 9 assertions passing on both targets. **No scenario or campaign was
   executed for this change.**
+  **Retention follow-up, 2026-08-10, also with no runtime evidence.** The first
+  pass left failures and skips unbounded, so a failure storm — a soak whose
+  subject breaks early and fails every check of every cycle for hours — could
+  still exhaust memory and cost the run the two things worth having at that
+  point, a written summary and a clean cleanup. Every category is now bounded
+  with its own budget. A second defect was that a failed write to
+  `checks.ndjson` was swallowed while the artifacts went on asserting the log
+  held every result; a failed write now keeps the checks running, is reported
+  boundedly, marks the log incomplete in `result.json` and `summary.md`, and
+  returns the new `ExitCodes.EvidenceIncomplete` (9). The log's cost was
+  measured rather than assumed: 65 000 results in 0.64 s on `net9.0` and 0.68 s
+  on `net481`, so flush-per-line was kept — buffering would have traded 0.005%
+  of a four-hour run for the property that a killed process still leaves
+  everything up to its last complete line. 14 of 14 harness assertions pass on
+  both targets.
   **Still open:**
   1. A campaign with more than one worker. `E4-SQL` was deliberately excluded
      because E3-ORCH's own record shows a concurrent campaign saturating this
