@@ -204,6 +204,17 @@ A failed write now:
   surface first. The orchestrator needs no change: it treats any nonzero worker
   code as a failed worker and records the exact value.
 
+### Pending validation, not an open defect
+
+Everything above is covered by isolated automated tests and builds. **None of it
+has yet executed inside a scenario**, because the current strategy is to build
+every scenario before the execution phase begins.
+
+So the retention contract is proven; the *effect* it exists to produce — a
+smaller, non-monotonic heap in a real long run — remains pending evidence until
+a scenario runs under it. The first execution-phase step for `E3-OBS` is a
+three-minute probe that closes exactly this gap.
+
 ### What it is not
 
 It is not a relaxation of the drift check. `ResourceMatrix` is unchanged, and

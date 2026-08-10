@@ -373,6 +373,40 @@ behaviour under load and failure.
 | 2026-08-10 | `net9.0` | `E3-ORCH` campaign, `recovery`, `-Duration 70m` | **Aggregate exit 0, worker exit 0.** All eight campaign phases ran, and the worker passed 68 checks with 0 failed across all four phases. **This is the run that proves `--fault-schedule` end to end**: the worker's recorded `scheduleHash` is the orchestrator's own `fnv1a64:57d4189e5a941ecf`, and the seven faults fired in the orchestrator's order, which differs from the order the scenario generates for itself. Elapsed 59.1 minutes, so `belowSpecifiedWindow: true` — correctly, and this run is therefore orchestration evidence, not rehearsal evidence. |
 | 2026-08-09 | `net9.0` | `E3-ORCH` schedule parsing | The orchestrator generates a 7-fault schedule for this scenario from `campaign.json`, and the scenario loads all 7 events back through `--fault-schedule` with matching offsets and kinds. Superseded by the campaign above, which dispatches from it rather than only parsing it. |
 
+### Status: ready for execution, one item pending validation
+
+The scenario is **implemented**, **validated by isolated automated tests and by
+builds on both targets**, and **ready to execute**. Nothing here is a known
+defect.
+
+One thing is **pending validation rather than open**: the bounded check
+retention added on 2026-08-10 has never executed inside this scenario. The
+contract is covered by 14 isolated assertions in
+[`NekoLib.RuntimeTests.Harness.Tests`](../../Shared/NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj),
+green on `net481` and `net9.0`, but the wiring in this scenario's `Program.cs`,
+the real `checks.ndjson`, the reshaped `result.json` and the heap effect the
+change exists to produce have not been observed in a run. That is a gap in
+evidence, not a suspected fault.
+
+Deliberately so: the current strategy is to **build every scenario before
+starting the execution phase**, so nothing is run beyond what implementation
+needs.
+
+### When the execution phase begins
+
+In this order, for this scenario:
+
+1. **A probe of about 3 minutes** (`--soak 3m`) to verify the retention wiring
+   end to end: that `checks.ndjson` is written where expected, that its line
+   count matches `checks.total`, that the counts are exact, and that the
+   reshaped `result.json` reads correctly. Cheap, and it closes the pending item
+   above.
+2. **Then decide whether the 25-minute heap comparison still adds value.** Its
+   only purpose is a managed-heap trend to set against the 15-minute baseline
+   taken under unbounded retention — 2.1 to 4.5 MiB, with 67 of 127 periodic
+   samples rising. If the probe already answers the question, skip it.
+3. **Only then prepare the mandatory 4-hour soak.**
+
 ### What is still open
 
 - The 4-hour soak. The path itself is proven — a 15-minute soak completed with

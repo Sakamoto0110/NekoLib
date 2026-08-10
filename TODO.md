@@ -1015,6 +1015,20 @@ exit codes, cleanup is reconciled, and the required long-running evidence is
 recorded. A pre-existing smoke or partial consumer is useful evidence but does
 not mean the corresponding Phase E scenario is complete.
 
+**Sequencing decision, 2026-08-10: build every scenario before starting the
+execution phase.** Long runs are not interleaved with implementation. Each
+scenario is taken to implemented, isolated-test-verified and buildable, and
+nothing is executed beyond what its implementation requires; the smoke,
+rehearsal, soak and campaign runs happen afterwards, as one deliberate phase.
+This is why a scenario can be *ready for execution* while carrying items marked
+pending validation — those are gaps in evidence awaiting that phase, not open
+defects. It also keeps the host free, which the recorded load finding shows
+matters for any measurement of drift.
+
+Three scenarios still have no source at all — `E3-NAV`, `E3-PIPE` and
+`E3-WDOG` — and `E3-DEV` exists only as the interactive com0com scenario without
+its automated modes. Those are what the build phase has left.
+
 - [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
   a thin PowerShell orchestrator with a versioned configuration schema,
@@ -1150,6 +1164,17 @@ not mean the corresponding Phase E scenario is complete.
   of a four-hour run for the property that a killed process still leaves
   everything up to its last complete line. 14 of 14 harness assertions pass on
   both targets.
+  **Status: ready for execution, one item pending validation.** The scenario is
+  implemented, validated by isolated tests and by builds on both targets, and
+  ready to run. The bounded retention has not executed inside the scenario yet —
+  the wiring, the real `checks.ndjson`, the reshaped `result.json` and the heap
+  effect are unobserved. That is **pending validation, not an open defect**, and
+  it is deliberate: the strategy is to build every scenario before the execution
+  phase starts.
+  **Execution-phase order for this scenario:** a ~3-minute `--soak 3m` probe to
+  verify wiring, `checks.ndjson`, counts and the new `result.json`; then a
+  decision on whether the 25-minute heap comparison against the unbounded
+  15-minute baseline still adds value; and only then the mandatory 4-hour soak.
   **Still open:**
   1. A campaign with more than one worker. `E4-SQL` was deliberately excluded
      because E3-ORCH's own record shows a concurrent campaign saturating this
