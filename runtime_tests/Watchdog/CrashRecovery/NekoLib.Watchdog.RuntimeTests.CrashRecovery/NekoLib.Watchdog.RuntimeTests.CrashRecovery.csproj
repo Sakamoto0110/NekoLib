@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Watchdog.RuntimeTests.CrashRecovery</RootNamespace>
+    <AssemblyName>NekoLib.Watchdog.RuntimeTests.CrashRecovery</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NekoLib.Watchdog.RuntimeTests.CrashRecovery.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
+    <ProjectReference Include="..\..\..\Shared\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
+
+    <!-- These are workload/deployment build edges, not compile-time APIs. -->
+    <ProjectReference Include="..\NekoLib.Watchdog.RuntimeTests.CrashRecovery.Child\NekoLib.Watchdog.RuntimeTests.CrashRecovery.Child.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\..\..\src\Watchdog\NekoLib.Watchdog.Host\NekoLib.Watchdog.Host.csproj"
+                      ReferenceOutputAssembly="false" />
+    <Compile Include="..\Shared\ChildPlan.cs" Link="Shared\ChildPlan.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <!--
+    The source layout is a build-only/development layout. It deliberately
+    mirrors the package target's deployed shape so WatchdogBootstrap follows
+    its real path contract, but it cannot support a package-behaviour claim.
+    Package-backed runs supply an external application root built from an
+    immutable NekoLib.Watchdog.Host package instead.
+  -->
+  <Target Name="StageE3WatchdogSourceLayout" AfterTargets="Build">
+    <PropertyGroup>
+      <_E3WatchdogApplicationRoot>$(TargetDir)ScenarioApplication\</_E3WatchdogApplicationRoot>
+      <_E3WatchdogChildOutput>$(MSBuildProjectDirectory)\..\NekoLib.Watchdog.RuntimeTests.CrashRecovery.Child\bin\$(Configuration)\$(TargetFramework)\</_E3WatchdogChildOutput>
+      <_E3WatchdogHostOutput>$(MSBuildProjectDirectory)\..\..\..\..\src\Watchdog\NekoLib.Watchdog.Host\bin\$(Configuration)\$(TargetFramework)\</_E3WatchdogHostOutput>
+    </PropertyGroup>
+    <ItemGroup>
+      <_E3WatchdogChildPayload Include="$(_E3WatchdogChildOutput)**\*" />
+      <_E3WatchdogHostPayload Include="$(_E3WatchdogHostOutput)**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_E3WatchdogApplicationRoot)" />
+    <MakeDir Directories="$(_E3WatchdogApplicationRoot);$(_E3WatchdogApplicationRoot)NekoLib.Watchdog.Host\" />
+    <Copy SourceFiles="@(_E3WatchdogChildPayload)"
+          DestinationFiles="@(_E3WatchdogChildPayload->'$(_E3WatchdogApplicationRoot)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_E3WatchdogHostPayload)"
+          DestinationFiles="@(_E3WatchdogHostPayload->'$(_E3WatchdogApplicationRoot)NekoLib.Watchdog.Host\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+</Project>

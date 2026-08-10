@@ -1025,9 +1025,9 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-Two scenarios still have no source at all: `E3-NAV` and `E3-WDOG`. Those are
-what the build phase has left. `E3-PIPE` and `E3-DEV` are implemented and have
-never been executed, which is a gap in evidence rather than in source.
+One scenario still has no source at all: `E3-NAV`. `E3-WDOG`, `E3-PIPE` and
+`E3-DEV` are implemented and have never been executed, which is a gap in
+evidence rather than in source.
 
 - [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1273,10 +1273,35 @@ never been executed, which is a gap in evidence rather than in source.
   **Never executed.** Build and `--print-schedule` only, per the build-first
   sequencing. A scenario that has never opened a pipe is the least-verified kind
   of pending there is, and it is not shared evidence for any Pipes behaviour.
-- [ ] **E3-WDOG — deployed-Host crash and recovery.** Supervisor481 exists with
-  build-only evidence; the deployed sidecar, deterministic crash loop,
-  forwarding, bundle, duplicate-supervision, recovery, and soak evidence remains
-  open.
+- [ ] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
+  delivered 2026-08-10** at
+  [`runtime_tests/Watchdog/CrashRecovery/`](runtime_tests/Watchdog/CrashRecovery/README.md):
+  an independent controller owns the single artifact/result contract and exact
+  PID/path registry; a separate application child calls the public bounded
+  bootstrap/attach API; and the separately deployed Host owns supervision,
+  restarts, public Pipes RPC, log forwarding and crash-bundle finalization. The
+  deterministic plan is persisted before first launch, and the child writes a
+  durable campaign/event/generation `armed` record before each planned terminal.
+  Six fault kinds cover repeated ordinary exits, unhandled crashes, a
+  twelve-terminal fast loop that guarantees two current ten-second cooling
+  windows, Host shutdown/restart, paused clean child shutdown, and repeated
+  bootstrap. Every recovery requires one exact Host/child pair, a newer durable
+  generation, a real health RPC and one unique forwarded log token. Final checks
+  cover pending finalization, bundle identity/completeness, manifest checksums,
+  Host status/log tail, retention at ten and exact-process cleanup. No product
+  module or shared harness source changed; the scenario health pipe and terminal
+  plan are workload-owned controls rather than a product `TestControl` surface.
+  **Build-only status:** `net481` and `net9.0-windows` build, 6/6 isolated
+  contract checks pass per target, and repeated
+  `--print-schedule` output for recovery seed `20260810` is hash-stable across
+  targets (`fnv1a64:677fcab193b16fbf`). No application child,
+  Host, smoke, rehearsal, soak or bundle path has executed. The source-staged
+  layout is explicitly not package evidence; no package was created. A first
+  explicitly authorized run must precede any `campaign.json` registration, and
+  package behavior still requires an immutable disposable-package or
+  published-consumer layout with exact version and SHA-256. The checkbox remains
+  open for smoke and rehearsal on both targets, one package-backed pass, cleanup
+  evidence, and the required four-hour soak.
 - [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
   delivered 2026-08-10** inside the existing
   [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Watchdog.RuntimeTests.CrashRecovery.Child</RootNamespace>
+    <AssemblyName>NekoLib.Watchdog.RuntimeTests.CrashRecovery.Child</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Prefer32Bit>false</Prefer32Bit>
+    <NekoLibScenarioUsePackages Condition="'$(NekoLibScenarioUsePackages)' == ''">false</NekoLibScenarioUsePackages>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(NekoLibScenarioUsePackages)' != 'true'">
+    <ProjectReference Include="..\..\..\..\src\Watchdog\NekoLib.Watchdog\NekoLib.Watchdog.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(NekoLibScenarioUsePackages)' == 'true'">
+    <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" />
+  </ItemGroup>
+
+  <Target Name="ValidateE3WatchdogPackageInputs"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(NekoLibScenarioUsePackages)' == 'true' and '$(NekoLibPackageVersion)' == ''">
+    <Error Text="NekoLibPackageVersion is required when NekoLibScenarioUsePackages=true." />
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\ChildPlan.cs" Link="Shared\ChildPlan.cs" />
+  </ItemGroup>
+
+</Project>
