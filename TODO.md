@@ -1086,13 +1086,18 @@ not mean the corresponding Phase E scenario is complete.
   assertion first overlapped. A sustained smoke is far cheaper than a soak and
   finds the same class of problem.
   **Still open, in the order they should be closed:**
+  **The target matrix is complete as of 2026-08-10:** the `net481` rehearsal
+  also exited 0 at 62.3 minutes with 68 checks and all seven faults, so both
+  targets have now passed both smoke and rehearsal with nothing skipped on
+  either. It produced the same schedule hash and byte-identical counters as the
+  `net9.0` rehearsal — 8071 operations, 8046 successes, 23 expected failures,
+  2 cancellations — so the rehearsal is deterministic in its workload and not
+  only in its plan.
+  **Still open, in the order they should be closed:**
   1. A run driven by an external `--fault-schedule`, which is the path an
      orchestrated campaign uses. Verified so far only as far as parsing.
-  2. A `net481` rehearsal. Nothing in the scenario is target-conditional, so the
-     `net481` smoke plus the `net9.0` rehearsal cover the matrix, but the
-     `net481` rehearsal itself has not run.
-  3. A campaign actually executed through `E3-ORCH`.
-  4. The 16-hour soak. Now a question of duration rather than correctness.
+  2. A campaign actually executed through `E3-ORCH`.
+  3. The 16-hour soak. Now a question of duration rather than correctness.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a
