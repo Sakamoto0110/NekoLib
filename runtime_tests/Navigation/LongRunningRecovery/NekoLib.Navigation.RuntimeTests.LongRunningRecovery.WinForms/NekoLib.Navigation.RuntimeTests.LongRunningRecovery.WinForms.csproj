@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms</AssemblyName>
+    <RootNamespace>NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Core\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Navigation\NekoLib.Navigation.WinForms\NekoLib.Navigation.WinForms.csproj" />
+  </ItemGroup>
+</Project>

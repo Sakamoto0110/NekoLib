@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf</AssemblyName>
+    <RootNamespace>NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Core\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Navigation\NekoLib.Navigation.Wpf\NekoLib.Navigation.Wpf.csproj" />
+  </ItemGroup>
+</Project>

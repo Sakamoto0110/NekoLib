@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>NekoLib.Navigation.RuntimeTests.LongRunningRecovery</RootNamespace>
+    <AssemblyName>NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Core</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Navigation\NekoLib.Navigation\NekoLib.Navigation.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Inspection\NekoLib.Inspection\NekoLib.Inspection.csproj" />
+    <ProjectReference Include="..\..\..\Shared\NekoLib.RuntimeTests.Harness\NekoLib.RuntimeTests.Harness.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests" />
+  </ItemGroup>
+
+</Project>
