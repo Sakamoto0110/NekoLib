@@ -84,6 +84,135 @@
     },
 
     {
+      "id": "E3-NAV-winforms-net481",
+      "workerId": "E3-NAV-winforms-net481",
+      "artifactLayoutVersion": 2,
+      "enabled": false,
+      "description": "NekoLib Navigation recovery on WinForms net481. Requires an interactive Windows desktop and remains opt-in until its qualifying smoke passes.",
+      "project": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms.csproj",
+      "targetFramework": "net481",
+      "executable": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms/bin/Debug/net481/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms.exe",
+
+      "prerequisites": [],
+      "adopts": [],
+
+      "faultKinds": [
+        "registry-lookup-failure",
+        "page-creation-failure",
+        "page-load-failure",
+        "enter-lifecycle-failure",
+        "leave-lifecycle-failure",
+        "background-load-failure",
+        "guard-timeout",
+        "guard-throws",
+        "redirect-cycle",
+        "redirect-depth",
+        "surface-binding-failure",
+        "surface-show-failure",
+        "surface-cleanup-failure",
+        "dispatcher-unavailable"
+      ],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--smoke", "--smoke-duration", "{duration}", "--scenario-id", "E3-NAV-winforms-net481", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "recovery": {
+          "arguments": ["--recovery-rehearsal", "--rehearsal-duration", "{duration}", "--scenario-id", "E3-NAV-winforms-net481", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "soak": {
+          "arguments": ["--soak", "{duration}", "--scenario-id", "E3-NAV-winforms-net481", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        }
+      }
+    },
+
+    {
+      "id": "E3-NAV-winforms-net9.0",
+      "workerId": "E3-NAV-winforms-net9.0",
+      "artifactLayoutVersion": 2,
+      "enabled": false,
+      "description": "NekoLib Navigation recovery on WinForms net9.0-windows. Requires an interactive Windows desktop and remains opt-in until its qualifying smoke passes.",
+      "project": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms.csproj",
+      "targetFramework": "net9.0-windows",
+      "executable": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms/bin/Debug/net9.0-windows/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms.exe",
+
+      "prerequisites": [],
+      "adopts": [],
+
+      "faultKinds": [
+        "registry-lookup-failure",
+        "page-creation-failure",
+        "page-load-failure",
+        "enter-lifecycle-failure",
+        "leave-lifecycle-failure",
+        "background-load-failure",
+        "guard-timeout",
+        "guard-throws",
+        "redirect-cycle",
+        "redirect-depth",
+        "surface-binding-failure",
+        "surface-show-failure",
+        "surface-cleanup-failure",
+        "dispatcher-unavailable"
+      ],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--smoke", "--smoke-duration", "{duration}", "--scenario-id", "E3-NAV-winforms-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "recovery": {
+          "arguments": ["--recovery-rehearsal", "--rehearsal-duration", "{duration}", "--scenario-id", "E3-NAV-winforms-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "soak": {
+          "arguments": ["--soak", "{duration}", "--scenario-id", "E3-NAV-winforms-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        }
+      }
+    },
+
+    {
+      "id": "E3-NAV-wpf-net9.0",
+      "workerId": "E3-NAV-wpf-net9.0",
+      "artifactLayoutVersion": 2,
+      "enabled": false,
+      "description": "NekoLib Navigation recovery on WPF net9.0-windows. Requires an interactive Windows desktop and remains opt-in until its qualifying smoke passes.",
+      "project": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf.csproj",
+      "targetFramework": "net9.0-windows",
+      "executable": "runtime_tests/Navigation/LongRunningRecovery/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf/bin/Debug/net9.0-windows/NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf.exe",
+
+      "prerequisites": [],
+      "adopts": [],
+
+      "faultKinds": [
+        "registry-lookup-failure",
+        "page-creation-failure",
+        "page-load-failure",
+        "enter-lifecycle-failure",
+        "leave-lifecycle-failure",
+        "background-load-failure",
+        "guard-timeout",
+        "guard-throws",
+        "redirect-cycle",
+        "redirect-depth",
+        "surface-binding-failure",
+        "surface-show-failure",
+        "surface-cleanup-failure",
+        "dispatcher-unavailable"
+      ],
+
+      "modes": {
+        "smoke": {
+          "arguments": ["--smoke", "--smoke-duration", "{duration}", "--scenario-id", "E3-NAV-wpf-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "recovery": {
+          "arguments": ["--recovery-rehearsal", "--rehearsal-duration", "{duration}", "--scenario-id", "E3-NAV-wpf-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        },
+        "soak": {
+          "arguments": ["--soak", "{duration}", "--scenario-id", "E3-NAV-wpf-net9.0", "--seed", "{seed}", "--artifacts", "{artifacts}", "--campaign-id", "{campaignId}", "--worker-id", "{workerId}", "--fault-schedule", "{schedule}"]
+        }
+      }
+    },
+
+    {
       "id": "Data-FarmDatabase-SQLite",
       "enabled": true,
       "description": "The existing FarmDatabase simulation in headless mode against SQLite. It owns no faults and accepts no schedule; it is here because it is the second worker that already exists, which is what makes aggregation worth proving.",

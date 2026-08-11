@@ -1074,7 +1074,7 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   Inspection evidence, resource sampling and cleanup; the smallest native
   WinForms and WPF hosts supply only pages, surfaces, adapter composition and
   their UI loops. The required WinForms `net481`, WinForms `net9.0-windows`, and
-  WPF `net9.0-windows` combinations build. Six isolated contracts pass on both
+  WPF `net9.0-windows` combinations build. Eight isolated contracts pass on both
   core targets, and repeated recovery previews are stable across all three
   combinations at `fnv1a64:2af9145c9ebf63ec` for seed `20260810`; seed `99`
   differs. Fault/workload controls remain scenario-owned, no Inspection action
@@ -1090,8 +1090,15 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   before the public reset/shutdown cutoff. Awaiting those lifecycle boundaries
   also removed the following idle/shutdown cascade. The public history
   assertion now expects exactly one entry for the current Idle page. No frozen
-  Navigation or shared harness source changed. These runs are below the
-  15-minute smoke minimum and do not establish resource drift. Standalone smoke
+  Navigation or shared harness source changed. After the standalone gate, the
+  three combinations were registered as separate, disabled E3-ORCH workers.
+  Their scenario-owned `--scenario-id` keeps the campaign schedule and v2
+  result path aligned without changing the shared harness. Build + preflight
+  passed for all three entries, and repeated 60-minute recovery previews planned
+  14 faults per worker with stable hash `fnv1a64:320060b0d5392105`; seed `99`
+  changed it to `fnv1a64:d1fafc3b8bc85288`. They remain opt-in because runtime
+  requires an interactive Windows desktop and no qualifying smoke has run.
+  These runs are below the 15-minute smoke minimum and do not establish resource drift. Standalone smoke
   on all three combinations, rehearsal on all three, one four-hour native full
   run, interactive parity, and resource-baseline interpretation remain open.
 - [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
@@ -1258,10 +1265,13 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   its recorded determinism hash is still `fnv1a64:49a3ab65b5f249e9` on both
   targets. Two artifact details changed and neither is an assertion: the dead
   `server_sessions` column is gone, and `result.json` gained `checksByPhase`.
-  **The next test is a third consumer.** `E3-NAV` and `E3-PIPE` are the
-  candidates, and both are likely to press on `WorkloadCounters`, whose
-  vocabulary has so far only had to describe two scenarios that both happen to
-  think in operations.
+  **Third-consumer check closed, 2026-08-11.** E3-DEV, E3-PIPE, E3-WDOG, and
+  E3-NAV subsequently became real consumers, bringing the scenario count to six.
+  `WorkloadCounters` survived serial operations, pipe traffic, process
+  generations, and Navigation cycles without a shared vocabulary change.
+  E3-NAV reused the existing schedule, artifact, check, sampling, summary, and
+  counter contracts without expanding the harness; its native host and workload
+  controls stayed scenario-owned.
 - [ ] **E3-PIPE — Pipes long-running and recovery.** **First pass delivered
   2026-08-10** at [`runtime_tests/Pipes/LongRunningRecovery/`](runtime_tests/Pipes/LongRunningRecovery/README.md):
   one executable in three roles — controller, server child, client child — so the

@@ -146,6 +146,15 @@ means none of those runs is smoke-gate evidence:
 dotnet run --project runtime_tests\Navigation\LongRunningRecovery\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms\NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms.csproj -f net481 -- --smoke --smoke-duration 2m --seed 20260810
 ```
 
+The three E3-ORCH entries are disabled by default and must be selected together
+from an interactive Windows desktop. The scenario-specific `--scenario-id`
+argument is supplied by `campaign.json`; it keeps each worker's 14 schedule
+events and v2 result path distinct without changing the shared harness:
+
+```powershell
+.\runtime_tests\Confidence\LongRunning\run.ps1 -Mode smoke -Scenarios E3-NAV-winforms-net481,E3-NAV-winforms-net9.0,E3-NAV-wpf-net9.0
+```
+
 The next runtime gate is the normal standalone smoke on all three combinations
 without `--smoke-duration`. Only after those smokes pass should the recovery
 rehearsals run, followed by one four-hour full native combination and
@@ -227,4 +236,12 @@ service, endpoint, package operation, or external resource.
   awaits reset or shutdown before releasing late page-owned work. A dirty
   confirmation reduced the result to the redirect assertion alone, then passed
   11/11 after that assertion was aligned with the public history contract. No
-  file under `src/Navigation`, shared harness source, or `campaign.json` changed.
+  file under `src/Navigation` or shared harness source changed.
+- 2026-08-11 / working tree based on `ee1a47a`: the first standalone-success
+  condition allowed E3-ORCH registration. Eight isolated contracts passed on
+  both core targets, including distinct scenario-ID ownership and unsafe-ID
+  rejection. Build + preflight passed for all three disabled workers without
+  launching one. Repeated aggregate recovery previews planned exactly 14 events
+  for each worker and produced `fnv1a64:320060b0d5392105` for seed `20260810`;
+  seed `99` produced `fnv1a64:d1fafc3b8bc85288`. No qualifying runtime mode or
+  interactive procedure was executed by this registration validation.

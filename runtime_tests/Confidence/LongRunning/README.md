@@ -58,13 +58,18 @@ fault kinds it can dispatch, the prerequisites to report, and anything it
 adopts. Arguments support the tokens `{seed}`, `{artifacts}`, `{campaignId}`,
 `{workerId}`, `{schedule}`, `{duration}` and `{durationSeconds}`.
 
-Three scenarios are registered today:
+Six entries are registered today. The three E3-NAV entries are disabled by
+default because their native hosts require an interactive Windows desktop and
+their qualifying smokes are still pending:
 
 | Id | What it is |
 |---|---|
 | `E4-SQL` | `NekoLib.Data` against the adopted SQL Server container; owns seven fault kinds |
 | `E3-OBS` | Logging, Telemetry and passive Inspection; owns seven scenario-local fault kinds |
 | `Data-FarmDatabase-SQLite` | the existing FarmDatabase simulation, headless; owns no faults and accepts no schedule |
+| `E3-NAV-winforms-net481` | Opt-in WinForms `net481` Navigation worker; owns 14 scenario-local fault kinds |
+| `E3-NAV-winforms-net9.0` | Opt-in WinForms `net9.0-windows` Navigation worker; owns 14 scenario-local fault kinds |
+| `E3-NAV-wpf-net9.0` | Opt-in WPF `net9.0-windows` Navigation worker; owns 14 scenario-local fault kinds |
 
 ## Usage
 
@@ -179,7 +184,9 @@ Each worker's own side effects are its own and are documented in its scenario:
 `E4-SQL` creates and drops one SQL Server database and restores the adopted
 container to the state it found; `E3-OBS` writes only beneath its worker
 directory; `Data-FarmDatabase-SQLite` recreates its SQLite fixture under
-`%LOCALAPPDATA%\NekoLib\FarmDatabase\`.
+`%LOCALAPPDATA%\NekoLib\FarmDatabase\`. Each E3-NAV worker owns only its native
+window, scenario state, and worker artifact directory, and awaits Navigation
+shutdown before it exits.
 
 ## Known limits
 
@@ -187,6 +194,10 @@ directory; `Data-FarmDatabase-SQLite` recreates its SQLite fixture under
   reliable way to deliver Ctrl+C to another console group, so a worker that
   outlives the deadline is given a bounded grace period and then forced. Workers
   are expected to end themselves; the force path is a backstop, not the plan.
+- **Native Navigation workers are opt-in.** Preflight cannot prove that the
+  current Windows session has an interactive desktop. Select those workers only
+  from an attended desktop, keep their three IDs separate, and treat the native
+  windows as part of the run rather than as UI automation.
 - **Concurrency is a real load.** The first two-worker campaign on this machine
   saturated it — see the verification record.
 - **No readiness handshake.** Warm-up checks that a worker did not exit

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using NekoLib.RuntimeTests.Harness;
 
 namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
@@ -12,6 +13,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
         public static readonly TimeSpan MinimumSpecifiedSmoke = TimeSpan.FromMinutes(15);
 
         private readonly string _platformId;
+        private string _scenarioId = "E3-NAV";
 
         public ScenarioOptions(string platformId)
         {
@@ -21,7 +23,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
             _platformId = platformId;
         }
 
-        public override string ScenarioId => "E3-NAV";
+        public override string ScenarioId => _scenarioId;
         protected override string CampaignPrefix => "e3nav-" + _platformId;
 
         public string PlatformId => _platformId;
@@ -35,7 +37,8 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
             {
                 "  --smoke-duration <d>        development override; specified window remains 15-30m",
                 "  --idle-timeout-ms <n>       scenario idle interval, default 120000ms",
-                "  --switches-per-cycle <n>    sustained switch batch, default 256"
+                "  --switches-per-cycle <n>    sustained switch batch, default 256",
+                "  --scenario-id <id>          orchestrator entry id; standalone default is E3-NAV"
             };
         }
 
@@ -76,9 +79,29 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
                     }
                     return true;
 
+                case "--scenario-id":
+                    if (!TryTakeValue(args, ref index, option, out string scenarioId, out diagnostic))
+                        return false;
+                    if (!IsSafePathSegment(scenarioId))
+                    {
+                        diagnostic = "--scenario-id expects one safe directory name, got '" + scenarioId + "'";
+                        return false;
+                    }
+                    _scenarioId = scenarioId;
+                    return true;
+
                 default:
                     return false;
             }
+        }
+
+        private static bool IsSafePathSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value == "." || value == "..") return false;
+            if (value.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
+                value.IndexOf(Path.AltDirectorySeparatorChar) >= 0) return false;
+
+            return value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
         }
 
         public static string UsageText(string platformId) =>

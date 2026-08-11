@@ -20,6 +20,8 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests
             suite.Run("smoke plan contains no recovery faults", SmokeContainsNoFaults);
             suite.Run("persisted plan is exact UTF-8 JSON", PersistedPlanIsExact);
             suite.Run("scenario options preserve workload boundaries", OptionsPreserveBoundaries);
+            suite.Run("orchestrated instance id owns its schedule events", InstanceIdOwnsScheduleEvents);
+            suite.Run("unsafe orchestrated instance id is rejected", UnsafeInstanceIdIsRejected);
             return suite.Report();
         }
 
@@ -94,6 +96,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests
                 "--recovery-rehearsal",
                 "--campaign-id", "e3nav-contracts",
                 "--worker-id", "contracts",
+                "--scenario-id", "E3-NAV-winforms-net481",
                 "--seed", "42",
                 "--rehearsal-duration", "45m",
                 "--idle-timeout-ms", "150000",
@@ -105,6 +108,37 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests
             assert.Equal(150000, options.IdleTimeoutMilliseconds, "idle timeout");
             assert.Equal(512, options.SwitchesPerCycle, "switches per cycle");
             assert.Equal("e3nav-contracts", options.CampaignId, "campaign ID");
+            assert.Equal("E3-NAV-winforms-net481", options.ScenarioId, "scenario ID");
+        }
+
+        private static void InstanceIdOwnsScheduleEvents(Assert assert)
+        {
+            ScenarioOptions options = new ScenarioOptions("winforms");
+            bool parsed = options.TryParse(new[]
+            {
+                "--recovery-rehearsal",
+                "--scenario-id", "E3-NAV-winforms-net9.0"
+            }, out string diagnostic);
+
+            assert.That(parsed, diagnostic);
+            FaultSchedule schedule = ScenarioPlan.Build(options);
+            assert.Equal("E3-NAV-winforms-net9.0", schedule.ScenarioId, "schedule scenario ID");
+            assert.That(schedule.Events.All(item => item.ScenarioId == options.ScenarioId),
+                "every event must belong to the orchestrator entry");
+        }
+
+        private static void UnsafeInstanceIdIsRejected(Assert assert)
+        {
+            ScenarioOptions options = new ScenarioOptions("winforms");
+            bool parsed = options.TryParse(new[]
+            {
+                "--smoke",
+                "--scenario-id", "..\\escaped"
+            }, out string diagnostic);
+
+            assert.That(!parsed, "an unsafe scenario ID was accepted");
+            assert.That(diagnostic.IndexOf("safe directory name", StringComparison.Ordinal) >= 0,
+                "the rejection did not explain the path boundary");
         }
 
         private static ScenarioOptions Options(string platform, int seed) => new ScenarioOptions(platform)
