@@ -22,6 +22,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests
             suite.Run("scenario options preserve workload boundaries", OptionsPreserveBoundaries);
             suite.Run("orchestrated instance id owns its schedule events", InstanceIdOwnsScheduleEvents);
             suite.Run("unsafe orchestrated instance id is rejected", UnsafeInstanceIdIsRejected);
+            suite.Run("page fault oracle accepts the documented factory wrapper", PageFaultOracleAcceptsFactoryWrapper);
             return suite.Report();
         }
 
@@ -139,6 +140,22 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Tests
             assert.That(!parsed, "an unsafe scenario ID was accepted");
             assert.That(diagnostic.IndexOf("safe directory name", StringComparison.Ordinal) >= 0,
                 "the rejection did not explain the path boundary");
+        }
+
+        private static void PageFaultOracleAcceptsFactoryWrapper(Assert assert)
+        {
+            Exception injected = new ScenarioInjectedException("injected");
+            Exception wrapped = new InvalidOperationException(
+                "Factory failed to create the page.",
+                new InvalidOperationException("Default constructor failed.", injected));
+
+            assert.That(NavigationRecovery.ContainsScenarioInjectedException(injected),
+                "a direct scenario exception was rejected");
+            assert.That(NavigationRecovery.ContainsScenarioInjectedException(wrapped),
+                "the documented factory wrapper was rejected");
+            assert.That(!NavigationRecovery.ContainsScenarioInjectedException(
+                    new InvalidOperationException("unrelated")),
+                "an unrelated exception was accepted");
         }
 
         private static ScenarioOptions Options(string platform, int seed) => new ScenarioOptions(platform)

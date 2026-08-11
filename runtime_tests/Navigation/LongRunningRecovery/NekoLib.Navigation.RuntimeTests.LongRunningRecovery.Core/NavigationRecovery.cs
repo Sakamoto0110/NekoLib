@@ -206,9 +206,20 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
             using (context.State.Inject(context.Platform.Pages.Fault, point))
             {
                 Exception? error = await context.NavigateExpectedFailureAsync(context.Platform.Pages.Fault);
-                check.That(error is ScenarioInjectedException,
-                    point + " fault did not propagate the scenario exception");
+                check.That(ContainsScenarioInjectedException(error),
+                    point + " fault did not surface the scenario exception in its exception chain");
             }
+        }
+
+        internal static bool ContainsScenarioInjectedException(Exception? error)
+        {
+            while (error != null)
+            {
+                if (error is ScenarioInjectedException) return true;
+                error = error.InnerException;
+            }
+
+            return false;
         }
 
         private static async Task AssertRedirectRejectionAsync(
