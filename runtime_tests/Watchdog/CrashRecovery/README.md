@@ -13,11 +13,12 @@ own processes. Package-backed runs also require an already-created immutable
 `NekoLib.Watchdog.Host` package and a consumer output built from that exact
 package.
 
-**Last verification:** 2026-08-10 — **build-only.** Both target frameworks
-build, and schedule generation is deterministic across repeated invocations and
-targets (`fnv1a64:677fcab193b16fbf` for recovery rehearsal, seed `20260810`).
-Six isolated contract checks pass on each target. The scenario has never started
-its child or Host and has never executed smoke, recovery rehearsal, or soak.
+**Last verification:** 2026-08-11 - **passing short source-layout development
+probes on both targets.** Each final run passed 20/20 checks, exercised all six
+smoke faults and seven healthy generations, exited 0 in about 123 seconds, and
+completed endpoint/process cleanup. Seven isolated contract checks pass per
+target. These runs are below the 15-minute smoke minimum and are not package
+evidence; full smoke, rehearsal, package-backed proof and soak remain open.
 
 ## Purpose
 
@@ -142,7 +143,7 @@ dotnet build runtime_tests\Watchdog\CrashRecovery\NekoLib.Watchdog.RuntimeTests.
 .\runtime_tests\Watchdog\CrashRecovery\NekoLib.Watchdog.RuntimeTests.CrashRecovery.Tests\bin\Debug\net9.0-windows\NekoLib.Watchdog.RuntimeTests.CrashRecovery.Tests.exe
 ```
 
-## Execution commands — not yet run
+## Execution commands
 
 Source-layout development execution:
 
@@ -198,3 +199,57 @@ The controller writes the shared Phase E artifact contract plus:
   recovery rehearsal, soak, bundle finalization, process cleanup, or
   package-backed mode has executed. This is readiness evidence, not Watchdog
   runtime evidence.
+- 2026-08-11 / dirty working tree at `fff6307`: two identical source-layout
+  development probes ran on `net9.0-windows` with
+  `--smoke --smoke-duration 2m --layout source --seed 20260810`. Both persisted
+  the same schedule before the first application (`fnv1a64:7d3f49941df33843`),
+  exercised all six scheduled faults and reached seven healthy generations.
+  Each finalized with exit 4, 19 passed checks, one failed check, no skipped
+  checks, and about 123 seconds elapsed. The artifacts are
+  `artifacts/validation/phase-e/e3wdog-smoke-net9.0-s20260810-20260811T153528212Z`
+  and
+  `artifacts/validation/phase-e/e3wdog-smoke-net9.0-s20260810-20260811T155129488Z`.
+  Bundle integrity, retention, generation accounting, exact live-pair checks,
+  endpoint release and process cleanup passed in both runs; no scenario process
+  remained.
+- Both probes reproduced the same first-generation-only product defect. The
+  initially attached application exited normally and was replaced, but public
+  status reported a null `lastExitCode`; the next ordinary terminal from a
+  Host-started generation reported 0. `WatchdogRuntime.AttachInitialProcess()`
+  acquires the initial application through `Process.GetProcessById()`. After the
+  process exits, the monitor catches the failed `ExitCode` read and stores null.
+  The existing attach regression asserts restart and identity but not the
+  attached process's exit code. This is not a schedule or recovery-wait race:
+  the replacement generation was already durable, healthy and acknowledged in
+  both runs before status was read.
+- A narrow product fix was authorized after those two attempts. The attach path
+  now materializes the process handle while the initial application is alive,
+  so the same `Process` retains exit-code observability after termination. A
+  focused regression discards the launcher's handle, exits the attached process
+  with code 17, and asserts public status after restart. It failed with
+  `lastExitCode: null` before the fix and passes on `net481` and
+  `net9.0-windows` after it. The complete Watchdog test suite passes 84/84 on
+  each target. No public API, pipe protocol, bootstrap behavior or restart
+  policy changed.
+- The first `net481` probe after the product fix exited 7 during repeat
+  bootstrap because immediate ownership adoption observed a transient
+  unavailable `Process.MainModule.FileName`. Exact adoption now retries the same
+  PID's image path and start time for a bounded five seconds; it never adopts an
+  incomplete identity and cleanup still never selects by broad process name.
+  The next probe completed all faults but exited 4 when final retention parsed
+  child-owned integer strings through the harness numeric reader. E3-WDOG now
+  parses only that persisted string contract with invariant checked `Int64`,
+  covered by a seventh isolated contract check. The shared harness is unchanged.
+- Final source-layout probes on the complete corrected source passed on both
+  targets. `net481` artifact
+  `artifacts/validation/phase-e/e3wdog-smoke-net481-s20260810-20260811T164300191Z`
+  and `net9.0-windows` artifact
+  `artifacts/validation/phase-e/e3wdog-smoke-net9.0-s20260810-20260811T164537338Z`
+  each record smoke hash `fnv1a64:7d3f49941df33843`, 20 passed checks, zero
+  failed/skipped, all six faults, seven healthy generations, both ordinary exit
+  codes as 0, valid bundle integrity/retention, zero cleanup problems, released
+  Watchdog and child-health endpoints, and exit 0 in about 123 seconds.
+- Full smoke/rehearsal windows, package-backed evidence and the four-hour soak
+  remain unexecuted. The scenario remains out of `campaign.json`, and these
+  deliberately short source-layout passes are neither smoke-gate nor package
+  evidence. No package was created.

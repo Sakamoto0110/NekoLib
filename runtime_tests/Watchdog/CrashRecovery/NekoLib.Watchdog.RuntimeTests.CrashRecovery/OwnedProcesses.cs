@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
 {
@@ -41,19 +42,19 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
 
         public OwnedProcess Adopt(int pid, string role, string expectedPath)
         {
-            Process process = Process.GetProcessById(pid);
-            string actual = ReadPath(process);
             string expected = Path.GetFullPath(expectedPath);
-            if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            string actual;
+            DateTime started;
+            using (Process process = Process.GetProcessById(pid))
             {
-                process.Dispose();
-                throw new InvalidOperationException(
-                    "Refusing to adopt " + role + " pid " + pid + ": expected '" + expected +
-                    "', observed '" + actual + "'.");
+                ReadIdentity(process, TimeSpan.FromSeconds(5), out actual, out started);
+                if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "Refusing to adopt " + role + " pid " + pid + ": expected '" + expected +
+                        "', observed '" + actual + "'.");
+                }
             }
-
-            DateTime started = process.StartTime.ToUniversalTime();
-            process.Dispose();
 
             OwnedProcess? existing = _owned.Find(item =>
                 item.Id == pid &&
@@ -162,6 +163,41 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
                 return false;
 
             return process.StartTime.ToUniversalTime() == owned.StartTimeUtc;
+        }
+
+        private static void ReadIdentity(
+            Process process,
+            TimeSpan timeout,
+            out string path,
+            out DateTime startedUtc)
+        {
+            Stopwatch wait = Stopwatch.StartNew();
+            Exception? lastError = null;
+
+            while (wait.Elapsed < timeout)
+            {
+                try
+                {
+                    process.Refresh();
+                    if (process.HasExited)
+                        throw new InvalidOperationException(
+                            "The process exited before its exact identity could be read.");
+
+                    path = ReadPath(process);
+                    startedUtc = process.StartTime.ToUniversalTime();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    Thread.Sleep(25);
+                }
+            }
+
+            throw new InvalidOperationException(
+                "The exact process image path and start time were unavailable within " +
+                timeout.TotalSeconds + " seconds.",
+                lastError);
         }
 
         private static string ReadPath(Process process)

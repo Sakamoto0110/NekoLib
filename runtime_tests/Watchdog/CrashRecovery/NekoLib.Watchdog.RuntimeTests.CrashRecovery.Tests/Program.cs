@@ -18,12 +18,26 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery.Tests
         {
             Suite suite = new Suite();
             suite.Run("child plan round-trips durably", ChildPlanRoundTrips);
+            suite.Run("child state integer strings retain exact values", ChildStateIntegerStringsRetainExactValues);
             suite.Run("schedule is stable and seed-sensitive", ScheduleIsDeterministic);
             suite.Run("all generated fault kinds are recognized", GeneratedFaultKindsAreKnown);
             suite.Run("pipe identity matches the public Watchdog algorithm vector", PipeIdentityMatchesVector);
             suite.Run("package provenance binds deployed Host bytes", PackageProvenanceMatchesPayload);
             suite.Run("package provenance rejects different deployed bytes", PackageProvenanceRejectsMismatch);
             return suite.Report();
+        }
+
+        private static void ChildStateIntegerStringsRetainExactValues(Assert assert)
+        {
+            Dictionary<string, object?> state = JsonParser.AsObject(
+                JsonParser.Parse("{\"generation\":\"4\",\"armedTimestamp\":\"8069837857\"}"),
+                "child state");
+
+            assert.Equal(4, ScenarioRun.RequirePersistedLong(state, "generation"), "generation");
+            assert.Equal(
+                8069837857L,
+                ScenarioRun.RequirePersistedLong(state, "armedTimestamp"),
+                "armed timestamp");
         }
 
         private static void ChildPlanRoundTrips(Assert assert)

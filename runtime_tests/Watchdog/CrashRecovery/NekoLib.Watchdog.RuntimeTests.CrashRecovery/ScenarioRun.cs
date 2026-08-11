@@ -352,7 +352,7 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
         {
             List<Dictionary<string, object?>> armed = ArmedPaths(planned.Id)
                 .Select(ReadObject)
-                .OrderBy(item => JsonParser.RequireInt(item, "generation"))
+                .OrderBy(item => RequirePersistedLong(item, "generation"))
                 .ToList();
 
             RunCheck(planned.Kind, planned.Id + "-cooling",
@@ -366,8 +366,8 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
                     // be below three seconds, so cooling follows records 6/11.
                     foreach (int index in new[] { 5, 10 })
                     {
-                        int generation = (int)JsonParser.RequireInt(armed[index], "generation");
-                        long armedTimestamp = JsonParser.RequireInt(armed[index], "armedTimestamp");
+                        int generation = (int)RequirePersistedLong(armed[index], "generation");
+                        long armedTimestamp = RequirePersistedLong(armed[index], "armedTimestamp");
                         ReadyRecord next = ReadReadyGeneration(generation + 1);
                         double delay = (next.ReadyTimestamp - armedTimestamp) / (double)_childPlan!.TimestampFrequency;
                         check.That(delay >= 9.0,
@@ -537,7 +537,7 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
                     string kind = JsonParser.RequireString(item, "kind");
                     return kind == FaultKinds.UnhandledCrash || kind == FaultKinds.FastCrashLoop;
                 })
-                .OrderBy(item => JsonParser.RequireInt(item, "generation"))
+                .OrderBy(item => RequirePersistedLong(item, "generation"))
                 .ToList();
             int crashArmed = crashRecords.Count;
 
@@ -957,6 +957,16 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
 
         private static Dictionary<string, object?> ReadObject(string path) =>
             JsonParser.AsObject(JsonParser.Parse(File.ReadAllText(path)), path);
+
+        internal static long RequirePersistedLong(Dictionary<string, object?> data, string name)
+        {
+            string text = JsonParser.RequireString(data, name);
+            if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long value))
+                return value;
+
+            throw new FormatException(
+                "Property '" + name + "' is not a valid persisted Int64 value.");
+        }
 
         private static int CountFiles(string root, string pattern) =>
             Directory.Exists(root) ? Directory.GetFiles(root, pattern).Length : 0;
