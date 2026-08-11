@@ -153,14 +153,19 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
                     await context.NavigateSuccessAsync(context.Platform.Pages.Permission);
 
                     NavigationService.Session.SignOut();
+                    await context.NavigateSuccessAsync(context.Platform.Pages.Idle);
                     int backBeforeRedirect = NavigationService.History.HistoryBack.Count();
                     await context.ExecuteRequestAsync(
                         () => NavigationService.SwitchPage(context.Platform.Pages.RedirectToIdle), false);
                     check.Equal(context.Platform.Pages.Idle.FullName,
                         NavigationService.Current.GetType().FullName,
                         "redirect target");
-                    check.Equal(backBeforeRedirect, NavigationService.History.HistoryBack.Count(),
-                        "back history after redirect to the current idle page");
+                    var backAfterRedirect = NavigationService.History.HistoryBack.ToArray();
+                    check.Equal(backBeforeRedirect + 1, backAfterRedirect.Length,
+                        "back history count after redirect to the current idle page");
+                    check.Equal(context.Platform.Pages.Idle.FullName,
+                        backAfterRedirect[0].PageType.FullName,
+                        "back history entry after redirect to the current idle page");
                     check.That(context.State.GuardDenials > 0, "no public guard-denied event was observed");
                 });
         }
@@ -220,9 +225,8 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
                     await WaitUntilAsync(() => context.State.ActiveBackground > 0,
                         TimeSpan.FromSeconds(5), context.Ct);
                     long appliedBeforeReset = backgroundMetrics.AppliedCount;
-                    Task reset = NavigationService.ResetAsync();
+                    await NavigationService.ResetAsync();
                     context.State.ReleaseLoad(context.Platform.Pages.Background);
-                    await reset;
                     await WaitUntilAsync(() => context.State.ActiveBackground == 0,
                         TimeSpan.FromSeconds(5), context.Ct);
                     check.Equal(appliedBeforeReset, backgroundMetrics.AppliedCount,
@@ -373,9 +377,8 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
                         TimeSpan.FromSeconds(5), context.Ct);
                     long applied = context.State.Metrics(
                         context.Platform.Pages.Background).AppliedCount;
-                    Task backgroundShutdown = context.ShutdownAsync();
+                    await context.ShutdownAsync();
                     context.State.ReleaseLoad(context.Platform.Pages.Background);
-                    await backgroundShutdown;
                     await WaitUntilAsync(() => context.State.ActiveBackground == 0,
                         TimeSpan.FromSeconds(5), context.Ct);
                     check.Equal(applied,
