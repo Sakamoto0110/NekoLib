@@ -510,7 +510,16 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         });
 
                         server.Start();
-                        check.That(Endpoint.IsBound(name), "the server did not bind " + name);
+
+                        // Start() hands the accept loop to the thread pool, so the
+                        // name appears shortly after it returns rather than during
+                        // it. Wait for the bind the same bounded way this check
+                        // already waits for the release further down.
+                        DateTime boundBy = DateTime.UtcNow.AddSeconds(10);
+                        while (!Endpoint.IsBound(name) && DateTime.UtcNow < boundBy)
+                            await Task.Delay(100, context.Ct).ConfigureAwait(false);
+
+                        check.That(Endpoint.IsBound(name), "the server did not bind " + name + " within 10s");
 
                         // Admit work, then dispose underneath it.
                         Task<Exception?> inFlight = Task.Run(async () =>

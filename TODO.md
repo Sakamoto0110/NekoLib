@@ -1025,9 +1025,10 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-One scenario still has no source at all: `E3-NAV`. `E3-WDOG`, `E3-PIPE` and
-`E3-DEV` are implemented and have never been executed, which is a gap in
-evidence rather than in source.
+One scenario still has no source at all: `E3-NAV`. `E3-WDOG` and `E3-DEV` are
+implemented and have never been executed, which is a gap in evidence rather
+than in source. E3-PIPE has passed short standalone development probes on both
+targets; its specified smoke, rehearsal and soak windows remain open.
 
 - [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1270,9 +1271,72 @@ evidence rather than in source.
   not asserted, for want of a baseline to derive a threshold from — the same
   position E3-OBS took on memory; `MaxClients` saturation; and event delivery
   across a server restart via `AutoReconnect`.
-  **Never executed.** Build and `--print-schedule` only, per the build-first
-  sequencing. A scenario that has never opened a pipe is the least-verified kind
-  of pending there is, and it is not shared evidence for any Pipes behaviour.
+  **First execution, 2026-08-11: exit 4, and it found a real product defect.**
+  A 2-minute `--smoke` probe on `net9.0` — deliberately below the specified
+  window and correctly self-flagged as such — passed 21 of 30 checks. Every
+  `request` check and every `protocol` check passed in both cycles, so the main
+  pipe, the real process boundary, correlation, the error contracts, the frame
+  limits and the malformed peers are all sound across processes. The nine
+  failures were the four event-hub checks and the private-endpoint rebind. The
+  run also gives the first runtime confirmation of the `Finish()`/cleanup
+  ordering fix from `4f8980b`: a run *with* failures still completed cleanup,
+  finalized a `result.json` carrying every failure, and returned 4 rather than a
+  cleanup code. Cleanup was truthful — server child exited 0, endpoint released,
+  no process or pipe left behind.
+  **Confirmed product defect — `PIPE-EVENTHUB-SLOTS`.** `PipeEventHub` retains a
+  subscriber slot after the subscriber disconnects, unless an event is published
+  afterwards, so the hub stops accepting subscribers after `MaxEventSubscribers`
+  lifetime connections and does not recover on its own. Confirmed on 2026-08-11
+  by an authorized minimal reproduction using only the public API: with
+  `MaxEventSubscribers = 8`, subscribers 1–8 connected immediately and
+  subscriber 9 never connected within 20 s on `net9.0` and 21.6 s on `net481`,
+  with `AutoReconnect` retrying throughout and a 750 ms settle after each
+  disconnect — longer than the hub's own 500 ms poll. Publishing a single event
+  then freed the slots at once, which identifies the mechanism: the keep-alive
+  loop polls `pipe.IsConnected`, and on an outbound pipe that only becomes false
+  once a write is attempted. It is not target-specific. The practical exposure
+  is an application whose subscribers come and go during quiet periods.
+  **Accepted decision, 2026-08-11:** fix the slot lifetime inside
+  `PipeEventHub` under a narrow unfreeze, without touching the public API,
+  `MaxEventSubscribers`, `PipeServer`, framing, ACL, metrics or the overflow
+  policies, and without exposing any heartbeat to the consumer.
+  **Fixed under the authorized narrow unfreeze, 2026-08-11.** A local design
+  spike first proved the managed design across `net481` and `net9.0`, under both
+  `PlatformDefault` and `CurrentUserOnly`: the event server can use
+  `PipeDirection.InOut` while the existing `In`-only `PipeEventClient` remains
+  unchanged, event frames remain intact, a server read stays pending while the
+  client is live and returns EOF when it closes. The hub now parks that read,
+  discards any subscriber input, and lets the existing idempotent removal path
+  stop the single writer and release the limiter slot. The former 500 ms
+  `IsConnected` poll is gone. No public API, client, framing, ACL policy, metric,
+  queue or overflow contract changed. The alternative native zero-byte
+  `WriteFile` probe was rejected: it passed on `net481` but killed the `net9.0`
+  process asynchronously with `0xC0000005` in the runtime's IOCP callback.
+  Focused regressions pass 3/3 on each target, and the full Pipes suite passes
+  44/44 on each target. The original public-API reproduction now exits 0 with
+  all 9 subscribers connecting on both targets and both pipe names released.
+  Explicit product and scenario builds emit zero warnings.
+  **Scenario defect fixed the same day — `PIPE-REBIND-RACE`.**
+  `dispose-and-rebind-a-private-endpoint` asserted `Endpoint.IsBound` on the
+  line after `server.Start()`, but `Start()` hands its accept loop to the thread
+  pool, so the name appears shortly afterwards. The check now waits boundedly
+  for the bind, in the same style the check already used for the release. A
+  re-run confirmed it: the rebind check passes in both cycles at 237 ms, and the
+  probe's failures dropped from nine to seven, leaving only the event-hub
+  cluster. `PipeServer.Start()`'s contract was not changed.
+  **Second scenario defect fixed — `PIPE-OVERFLOW-ENDPOINT`.** Both private
+  overflow checks constructed `PipeEventHub` from a base name, which exposes
+  `<base>.events`, but attempted to connect their raw subscriber to `<base>`.
+  The subscriber never reached the hub and each check expired in `Connect(5000)`.
+  Both now resolve the canonical event endpoint through `Endpoint.EventsFor`.
+  **Standalone development gate passed on both targets after the fixes:** the
+  same two-minute command completed four atomic cycles in 133 seconds with
+  75/75 checks passing, zero skipped, exit 0 and complete child/endpoint cleanup
+  on `net9.0` and `net481`. These deliberately short runs are not full smoke
+  evidence. **Still open:** the specified smoke and recovery rehearsal on both
+  targets and one four-hour soak. E3-PIPE remains out of `campaign.json`; the
+  standalone eligibility condition is now met, but registration was not part of
+  this fix.
 - [ ] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
   delivered 2026-08-10** at
   [`runtime_tests/Watchdog/CrashRecovery/`](runtime_tests/Watchdog/CrashRecovery/README.md):

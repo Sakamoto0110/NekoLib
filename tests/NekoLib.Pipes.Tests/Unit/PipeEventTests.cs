@@ -132,6 +132,88 @@ namespace NekoLib.Pipes.Tests.Unit
             }
         }
 
+        [Theory]
+        [InlineData(PipeAccessPolicy.PlatformDefault)]
+        [InlineData(PipeAccessPolicy.CurrentUserOnly)]
+        public void DisconnectedSubscribers_WithoutPublishedEvents_ReleaseCapacity(
+            PipeAccessPolicy accessPolicy)
+        {
+            var name = PipeTestUtil.UniqueName();
+            const int maxSubscribers = 4;
+
+            using (var hub = new PipeEventHub(
+                name,
+                maxSubscribers,
+                accessPolicy))
+            {
+                hub.Start();
+
+                for (var i = 0; i < maxSubscribers + 1; i++)
+                {
+                    using (var connected = new ManualResetEventSlim(false))
+                    using (var client = new PipeEventClient(name))
+                    {
+                        client.OnConnected += () => connected.Set();
+                        client.Start();
+
+                        Assert.True(
+                            connected.Wait(5000),
+                            "event subscriber " + (i + 1) + " did not connect");
+                        Assert.True(
+                            PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                            "event subscriber " + (i + 1) + " was not registered");
+                    }
+
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 0, 5000),
+                        "event subscriber " + (i + 1) + " was not removed");
+                }
+            }
+        }
+
+        [Fact]
+        public async Task DuplexSubscriberInput_IsDiscardedWithoutCorruptingEventDelivery()
+        {
+            var name = PipeTestUtil.UniqueName();
+
+            using (var hub = new PipeEventHub(name, maxSubscribers: 2))
+            {
+                hub.Start();
+
+                using (var client = new NamedPipeClientStream(
+                    ".",
+                    name + ".events",
+                    PipeDirection.InOut,
+                    PipeOptions.Asynchronous))
+                {
+                    client.Connect(3000);
+                    Assert.True(
+                        PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                        "duplex event subscriber did not connect");
+
+                    var ignoredInput = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+                    await client.WriteAsync(ignoredInput, 0, ignoredInput.Length);
+                    await client.FlushAsync();
+
+                    await hub.PublishAsync("duplex.delivery", new { value = 42 });
+
+                    using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        var received = await PipeFraming.TryReadAsync(client, timeout.Token);
+
+                        Assert.NotNull(received);
+                        Assert.Equal("evt", received.Type);
+                        Assert.Equal("duplex.delivery", received.Name);
+                        Assert.True(received.Ok);
+                    }
+                }
+
+                Assert.True(
+                    PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 0, 5000),
+                    "duplex event subscriber was not removed");
+            }
+        }
+
         [Fact]
         public async Task ConcurrentPublishers_DeliverIntactFramesThroughSingleWriter()
         {

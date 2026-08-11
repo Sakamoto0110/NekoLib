@@ -83,7 +83,7 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         // has to decide what to do about it.
                         using (System.IO.Pipes.NamedPipeClientStream lazy =
                                new System.IO.Pipes.NamedPipeClientStream(
-                                   ".", endpoint, System.IO.Pipes.PipeDirection.InOut))
+                                   ".", Endpoint.EventsFor(endpoint), System.IO.Pipes.PipeDirection.InOut))
                         {
                             lazy.Connect(5000);
 

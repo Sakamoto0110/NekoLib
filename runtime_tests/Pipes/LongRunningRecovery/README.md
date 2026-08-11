@@ -11,9 +11,12 @@
 **Prerequisites:** none beyond the .NET SDK. No container, no service, no
 hardware. The scenario allocates its own named pipe per run.
 
-**Last verification:** 2026-08-10 — **build-only.** See
-[Verification record](#verification-record). Every mode is implemented; **the
-scenario has never been executed**, which is the whole of what is pending.
+**Last verification:** 2026-08-11 — **automated runtime, two successful
+2-minute development probes.** See [Verification record](#verification-record).
+Both `net9.0` and `net481` completed four atomic cycles in 133 seconds with
+75/75 checks passing, zero skipped, exit 0 and complete cleanup. The runs are
+deliberately below the specified smoke window, so no full smoke, rehearsal or
+soak has run.
 
 ## Purpose
 
@@ -235,16 +238,85 @@ Preflight refuses to start if the allocated endpoint is already bound.
 | Date | Target | Result |
 |---|---|---|
 | 2026-08-10 | both | **Build-only.** Both targets build with no warnings. |
-| 2026-08-10 | both | **Schedule determinism, automated.** `fnv1a64:42db44086ce556a2` on `net481` and `net9.0` and across repeated runs; seed 99 differs. This is a `--print-schedule` result, which starts nothing and touches nothing. |
+| 2026-08-10 | both | **Schedule determinism, automated.** `fnv1a64:42db44086ce556a2` on `net481` and `net9.0` and across repeated runs; seed 99 differs. This is a `--print-schedule` result, which starts nothing and touches nothing. Reproduced on `net9.0` on 2026-08-11. |
+| 2026-08-11 | `net9.0` | **First execution, automated runtime. `--smoke --smoke-duration 2m`, exit 4.** A probe deliberately below the specified smoke window, and correctly flagged `belowSpecifiedWindow`, so it is not smoke evidence. 21 of 30 checks passed. **Every `request` check and every `protocol` check passed in both cycles**, across real processes on a real pipe. The nine failures were the four event-hub checks and `dispose-and-rebind-a-private-endpoint`. Cleanup was truthful: server child exited 0, endpoint released, no process or pipe left behind. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T013626269Z`. |
+| 2026-08-11 | `net9.0` | **Re-run after the scenario fix below, exit 4, 23 of 30 passed.** `dispose-and-rebind-a-private-endpoint` now passes in both cycles at 237 ms. The seven remaining failures are all event-hub checks and are the confirmed product defect below, not a scenario problem. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T021739181Z`. |
+| 2026-08-11 | `net9.0` | **First run after the product fix, exit 4.** Subscriber churn and rebind passed in every cycle, proving `PIPE-EVENTHUB-SLOTS` closed. The eight remaining failures were both overflow checks in four cycles; investigation confirmed the separate scenario endpoint defect below. 52 passed, 8 failed in 126 seconds, with complete cleanup. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T025626189Z`. |
+| 2026-08-11 | `net9.0` | **Development probe passed, exit 0.** Four cycles, 75 passed, 0 failed, 0 skipped in 133 seconds. Server child exit 0, endpoint released, no scenario process or pipe remained. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T025942081Z`. |
+| 2026-08-11 | `net481` | **Development probe passed, exit 0.** Four cycles, 75 passed, 0 failed, 0 skipped in 133 seconds. Server child exit 0, endpoint released, no scenario process or pipe remained. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net481-s20260808-20260811T030208668Z`. |
 
-**No smoke, rehearsal, soak or campaign has been run.** The scenario has never
-opened a pipe outside a build. That is deliberate — the strategy is to build
-every scenario before the execution phase begins — so this is *pending
-validation* rather than a suspected fault.
+**The first execution found a product defect**, which is why the caveat below
+was worth writing before it ran.
 
-The caveat is worth stating plainly all the same: **a scenario that has never
-executed is the least-verified thing in this repository.** E3-OBS's first
-sustained run found two defects in its own assertions within fifteen minutes,
-and this one is more complex — three processes, a killed server, a rebound
-endpoint. Expect its first execution to find something, and prefer a short probe
-over starting with a long run.
+### `PIPE-EVENTHUB-SLOTS` — product defect fixed 2026-08-11
+
+`PipeEventHub` retains a subscriber slot after that subscriber disconnects,
+unless an event is published afterwards. The hub therefore stops accepting
+subscribers after `MaxEventSubscribers` lifetime connections and does not
+recover on its own.
+
+Confirmed on 2026-08-11 by a minimal reproduction that uses only the public API.
+With `MaxEventSubscribers = 8`, subscribers 1 to 8 connected immediately and
+subscriber 9 never connected — 20.0 s on `net9.0`, 21.6 s on `net481` — with
+`AutoReconnect` left at its default and retrying throughout, and a 750 ms settle
+after each disconnect, longer than the hub's own 500 ms poll. Publishing one
+event then freed the slots immediately, which identifies the mechanism: the
+keep-alive loop polls `pipe.IsConnected`, and on an outbound pipe that only
+turns false once a write is attempted.
+
+That is what the first run's four event checks reported. `subscriber-churn` connected 7
+of 10 in the first cycle — 1 already taken by `ordered-delivery`, so 8 in total,
+exactly the cap — and 0 in the second, after which nothing can subscribe again.
+
+An authorized local design spike proved the server can create the event pipe as
+`PipeDirection.InOut` while the existing `In`-only `PipeEventClient` remains
+unchanged. Event delivery stayed intact in both access-policy modes on both
+targets, a server read stayed pending while the client was live, and it returned
+EOF when the client closed. `PipeEventHub` now uses that read as its liveness
+signal, discards any subscriber input and retains `DrainSubscriber` as the only
+event writer. The former 500 ms `IsConnected` polling loop is gone. No public
+API, client, framing, access-policy semantics, metrics or overflow contract
+changed.
+
+The alternative native zero-byte `WriteFile` design was rejected rather than
+implemented. It passed on `net481` but caused a latent process-fatal
+`0xC0000005` in the `net9.0` runtime's IOCP callback. Focused product regressions
+now cover `MaxEventSubscribers + 1` sequential quiet disconnects in both access
+policies and a duplex subscriber writing bytes that the hub discards without
+corrupting event delivery. The original public-API reproduction also now exits
+0 with all 9 subscribers connecting: 6.9 seconds on `net9.0` and 10.3 seconds on
+`net481`, with the base and event pipe names released after each run.
+
+### `PIPE-REBIND-RACE` — scenario defect, fixed 2026-08-11
+
+`dispose-and-rebind-a-private-endpoint` asserted `Endpoint.IsBound` on the line
+immediately after `server.Start()`. `PipeServer.Start()` hands its accept loop to
+the thread pool, so the name appears shortly after `Start()` returns rather than
+during it, and the check was losing a race it should never have been running —
+it failed at 2 ms. It now waits boundedly for the bind, in the same style the
+same check already used when waiting for the name to be released. The re-run
+above confirms it passes at 237 ms, which is also a measurement of how late the
+bind really is. `PipeServer.Start()`'s contract was not changed.
+
+### `PIPE-OVERFLOW-ENDPOINT` — scenario defect, fixed 2026-08-11
+
+The two private overflow checks created `PipeEventHub` with a base endpoint but
+connected their raw subscriber to that base instead of its `.events` companion.
+The subscriber therefore never reached the hub; both checks expired in their
+five-second connect bound. They now use `Endpoint.EventsFor(endpoint)`, the same
+canonical resolver as the rest of the scenario. The final probes prove both
+policies: `DropNewest` keeps the slow subscriber while counting failed
+deliveries, and `DisconnectSubscriber` removes it after overflow.
+
+**No full smoke, rehearsal, soak or campaign has been run.** The successful
+short probes are development evidence, not mode evidence. The source was run
+from a dirty working tree based on `d515137`; the assembly informational version
+in the artifacts does not attest the uncommitted product diff. No package was
+created.
+
+The caveat that motivated running a short probe first, kept because it proved
+correct: **a scenario that has never executed is the least-verified thing in this
+repository.** E3-OBS's first sustained run found two defects in its own
+assertions within fifteen minutes; this one is more complex — three processes, a
+killed server, a rebound endpoint — and its first execution found one defect of
+its own and one in the module it tests.

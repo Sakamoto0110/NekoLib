@@ -262,7 +262,7 @@ namespace NekoLib.Pipes
                     {
                         pipe = PipeServerStreamFactory.Create(
                             _pipeName,
-                            PipeDirection.Out,
+                            PipeDirection.InOut,
                             _accessPolicy);
                         if (!operation.SetPipe(pipe))
                             return;
@@ -290,15 +290,7 @@ namespace NekoLib.Pipes
                         _subscribers[id] = subscriber;
                         _metrics.OnServerClientConnected(_pipeName);
                         writerTask = DrainSubscriber(id, subscriber, ct);
-
-                        // Keep subscriber alive until disconnect
-                        while (_running &&
-                               pipe.IsConnected &&
-                               !ct.IsCancellationRequested &&
-                               !writerTask.IsCompleted)
-                        {
-                            await Task.Delay(500, ct).ConfigureAwait(false);
-                        }
+                        await WaitForSubscriberDisconnect(pipe, ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -330,6 +322,40 @@ namespace NekoLib.Pipes
                 {
                     _subscriberLimiter.Release();
                     break;
+                }
+            }
+        }
+
+        private static async Task WaitForSubscriberDisconnect(
+            NamedPipeServerStream pipe,
+            CancellationToken cancellationToken)
+        {
+            var buffer = new byte[1];
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var bytesRead = await pipe.ReadAsync(
+                        buffer,
+                        0,
+                        buffer.Length,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (bytesRead == 0)
+                        return;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                catch (System.IO.IOException)
+                {
+                    return;
                 }
             }
         }
