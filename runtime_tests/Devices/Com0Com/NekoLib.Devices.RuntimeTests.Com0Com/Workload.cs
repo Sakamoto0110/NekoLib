@@ -809,8 +809,11 @@ namespace NekoLib.Devices.RuntimeTests.Com0Com
                     // is what a caller has to design around, and because the
                     // remainder is exactly the stale-byte problem the reopen
                     // check exists for.
+                    const int chunkBytes = 3;
+                    const int chunkGapMilliseconds = 300;
+
                     context.ResetPeers();
-                    context.PeerA.Chunk(3, TimeSpan.FromMilliseconds(300));
+                    context.PeerA.Chunk(chunkBytes, TimeSpan.FromMilliseconds(chunkGapMilliseconds));
 
                     string token = PhaseContext.NewToken("slow-");
                     string whole = PcbA.EchoResponse(token);
@@ -841,7 +844,9 @@ namespace NekoLib.Devices.RuntimeTests.Com0Com
                         // by the reopen. That is the recovery a caller has to
                         // perform, and the check performs it rather than
                         // pretending the remainder does not exist.
-                        await Task.Delay(1500, context.Ct).ConfigureAwait(false);
+                        int chunkGapCount = (whole.Length - 1) / chunkBytes;
+                        int settleMilliseconds = (chunkGapCount + 1) * chunkGapMilliseconds;
+                        await Task.Delay(settleMilliseconds, context.Ct).ConfigureAwait(false);
 
                         await subject.Transport.Close().ConfigureAwait(false);
                         await subject.Transport.Open(context.Ct).ConfigureAwait(false);
@@ -863,7 +868,7 @@ namespace NekoLib.Devices.RuntimeTests.Com0Com
         private static Task ConfigurationParity(PhaseContext context)
         {
             return context.Runner.RunAsync(Phase, "configuration-parity",
-                "Configure applies every serial field, and refuses the one combination the platform forbids",
+                "Configure applies and reports every serial field, including RTS/CTS combinations",
                 async check =>
                 {
                     context.ResetPeers();
@@ -903,13 +908,11 @@ namespace NekoLib.Devices.RuntimeTests.Com0Com
 
                     context.Counters.Success();
 
-                    // Handshake and RTS are not independent. SerialPort refuses
-                    // any RtsEnable assignment - true or false - while the
-                    // handshake is RequestToSend or RequestToSendXOnXOff, and
-                    // Configure assigns it unconditionally. So a SerialConfig
-                    // asking for RTS/CTS flow control cannot be applied at all,
-                    // and this records which side that comes from rather than
-                    // leaving it as a surprise at a customer site.
+                    // The first runtime execution refuted the build-time
+                    // assumption that these combinations would be rejected.
+                    // Assert the observed contract directly on both targets:
+                    // Configure accepts the snapshot and PortInfo reports the
+                    // same handshake and RTS values while the port is closed.
                     Handshake[] rtsHandshakes = { Handshake.RequestToSend, Handshake.RequestToSendXOnXOff };
                     bool[] rtsValues = { true, false };
 
@@ -919,28 +922,23 @@ namespace NekoLib.Devices.RuntimeTests.Com0Com
                         {
                             using (SerialCommTransport transport = new SerialCommTransport(context.PcbAPort))
                             {
-                                SerialConfig conflicting = Field(
+                                SerialConfig rtsConfig = Field(
                                     context.PcbAPort, 115200, 8, StopBits.One, Parity.None, handshake, true, rts);
 
-                                Exception? refused = await PhaseContext.CaptureAsync(() =>
-                                {
-                                    transport.Configure(conflicting);
-                                    return PhaseContext.CompletedTask;
-                                }).ConfigureAwait(false);
+                                transport.Configure(rtsConfig);
+                                SerialConfig readBack = transport.PortInfo;
 
-                                check.That(refused is InvalidOperationException,
-                                    handshake + " with RtsEnable=" + rts + " surfaced as " +
-                                    (refused == null ? "success" : refused.GetType().Name));
-
-                                context.Counters.ExpectedFailure();
+                                check.Equal((long)handshake, (long)readBack.Handshake,
+                                    handshake + " handshake read-back with RtsEnable=" + rts);
+                                check.That(readBack.RtsEnable == rts,
+                                    handshake + " changed RtsEnable=" + rts + " during read-back");
                             }
                         }
                     }
 
-                    check.Note("Configure cannot express RTS/CTS flow control: it always assigns RtsEnable, and " +
-                               "SerialPort refuses that assignment while the handshake is RequestToSend or " +
-                               "RequestToSendXOnXOff. This is a limitation of the transport's configuration " +
-                               "surface, recorded here as scenario evidence rather than promoted to product work");
+                    check.Note("RequestToSend and RequestToSendXOnXOff accepted both RtsEnable values and " +
+                               "reported them unchanged. This is configuration-snapshot evidence only; the " +
+                               "scenario does not claim that a virtual peer enforces hardware flow control");
 
                     // One configuration is also opened and used, so the matrix is
                     // not only about fields being copied onto an object.

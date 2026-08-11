@@ -18,9 +18,10 @@ of the four.
 
 - **Oracle pass — interactive, 2026-08-01**, unchanged and still valid. See
   [Verification record](#verification-record).
-- **E3-DEV automated modes — build-only, 2026-08-10.** Every mode and every
-  fault kind is implemented; **no mode has ever opened a COM port outside a
-  build.**
+- **E3-DEV automated modes — first development probes, 2026-08-11.** The real
+  COM preflight is proven, two scenario defects found by the first run are
+  fixed, and the same two-minute probe now exits 0 on both targets. These runs
+  are below the specified smoke window.
 
 ## Two paths, deliberately mutually exclusive
 
@@ -232,20 +233,19 @@ So the requirement is split in two:
 That is the same position E3-OBS took on an abandoned telemetry scope: describe
 what the implementation does rather than invent a stronger contract for it.
 
-### An observation this scenario records rather than fixes
+### A build-time assumption refuted by runtime evidence
 
-`SerialCommTransport.Configure` assigns `RtsEnable` unconditionally, and
-`SerialPort` refuses **any** `RtsEnable` assignment — `true` or `false` — while
-the handshake is `RequestToSend` or `RequestToSendXOnXOff`. A `SerialConfig`
-asking for RTS/CTS flow control therefore cannot be applied at all.
-`configuration-parity` asserts that refusal in all four combinations, so the
-limitation is pinned down rather than left to be discovered at a customer site.
+The build-first version expected `SerialPort` to reject `RtsEnable` assignments
+while the handshake was `RequestToSend` or `RequestToSendXOnXOff`. The first
+real run showed the opposite, and a focused public-API probe confirmed the full
+four-combination matrix on both targets without opening a port: every snapshot
+was accepted and `PortInfo` reported the requested handshake and RTS value.
 
-This is derived from the current source and from the documented `SerialPort`
-contract; **it has not yet been executed.** It is recorded here as scenario
-evidence and is deliberately not promoted to product work: the suite requires a
-runtime finding to be preserved with its command, seed and artifacts first, and
-product fixes need separate authorization.
+That was a scenario and documentation defect, not a product limitation. The
+check now asserts the observed configuration snapshot. It still makes no claim
+that com0com enforces hardware flow control on the wire; the pair is virtual and
+the scenario deliberately does not open and write through non-`None` handshake
+configurations.
 
 ### What a passing run does *not* establish
 
@@ -323,24 +323,18 @@ incomplete.
 | 2026-08-10 | E3-DEV, automated | **Schedule determinism.** `fnv1a64:7496700bf4b75339` on `net481` and `net9.0` and across repeated runs; seed `99` differs; the 4-hour soak plan matches across targets too. `--print-schedule` opens no port and starts nothing. |
 | 2026-08-10 | E3-DEV, automated | **Dispatch and exit codes**, using port names that do not exist so no port is opened: the oracle path still exits `1` on a missing port, the automated preflight exits `3` and names the installed ports, and an unknown option exits `2`. Identical on both targets. |
 | 2026-08-10 | E3-DEV, automated | **Environment record**, written by the same port-absent runs: `com0com 3.0.0.0` read from `C:\Program Files (x86)\com0com\com0com.sys`, no setup gaps, and the machine's installed ports recorded as COM1, COM3, COM4, COM9, COM10, COM19, COM20 — the list the 2026-08-10 prerequisite note reported. Identical on both targets. |
+| 2026-08-11 | E3-DEV, first `net9.0` two-minute probe | Exit 4 in 127 seconds: 156 passed, 26 failed, 0 skipped over 12 cycles. Both cross-connections were proven. The same two checks failed in every cycle: the slow-chunk check reopened 300 ms before the final line terminator could arrive, and the RTS/CTS check asserted an unexecuted platform assumption that runtime refuted. Cleanup reconciled and all four ports reopened. |
+| 2026-08-11 | E3-DEV, corrected two-minute probes | The same command exited 0 on `net9.0` and `net481`: 168/168 checks passed, 0 failed, 0 skipped, 11 cycles in 124 seconds on each target. The peers closed normally, every transport was disposed, and COM19, COM20, COM9 and COM10 were each reopened and released. These are development probes below the 15-minute smoke minimum, not smoke-gate evidence. |
 
 The emulator serial changes were still uncommitted during the 2026-08-01 run.
 That result proves the tested working-tree combination; repeat it after both
 sides have immutable commits before using it as release evidence.
 
-**No E3-DEV smoke, rehearsal, soak or campaign has been run.** The automated
-modes have never opened a COM port outside a build. That is deliberate — the
-strategy is to build every scenario before the execution phase begins — so it is
-*pending validation* rather than a suspected fault.
-
-The caveat is worth stating plainly all the same. A scenario that has never
-executed is the least-verified kind there is, and this one asserts behaviour of
-a virtual driver whose exact response to a departed peer nobody here has
-observed. The `peer-disconnects` check was written to capture that terminal
-rather than prescribe it, precisely because it is unknown; several timing
-margins are generous for the same reason. **Expect the first execution to find
-something, and start with a short `--smoke-duration 2m` probe rather than a long
-run.**
+**No full E3-DEV smoke, rehearsal, soak or campaign has been run.** The first
+real COM preflight and the ordinary workload now pass on both target families,
+but neither two-minute run reached the 15-minute smoke minimum and smoke carries
+no scheduled fault. Departed-peer and restart behavior therefore remain
+unobserved until the first recovery rehearsal.
 
 ## Not covered
 
