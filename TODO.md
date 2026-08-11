@@ -1025,10 +1025,12 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-One scenario still has no source at all: `E3-NAV`. `E3-WDOG` and `E3-DEV` are
-implemented and have never been executed, which is a gap in evidence rather
-than in source. E3-PIPE has passed short standalone development probes on both
-targets; its specified smoke, rehearsal and soak windows remain open.
+Every E3 scenario now has source. `E3-NAV` has not executed its runtime
+workload. E3-PIPE and E3-DEV have passed short standalone development probes on
+both targets; their specified smoke, rehearsal and soak windows remain open.
+E3-WDOG has passed corrected short source-layout probes on both targets after
+one narrowly authorized product fix and two scenario corrections; its specified
+smoke, rehearsal, package-backed and soak evidence remain open.
 
 - [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1065,8 +1067,23 @@ targets; its specified smoke, rehearsal and soak windows remain open.
   multi-hour campaign should not share this host with other heavy work.
 - [ ] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
   and WPF smoke applications exist and have interactive evidence; the dedicated
-  unattended workload, resource assertions, recovery rehearsal, and long run
-  remain open.
+  unattended scenario was delivered build-first on **2026-08-10** at
+  [`runtime_tests/Navigation/LongRunningRecovery/`](runtime_tests/Navigation/LongRunningRecovery/README.md).
+  A shared dual-target core owns the plan, assertions, workload, passive
+  Inspection evidence, resource sampling and cleanup; the smallest native
+  WinForms and WPF hosts supply only pages, surfaces, adapter composition and
+  their UI loops. The required WinForms `net481`, WinForms `net9.0-windows`, and
+  WPF `net9.0-windows` combinations build. Six isolated contracts pass on both
+  core targets, and repeated recovery previews are stable across all three
+  combinations at `fnv1a64:2af9145c9ebf63ec` for seed `20260810`; seed `99`
+  differs. Fault/workload controls remain scenario-owned, no Inspection action
+  is registered, the shared harness was not expanded, and frozen Navigation
+  source was not changed. **No native workload, smoke, UI automation, recovery
+  rehearsal, soak, or interactive procedure has run.** Standalone smoke on all
+  three combinations, rehearsal on all three, one four-hour native full run,
+  and resource-baseline interpretation therefore remain open. Keep E3-NAV out
+  of `campaign.json` until its first standalone run exits 0 and cleanup evidence
+  is inspected.
 - [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
   delivered 2026-08-09** at
   [`runtime_tests/Observability/LongRunningRecovery/`](runtime_tests/Observability/LongRunningRecovery/README.md):
@@ -1355,17 +1372,35 @@ targets; its specified smoke, rehearsal and soak windows remain open.
   Host status/log tail, retention at ten and exact-process cleanup. No product
   module or shared harness source changed; the scenario health pipe and terminal
   plan are workload-owned controls rather than a product `TestControl` surface.
-  **Build-only status:** `net481` and `net9.0-windows` build, 6/6 isolated
-  contract checks pass per target, and repeated
+  `net481` and `net9.0-windows` build, 7/7 isolated contract checks pass per
+  target, and repeated
   `--print-schedule` output for recovery seed `20260810` is hash-stable across
-  targets (`fnv1a64:677fcab193b16fbf`). No application child,
-  Host, smoke, rehearsal, soak or bundle path has executed. The source-staged
-  layout is explicitly not package evidence; no package was created. A first
-  explicitly authorized run must precede any `campaign.json` registration, and
-  package behavior still requires an immutable disposable-package or
-  published-consumer layout with exact version and SHA-256. The checkbox remains
-  open for smoke and rehearsal on both targets, one package-backed pass, cleanup
-  evidence, and the required four-hour soak.
+  targets (`fnv1a64:677fcab193b16fbf`). **Corrected two-minute source-layout
+  probes passed on both targets on 2026-08-11.** Each persisted the same smoke
+  schedule before its first process (`fnv1a64:7d3f49941df33843`), exercised all
+  six planned faults and seven healthy generations, passed 20/20 checks with
+  nothing skipped, finalized its bundle and artifacts, released both endpoints,
+  left no process behind, and exited 0 in about 123 seconds.
+  The first two `net9.0-windows` attempts had exposed one confirmed product
+  defect: `Process.GetProcessById()` did not retain the initially attached
+  application's handle, so its later `ExitCode` read became null after a normal
+  exit. The narrowly authorized fix materializes that handle while the process
+  is alive. A focused self-bootstrap regression that discards the launcher's
+  handle failed before the fix and passes on both targets after it; the complete
+  Watchdog suite passes 84/84 per target. No public API, pipe protocol,
+  bootstrap, restart policy or scenario oracle changed.
+  `net481` then exposed two scenario defects: immediate exact-identity adoption
+  could observe a transient unavailable `MainModule.FileName`, and child-owned
+  persisted integer strings were sent through the shared JSON numeric reader.
+  Adoption now retries the same exact PID/path/start-time identity for a bounded
+  five seconds, and E3-WDOG parses only its own persisted integer-string
+  contract with invariant checked `Int64`. The shared harness is unchanged.
+  These are deliberately short development probes below the 15-minute smoke
+  minimum. The source-staged layout is explicitly not package evidence; no
+  package was created. E3-WDOG remains out of `campaign.json` because package
+  prerequisite/adoption is still unobserved. The checkbox stays open for full
+  smoke and rehearsal on both targets, one package-backed pass, and the required
+  four-hour soak.
 - [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
   delivered 2026-08-10** inside the existing
   [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)
@@ -1393,17 +1428,25 @@ targets; its specified smoke, rehearsal and soak windows remain open.
   applied and read back but never opened and written through, because a
   handshake nobody asserts on the far end can block a write for the whole write
   timeout.
-  **One limitation recorded, not promoted:** `Configure` assigns `RtsEnable`
-  unconditionally and `SerialPort` refuses any such assignment while the
-  handshake is `RequestToSend` or `RequestToSendXOnXOff`, so a `SerialConfig`
-  asking for RTS/CTS flow control cannot be applied at all. Derived from current
-  source and asserted by a check that has not yet run; it stays scenario
-  evidence until executed and separately authorized.
-  **Never executed.** Build, `--print-schedule` and the dispatch/exit-code paths
-  only, all of which open no COM port, per the build-first sequencing. The pair
-  cross-connection is now probed in preflight rather than assumed, but that probe
-  has not run either.
-  **Still open:** smoke, recovery rehearsal and soak; registration in `E3-ORCH`'s
+  **First runtime, 2026-08-11.** The real preflight proved both documented
+  cross-connections. The first two-minute `net9.0` probe exited 4 after 127
+  seconds with 156 passed and 26 failed checks: the same two scenario checks
+  failed in all 12 cycles. `a-gap-beyond-the-quiet-period-ends-the-read` waited
+  1500 ms for a 19-byte response sent in 3-byte chunks with six 300 ms gaps, so
+  it reopened before the final `\r\n` arrived. `configuration-parity` asserted
+  that RTS/CTS snapshots would be rejected, but runtime accepted them. A focused
+  public-API probe confirmed all four `RequestToSend*` / `RtsEnable` combinations
+  on both targets without opening a port, so this was not a product limitation.
+  The slow-chunk check now derives a bounded settle from the frame length, chunk
+  size and gap count; the configuration check asserts accepted values and exact
+  `PortInfo` read-back. No `src/Devices` file changed.
+  **Corrected standalone development probes pass on both targets:** `net9.0` and
+  `net481` each completed 11 cycles in 124 seconds with 168/168 checks passing,
+  zero failed, zero skipped and exit 0. Both peers closed normally, cleanup
+  reopened and released COM19, COM20, COM9 and COM10, and no scenario or emulator
+  process remained. These runs are below the specified 15-minute smoke minimum
+  and exercise no scheduled recovery fault.
+  **Still open:** full smoke, recovery rehearsal and soak; registration in `E3-ORCH`'s
   `campaign.json`, deferred because a COM-pair prerequisite and adoption contract
   the orchestrator cannot validate would be a claim rather than a fact.
   **Design decision taken 2026-08-10, before any code.** The specification asks
@@ -1420,13 +1463,12 @@ targets; its specified smoke, rehearsal and soak windows remain open.
   oracle proves protocol parity against an independent implementation; the owned
   peer proves transport behaviour under faults nobody can ask the oracle to
   produce. Both remain recorded, neither replaces the other.
-  **Prerequisite state on this machine, checked 2026-08-10 read-only:**
+  **Prerequisite state on this machine, executed 2026-08-11:**
   `SerialPort.GetPortNames()` reports COM1, COM3, COM4, COM9, COM10, COM19 and
-  COM20, so the documented `COM9 <-> COM19` and `COM10 <-> COM20` pairs appear
-  present. No port was opened; whether the pairs are actually cross-connected is
-  unverified until the scenario runs. The scenario now proves it in preflight
-  with a real exchange on each pair, and treats a failure as exit code `3` — an
-  environment result, never a product finding.
+  COM20. The preflight opened both ends and proved `COM9 <-> COM19` with a real
+  text PING and `COM10 <-> COM20` with a real binary PING. It still treats a
+  missing, occupied or mispaired port as exit code `3` — an environment result,
+  never a product finding.
 - [ ] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
   2026-08-08** at [`runtime_tests/Data/SqlServer/`](runtime_tests/Data/SqlServer/README.md):
   a dual-target x64 console scenario with smoke, recovery-rehearsal and soak
