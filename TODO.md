@@ -1096,11 +1096,21 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   result path aligned without changing the shared harness. Build + preflight
   passed for all three entries, and repeated 60-minute recovery previews planned
   14 faults per worker with stable hash `fnv1a64:320060b0d5392105`; seed `99`
-  changed it to `fnv1a64:d1fafc3b8bc85288`. They remain opt-in because runtime
-  requires an interactive Windows desktop and no qualifying smoke has run.
-  These runs are below the 15-minute smoke minimum and do not establish resource drift. Standalone smoke
-  on all three combinations, rehearsal on all three, one four-hour native full
-  run, interactive parity, and resource-baseline interpretation remain open.
+  changed it to `fnv1a64:d1fafc3b8bc85288`. **Qualifying standalone smoke
+  passed on all three combinations on 2026-08-11 at clean `897e17b`.** Each ran
+  for 20 minutes, passed 11/11 checks with zero failed or skipped, exited 0,
+  awaited shutdown, reported no cleanup problem or native child, and left no
+  process or window. WinForms `net481`, WinForms `net9.0-windows`, and WPF
+  `net9.0-windows` completed 130,919, 131,717, and 2,198,271 operations. The
+  smoke hash was `fnv1a64:57d706d0bd6c8799`. WinForms resource series were
+  broadly flat during the sustained phase. WPF private bytes moved from 152.6
+  MiB at sustained-phase entry to 170.8 MiB at 20 minutes while handles
+  oscillated and managed heap was non-monotonic; owned state still returned to
+  zero. Treat that as a soak observation, not a confirmed leak. The three
+  E3-ORCH entries remain opt-in solely because campaign preflight cannot prove
+  an interactive desktop. Recovery rehearsal on all three combinations, one
+  four-hour native run, interactive parity, and long-window resource
+  interpretation remain open.
 - [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
   delivered 2026-08-09** at
   [`runtime_tests/Observability/LongRunningRecovery/`](runtime_tests/Observability/LongRunningRecovery/README.md):

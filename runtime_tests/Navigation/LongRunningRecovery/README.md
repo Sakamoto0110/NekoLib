@@ -13,13 +13,12 @@
 **Prerequisites:** an interactive Windows desktop for runtime modes. Builds,
 isolated contract checks, and `--print-schedule` do not start a scenario window.
 
-**Last verification:** 2026-08-11 — **passing short development probes on all
+**Last verification:** 2026-08-11 — **qualifying standalone smoke passed on all
 three combinations.** WinForms `net481`, WinForms `net9.0-windows`, and WPF
-`net9.0-windows` each passed 11/11 checks with zero skipped, exit 0, awaited
-shutdown, and zero owned page, surface, provider, action, or native-child state.
-The runs lasted about two minutes and are below the 15-minute smoke minimum.
-Qualifying smoke, recovery rehearsal, soak, automated UI, and interactive
-procedures remain open.
+`net9.0-windows` each ran for 20 minutes and passed 11/11 checks with zero
+failed/skipped, exit 0, awaited shutdown, and zero cleanup problems or native
+children. Recovery rehearsal, soak, automated UI, and interactive procedures
+remain open.
 
 ## Purpose and architecture
 
@@ -155,10 +154,9 @@ events and v2 result path distinct without changing the shared harness:
 .\runtime_tests\Confidence\LongRunning\run.ps1 -Mode smoke -Scenarios E3-NAV-winforms-net481,E3-NAV-winforms-net9.0,E3-NAV-wpf-net9.0
 ```
 
-The next runtime gate is the normal standalone smoke on all three combinations
-without `--smoke-duration`. Only after those smokes pass should the recovery
-rehearsals run, followed by one four-hour full native combination and
-smoke/rehearsal parity on the other two. Do not infer WPF behavior from WinForms
+The next runtime gate is the qualifying recovery rehearsal on all three
+combinations, followed by one four-hour full native combination. Retain smoke
+and rehearsal parity on the other two. Do not infer WPF behavior from WinForms
 evidence or one target from another.
 
 The existing interactive procedures remain authoritative for pixel placement,
@@ -245,3 +243,16 @@ service, endpoint, package operation, or external resource.
   for each worker and produced `fnv1a64:320060b0d5392105` for seed `20260810`;
   seed `99` produced `fnv1a64:d1fafc3b8bc85288`. No qualifying runtime mode or
   interactive procedure was executed by this registration validation.
+- 2026-08-11 / clean `897e17b`: qualifying standalone smoke passed on all three
+  combinations with seed `20260810` and hash `fnv1a64:57d706d0bd6c8799`.
+  WinForms `net481` ran 1202.1 seconds and completed 130,919 operations;
+  WinForms `net9.0-windows` ran 1200.3 seconds and completed 131,717 operations;
+  WPF `net9.0-windows` ran 1200.1 seconds and completed 2,198,271 operations.
+  Each passed 11/11 checks with zero failed/skipped and unexpected failures,
+  exit 0, `belowSpecifiedWindow=false`, exact clean-commit provenance, awaited
+  shutdown, zero cleanup problems/native children, and no remaining process or
+  window. WinForms private bytes and handles were broadly flat through the
+  sustained phase. WPF private bytes moved from 152.6 MiB at sustained-phase
+  entry to 170.8 MiB at 20 minutes; handles oscillated, managed heap was
+  non-monotonic, and scenario-owned state returned to zero after cleanup. This
+  is a four-hour-soak observation, not a confirmed leak or a failed smoke.

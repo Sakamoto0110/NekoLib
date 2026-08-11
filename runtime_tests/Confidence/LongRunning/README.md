@@ -59,8 +59,8 @@ adopts. Arguments support the tokens `{seed}`, `{artifacts}`, `{campaignId}`,
 `{workerId}`, `{schedule}`, `{duration}` and `{durationSeconds}`.
 
 Six entries are registered today. The three E3-NAV entries are disabled by
-default because their native hosts require an interactive Windows desktop and
-their qualifying smokes are still pending:
+default because their native hosts require an interactive Windows desktop,
+which campaign preflight cannot prove. Their standalone qualifying smokes pass:
 
 | Id | What it is |
 |---|---|
