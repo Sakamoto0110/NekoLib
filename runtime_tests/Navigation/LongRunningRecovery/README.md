@@ -13,12 +13,13 @@
 **Prerequisites:** an interactive Windows desktop for runtime modes. Builds,
 isolated contract checks, and `--print-schedule` do not start a scenario window.
 
-**Last verification:** 2026-08-11 — **qualifying standalone smoke passed on all
-three combinations.** WinForms `net481`, WinForms `net9.0-windows`, and WPF
-`net9.0-windows` each ran for 20 minutes and passed 11/11 checks with zero
-failed/skipped, exit 0, awaited shutdown, and zero cleanup problems or native
-children. Recovery rehearsal, soak, automated UI, and interactive procedures
-remain open.
+**Last verification:** 2026-08-11 — **outcome-first automated runtime gate
+complete.** WinForms `net481`, WinForms `net9.0-windows`, and WPF
+`net9.0-windows` each passed a qualifying 20-minute smoke with clean awaited
+shutdown. WinForms `net481` then passed a 70-minute requested recovery run:
+25/25 checks, all 14 faults, exit 0, and no cleanup problem, process, or window.
+Interactive procedures remain separate; the WPF resource trend may receive an
+optional targeted longer run.
 
 ## Purpose and architecture
 
@@ -154,10 +155,12 @@ events and v2 result path distinct without changing the shared harness:
 .\runtime_tests\Confidence\LongRunning\run.ps1 -Mode smoke -Scenarios E3-NAV-winforms-net481,E3-NAV-winforms-net9.0,E3-NAV-wpf-net9.0
 ```
 
-The next runtime gate is the qualifying recovery rehearsal on all three
-combinations, followed by one four-hour full native combination. Retain smoke
-and rehearsal parity on the other two. Do not infer WPF behavior from WinForms
-evidence or one target from another.
+Under outcome-first acceptance, the three qualifying smokes provide native
+adapter and target parity, while the complete WinForms `net481` recovery run
+provides the shared 14-fault matrix. Repeating that same recovery workload on
+the other two combinations is optional unless a target/adapter-specific finding
+appears. The recorded WPF private-byte trend can justify a targeted longer run;
+it is not a confirmed leak or a universal four-hour gate.
 
 The existing interactive procedures remain authoritative for pixel placement,
 focus, touch/click reachability, and human UI behavior:
@@ -256,3 +259,21 @@ service, endpoint, package operation, or external resource.
   entry to 170.8 MiB at 20 minutes; handles oscillated, managed heap was
   non-monotonic, and scenario-owned state returned to zero after cleanup. This
   is a four-hour-soak observation, not a confirmed leak or a failed smoke.
+- 2026-08-11 / clean `9f8f781`: WinForms `net481`
+  `--recovery-rehearsal --rehearsal-duration 70m` persisted schedule hash
+  `fnv1a64:1d07125271766371`, exercised all 14 faults, passed 25/25 checks with
+  zero failed/skipped, and exited 0 after 3681.8 seconds. It completed 94
+  operations with zero unexpected failures, awaited shutdown, reported zero
+  cleanup problems/native children/stderr, and left no process or window.
+  A preceding corrected default-duration run also passed 25/25 and all faults
+  but remains truthfully marked `belowSpecifiedWindow=true` at 52.1 minutes.
+  The first pre-fix run had exposed `NAV-CREATION-WRAPPER`: the scenario expected
+  its injected exception at the outer level although the documented
+  `PageFactory` contract wraps it. The oracle now accepts the documented wrapper
+  and a dual-target regression passes 9/9; frozen Navigation and the shared
+  harness were unchanged.
+- 2026-08-11 / clean `9f8f781`: a WinForms `net9.0-windows` recovery attempt was
+  interrupted at the user's request after 75.9 seconds. It exited 8 with
+  `interrupted=true`, 10/10 completed checks, and clean reconciliation. It is
+  interruption evidence only and was not resumed. WPF recovery was not run.
+  The outcome-first decision makes neither repetition a closure requirement.

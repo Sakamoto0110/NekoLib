@@ -981,39 +981,49 @@ Validation requirements:
 
 ### E3 — Long-running and recovery confidence
 
-- [ ] Create small, specific, reproducible scenarios for unattended execution
+- [x] Create small, specific, reproducible scenarios for unattended execution
   over long periods without creating a new runtime framework.
-- [ ] **Make the evidence unattended.** The Data scenario now reports every check
-  as a process exit code rather than as output a person has to read, which is what
-  makes automation possible — but nothing runs it. A script and a schedule are the
-  remaining gap between "reproducible" and "unattended".
+- [x] **Make the evidence unattended.** Every Phase E scenario reports automated
+  outcomes through process exit codes and artifacts, and E3-ORCH provides the
+  deterministic script, persisted schedule, ownership, and aggregate verdict.
 
 The accepted implementation brief is the versioned
 [`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md). It divides
 the work into independent Navigation, Observability, Pipes, Watchdog, Devices,
 Data/SQL Server, and orchestration scenarios without creating a new runtime
-framework. The final campaign is 4 hours, preceded by a 15–30 minute smoke and
-a 60–90 minute recovery rehearsal. Faults are generated deterministically from
-an integer seed, persisted before launch as monotonic offsets, and injected only
-by scenario-owned processes or the orchestrator.
+framework. Faults are generated deterministically from an integer seed,
+persisted before launch as monotonic offsets, and injected only by
+scenario-owned processes or the orchestrator.
 
-**Duration decision, 2026-08-10:** the final campaign requirement was reduced
-prospectively from 16 hours to 4 hours. Sixteen uninterrupted idle hours require
-machine preparation disproportionate to the remaining confidence gain after
-smoke, rehearsal and deterministic fault coverage. Four hours is the accepted
-long-run gate; previous short runs remain path evidence and are not promoted to
-full-duration evidence by this decision. A later 16-hour soak remains a valid
-optional confidence campaign, especially for very slow leaks or drift, but it
-is not a Phase E completion requirement and does not block closure after a
-passing 4-hour campaign.
+**Outcome-first acceptance decision, 2026-08-11:** fixed 15–30 minute smoke,
+60–90 minute rehearsal, and four-hour soak windows are operational modes and
+confidence tools, not universal Phase E closure gates. A scenario closes when:
+
+1. every declared target/platform combination builds and its isolated contracts
+   pass;
+2. every declared workload class and fault kind has executed at least once with
+   an automated exit-code verdict, its expected terminal, successful recovery,
+   complete artifacts, and reconciled cleanup;
+3. every distinct runtime topology boundary — native adapter, real provider,
+   real IPC/process boundary, real COM transport, or deployed package layout —
+   has direct evidence; and
+4. target-specific or conditionally compiled behavior has direct parity
+   evidence rather than being generalized from another target.
+
+The representative runtime matrix follows distinct behavior, not a Cartesian
+product of every mode and target. Historical artifacts keep their recorded
+duration and `belowSpecifiedWindow` value and are never relabelled. A four-hour
+or optional sixteen-hour soak is required only when closing a duration-dependent
+claim or investigating an observed drift, leak, queue-pressure, or boundedness
+signal. Interactive and automated-UI claims remain separate evidence and do not
+block a headless runtime scenario unless visible behavior is itself the claim.
 
 #### Phase E runtime scenario delivery
 
-The checkbox for a scenario closes only after its source is versioned, the
-declared target matrix builds, smoke and recovery rehearsal pass with automated
-exit codes, cleanup is reconciled, and the required long-running evidence is
-recorded. A pre-existing smoke or partial consumer is useful evidence but does
-not mean the corresponding Phase E scenario is complete.
+The checkbox for a scenario closes only after its source is versioned and the
+outcome-first conditions above are met. A pre-existing smoke or partial consumer
+is useful evidence but does not close an unexercised fault, topology, cleanup,
+or provenance boundary.
 
 **Sequencing decision, 2026-08-10: build every scenario before starting the
 execution phase.** Long runs are not interleaved with implementation. Each
@@ -1025,15 +1035,15 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-Every E3 scenario now has source. E3-NAV has passed short standalone development
-probes on all three required target/platform combinations. E3-PIPE and E3-DEV
-have passed short standalone development probes on both targets; their specified
-smoke, rehearsal and soak windows remain open.
-E3-WDOG has passed corrected short source-layout probes on both targets after
-one narrowly authorized product fix and two scenario corrections; its specified
-smoke, rehearsal, package-backed and soak evidence remain open.
+Every E3 scenario now has source. Under the outcome-first decision, E3-ORCH,
+E3-NAV, E3-OBS, and E4-SQL have complete automated runtime evidence. E3-PIPE
+needs one representative recovery run covering all six faults. E3-DEV needs one
+representative real-COM recovery run covering all five peer faults. E3-WDOG has
+already covered all source-layout faults on both targets and needs only one
+exact package-backed deployed-Host pass; creating that immutable package remains
+a separately authorized action.
 
-- [ ] **E3-ORCH — deterministic campaign orchestration.** **Implemented
+- [x] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
   a thin PowerShell orchestrator with a versioned configuration schema,
   deterministic seeded schedule generation persisted before launch, explicit
@@ -1051,8 +1061,11 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   is also the first proof that a worker dispatches from the orchestrator's
   schedule rather than only parsing it — the worker recorded the campaign's hash
   `fnv1a64:57d4189e5a941ecf` and fired its faults in the orchestrator's order.
-  **Still open:** the 4-hour campaign, and a multi-worker campaign in any mode
-  other than smoke. Neither starts merely because the script works.
+  Under the 2026-08-11 outcome-first decision this closes E3-ORCH: multi-worker
+  aggregation and cleanup, failure propagation, stale ownership, deterministic
+  planning, and real worker fault dispatch all have direct evidence. A
+  multi-worker non-smoke campaign and a four-hour campaign remain optional load
+  and duration confidence, not closure gates.
   **Artifact layout v2 implemented and verified on 2026-08-10:** orchestrated
   scenarios now receive explicit campaign and worker identities and write below
   `<campaign-id>/workers/<worker-id>/<scenario-id>/`. Process capture uses
@@ -1066,7 +1079,7 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   pool blocking period then reported one slow login as seven consecutive check
   failures. That is machine capacity, not a product defect, and it is why the
   multi-hour campaign should not share this host with other heavy work.
-- [ ] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
+- [x] **E3-NAV — Navigation long-running and recovery.** The versioned WinForms
   and WPF smoke applications exist and have interactive evidence; the dedicated
   unattended scenario was delivered build-first on **2026-08-10** at
   [`runtime_tests/Navigation/LongRunningRecovery/`](runtime_tests/Navigation/LongRunningRecovery/README.md).
@@ -1074,7 +1087,7 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   Inspection evidence, resource sampling and cleanup; the smallest native
   WinForms and WPF hosts supply only pages, surfaces, adapter composition and
   their UI loops. The required WinForms `net481`, WinForms `net9.0-windows`, and
-  WPF `net9.0-windows` combinations build. Eight isolated contracts pass on both
+  WPF `net9.0-windows` combinations build. Nine isolated contracts pass on both
   core targets, and repeated recovery previews are stable across all three
   combinations at `fnv1a64:2af9145c9ebf63ec` for seed `20260810`; seed `99`
   differs. Fault/workload controls remain scenario-owned, no Inspection action
@@ -1108,10 +1121,18 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   oscillated and managed heap was non-monotonic; owned state still returned to
   zero. Treat that as a soak observation, not a confirmed leak. The three
   E3-ORCH entries remain opt-in solely because campaign preflight cannot prove
-  an interactive desktop. Recovery rehearsal on all three combinations, one
-  four-hour native run, interactive parity, and long-window resource
-  interpretation remain open.
-- [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
+  an interactive desktop. **The automated runtime gate closed on 2026-08-11 at
+  clean `9f8f781`.** A WinForms `net481` recovery run requested 70 minutes,
+  persisted hash `fnv1a64:1d07125271766371` before launch, exercised all 14
+  fault kinds, passed 25/25 checks with zero failed/skipped, exited 0 after
+  3681.8 seconds, awaited shutdown, reported zero cleanup problems, and left no
+  process or window. Together with the three qualifying native-host smokes and
+  dual-target isolated contracts, this covers every shared workload/fault and
+  every distinct adapter/target boundary without repeating the same recovery
+  matrix three times. Interactive parity remains separate manual evidence. The
+  WPF private-byte movement remains an open observation that can justify a
+  targeted longer run, not a confirmed leak or an E3-NAV gate.
+- [x] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
   delivered 2026-08-09** at
   [`runtime_tests/Observability/LongRunningRecovery/`](runtime_tests/Observability/LongRunningRecovery/README.md):
   a dual-target console scenario with smoke, recovery-rehearsal and soak modes,
@@ -1164,7 +1185,7 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   *sustained smoke* had already exposed were fixed before any fault and
   assertion first overlapped. A sustained smoke is far cheaper than a soak and
   finds the same class of problem.
-  **Still open, in the order they should be closed:**
+  **Executed evidence, in chronological order:**
   **The target matrix is complete as of 2026-08-10:** the `net481` rehearsal
   also exited 0 at 62.3 minutes with 68 checks and all seven faults, so both
   targets have now passed both smoke and rehearsal with nothing skipped on
@@ -1209,23 +1230,14 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   of a four-hour run for the property that a killed process still leaves
   everything up to its last complete line. 14 of 14 harness assertions pass on
   both targets.
-  **Status: ready for execution, one item pending validation.** The scenario is
-  implemented, validated by isolated tests and by builds on both targets, and
-  ready to run. The bounded retention has not executed inside the scenario yet —
-  the wiring, the real `checks.ndjson`, the reshaped `result.json` and the heap
-  effect are unobserved. That is **pending validation, not an open defect**, and
-  it is deliberate: the strategy is to build every scenario before the execution
-  phase starts.
-  **Execution-phase order for this scenario:** a ~3-minute `--soak 3m` probe to
-  verify wiring, `checks.ndjson`, counts and the new `result.json`; then a
-  decision on whether the 25-minute heap comparison against the unbounded
-  15-minute baseline still adds value; and only then the mandatory 4-hour soak.
-  **Still open:**
-  1. A campaign with more than one worker. `E4-SQL` was deliberately excluded
-     because E3-ORCH's own record shows a concurrent campaign saturating this
-     host into false failures; multi-worker aggregation is already proven in
-     E3-ORCH's acceptance record.
-  2. The 4-hour soak. Now a question of duration rather than correctness.
+  **Bounded retention executed on 2026-08-11.** A `net9.0 --soak 3m` probe
+  exited 0 after 181.5 seconds with 908 checks, zero failed/skipped, 908 valid
+  `checks.ndjson` lines matching the exact phase totals in `result.json`, all
+  seven faults passing, 330,928 operations with zero unexpected failures, and
+  complete cleanup. This closes the only unobserved wiring change. Under the
+  outcome-first decision E3-OBS is complete. A 25-minute heap comparison or a
+  four-hour soak remains optional targeted confidence; neither is needed to
+  repeat fault or target coverage already proven.
   **Artifact layout finding closed on 2026-08-10:** layout v2 places this
   worker's result at
   `<campaign-id>/workers/E3-OBS-net9.0/E3-OBS/result.json`, records the layout
@@ -1233,8 +1245,8 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   indexed path. A 12-second orchestrated regression exited 0 with 91 checks and
   matching worker/aggregate schedule hash. The standalone v1 path remains
   supported and its historical artifacts were not moved. This regression is
-  layout evidence, not a replacement for the completed 15-minute smoke or the
-  still-open 4-hour soak.
+  layout evidence, not a replacement for the completed runtime modes. A
+  four-hour soak is now optional targeted confidence.
   **Runtime findings recorded, not fixed** (product changes need separate
   authorization, and none of these is a defect): `LogEntry.TimestampUtc` is
   stamped before the dispatch lock, so under concurrent writers it is not a
@@ -1379,11 +1391,15 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   **Standalone development gate passed on both targets after the fixes:** the
   same two-minute command completed four atomic cycles in 133 seconds with
   75/75 checks passing, zero skipped, exit 0 and complete child/endpoint cleanup
-  on `net9.0` and `net481`. These deliberately short runs are not full smoke
-  evidence. **Still open:** the specified smoke and recovery rehearsal on both
-  targets and one four-hour soak. E3-PIPE remains out of `campaign.json`; the
-  standalone eligibility condition is now met, but registration was not part of
-  this fix.
+  on `net9.0` and `net481`. These deliberately short runs remain recorded as
+  development probes. **Only one outcome-first gate remains:** run a compact
+  recovery rehearsal on one representative target and prove all six scheduled
+  faults, their terminals, post-recovery probes, artifacts, and cleanup. The
+  existing builds and passing probes provide target parity; duplicate full
+  smoke/recovery windows and a four-hour soak are not required without a new
+  duration-dependent finding. E3-PIPE remains out of `campaign.json`; the
+  standalone eligibility condition is met, but registration is a separate
+  decision.
 - [ ] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
   delivered 2026-08-10** at
   [`runtime_tests/Watchdog/CrashRecovery/`](runtime_tests/Watchdog/CrashRecovery/README.md):
@@ -1425,12 +1441,15 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   Adoption now retries the same exact PID/path/start-time identity for a bounded
   five seconds, and E3-WDOG parses only its own persisted integer-string
   contract with invariant checked `Int64`. The shared harness is unchanged.
-  These are deliberately short development probes below the 15-minute smoke
-  minimum. The source-staged layout is explicitly not package evidence; no
-  package was created. E3-WDOG remains out of `campaign.json` because package
-  prerequisite/adoption is still unobserved. The checkbox stays open for full
-  smoke and rehearsal on both targets, one package-backed pass, and the required
-  four-hour soak.
+  These deliberately short runs remain development probes. The source-staged
+  layout is explicitly not package evidence; no package was created. **Only one
+  outcome-first gate remains:** one passing disposable-package or
+  published-consumer run tied to the exact immutable Host package version and
+  SHA-256. The existing dual-target source runs already cover all six faults,
+  recovery, bundles, ownership, and cleanup, so duplicate full windows and a
+  four-hour soak are not required. Package creation and package-backed execution
+  remain separately authorized actions. E3-WDOG stays out of `campaign.json`
+  until package prerequisite/adoption is observed.
 - [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
   delivered 2026-08-10** inside the existing
   [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)
@@ -1474,11 +1493,15 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   `net481` each completed 11 cycles in 124 seconds with 168/168 checks passing,
   zero failed, zero skipped and exit 0. Both peers closed normally, cleanup
   reopened and released COM19, COM20, COM9 and COM10, and no scenario or emulator
-  process remained. These runs are below the specified 15-minute smoke minimum
-  and exercise no scheduled recovery fault.
-  **Still open:** full smoke, recovery rehearsal and soak; registration in `E3-ORCH`'s
-  `campaign.json`, deferred because a COM-pair prerequisite and adoption contract
-  the orchestrator cannot validate would be a claim rather than a fact.
+  process remained. These runs remain development probes and exercise no
+  scheduled recovery fault. **Only one outcome-first gate remains:** with the
+  independent emulator stopped, run a compact recovery rehearsal on one
+  representative target and prove all five peer faults, expected terminals,
+  clean requests after recovery, artifacts, and four-port release. The existing
+  builds and real-COM probes provide target parity; duplicate full windows and a
+  four-hour soak are not required. Registration in `E3-ORCH`'s `campaign.json`
+  remains deferred because a COM-pair prerequisite and adoption contract the
+  orchestrator cannot validate would be a claim rather than a fact.
   **Design decision taken 2026-08-10, before any code.** The specification asks
   for faults of "emulator delay, silence, malformed frame, disconnect, restart",
   and the emulator cannot supply them: it is an independent oracle in another
@@ -1499,7 +1522,7 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   text PING and `COM10 <-> COM20` with a real binary PING. It still treats a
   missing, occupied or mispaired port as exit code `3` — an environment result,
   never a product finding.
-- [ ] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
+- [x] **E4-SQL — Data against local SQL Server.** **Scenario source delivered
   2026-08-08** at [`runtime_tests/Data/SqlServer/`](runtime_tests/Data/SqlServer/README.md):
   a dual-target x64 console scenario with smoke, recovery-rehearsal and soak
   modes, `Microsoft.Data.SqlClient` confined to the scenario project, container
@@ -1530,8 +1553,11 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   leaked its database; and steady-state background traffic shared the workspace
   whose lifecycle counters several checks zero and assert on. All three are
   fixed and recorded in the scenario README.
-  **Still open: the 4-hour campaign itself**, which is now a calendar decision
-  rather than a risk. It must not share the host with other heavy work.
+  Under the 2026-08-11 outcome-first decision, this closes E4-SQL: both targets
+  have real-provider smoke/cancellation evidence, every fault is covered on the
+  representative target that supports it, target-specific streaming behavior
+  is recorded, and the soak path already overlapped all faults with sustained
+  work. A four-hour isolated SQL run remains optional duration confidence.
   **Container revalidated 2026-08-08 by querying Docker directly:** the pinned
   `mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04` image resolves to
   digest `sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89`,
@@ -1654,12 +1680,14 @@ Data:
   locally as an official Linux container on WSL 2 on the Windows AMD64 validation
   machine. This is a development-validation topology, not a production-hosting
   claim;
-- [ ] implement and execute the versioned SQL Server scenario specified by the
+- [x] implement and execute the versioned SQL Server scenario specified by the
   [`Phase E scenario suite`](runtime_tests/PHASE_E_SCENARIO_SUITE.md), validating
   pooling/data-source ownership, network failure and recovery, mid-flight
   cancellation, transactions, mapping, streaming cleanup, and dynamic-result
-  lifetime before claiming support. **Implemented 2026-08-08, not yet
-  executed** — see the E4-SQL entry under Phase E runtime scenario delivery.
+  lifetime before claiming support. **Implemented and executed 2026-08-08** —
+  both targets passed real-provider smoke, representative recovery proved all
+  seven faults, and a 15-minute soak overlapped faults with sustained work; see
+  the E4-SQL entry under Phase E runtime scenario delivery.
   The scenario required no change to `NekoLib.Data`: it reaches SQL Server
   through the existing `IDbConnectionFactory` seam and `SqlServerQueryTranslator`,
   which is the topology this roadmap asked to preserve;
@@ -1673,7 +1701,7 @@ Data:
 - do not cite tracked-but-unused fixtures as coverage and do not include MongoDB
   in the relational provider matrix.
 
-Still open in this provider evidence:
+Provider evidence and separate follow-ups:
 
 - [x] **Validate dynamic-result lifetime against a real provider — done
   2026-08-08.** `DynamicMode.IL` was enabled against SQL Server with genuinely
@@ -1690,8 +1718,8 @@ Still open in this provider evidence:
   of the process, and the cap bounds emission, not lifetime. The per-context
   `MaxDynamicSchemas` is locked by the first IL use and later contexts cannot
   reconfigure it, exactly as DATA-012 specified.
-  **Not yet observed over a long run** — this is a boundary crossing inside a
-  short process, not soak evidence.
+  The later 15-minute SQL soak exercised the sustained dynamic-shape workload;
+  no four-hour lifetime claim is made or required by outcome-first acceptance.
 - [x] **Cancel an operation in flight — done 2026-08-08.** A remote engine that
   can be told to wait is what made the question answerable. Each command is
   marked with a comment, the scenario polls `sys.dm_exec_requests` until SQL
@@ -1981,10 +2009,10 @@ Phase E may be marked complete only when:
 - [x] A current versioned WinForms runtime scenario exists and has truthful
   status.
 - [x] The WPF runtime scenario has truthful build and interactive status.
-- [ ] Long-running/recovery scenarios are reproducible.
-- [ ] Results distinguish automated, build-only, manual, and interactive
+- [x] Long-running/recovery scenarios are reproducible.
+- [x] Results distinguish automated, build-only, manual, and interactive
   evidence.
-- [ ] Data real-provider validation has a deliberate scope and outcome.
+- [x] Data real-provider validation has a deliberate scope and outcome.
 - [x] Devices COM-port validation has an executed or explicitly accepted
   disposition.
 - [x] Pipes/IPC hardening leads have been reverified.

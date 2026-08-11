@@ -21,7 +21,8 @@ of the four.
 - **E3-DEV automated modes — first development probes, 2026-08-11.** The real
   COM preflight is proven, two scenario defects found by the first run are
   fixed, and the same two-minute probe now exits 0 on both targets. These runs
-  are below the specified smoke window.
+  are below the historical nominal smoke window. One compact representative
+  recovery sweep remains to execute all five peer faults.
 
 ## Two paths, deliberately mutually exclusive
 
@@ -308,10 +309,12 @@ incomplete.
    times; a different `--seed` gives a different hash.
 3. Stop the emulator, then `--smoke`. Expected: exit `0`, every check passing,
    and a cleanup block reporting all four ports reopened and released.
-4. `--recovery-rehearsal --rehearsal-duration 70m`. Expected: exit `0` and all
-   five faults reporting `ok`. **Ask for about 70 minutes**, not 60: the
-   schedule reserves a quiet window at each end, so a request for 60 elapses
-   about 53 and lands below the suite's window.
+4. For the remaining outcome-first gate, run
+   `--recovery-rehearsal --rehearsal-duration 10m` on one representative
+   target. Expected: exit `0`, all five faults reporting `ok`, successful clean
+   requests after each recovery, and all four ports reopened/released. The
+   artifact will truthfully remain below the historical nominal rehearsal
+   window.
 
 ## Verification record
 
@@ -330,11 +333,12 @@ The emulator serial changes were still uncommitted during the 2026-08-01 run.
 That result proves the tested working-tree combination; repeat it after both
 sides have immutable commits before using it as release evidence.
 
-**No full E3-DEV smoke, rehearsal, soak or campaign has been run.** The first
-real COM preflight and the ordinary workload now pass on both target families,
-but neither two-minute run reached the 15-minute smoke minimum and smoke carries
-no scheduled fault. Departed-peer and restart behavior therefore remain
-unobserved until the first recovery rehearsal.
+**No full nominal-window E3-DEV smoke, rehearsal, soak or campaign has been
+run.** The real COM preflight and ordinary workload pass on both target
+families, but smoke carries no scheduled fault. Under outcome-first acceptance,
+one compact recovery sweep on a representative target must still prove all five
+peer faults, their expected terminals, clean post-recovery requests, and
+four-port release. Duplicate full windows and a four-hour soak are not required.
 
 ## Not covered
 

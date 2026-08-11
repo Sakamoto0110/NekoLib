@@ -372,74 +372,27 @@ behaviour under load and failure.
 | 2026-08-09 | `net9.0` | Ctrl+C on `--soak` | **Exit 8.** A real `CTRL_BREAK` to the process reached the handler; 144 checks passed, 6 skipped as interrupted, 0 failed; the workspace disposed, the process-wide slot was restored, and the working directory was removed. |
 | 2026-08-10 | `net9.0` | `E3-ORCH` campaign, `recovery`, `-Duration 70m` | **Aggregate exit 0, worker exit 0.** All eight campaign phases ran, and the worker passed 68 checks with 0 failed across all four phases. **This is the run that proves `--fault-schedule` end to end**: the worker's recorded `scheduleHash` is the orchestrator's own `fnv1a64:57d4189e5a941ecf`, and the seven faults fired in the orchestrator's order, which differs from the order the scenario generates for itself. Elapsed 59.1 minutes, so `belowSpecifiedWindow: true` — correctly, and this run is therefore orchestration evidence, not rehearsal evidence. |
 | 2026-08-09 | `net9.0` | `E3-ORCH` schedule parsing | The orchestrator generates a 7-fault schedule for this scenario from `campaign.json`, and the scenario loads all 7 events back through `--fault-schedule` with matching offsets and kinds. Superseded by the campaign above, which dispatches from it rather than only parsing it. |
+| 2026-08-11 | `net9.0` | `--soak 3m` bounded-retention probe | **Exit 0.** 908 checks, 0 failed/skipped, 181.5s. `checks.ndjson` contained 908 valid JSON lines with exact phase totals matching `result.json`; 38 distinct checks were retained, `detailTruncated` was true, the detail log was complete, and no write failed. All seven faults passed across 330,928 operations with zero unexpected failures. Cleanup removed 335 files, restored the null Inspection recorder, and left no process. The short duration remains historical fact; this row closes retention wiring, not a soak-duration claim. |
 
-### Status: ready for execution, one item pending validation
+### Status: outcome-first gate complete
 
-The scenario is **implemented**, **validated by isolated automated tests and by
-builds on both targets**, and **ready to execute**. Nothing here is a known
-defect.
+Both targets have smoke and recovery evidence, every workload and fault kind is
+executed, the soak overlap and Ctrl+C cleanup paths pass, orchestrated schedule
+dispatch is proven, and the bounded-retention wiring has executed end to end.
+No known E3-OBS evidence gap remains.
 
-One thing is **pending validation rather than open**: the bounded check
-retention added on 2026-08-10 has never executed inside this scenario. The
-contract is covered by 14 isolated assertions in
-[`NekoLib.RuntimeTests.Harness.Tests`](../../Shared/NekoLib.RuntimeTests.Harness.Tests/NekoLib.RuntimeTests.Harness.Tests.csproj),
-green on `net481` and `net9.0`, but the wiring in this scenario's `Program.cs`,
-the real `checks.ndjson`, the reshaped `result.json` and the heap effect the
-change exists to produce have not been observed in a run. That is a gap in
-evidence, not a suspected fault.
+A 25-minute heap comparison or four-/sixteen-hour soak remains optional if a
+future resource observation warrants targeted duration evidence. Do not combine
+such a measurement with SQL Server on this host: the orchestrator record shows
+that concurrent load can turn environment pressure into false failures.
 
-Deliberately so: the current strategy is to **build every scenario before
-starting the execution phase**, so nothing is run beyond what implementation
-needs.
-
-### When the execution phase begins
-
-In this order, for this scenario:
-
-1. **A probe of about 3 minutes** (`--soak 3m`) to verify the retention wiring
-   end to end: that `checks.ndjson` is written where expected, that its line
-   count matches `checks.total`, that the counts are exact, and that the
-   reshaped `result.json` reads correctly. Cheap, and it closes the pending item
-   above.
-2. **Then decide whether the 25-minute heap comparison still adds value.** Its
-   only purpose is a managed-heap trend to set against the 15-minute baseline
-   taken under unbounded retention — 2.1 to 4.5 MiB, with 67 of 127 periodic
-   samples rising. If the probe already answers the question, skip it.
-3. **Only then prepare the mandatory 4-hour soak.**
-
-### What is still open
-
-- The 4-hour soak. The path itself is proven — a 15-minute soak completed with
-  exit 0 and fired all seven faults concurrently with the assertion cycles — so
-  what remains is duration, not correctness. The host must not share it with
-  other heavy work: the `resources` check asserts thread and handle drift, and a
-  contended host would make that measurement meaningless.
-  A later 16-hour soak is welcome as extended confidence for slow drift, but is
-  optional and does not block closure after this 4-hour gate passes.
-
-  **A harness defect that would have corrupted this run was fixed on 2026-08-10,
-  without running anything.** `CheckRunner` kept every result alive, and this
-  scenario produces about 3848 of them in 15 minutes — roughly 61 500 over four
-  hours. That heap only ever grows, and the `resources` check fails a heap that
-  rises at *every* periodic sample, so the harness would have reported its own
-  accumulation as a leak in Logging, Telemetry or Inspection. Soak runs now keep
-  exact counts, a bounded per-check sample, and the full detail in
-  `checks.ndjson`. The drift check itself is unchanged — the whole point was to
-  let it measure the libraries. See the harness README.
-
-  Two sizing figures for that run, both **estimates rather than measurements**,
-  since no four-hour soak has been executed. The incremental log measured
-  9.4 MiB for 65 000 minimal results in an isolated benchmark; this scenario's
-  results carry claims and notes, so plan nearer the ~27 MB that `result.json`'s
-  own density implies. Either figure is far inside the 2 GB the campaign
-  preflight requires, and writing that log costs well under a second.
-- A campaign with **more than one worker**. The orchestrated campaign that ran
-  used this scenario alone. `E4-SQL` was left out deliberately: `E3-ORCH`'s own
-  record documents that a concurrent campaign saturated this host and turned one
-  slow SQL Server login into seven consecutive check failures, which would be a
-  false negative, and it would also contaminate this scenario's resource-drift
-  measurement. Multi-worker aggregation is already proven separately in
-  `E3-ORCH`'s own acceptance record.
+The bounded-retention change remains important historical context. Before it,
+`CheckRunner` would have retained roughly 61,500 detailed results during a
+four-hour run and could have made the harness look like a library leak. It now
+keeps exact bounded category counts, streams full detail to `checks.ndjson`, and
+returns `EvidenceIncomplete` if that log cannot be completed. Fourteen isolated
+harness assertions pass on both targets, and the three-minute scenario probe
+above confirms the real wiring and cleanup.
 
 ### Artifact-layout deviation resolved
 

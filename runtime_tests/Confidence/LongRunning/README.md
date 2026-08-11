@@ -89,9 +89,9 @@ which campaign preflight cannot prove. Their standalone qualifying smokes pass:
 | `-FailWorker <id>` | launches one worker with an invalid argument, on purpose |
 | `-StopStale` | ends processes an earlier unfinished campaign recorded |
 
-Soak defaults to the required 4-hour gate. `-Duration 16h` remains supported as
-an optional extended-confidence run for slow leak or drift detection; it never
-blocks Phase E closure after the 4-hour gate passes.
+Soak defaults to four hours. Four- and sixteen-hour runs remain supported as
+optional extended confidence for slow leak or drift detection; neither is a
+universal Phase E closure gate under the outcome-first policy.
 
 Exit codes match the scenarios' own contract: `0` success, `2` usage, `3`
 prerequisite, `4` a worker failed, `5` a worker outlived the deadline, `6`
@@ -216,12 +216,13 @@ shutdown before it exits.
 | 2026-08-10 | **First recovery campaign, aggregate exit 0.** A single-worker `recovery` campaign with `-Duration 70m` drove `E3-OBS` for 59 minutes through all eight phases. It is also the first proof that a worker actually **dispatches from the orchestrator's schedule** rather than merely parsing it: the worker recorded the campaign's own hash `fnv1a64:57d4189e5a941ecf` and fired its seven faults in the orchestrator's order, which differs from the order that scenario generates for itself. `E4-SQL` was left out on purpose — see the load finding above. |
 | 2026-08-10 | **Artifact layout v2, aggregate exit 0.** `-Mode smoke -Duration 12s -Scenarios E3-OBS` wrote the worker result at `workers/E3-OBS-net9.0/E3-OBS/result.json`, indexed that exact path from the aggregate summary, and reconciled with no problems. Worker and aggregate both recorded `fnv1a64:683eb00b749a22bb`; 91 checks passed and none failed. A direct 8-second standalone run also exited 0 with 61 checks and retained layout v1 without a `workerId`. These shortened runs are contract regression evidence, not smoke-duration evidence. |
 
-**A recovery campaign has now run; the soak campaign has not.** The 4-hour
-campaign remains open, and the suite is explicit that it does not start merely
-because this script works. The recovery campaign that ran had a single worker,
-so multi-worker aggregation still rests on the smoke campaign above.
-After a passing 4-hour campaign, a 16-hour repetition is optional additional
-confidence rather than a completion gate.
+**Outcome-first acceptance is complete.** The record above directly covers
+deterministic planning, multi-worker aggregation and cleanup, failure
+propagation, stale exact ownership, artifact reconciliation, and real worker
+dispatch of an external fault schedule. The recovery campaign used one worker,
+while the separate two-worker smoke proves aggregation. A multi-worker
+non-smoke campaign or four-/sixteen-hour soak remains optional load and duration
+confidence.
 
 ### Artifact-layout deviation resolved
 

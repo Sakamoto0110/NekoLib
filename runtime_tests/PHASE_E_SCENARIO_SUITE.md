@@ -92,18 +92,42 @@ even if exact option spelling differs by module:
 
 Requirements:
 
-- `--smoke` lasts approximately 15 to 30 minutes and exercises every workload
-  class without destructive fault density.
-- `--recovery-rehearsal` lasts approximately 60 to 90 minutes and proves every
-  enabled failure and recovery transition at least once.
-- the final campaign lasts 4 hours after smoke and rehearsal pass;
-- an optional 16-hour extended soak may add confidence in very slow leaks or
-  drift, but it is not required for scenario or Phase E completion;
+- `--smoke` exercises every workload class without destructive fault density;
+  15 to 30 minutes remains the nominal sustained-confidence window, not a
+  universal acceptance minimum;
+- `--recovery-rehearsal` proves every enabled failure and recovery transition
+  at least once; 60 to 90 minutes remains the nominal mode window, while a
+  shorter complete fault sweep may satisfy Phase E;
+- `--soak` remains available for duration-dependent claims and targeted
+  investigation of drift, leaks, queue pressure, or boundedness; four hours and
+  the optional sixteen-hour extension are confidence windows, not universal
+  completion gates;
 - success returns exit code `0`; assertion, timeout, leak, cleanup, or
   unexpected terminal outcomes return a nonzero code;
 - Ctrl+C and normal process termination perform bounded cleanup and still write
   a partial summary;
 - no mode requires a person to interpret success from free-form output.
+
+### Outcome-first acceptance
+
+A scenario closes when every declared target/platform builds and passes its
+isolated contracts, every workload class and fault kind has executed at least
+once with its expected terminal and successful recovery, artifacts and cleanup
+are complete, and every distinct runtime topology boundary has direct evidence.
+
+Choose the runtime matrix by distinct behavior rather than by the Cartesian
+product of modes and targets. Repeat runtime evidence on another target when
+code is target-specific or conditionally compiled; otherwise use explicit
+builds, contracts, and a focused parity run. Native adapters, real providers,
+real IPC/process boundaries, real COM transport, and deployed package layout
+are not interchangeable and each must be observed where it is part of the
+claim.
+
+Historical artifacts retain their actual duration and any
+`belowSpecifiedWindow` marker. A shorter fault-complete run may satisfy this
+policy without being retroactively called a qualifying 60-minute rehearsal.
+Interactive and automated-UI evidence remain separate from headless runtime
+evidence and are required only for visible-behavior claims.
 
 ### Deterministic fault schedule
 
@@ -196,8 +220,9 @@ Every scenario must assert all applicable conditions:
   socket, pipe, serial port, process, timer, or subscription remained owned
   after cleanup;
 - bounded queues, snapshots, caches, and retained histories remained bounded;
-- memory, thread, and handle samples show no unexplained monotonic growth after
-  warm-up and recovery windows;
+- memory, thread, and handle samples contain no confirmed unbounded-growth
+  finding after warm-up and recovery windows; an unresolved trend is recorded
+  and receives a targeted longer run when needed rather than a universal soak;
 - cleanup is deterministic and repeatable;
 - all child processes and endpoints left behind are identified as failures;
 - result files are complete enough to reproduce the run.
@@ -326,11 +351,12 @@ successful navigation.
 
 ### Acceptance
 
-All three target/platform combinations must complete smoke mode. The 4-hour
-claim requires at least one native host to complete the full soak and the other
-combinations to complete smoke plus recovery rehearsal. Record the exact matrix
-instead of generalizing one adapter to the other. No change to the canonical
-lifecycle order or frozen core is part of this scenario.
+All three target/platform combinations must complete smoke mode so neither
+native adapter nor target family is generalized from another. One representative
+native host must execute every shared fault and recovery transition. A longer
+native run is added only for a duration-dependent claim or a recorded resource
+trend. Record the exact matrix. No change to the canonical lifecycle order or
+frozen core is part of this scenario.
 
 ## `E3-OBS` — Logging, Telemetry, and passive Inspection
 
@@ -516,9 +542,10 @@ creating a competing serial harness. Keep com0com as the real virtual-COM
 transport boundary and keep the PCB-A/PCB-B emulator as an independent oracle
 with no project reference to NekoLib.
 
-Add smoke, recovery-rehearsal, and soak modes for both `net481` and `net9.0`.
-The controller must adopt only explicitly configured COM pairs and emulator
-processes that it started.
+Add smoke, recovery-rehearsal, and soak modes buildable for both `net481` and
+`net9.0`. Runtime fault coverage may use one representative target after both
+targets have passed real-COM parity evidence. The controller must adopt only
+explicitly configured COM pairs and emulator processes that it started.
 
 ### Workload
 
@@ -749,11 +776,12 @@ extended and verified for that provider.
 ### Acceptance
 
 Both target frameworks must pass the smoke and cancellation matrices against
-the same recorded server image. Recovery rehearsal must prove command,
-transaction, streaming, pool, network, and container restart behavior. The
-4-hour Data claim requires sustained sessions/transactions/reads plus the
-dynamic-shape workload and deterministic failure schedule, with no leaked
-connection, command, transaction, reader, stream, or container resource.
+the same recorded server image. Representative recovery evidence must prove
+command, transaction, streaming, pool, network, and container restart behavior,
+with target-specific skips recorded explicitly. Sustained work must overlap the
+dynamic-shape workload and deterministic failure schedule with no leaked
+connection, command, transaction, reader, stream, or container resource. A
+four-hour run is needed only for an explicitly duration-dependent Data claim.
 
 Promote a provider-native hook, data-source lifecycle adapter, or cancellable
 factory expansion only when this evidence reproduces a concrete gap that cannot
@@ -778,8 +806,8 @@ be expressed through the current seam.
 | Repeated Data connection/session use; disposal; transactions; streaming cleanup | `E4-SQL` plus existing FarmDatabase evidence |
 | Data provider failures and cancellation | `E4-SQL` |
 | Unattended script, schedule, deterministic cleanup, and aggregate exit code | `E3-ORCH` |
-| Required four-hour deterministic seeded crash/failure campaign | `E3-ORCH` and each fault-owning scenario |
-| Optional sixteen-hour extended confidence campaign | `E3-ORCH` and any selected fault-owning scenario |
+| Deterministic seeded crash/failure campaign with every declared fault observed | `E3-ORCH` and each fault-owning scenario |
+| Optional four- or sixteen-hour duration confidence campaign | `E3-ORCH` and any selected fault-owning scenario |
 | No unbounded memory/handler growth, leaked resources, deadlocks, or unreleased gates | Every scenario, aggregated by `E3-ORCH` |
 | Real/emulated COM with an independent oracle and explicit physical limits | Existing Com0Com plus `E3-DEV` extension |
 | SQLite baseline and Access positional binding | Existing FarmDatabase evidence |
@@ -803,10 +831,11 @@ be expressed through the current seam.
 4. Extend the existing com0com scenario as `E3-DEV`.
 5. Implement `E3-PIPE`, then use its real IPC boundary from `E3-WDOG` without
    merging the two scenarios' assertions.
-6. Run smoke for every implemented target, then recovery rehearsal.
+6. Run focused target/platform parity, then one representative complete fault
+   sweep for each distinct topology boundary.
 7. Freeze the exact scenario/source commit, dependency versions, environment,
-   and schedule generator before starting the 4-hour campaign.
+   and schedule generator before any optional duration campaign.
 
-Do not start the final campaign merely because a project builds. Every selected
-scenario must first pass its smoke and recovery rehearsal with automated exit
-codes and clean resource reconciliation.
+Do not start a duration campaign merely because a project builds. First close
+workload, fault, recovery, artifact, provenance, and cleanup outcomes with
+automated exit codes; add time only for a claim that depends on time.

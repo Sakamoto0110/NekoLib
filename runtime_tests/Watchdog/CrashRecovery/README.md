@@ -18,7 +18,9 @@ probes on both targets.** Each final run passed 20/20 checks, exercised all six
 smoke faults and seven healthy generations, exited 0 in about 123 seconds, and
 completed endpoint/process cleanup. Seven isolated contract checks pass per
 target. These runs are below the 15-minute smoke minimum and are not package
-evidence; full smoke, rehearsal, package-backed proof and soak remain open.
+evidence. They already cover every source-layout workload and fault outcome on
+both targets. One exact immutable package-backed deployed-Host pass remains;
+duplicate full windows and a four-hour soak are not outcome-first gates.
 
 ## Purpose
 
@@ -81,9 +83,9 @@ schedule generator:
 - `--recovery-rehearsal` uses the specified 60-minute default, two ordinary
   exits, two unhandled crashes, one twelve-terminal fast-crash loop, Host
   restart, paused clean shutdown, and repeated bootstrap.
-- `--soak <duration>` repeats the recovery set across four cycles. Four hours is
-  the required Phase E gate; a shorter run is marked below the specified window.
-  Sixteen hours remains optional extended confidence.
+- `--soak <duration>` repeats the recovery set across four cycles. Four and
+  sixteen hours remain optional duration confidence. Shorter runs retain their
+  truthful `belowSpecifiedWindow` marker.
 
 The fast loop uses twelve armed terminals deliberately. Its first terminal may
 come from a generation older than Watchdog's current three-second fast-crash
@@ -154,11 +156,13 @@ Source-layout development execution:
 Package-backed execution, after an external consumer output already exists:
 
 ```powershell
-.\runtime_tests\Watchdog\CrashRecovery\NekoLib.Watchdog.RuntimeTests.CrashRecovery\bin\Debug\net9.0-windows\NekoLib.Watchdog.RuntimeTests.CrashRecovery.exe --smoke --layout disposable-package --application-root C:\absolute\consumer-output --package-file C:\absolute\feed\NekoLib.Watchdog.Host.<version>.nupkg --package-version <version>
+.\runtime_tests\Watchdog\CrashRecovery\NekoLib.Watchdog.RuntimeTests.CrashRecovery\bin\Debug\net9.0-windows\NekoLib.Watchdog.RuntimeTests.CrashRecovery.exe --smoke --smoke-duration 2m --layout disposable-package --application-root C:\absolute\consumer-output --package-file C:\absolute\feed\NekoLib.Watchdog.Host.<version>.nupkg --package-version <version>
 ```
 
-Start with a short, explicitly authorized source-layout probe before any full
-smoke. A source run cannot substitute for the required package-backed evidence.
+The source-layout probe already passed on both targets. The remaining
+outcome-first run repeats its compact two-minute smoke against the exact
+package-backed layout, isolating deployment provenance without repeating a
+duration claim. A source run cannot substitute for package-backed evidence.
 Do not register E3-WDOG in `campaign.json` until it has run successfully once
 and its prerequisite/adoption contract has been observed.
 
@@ -249,7 +253,11 @@ The controller writes the shared Phase E artifact contract plus:
   failed/skipped, all six faults, seven healthy generations, both ordinary exit
   codes as 0, valid bundle integrity/retention, zero cleanup problems, released
   Watchdog and child-health endpoints, and exit 0 in about 123 seconds.
-- Full smoke/rehearsal windows, package-backed evidence and the four-hour soak
-  remain unexecuted. The scenario remains out of `campaign.json`, and these
-  deliberately short source-layout passes are neither smoke-gate nor package
-  evidence. No package was created.
+- Full nominal smoke/rehearsal windows, package-backed evidence and the
+  four-hour soak remain unexecuted. The deliberately short source-layout passes
+  remain development evidence, but they cover all six faults, recovery,
+  bundles, ownership, and cleanup on both targets. Under outcome-first
+  acceptance, only one exact immutable package-backed deployed-Host pass is a
+  remaining gate. Package creation and execution require separate authorization;
+  no package was created. The scenario remains out of `campaign.json` until
+  package prerequisite/adoption is observed.

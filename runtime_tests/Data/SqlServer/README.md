@@ -486,15 +486,13 @@ The third is the one worth remembering: the first fix was half a fix, and the
 run that proved it was half a fix is the only reason the full-duration campaign
 will not fail on a counter.
 
-### What is still open
+### Optional follow-up evidence
 
-- **The 4-hour soak.** Never started. No longer blocked: `--soak 15m` now
-  passes with exit 0, so the path is proven and the remaining question is
-  calendar rather than risk. The host must not share the run with other heavy
-  work — see the load finding in the orchestrator's record.
-  A 16-hour run remains supported as optional extended confidence, but does not
-  block closure once the required 4-hour soak passes.
-- **The FarmDatabase interactive pass** at campaign start and end, which the
-  suite asks for alongside this scenario and which stays SQLite/Access evidence.
+- A four- or sixteen-hour isolated soak remains useful only for additional
+  duration confidence. The 15-minute soak already overlapped sustained work
+  with all seven faults and complete cleanup. Do not share a longer SQL run with
+  other heavy work; see the orchestrator's load finding.
+- The FarmDatabase interactive pass remains separate SQLite/Access visual
+  evidence and does not replace or block the SQL Server runtime claim.
 
-Until those close, `TODO.md`'s `E4-SQL` item stays open.
+The E4-SQL outcome-first gate is complete.

@@ -15,8 +15,9 @@ hardware. The scenario allocates its own named pipe per run.
 2-minute development probes.** See [Verification record](#verification-record).
 Both `net9.0` and `net481` completed four atomic cycles in 133 seconds with
 75/75 checks passing, zero skipped, exit 0 and complete cleanup. The runs are
-deliberately below the specified smoke window, so no full smoke, rehearsal or
-soak has run.
+deliberately below the historical nominal smoke window. One compact
+representative recovery sweep remains to execute all six scheduled faults;
+duplicate full windows and a four-hour soak are not outcome-first gates.
 
 ## Purpose
 
@@ -229,9 +230,12 @@ Preflight refuses to start if the allocated endpoint is already bound.
    times; a different `--seed` gives a different hash.
 3. `--smoke`. Expected: exit `0`, every check passing, and a cleanup line
    reporting the endpoint released.
-4. `--recovery-rehearsal`. Expected: exit `0`, all six faults reporting `ok`,
-   and the client children's totals showing failures during the fault windows
-   and successes outside them.
+4. For the remaining outcome-first gate, run
+   `--recovery-rehearsal --rehearsal-duration 10m` on one representative
+   target. Expected: exit `0`, all six faults reporting `ok`, and the client
+   children's totals showing failures during the fault windows and successes
+   outside them. The artifact will truthfully remain below the historical
+   nominal rehearsal window.
 
 ## Verification record
 
@@ -308,11 +312,13 @@ canonical resolver as the rest of the scenario. The final probes prove both
 policies: `DropNewest` keeps the slow subscriber while counting failed
 deliveries, and `DisconnectSubscriber` removes it after overflow.
 
-**No full smoke, rehearsal, soak or campaign has been run.** The successful
-short probes are development evidence, not mode evidence. The source was run
-from a dirty working tree based on `d515137`; the assembly informational version
-in the artifacts does not attest the uncommitted product diff. No package was
-created.
+**No full nominal-window smoke, rehearsal, soak or campaign has been run.** The
+successful short probes remain development evidence. Under outcome-first
+acceptance, the only missing runtime outcome is one representative compact
+recovery sweep that proves all six faults, expected terminals, post-recovery
+probes, artifacts, and cleanup. The source was run from a dirty working tree
+based on `d515137`; the assembly informational version in the artifacts does
+not attest the uncommitted product diff. No package was created.
 
 The caveat that motivated running a short probe first, kept because it proved
 correct: **a scenario that has never executed is the least-verified thing in this
