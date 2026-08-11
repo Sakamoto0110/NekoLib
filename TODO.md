@@ -1025,9 +1025,10 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-Every E3 scenario now has source. `E3-NAV` has not executed its runtime
-workload. E3-PIPE and E3-DEV have passed short standalone development probes on
-both targets; their specified smoke, rehearsal and soak windows remain open.
+Every E3 scenario now has source. E3-NAV has passed short standalone development
+probes on all three required target/platform combinations. E3-PIPE and E3-DEV
+have passed short standalone development probes on both targets; their specified
+smoke, rehearsal and soak windows remain open.
 E3-WDOG has passed corrected short source-layout probes on both targets after
 one narrowly authorized product fix and two scenario corrections; its specified
 smoke, rehearsal, package-backed and soak evidence remain open.
@@ -1078,12 +1079,21 @@ smoke, rehearsal, package-backed and soak evidence remain open.
   combinations at `fnv1a64:2af9145c9ebf63ec` for seed `20260810`; seed `99`
   differs. Fault/workload controls remain scenario-owned, no Inspection action
   is registered, the shared harness was not expanded, and frozen Navigation
-  source was not changed. **No native workload, smoke, UI automation, recovery
-  rehearsal, soak, or interactive procedure has run.** Standalone smoke on all
-  three combinations, rehearsal on all three, one four-hour native full run,
-  and resource-baseline interpretation therefore remain open. Keep E3-NAV out
-  of `campaign.json` until its first standalone run exits 0 and cleanup evidence
-  is inspected.
+  source was not changed. **Corrected two-minute standalone development probes
+  passed on all three combinations on 2026-08-11 at clean `e7c86a4`.** Each
+  passed 11/11 checks with zero skipped, exit 0, awaited
+  `NavigationService.Shutdown()`, zero cleanup problems, and no remaining
+  process or window. WinForms `net481`, WinForms `net9.0-windows`, and WPF
+  `net9.0-windows` completed 50, 51, and 552 sustained cycles respectively.
+  The first `net481` run exposed three scenario defects: an incorrect
+  current-page redirect setup and two releases of scenario-owned blocked work
+  before the public reset/shutdown cutoff. Awaiting those lifecycle boundaries
+  also removed the following idle/shutdown cascade. The public history
+  assertion now expects exactly one entry for the current Idle page. No frozen
+  Navigation or shared harness source changed. These runs are below the
+  15-minute smoke minimum and do not establish resource drift. Standalone smoke
+  on all three combinations, rehearsal on all three, one four-hour native full
+  run, interactive parity, and resource-baseline interpretation remain open.
 - [ ] **E3-OBS — Logging, Telemetry, and passive Inspection.** **Scenario source
   delivered 2026-08-09** at
   [`runtime_tests/Observability/LongRunningRecovery/`](runtime_tests/Observability/LongRunningRecovery/README.md):
