@@ -120,6 +120,81 @@ namespace NekoLib.Watchdog.Tests.Unit
         }
 
         [Fact]
+        public void InitialProcessExit_WithoutLauncherHandle_PreservesExitCodeInStatus()
+        {
+            var root = NewTempRoot();
+            Process initial = null;
+            try
+            {
+                var exitSignal = Path.Combine(root, "exit-initial.signal");
+                var initialScript = Path.Combine(root, "initial.cmd");
+                File.WriteAllLines(initialScript, new[]
+                {
+                    "@echo off",
+                    ":wait",
+                    "if exist " + WatchdogBootstrap.QuoteArgument(exitSignal) + " exit /b 17",
+                    "ping -n 2 127.0.0.1 > nul",
+                    "goto wait"
+                });
+
+                var options = WatchdogTestUtil.NewOptions(
+                    root,
+                    "/d /c " + WatchdogBootstrap.QuoteArgument(initialScript));
+                initial = StartTarget(options, removeWatchdogEnvironment: true);
+                int initialId = initial.Id;
+
+                // A self-bootstrapping application has no external launcher
+                // keeping its process handle alive after it exits.
+                initial.Dispose();
+                initial = null;
+
+                options.InitialProcessId = initialId;
+                options.AttachToken = "exit-code-attach";
+                options.TargetArguments = "/d /c ping -n 30 127.0.0.1 > nul";
+
+                using (var runtime = new WatchdogRuntime(options))
+                {
+                    runtime.Start();
+                    Assert.True(WaitForAttach(options));
+
+                    File.WriteAllText(exitSignal, "exit");
+
+                    string statusText = "<status unavailable>";
+                    bool exitCodeObserved = WatchdogTestUtil.WaitUntil(() =>
+                    {
+                        try
+                        {
+                            var status = WatchdogTestUtil.Send(
+                                options.PipeName,
+                                WatchdogCommands.Status);
+                            statusText = status.Data.ToString();
+                            return Regex.IsMatch(
+                                statusText,
+                                "\\\"?lastExitCode\\\"?\\s*:\\s*17",
+                                RegexOptions.IgnoreCase);
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    }, timeoutMs: 8000);
+
+                    Assert.True(
+                        exitCodeObserved,
+                        "Status: " + statusText +
+                        Environment.NewLine +
+                        "Watchdog log: " +
+                        SafeRead(options.LogPath));
+                }
+            }
+            finally
+            {
+                TryKill(initial);
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
         public void Start_InvalidInitialPid_DoesNotLaunchTargetAndReleasesSingleton()
         {
             var root = NewTempRoot();

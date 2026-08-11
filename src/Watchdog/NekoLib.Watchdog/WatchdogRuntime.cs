@@ -532,6 +532,13 @@ namespace NekoLib.Watchdog
                         "The initial process executable does not match TargetPath.");
                 }
 
+                // A Process obtained only by ID can otherwise reopen its native
+                // handle too late, after the initial application has exited and
+                // the OS object is no longer available. Materialize the handle
+                // while the process is alive so ExitCode remains observable by
+                // the monitor even when no launcher retains another handle.
+                _ = process.Handle;
+
                 lock (_childLock)
                 {
                     _child = process;
