@@ -39,7 +39,24 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         /// <summary>Child-only: where to write its result document.</summary>
         public string ChildResultPath = string.Empty;
 
+        /// <summary>
+        /// Child-only: a file whose appearance asks this child to stop working
+        /// and write its result.
+        /// <para/>
+        /// A client outlives the controller's own run on purpose, so the
+        /// controller needs a way to end it that still lets it report. Forcing it
+        /// would leave no document at all, which is precisely the state that made
+        /// <c>client-children-correlation</c> read nothing on 2026-08-12.
+        /// </summary>
+        public string ChildStopFile = string.Empty;
+
         public TimeSpan SmokeDuration = TimeSpan.FromMinutes(15);
+
+        /// <summary>
+        /// Runs the isolated terminal-classification contracts and exits. Opens
+        /// no pipe and starts no process, so it is not runtime evidence.
+        /// </summary>
+        public bool ContractsOnly;
 
         public static readonly TimeSpan MinimumSpecifiedSmoke = TimeSpan.FromMinutes(15);
 
@@ -57,12 +74,14 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         {
             "  --smoke-duration <d>        smoke window, default 15m (the suite specifies 15-30m)",
             "  --clients <n>               client child processes, default 3",
+            "  --contracts                 run the isolated terminal-classification contracts and exit",
             string.Empty,
             "Child roles are started by the controller and are not meant to be run by hand:",
             "  --role server|client        run as a child process",
             "  --pipe <name>               the endpoint the controller allocated",
             "  --child-duration <d>        how long the child works",
-            "  --child-result <file>       where the child writes its result"
+            "  --child-result <file>       where the child writes its result",
+            "  --child-stop-file <file>    asks the child to stop and report when it appears"
         };
 
         protected override bool TryParseScenarioOption(
@@ -96,6 +115,11 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         return false;
                     return true;
 
+                case "--child-stop-file":
+                    if (!TryTakeValue(args, ref index, "--child-stop-file", out ChildStopFile, out diagnostic))
+                        return false;
+                    return true;
+
                 case "--child-duration":
                     if (!TryTakeValue(args, ref index, "--child-duration", out string childDuration, out diagnostic))
                         return false;
@@ -105,6 +129,10 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     if (!TryTakeValue(args, ref index, "--smoke-duration", out string smoke, out diagnostic))
                         return false;
                     return TryParseDuration(smoke, out SmokeDuration, out diagnostic);
+
+                case "--contracts":
+                    ContractsOnly = true;
+                    return true;
 
                 case "--clients":
                     if (!TryTakeValue(args, ref index, "--clients", out string clients, out diagnostic)) return false;

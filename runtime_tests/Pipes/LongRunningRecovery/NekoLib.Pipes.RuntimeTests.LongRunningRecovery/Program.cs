@@ -31,6 +31,17 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
     {
         private static int Main(string[] args)
         {
+            // Answered before the shared parser runs, because that parser
+            // requires a mode and the contracts are deliberately not one: they
+            // assert pure classification, allocate no endpoint and start no
+            // child. Handling it here keeps the requirement where it belongs
+            // rather than teaching the shared harness about one scenario's flag.
+            foreach (string argument in args)
+            {
+                if (string.Equals(argument, "--contracts", StringComparison.Ordinal))
+                    return Contracts.Run();
+            }
+
             ScenarioOptions options = new ScenarioOptions();
             if (!options.TryParse(args, out string diagnostic))
             {
@@ -89,6 +100,14 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         private DateTime _startedUtc = DateTime.UtcNow;
         private bool _interrupted;
         private string _pipeName = string.Empty;
+        private string _clientStopFile = string.Empty;
+
+        /// <summary>
+        /// The client children that were still running when the stop was
+        /// requested, and are therefore the ones a result document is required
+        /// from. A child a scheduled fault destroyed is deliberately absent.
+        /// </summary>
+        private readonly List<ChildProcess> _clientsExpectedToReport = new List<ChildProcess>();
 
         public ScenarioRun(ScenarioOptions options, CancellationToken ct)
         {
@@ -196,6 +215,10 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                     _startedUtc = DateTime.UtcNow;
                     await RunModeAsync(context, schedule).ConfigureAwait(false);
+
+                    // Stop first, then read: a child writes its document as it
+                    // exits, and its lifetime deliberately outlives this run.
+                    await StopClientsAsync(artifacts).ConfigureAwait(false);
                     await ReportClientsAsync(context).ConfigureAwait(false);
                 }
             }
@@ -372,6 +395,8 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         /// </summary>
         private void StartClients(PhaseContext context, TimeSpan lifetime)
         {
+            _clientStopFile = Path.Combine(_artifacts!.ScenarioDirectory, "clients-stop.marker");
+
             for (int i = 0; i < _options.Clients; i++)
             {
                 string result = Path.Combine(
@@ -381,7 +406,8 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                 string arguments =
                     "--role client --pipe " + _pipeName +
                     " --child-duration " + ((int)lifetime.TotalSeconds).ToString(CultureInfo.InvariantCulture) + "s" +
-                    " --child-result \"" + result + "\" --smoke";
+                    " --child-result \"" + result + "\"" +
+                    " --child-stop-file \"" + _clientStopFile + "\" --smoke";
 
                 ChildProcess child = ChildProcess.Start("client", arguments, result);
                 _children.Add(child);
@@ -390,6 +416,56 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
             _artifacts!.Out("clients  " + _clients.Count + " child process(es) started");
             RefreshChildSamples(context);
+        }
+
+        /// <summary>
+        /// Asks the client children to stop and waits boundedly for them, so
+        /// their result documents exist before anything reads them.
+        /// <para/>
+        /// The clients are deliberately given a lifetime longer than the
+        /// controller's own run - they must still be sending when the last fault
+        /// lands - and a child writes its document only as it exits. Reading
+        /// before this ran is what made <c>client-children-correlation</c> report
+        /// "no client child wrote a result document" on 2026-08-12, after the
+        /// recovery fix stopped the clients from quitting early against a dead
+        /// server. Forcing them here instead would leave no document at all.
+        /// </summary>
+        private async Task StopClientsAsync(RunArtifacts artifacts)
+        {
+            _clientsExpectedToReport.Clear();
+
+            if (_clients.Count == 0 || _clientStopFile.Length == 0) return;
+
+            // A client already gone is one the kill-client-process fault
+            // destroyed. It cannot have written anything, and requiring a
+            // document from it would be asserting against the fault.
+            foreach (ChildProcess client in _clients)
+                if (!client.HasExited) _clientsExpectedToReport.Add(client);
+
+            try
+            {
+                File.WriteAllText(_clientStopFile, "stop");
+            }
+            catch (Exception ex)
+            {
+                _cleanupProblems.Add("the client stop marker could not be written: " +
+                                     ex.GetType().Name + ": " + ex.Message);
+                return;
+            }
+
+            foreach (ChildProcess client in _clientsExpectedToReport)
+            {
+                if (!client.WaitForExit(TimeSpan.FromSeconds(30)))
+                {
+                    artifacts.Out("  client   pid " + client.Id +
+                                  " did not stop within 30s of the request; cleanup will force it");
+                }
+            }
+
+            artifacts.Out("clients  " + _clientsExpectedToReport.Count +
+                          " of " + _clients.Count + " asked to stop and report");
+
+            await PhaseContext.CompletedTask.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -409,11 +485,16 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     long failed = 0;
                     long mismatched = 0;
                     int reported = 0;
+                    List<int> silent = new List<int>();
 
                     foreach (ChildProcess client in _clients)
                     {
                         Dictionary<string, object?>? result = client.ReadResult();
-                        if (result == null) continue;
+                        if (result == null)
+                        {
+                            if (_clientsExpectedToReport.Contains(client)) silent.Add(client.Id);
+                            continue;
+                        }
 
                         reported++;
                         sent += JsonParser.RequireInt(result, "sent");
@@ -423,8 +504,22 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     }
 
                     check.That(reported > 0, "no client child wrote a result document");
+
+                    // Every client still running when the stop was requested has
+                    // to have reported. A client the kill-client-process fault
+                    // destroyed is not in that set: it was killed on purpose and
+                    // never reached the code that writes a document.
+                    check.That(silent.Count == 0,
+                        "client child process(es) " + string.Join(", ", silent.ConvertAll(
+                            id => id.ToString(CultureInfo.InvariantCulture)).ToArray()) +
+                        " were asked to stop and report but wrote no result document");
+
                     check.Equal(0, mismatched, "responses that reached the wrong client process");
                     check.That(ok > 0, "no client process completed a single request");
+
+                    check.Note(_clientsExpectedToReport.Count + " of " + _clients.Count +
+                               " client process(es) were alive at the stop request; the remainder were ended " +
+                               "by a scheduled fault");
 
                     context.Samples.RequestsSent.Add(sent);
                     context.Samples.RequestsFailed.Add(failed);

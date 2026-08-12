@@ -121,6 +121,17 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         /// <summary>Waits for a requested number of milliseconds, then echoes.</summary>
         public const string Slow = "slow";
 
+        /// <summary>
+        /// Returns how many <see cref="Slow"/> requests this server process has
+        /// admitted, counted the moment the handler is entered and before it
+        /// sleeps.
+        /// <para/>
+        /// This exists so a fault can prove admission instead of assuming it. It
+        /// reports and nothing else: it cannot make the server misbehave, so the
+        /// server child still exposes no control plane.
+        /// </summary>
+        public const string SlowAdmitted = "slow-admitted";
+
         /// <summary>Always throws, to exercise the handler-failure contract.</summary>
         public const string Boom = "boom";
 

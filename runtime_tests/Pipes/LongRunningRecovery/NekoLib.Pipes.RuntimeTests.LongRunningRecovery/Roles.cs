@@ -82,15 +82,26 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
         private static void Map(PipeServer server, ManualResetEventSlim shutdown)
         {
+            // Counted at handler entry, so a controller that reads it knows the
+            // request was admitted rather than merely sent. A fixed sleep on the
+            // controller side proves nothing about what this process did with it.
+            long slowAdmitted = 0;
+
             server.Map(Ops.Echo, (message, ct) =>
                 Task.FromResult(Reply(message, Payload.Text(message) ?? string.Empty)));
 
             server.Map(Ops.Slow, async (message, ct) =>
             {
+                Interlocked.Increment(ref slowAdmitted);
+
                 int milliseconds = ReadInt(Payload.Text(message), 250);
                 await Task.Delay(milliseconds, ct).ConfigureAwait(false);
                 return Reply(message, "slept " + milliseconds.ToString(CultureInfo.InvariantCulture));
             });
+
+            server.Map(Ops.SlowAdmitted, (message, ct) =>
+                Task.FromResult(Reply(message,
+                    Interlocked.Read(ref slowAdmitted).ToString(CultureInfo.InvariantCulture))));
 
             server.Map(Ops.Boom, (message, ct) =>
                 throw new InvalidOperationException("the scenario's handler failed on purpose"));
@@ -229,8 +240,24 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
             int[] sizes = { 64, 4 * 1024, 32 * 1024 };
             int index = 0;
 
-            while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
+            // Polled rather than checked every iteration: this loop runs a few
+            // thousand times a second, and a stat syscall per request would
+            // measure the file system instead of the pipe.
+            Stopwatch stopPoll = Stopwatch.StartNew();
+            bool stopRequested = false;
+
+            while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested && !stopRequested)
             {
+                if (options.ChildStopFile.Length > 0 && stopPoll.ElapsedMilliseconds >= 250)
+                {
+                    stopPoll.Restart();
+
+                    try { stopRequested = File.Exists(options.ChildStopFile); }
+                    catch (Exception) { stopRequested = false; }
+
+                    if (stopRequested) break;
+                }
+
                 int size = sizes[index++ % sizes.Length];
                 string marker = "c" + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
                                 "-" + sent.ToString(CultureInfo.InvariantCulture);

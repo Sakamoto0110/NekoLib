@@ -312,6 +312,29 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                 await context.ExclusiveAsync(() => DispatchAsync(context, control, planned)).ConfigureAwait(false);
 
+                // A fault that leaves the shared endpoint down would make every
+                // later check measure the absence of a server rather than the
+                // thing it asserts. Each fault restores what it took, so this is
+                // a net rather than the mechanism - and it is recorded, never
+                // silent, because needing it means a fault's own restoration
+                // path did not hold.
+                if (!Endpoint.IsBound(context.PipeName))
+                {
+                    RestoreOutcome net = await RestoreServerAsync(context, control).ConfigureAwait(false);
+
+                    context.Artifacts.Event("topology-restored-after-fault", json =>
+                    {
+                        json.Prop("id", planned.Id);
+                        json.Prop("kind", planned.Kind);
+                        json.Prop("restored", net.Ok);
+                        json.Prop("diagnostic", net.Ok ? string.Empty : net.Diagnostic);
+                    });
+
+                    context.Artifacts.Out(
+                        "recovery endpoint was down after " + planned.Kind + "; restoration " +
+                        (net.Ok ? "succeeded" : "FAILED: " + net.Diagnostic));
+                }
+
                 context.Sampler.Take(Phase, "post-recovery");
             }
         }
@@ -342,54 +365,202 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     ChildProcess? server = control.Server;
                     check.That(server != null, "there was no server child to kill");
 
-                    // A request in flight when the server dies must fail rather
-                    // than hang: a hang is what would turn a killed worker into
-                    // a stalled campaign.
-                    Task<Exception?> inFlight = Task.Run(async () =>
+                    RestoreOutcome restore;
+
+                    try
                     {
-                        using (PipeClient client = context.NewClient(TimeSpan.FromSeconds(20)))
+                        // Admission has to be proven, not assumed. A fixed sleep
+                        // says only that time passed on this side; the server
+                        // counts Ops.Slow at handler entry, so a count that moved
+                        // is the request actually being worked on when it dies.
+                        long before = await ReadSlowAdmittedAsync(context).ConfigureAwait(false);
+
+                        // A request in flight when the server dies must reach a
+                        // terminal rather than hang: a hang is what would turn a
+                        // killed worker into a stalled campaign.
+                        Task<TerminalObservation> inFlight = Task.Run(async () =>
                         {
-                            return await PhaseContext.CaptureAsync(() =>
-                                client.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
-                        }
-                    }, context.Ct);
+                            using (PipeClient client = context.NewClient(TimeSpan.FromSeconds(20)))
+                            {
+                                return await ObserveAsync(() =>
+                                    client.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
+                            }
+                        }, context.Ct);
 
-                    await Task.Delay(400, context.Ct).ConfigureAwait(false);
+                        long admittedCount = await WaitForAdmissionAsync(context, before).ConfigureAwait(false);
 
-                    string diagnostic;
-                    check.That(server!.Kill(out diagnostic), "the server child could not be ended: " + diagnostic);
-                    check.Note("server pid " + server.Id + " " + diagnostic);
+                        check.That(admittedCount > before,
+                            "the server never admitted the slow request within the bound, so killing it " +
+                            "would not have proven anything about an in-flight request");
 
-                    System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
-                    Exception? admitted = await inFlight.ConfigureAwait(false);
-                    clock.Stop();
+                        check.Note("the server admitted the slow request; slow-admitted moved " +
+                                   before.ToString(CultureInfo.InvariantCulture) + " -> " +
+                                   admittedCount.ToString(CultureInfo.InvariantCulture));
 
-                    check.That(admitted != null, "an in-flight request survived the server being killed");
-                    check.That(clock.Elapsed < TimeSpan.FromSeconds(30),
-                        "the in-flight request took " + clock.Elapsed.TotalSeconds.ToString("F0") +
-                        "s to fail after the server died");
+                        string diagnostic;
+                        check.That(server!.Kill(out diagnostic), "the server child could not be ended: " + diagnostic);
+                        check.Note("server pid " + server.Id + " " + diagnostic);
 
-                    check.Note("the in-flight request failed as " + admitted!.GetType().Name +
-                               " " + clock.ElapsedMilliseconds + "ms after the kill");
+                        System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+                        TerminalObservation observed = await inFlight.ConfigureAwait(false);
+                        clock.Stop();
 
-                    context.Counters.ExpectedFailure();
+                        // Both halves are recorded whatever the verdict, because
+                        // the previous version kept only the exception and so
+                        // could not tell a legitimate connection_closed response
+                        // from a request that genuinely survived.
+                        check.Note("the in-flight request ended as " + observed.Classify() +
+                                   " " + clock.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture) +
+                                   "ms after the kill: " + observed.Describe());
 
-                    // The endpoint must be released by the dead process, or a
-                    // replacement could never bind it.
-                    await CancellationMatrix.WaitUnbound(context, context.PipeName).ConfigureAwait(false);
-                    check.That(!Endpoint.IsBound(context.PipeName),
-                        "the endpoint was still bound after the server process died");
+                        check.That(observed.Classify() != KillTerminal.Success,
+                            "an in-flight request returned a successful response from a server that was killed, " +
+                            "which is a possible NekoLib.Pipes finding rather than a scenario one: " +
+                            observed.Describe());
 
-                    control.RestartServer();
-                    check.That(await control.WaitForServerAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false),
-                        "a replacement server did not bind " + context.PipeName);
+                        check.That(observed.IsExpected(),
+                            "the in-flight request did not reach a transport, cancellation or connection_closed " +
+                            "terminal: " + observed.Describe());
 
-                    PipeMessage probe = await context.SendAsync(Ops.Echo, "after-server-restart")
-                        .ConfigureAwait(false);
+                        check.That(clock.Elapsed < TimeSpan.FromSeconds(30),
+                            "the in-flight request took " + clock.Elapsed.TotalSeconds.ToString("F0") +
+                            "s to end after the server died");
 
-                    check.That(probe.Ok, "the replacement server did not answer: " + Payload.Describe(probe));
+                        context.Counters.ExpectedFailure();
+                    }
+                    finally
+                    {
+                        // Restoring the topology may not depend on the assertions
+                        // above holding. When it did, one failed assertion left
+                        // the run with no server at all and every later check
+                        // failed against an absent endpoint - sixteen of them, on
+                        // 2026-08-12, for one real finding.
+                        restore = await RestoreServerAsync(context, control).ConfigureAwait(false);
+                        foreach (string note in restore.Notes) check.Note(note);
+                    }
+
+                    check.That(restore.Ok, "the server topology was not restored after the kill: " + restore.Diagnostic);
                     context.Counters.Success();
                 });
+        }
+
+        /// <summary>
+        /// Reads the server's admitted-slow counter, returning -1 when it cannot
+        /// be read at all rather than throwing into the caller's check.
+        /// </summary>
+        private static async Task<long> ReadSlowAdmittedAsync(PhaseContext context)
+        {
+            try
+            {
+                PipeMessage response = await context.SendAsync(Ops.SlowAdmitted, null).ConfigureAwait(false);
+                if (!response.Ok) return -1;
+
+                long value;
+                return long.TryParse(Payload.Text(response), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out value)
+                    ? value
+                    : -1;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { return -1; }
+        }
+
+        /// <summary>
+        /// Waits boundedly for the server's admitted-slow counter to move past
+        /// <paramref name="before"/>, and returns whatever it last read.
+        /// </summary>
+        private static async Task<long> WaitForAdmissionAsync(PhaseContext context, long before)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            long current = before;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                current = await ReadSlowAdmittedAsync(context).ConfigureAwait(false);
+                if (current > before) return current;
+
+                await Task.Delay(50, context.Ct).ConfigureAwait(false);
+            }
+
+            return current;
+        }
+
+        private static async Task<TerminalObservation> ObserveAsync(Func<Task<PipeMessage>> call)
+        {
+            try
+            {
+                PipeMessage message = await call().ConfigureAwait(false);
+                return TerminalObservation.FromMessage(message);
+            }
+            catch (Exception failure)
+            {
+                return TerminalObservation.FromException(failure);
+            }
+        }
+
+        /// <summary>What restoring the server child after a kill actually did.</summary>
+        private sealed class RestoreOutcome
+        {
+            public bool Ok;
+            public string Diagnostic = string.Empty;
+            public readonly List<string> Notes = new List<string>();
+        }
+
+        /// <summary>
+        /// Puts the topology back: waits for the dead process to release the
+        /// endpoint, starts a replacement, waits boundedly for the bind, and
+        /// proves the replacement answers.
+        /// <para/>
+        /// It never throws, because it runs from a <c>finally</c> whose job is to
+        /// leave the next fault a working server even when this one's assertions
+        /// failed. Its own outcome is asserted by the caller afterwards.
+        /// </summary>
+        private static async Task<RestoreOutcome> RestoreServerAsync(PhaseContext context, IProcessControl control)
+        {
+            RestoreOutcome outcome = new RestoreOutcome();
+
+            try
+            {
+                await CancellationMatrix.WaitUnbound(context, context.PipeName).ConfigureAwait(false);
+
+                if (Endpoint.IsBound(context.PipeName))
+                {
+                    outcome.Diagnostic = "the endpoint was still bound after the server process died";
+                    return outcome;
+                }
+
+                outcome.Notes.Add("the dead server released " + context.PipeName);
+
+                control.RestartServer();
+
+                if (!await control.WaitForServerAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                {
+                    outcome.Diagnostic = "a replacement server did not bind " + context.PipeName;
+                    return outcome;
+                }
+
+                PipeMessage probe = await context.SendAsync(Ops.Echo, "after-server-restart").ConfigureAwait(false);
+
+                if (!probe.Ok)
+                {
+                    outcome.Diagnostic = "the replacement server did not answer: " + Payload.Describe(probe);
+                    return outcome;
+                }
+
+                outcome.Notes.Add("a replacement server bound the endpoint and answered a fresh request");
+                outcome.Ok = true;
+                return outcome;
+            }
+            catch (OperationCanceledException)
+            {
+                outcome.Diagnostic = "the run was cancelled while restoring the server";
+                return outcome;
+            }
+            catch (Exception ex)
+            {
+                outcome.Diagnostic = "restoring the server threw " + ex.GetType().Name + ": " + ex.Message;
+                return outcome;
+            }
         }
 
         private static Task KillClient(PhaseContext context, IProcessControl control, FaultEvent planned)
