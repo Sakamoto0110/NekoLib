@@ -17,6 +17,7 @@
     <PackageReference Include="NekoLib.Inspection" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Devices" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Diagnostics.Windows" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Http" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Logging" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Mvvm" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Navigation.WinForms" Version="$(NekoLibPackageVersion)" />

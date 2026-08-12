@@ -9,6 +9,7 @@ the handoff state and the rules that are easy to get wrong.
 | Need | Go to |
 |---|---|
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
+| Typed HTTP catalogs, ownership, and response boundaries | [`src/Http/NekoLib.Http/README.md`](src/Http/NekoLib.Http/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
@@ -33,6 +34,9 @@ the handoff state and the rules that are easy to get wrong.
   Telemetry, Inspection, Diagnostics, and Watchdog. The other feature families
   are optional according to their actual project references; "optional" never
   means "has no dependencies".
+- `NekoLib.Http` is an opt-in typed endpoint catalog. It owns no `HttpClient`,
+  credentials, retry policy or process-wide registry; consumers configure those
+  boundaries explicitly.
 - The source and the `*.csproj` files are authoritative. `TODO.md` and the audit
   files preserve decision/history context and may describe findings that were
   fixed later.
@@ -287,7 +291,7 @@ The current cross-project graph is shallow and is the rule to preserve:
 - Logging → Core; Telemetry → Core; Inspection → Core.
 - Diagnostics → Core; Diagnostics.Windows → Diagnostics.
 - Watchdog → Core + Pipes; Watchdog.Host → Watchdog.
-- Data, Devices, Mvvm, Pipes and the orphan Hosting project have no
+- HTTP, Data, Devices, Mvvm, Pipes and the orphan Hosting project have no
   project references.
 
 Read the relevant `*.csproj` before adding a cross-module dependency. Do not
@@ -298,7 +302,7 @@ infer that every feature module must reference Core.
 Custom constants are **not uniform**. Inspect the target project's csproj
 instead of copying a symbol from another module.
 
-- Core, Data, Inspection, Diagnostics, Logging, Telemetry, Mvvm, Navigation and Hosting
+- Core, HTTP, Data, Inspection, Diagnostics, Logging, Telemetry, Mvvm, Navigation and Hosting
   declare `NEKOLIB` plus their conditional `NETFRAMEWORK` / `NET_9` symbols.
 - Devices declares `NETFRAMEWORK` / `NET_9`, but not `NEKOLIB`.
 - Pipes uses `NET481` / `NET9`.
@@ -314,13 +318,13 @@ instead of copying a symbol from another module.
 needs `System.Runtime.CompilerServices.IsExternalInit`, which net481 lacks
 without an explicit shim. Use ordinary classes for multi-target data types.
 
-## Nullable & ImplicitUsings — read from the csproj files, 2026-08-01
+## Nullable & ImplicitUsings — read from the csproj files, 2026-08-12
 
 **Match a project's existing settings; never flip them.**
 
 | Project | Nullable | ImplicitUsings |
 |---|---|---|
-| Core, Logging, Telemetry, Inspection, Diagnostics, Navigation (+WinForms, +Wpf), Data, Mvvm, Devices, Pipes, Watchdog (+Host), NekoLib | `enable` | disabled, **except** Pipes (`enable`) and Devices (`true`) |
+| Core, Logging, Telemetry, Inspection, Diagnostics, HTTP, Navigation (+WinForms, +Wpf), Data, Mvvm, Devices, Pipes, Watchdog (+Host), NekoLib | `enable` | disabled, **except** Pipes (`enable`) and Devices (`true`) |
 | **Diagnostics.Windows** | **`disable`** | disabled |
 | All `*.Tests.Unit` projects | `disable` | disabled |
 
@@ -385,6 +389,13 @@ without an explicit shim. Use ordinary classes for multi-target data types.
   `NETFRAMEWORK`, and `QueryBuilder` now isolates subquery parameters and builds
   INSERT/UPDATE idempotently; keep the existing regression tests when changing
   those paths.
+- **HTTP** — endpoint catalogs are instance-scoped and immutable. The consumer
+  owns the supplied `HttpClient`, base address, credentials, certificates,
+  timeout and resilience policy. Keep routes relative, preserve raw
+  non-success evidence, enforce the response-size bound, and never add automatic
+  retries or logging of headers/bodies. The external TheCatAPI scenario is
+  provider evidence only when run with its own key; its deterministic contracts
+  remain in `NekoLib.Http.Tests.Unit`.
 - **Diagnostics** — since A4 the `Application.ThreadException` hook is **no
   longer automatic**; a WinForms app must call `WindowsCrash.HookWinForms()` at
   startup.

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+
+    <AssemblyName>NekoLib.Http</AssemblyName>
+    <RootNamespace>NekoLib.Http</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>NekoLib.Http</PackageId>
+    <Title>NekoLib HTTP</Title>
+    <Description>Typed, instance-scoped HTTP endpoint catalogs and consumer-owned request execution.</Description>
+    <PackageTags>nekolib;http;api;typed-client;desktop</PackageTags>
+
+    <DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net481'">
+    <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <DefineConstants>$(DefineConstants);NET_9</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

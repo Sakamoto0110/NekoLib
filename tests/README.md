@@ -34,6 +34,7 @@ isolation, or its canonical command materially differ.
 | `NekoLib.Devices.Tests/Unit` | unit + integration | loopback TCP and in-process named pipes; no real serial port | net481, net9.0 |
 | `NekoLib.Diagnostics.Tests/Unit` | unit + integration | temporary filesystem crash bundles | net481, net9.0-windows |
 | `NekoLib.Inspection.Tests/Unit` | unit | process-global slot and concurrency, isolated in-process | net481, net9.0 |
+| `NekoLib.Http.Tests/Unit` | unit | controlled `HttpMessageHandler`; no public internet | net481, net9.0 |
 | `NekoLib.Logging.Tests/Unit` | unit + integration | temporary filesystem rolling logs | net481, net9.0 |
 | `NekoLib.Mvvm.Tests/Unit` | unit | Windows-targeted command surface on net9 | net481, net9.0-windows |
 | `NekoLib.Navigation.Tests/Unit` | unit | in-memory platform fakes plus process-global facade tests | net481, net9.0-windows |

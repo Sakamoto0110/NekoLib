@@ -73,6 +73,7 @@ $packageIds = @(
     "NekoLib.Devices",
     "NekoLib.Diagnostics",
     "NekoLib.Diagnostics.Windows",
+    "NekoLib.Http",
     "NekoLib.Logging",
     "NekoLib.Mvvm",
     "NekoLib.Navigation",

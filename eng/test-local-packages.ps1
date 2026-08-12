@@ -131,6 +131,7 @@ $packageTfms = [ordered]@{
     "NekoLib.Devices" = "net9.0"
     "NekoLib.Diagnostics" = "net9.0"
     "NekoLib.Diagnostics.Windows" = "net9.0-windows7.0"
+    "NekoLib.Http" = "net9.0"
     "NekoLib.Logging" = "net9.0"
     "NekoLib.Mvvm" = "net9.0"
     "NekoLib.Navigation" = "net9.0"

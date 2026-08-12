@@ -80,6 +80,7 @@ optional unless one of their documented dependents brings them transitively.
 | `NekoLib.Telemetry` | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
 | `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
+| `NekoLib.Http` | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
 | `NekoLib.Data` | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, streaming, and transactions. |
 | `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
@@ -167,6 +168,7 @@ technical manual.
 | Inspection | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; at most one global runtime; broad module rollout is frozen | `NekoLib.Inspection.Tests.Unit` |
 | Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production and external notification are composition-owned, and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
 | Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
+| HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |
 | Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; shutdown closes and tracks admitted work | `NekoLib.Pipes.Tests.Unit` |
@@ -205,7 +207,7 @@ dotnet test NekoLib.sln
 
 ## Local NuGet packages
 
-Package production is opt-in: the 14 library projects and the Watchdog Host
+Package production is opt-in: the 15 library projects and the Watchdog Host
 deployment package are packaged together; tests, runtime scenarios,
 `BundlerTool`, and the constants-only
 `src/Hosting/NekoLib` project are not.
@@ -296,6 +298,7 @@ require packages to have been produced first.
 | `NekoLib.Inspection` | `src/Inspection/NekoLib.Inspection/` | net481, net9.0 | Core |
 | `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | Core |
 | `NekoLib.Diagnostics.Windows` | `src/Diagnostics/NekoLib.Diagnostics.Windows/` | net481, net9.0-windows | Diagnostics |
+| `NekoLib.Http` | `src/Http/NekoLib.Http/` | net481, net9.0 | â€” |
 | `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0 | Core |
 | `NekoLib.Navigation.WinForms` | `src/Navigation/NekoLib.Navigation.WinForms/` | net481, net9.0-windows | Navigation |
 | `NekoLib.Navigation.Wpf` | `src/Navigation/NekoLib.Navigation.Wpf/` | net481, net9.0-windows | Navigation |
@@ -311,8 +314,9 @@ Inside Navigation, dependencies flow one way:
 `Adapters` → `Runtime` → `Contracts`. Across packages, dependencies follow the
 `References` column above: platform adapters depend on Navigation,
 Diagnostics.Windows depends on Diagnostics; Logging, Telemetry, Inspection, and
-Diagnostics depend only on Core; Watchdog depends on Core and Pipes. The graph
-has no cycles.
+Diagnostics depend only on Core; HTTP, Data, Mvvm, Devices, and Pipes have no
+NekoLib project dependency; Watchdog depends on Core and Pipes. The graph has no
+cycles.
 
 `src/Tools/BundlerTool/` is a standalone dev utility and is not part of
 `NekoLib.sln`. Build it reproducibly through

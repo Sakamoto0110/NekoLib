@@ -15,6 +15,7 @@ namespace NekoLib.PackageConsumers
                 typeof(NekoLib.Devices.Core.Abstractions.SerialConfig),
                 typeof(NekoLib.Diagnostics.CrashHandler),
                 typeof(NekoLib.Diagnostics.Windows.WindowsCrash),
+                typeof(NekoLib.Http.HttpApiClient),
                 typeof(NekoLib.Logging.Logger),
                 typeof(NekoLib.Mvvm.ViewModelBase),
                 typeof(NekoLib.Navigation.Bootstrap.PageNavBootstrap),

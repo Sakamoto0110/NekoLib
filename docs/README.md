@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-12
 
-**Reference commit:** working tree after `eddc00c`
+**Reference commit:** working tree after `71bcc2e`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -65,6 +65,7 @@ reference commit.
 | [`README.md`](../README.md) | reference | current | Product overview, compatibility, module map, and package entry points |
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Open work, accepted decisions, freezes, and completion criteria |
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
+| [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
@@ -76,6 +77,7 @@ reference commit.
 | [`runtime_tests/SCENARIO_TEMPLATE.md`](../runtime_tests/SCENARIO_TEMPLATE.md) | guide | current | Required metadata and procedure template for new scenarios |
 | [`runtime_tests/PHASE_E_SCENARIO_SUITE.md`](../runtime_tests/PHASE_E_SCENARIO_SUITE.md) | guide | current | Build specification and traceability for the completed Phase E long-running, recovery, and SQL Server runtime scenarios |
 | [`runtime_tests/Data/FarmDatabase/README.md`](../runtime_tests/Data/FarmDatabase/README.md) | guide | current | Data SQLite/Access dual-provider and long-running simulation scenario, also covering Mvvm binding, attribute-only Navigation registration, and application-owned Logging/Telemetry measurements |
+| [`runtime_tests/Http/TheCatApi/README.md`](../runtime_tests/Http/TheCatApi/README.md) | guide | current | Optional unofficial TheCatAPI provider probe for typed GET/POST/DELETE and run-owned cleanup |
 | [`runtime_tests/Shared/NekoLib.RuntimeTests.Harness/README.md`](../runtime_tests/Shared/NekoLib.RuntimeTests.Harness/README.md) | guide | current | Shared runtime-scenario plumbing — exit codes, check runner, artifact layout, environment record and deterministic scheduling — and the two rules that keep it from becoming a test framework |
 | [`runtime_tests/Data/SqlServer/README.md`](../runtime_tests/Data/SqlServer/README.md) | guide | current | Data against a real SQL Server engine in an adopted local container: pooling and ownership, mid-flight cancellation, transport loss and recovery, and dynamic-result schema-cap lifetime |
 | [`runtime_tests/Pipes/LongRunningRecovery/README.md`](../runtime_tests/Pipes/LongRunningRecovery/README.md) | guide | current | Pipes across real processes over real named pipes: payload sizes, correlation, error contracts, frame limits, malformed peers, endpoint release and rebinding |
