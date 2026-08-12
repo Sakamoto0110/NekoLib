@@ -21,11 +21,11 @@ log, outcome-first runtime evidence, residual confidence options, and final
 commit-bound validation are preserved in the
 [`Phase E completion snapshot`](docs/history/phase-e-confidence-stabilization-2026-08-12.md).
 
-No implementation phase is currently active. Phase F remains gated and must be
-promoted explicitly before any candidate below becomes live work. Completing
-Phase E did not activate Phase F automatically.
+Phase G1 is active for one bounded, opt-in typed HTTP endpoint catalog. Phase F
+remains gated and must be promoted explicitly before any of its candidates
+becomes live work. Completing Phase E did not activate Phase F automatically.
 
-Until another phase is promoted:
+During Phase G1:
 
 - preserve the validated Phase E behavior and evidence boundaries;
 - prefer evidence over new abstractions and narrow fixes over new modules;
@@ -51,6 +51,58 @@ The current module map, targets, dependency graph, public entry points, and
 package overview remain owned by [`README.md`](README.md), current project
 files, and source. Package versions remain immutable, validation remains
 manually triggered, and Windows is required for full dual-target validation.
+
+## Phase G — Applied integrations
+
+> **Status: G1 ACTIVE; later items remain gated.** This phase is independent of
+> the gated scale-preparation work in Phase F. Its authorization is limited to
+> the concrete HTTP catalog below and does not activate an API gateway,
+> application host, dependency-injection framework, global registry, retry
+> framework, secret store, or remote service.
+
+### G1 — Typed HTTP endpoint catalog
+
+**Promotion decision — 2026-08-12:** create `NekoLib.Http` as a small opt-in
+module whose first executable provider model is TheCatAPI and whose next
+intended consumer is a separately reviewed Pix payment adapter. The shared
+contract exists to centralize HTTP method, relative route, request type, and
+response type; it does not hide HTTP or claim that unrelated APIs share one
+domain model.
+
+Accepted boundaries:
+
+- [ ] Add a `net481`/`net9.0` package with no NekoLib project dependency. Keep
+  endpoint catalogs instance-scoped and immutable after construction; do not
+  add reflection scanning, attributes, source generation, or global state.
+- [ ] Provide typed GET, POST, PUT, PATCH, and DELETE descriptors, safe relative
+  path/query construction, duplicate-name validation, and one consumer-owned
+  `HttpClient` execution surface. The consumer owns base address, lifetime,
+  authentication, certificates, timeout, handlers, and policy configuration.
+- [ ] Preserve HTTP evidence: return status, reason, headers, raw response body,
+  and a typed success value. Bound response buffering and never log bodies,
+  headers, credentials, or API keys. Do not retry automatically, especially for
+  methods that may create or mutate state.
+- [ ] Cover URI escaping, registration, request construction, JSON bodies,
+  success/error/no-content responses, size limits, and cancellation through
+  deterministic dual-target tests backed by a controlled
+  `HttpMessageHandler`; these tests must not depend on the public internet.
+- [ ] Add an optional standalone TheCatAPI scenario that models image search,
+  image lookup, favourite creation/query/deletion, secret injection, bounded
+  cleanup, and exit-code outcomes. A build is build evidence only; provider
+  evidence requires an actual run with a maintainer-owned API key and must not
+  expose the key or use personal data as `sub_id`.
+- [ ] Reconcile the module map, package workflow, test inventory, scenario
+  inventory, and documentation verifier. Validate the focused tests and the
+  full solution on both target families before closing G1.
+
+### G2 — Payments and Pix (gated)
+
+**GATED — DO NOT START.** After G1 has executable evidence, perform a separate
+code-first design review for merchant payment acceptance. Pix is the first
+provider/rail model, not permission to force provider-specific charge,
+webhook, certificate, OAuth, QR, idempotency, or reconciliation concepts into
+`NekoLib.Http`. Consumer-owned persistence and authoritative provider
+reconciliation remain required design inputs.
 
 ## Active freezes
 
@@ -260,14 +312,15 @@ and require an explicit, narrowly scoped unfreeze before modifying it.
 
 ## Explicit non-goals
 
-While Phase F remains gated, do not create a generic application host,
+Outside the explicitly promoted Phase G1 boundary, and while Phase F remains
+gated, do not create a generic application host,
 Neko-specific DI container, Microsoft DI wrapper, global service registry,
-message bus, event bus, universal exception policy, HTTP client abstraction,
-API gateway, ORM expansion, repository/unit-of-work framework, scheduler, job
-engine, distributed cache, configuration framework, secret manager, plugin
-platform, Instrumentation project family, TestControl project, generic remote
-debugger, cloud backend, dashboard, updater inside Watchdog, or fleet-control
-plane.
+message bus, event bus, universal exception policy, broader HTTP client
+abstraction, API gateway, ORM expansion, repository/unit-of-work framework,
+scheduler, job engine, distributed cache, configuration framework, secret
+manager, plugin platform, Instrumentation project family, TestControl project,
+generic remote debugger, cloud backend, dashboard, updater inside Watchdog, or
+fleet-control plane.
 
 These candidates require a real use case and an explicit decision before they
 may enter the roadmap.
