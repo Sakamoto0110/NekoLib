@@ -1036,12 +1036,11 @@ defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
 Every E3 scenario now has source. Under the outcome-first decision, E3-ORCH,
-E3-NAV, E3-OBS, and E4-SQL have complete automated runtime evidence. E3-PIPE
-needs one representative recovery run covering all six faults. E3-DEV needs one
-representative real-COM recovery run covering all five peer faults. E3-WDOG has
-already covered all source-layout faults on both targets and needs only one
-exact package-backed deployed-Host pass; creating that immutable package remains
-a separately authorized action.
+E3-NAV, E3-OBS, E3-WDOG, and E4-SQL have complete automated runtime evidence.
+E3-PIPE needs one representative recovery run covering all six faults. E3-DEV
+needs one representative real-COM recovery run covering all five peer faults.
+E3-WDOG closed its final topology boundary on 2026-08-11 with an exact
+package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
 
 - [x] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1400,7 +1399,7 @@ a separately authorized action.
   duration-dependent finding. E3-PIPE remains out of `campaign.json`; the
   standalone eligibility condition is met, but registration is a separate
   decision.
-- [ ] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
+- [x] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
   delivered 2026-08-10** at
   [`runtime_tests/Watchdog/CrashRecovery/`](runtime_tests/Watchdog/CrashRecovery/README.md):
   an independent controller owns the single artifact/result contract and exact
@@ -1441,15 +1440,25 @@ a separately authorized action.
   Adoption now retries the same exact PID/path/start-time identity for a bounded
   five seconds, and E3-WDOG parses only its own persisted integer-string
   contract with invariant checked `Int64`. The shared harness is unchanged.
-  These deliberately short runs remain development probes. The source-staged
-  layout is explicitly not package evidence; no package was created. **Only one
-  outcome-first gate remains:** one passing disposable-package or
-  published-consumer run tied to the exact immutable Host package version and
-  SHA-256. The existing dual-target source runs already cover all six faults,
-  recovery, bundles, ownership, and cleanup, so duplicate full windows and a
-  four-hour soak are not required. Package creation and package-backed execution
-  remain separately authorized actions. E3-WDOG stays out of `campaign.json`
-  until package prerequisite/adoption is observed.
+  These deliberately short source runs remain development probes, and their
+  source-staged layout is explicitly not package evidence. **The final
+  outcome-first gate passed on 2026-08-11:** canonical `eng\pack-local.ps1`
+  created immutable version `1.0.0-local.10` from clean commit `46befc6` with a
+  captured exit 0, and a disposable PackageReference consumer deployed the
+  exact Host payload. The `net9.0-windows` package-backed run at
+  `artifacts/validation/phase-e/e3wdog-smoke-net9.0-s20260810-20260811T235447397Z`
+  passed 20/20 checks with all six faults, seven healthy generations, bundle
+  integrity/retention, released endpoints, zero cleanup problems, and process
+  exit 0. `result.json` records package SHA-256
+  `acc31d9f2450cc14d36ba6e723357a706dcf0b90d2ed1116f11201787b574710` and
+  proves that the deployed bytes match
+  `tools/net9.0-windows7.0/win-x64/NekoLib.Watchdog.Host.exe` inside the package.
+  Its truthful `belowSpecifiedWindow: true` means it is not smoke-window
+  evidence; it does not weaken the distinct package-topology proof. Existing
+  dual-target source evidence already covers target behavior, so a `net481`
+  package repeat, full mode windows, and a four-hour soak are optional. E3-WDOG
+  remains out of `campaign.json`; registration is a separate decision, not an
+  outcome-first closure gate.
 - [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
   delivered 2026-08-10** inside the existing
   [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)

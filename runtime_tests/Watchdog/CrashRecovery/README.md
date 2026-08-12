@@ -13,14 +13,16 @@ own processes. Package-backed runs also require an already-created immutable
 `NekoLib.Watchdog.Host` package and a consumer output built from that exact
 package.
 
-**Last verification:** 2026-08-11 - **passing short source-layout development
-probes on both targets.** Each final run passed 20/20 checks, exercised all six
-smoke faults and seven healthy generations, exited 0 in about 123 seconds, and
-completed endpoint/process cleanup. Seven isolated contract checks pass per
-target. These runs are below the 15-minute smoke minimum and are not package
-evidence. They already cover every source-layout workload and fault outcome on
-both targets. One exact immutable package-backed deployed-Host pass remains;
-duplicate full windows and a four-hour soak are not outcome-first gates.
+**Last verification:** 2026-08-11 - **outcome-first gate complete.** Passing
+short source-layout probes on both targets cover every declared workload and
+fault outcome. The final distinct topology boundary passed against immutable
+package `1.0.0-local.10` on `net9.0-windows`: 20/20 checks, all six faults,
+seven healthy generations, exact deployed Host payload provenance, bundle
+integrity/retention, released endpoints, zero cleanup problems, and exit 0 in
+123 seconds. The package-backed run is truthfully below the 15-minute smoke
+window and is not duration evidence. A `net481` package repeat, full mode
+windows, four-hour soak, and campaign registration are optional separate
+confidence or orchestration decisions.
 
 ## Purpose
 
@@ -68,9 +70,11 @@ package before launch. It also records the PE machine and file version of both
 executables, verifies the package ID/version from its nuspec, and requires the
 deployed Host bytes to match one exact payload entry inside that package.
 
-This delivery did **not** run `eng\pack-local.ps1`, create a package version, or
-claim package behavior. Creating a new immutable package remains a separately
-authorized action.
+The package-backed verification used canonical `eng\pack-local.ps1` output from
+clean commit `46befc6`. Immutable version `1.0.0-local.10` and its SHA-256 are
+recorded in the result, and the deployed Host bytes match one exact package
+payload entry. Future package-backed runs require a new immutable version when
+the package inputs change; never overwrite this version.
 
 ## Implemented modes and faults
 
@@ -159,12 +163,12 @@ Package-backed execution, after an external consumer output already exists:
 .\runtime_tests\Watchdog\CrashRecovery\NekoLib.Watchdog.RuntimeTests.CrashRecovery\bin\Debug\net9.0-windows\NekoLib.Watchdog.RuntimeTests.CrashRecovery.exe --smoke --smoke-duration 2m --layout disposable-package --application-root C:\absolute\consumer-output --package-file C:\absolute\feed\NekoLib.Watchdog.Host.<version>.nupkg --package-version <version>
 ```
 
-The source-layout probe already passed on both targets. The remaining
-outcome-first run repeats its compact two-minute smoke against the exact
-package-backed layout, isolating deployment provenance without repeating a
-duration claim. A source run cannot substitute for package-backed evidence.
-Do not register E3-WDOG in `campaign.json` until it has run successfully once
-and its prerequisite/adoption contract has been observed.
+The source-layout probe passed on both targets, and the compact package-backed
+run subsequently closed deployment provenance without repeating a duration
+claim. A source run still cannot substitute for package-backed evidence.
+Package prerequisite/adoption has now been observed successfully; registration
+in `campaign.json` remains an explicit orchestration decision rather than an
+automatic consequence of the standalone pass.
 
 ## Artifacts
 
@@ -253,11 +257,29 @@ The controller writes the shared Phase E artifact contract plus:
   failed/skipped, all six faults, seven healthy generations, both ordinary exit
   codes as 0, valid bundle integrity/retention, zero cleanup problems, released
   Watchdog and child-health endpoints, and exit 0 in about 123 seconds.
-- Full nominal smoke/rehearsal windows, package-backed evidence and the
-  four-hour soak remain unexecuted. The deliberately short source-layout passes
-  remain development evidence, but they cover all six faults, recovery,
-  bundles, ownership, and cleanup on both targets. Under outcome-first
-  acceptance, only one exact immutable package-backed deployed-Host pass is a
-  remaining gate. Package creation and execution require separate authorization;
-  no package was created. The scenario remains out of `campaign.json` until
-  package prerequisite/adoption is observed.
+- At that checkpoint, full nominal smoke/rehearsal windows, package-backed
+  evidence and the four-hour soak remained unexecuted. The deliberately short
+  source-layout passes were development evidence, but covered all six faults,
+  recovery, bundles, ownership, and cleanup on both targets. Under
+  outcome-first acceptance, one exact immutable package-backed deployed-Host
+  pass was the remaining gate.
+- 2026-08-11 / clean `46befc6`: canonical `eng\pack-local.ps1` created immutable
+  `1.0.0-local.10` with captured exit 0 after the Release build, full solution
+  test gate, Host payload publication, packing, and external package-consumer
+  probes passed. The feed contains 15 `.nupkg` and 14 `.snupkg` files for that
+  version. A disposable PackageReference consumer built for `net9.0-windows`
+  and `net481` with zero warnings and errors. The prepared `net9.0-windows`
+  run produced
+  `artifacts/validation/phase-e/e3wdog-smoke-net9.0-s20260810-20260811T235447397Z`.
+  It persisted smoke schedule `fnv1a64:7d3f49941df33843` before the first child,
+  ran all six faults through seven healthy generations, passed 20/20 with no
+  failed or skipped checks, retained one complete crash bundle, released both
+  endpoints, reported no setup gaps or cleanup problems, left no process or
+  window, and exited 0 after 123 seconds. `result.json` records package SHA-256
+  `acc31d9f2450cc14d36ba6e723357a706dcf0b90d2ed1116f11201787b574710`,
+  `supportsPackageClaim: true`, and an exact deployed-byte match to
+  `tools/net9.0-windows7.0/win-x64/NekoLib.Watchdog.Host.exe`. The recorded
+  `belowSpecifiedWindow: true` prevents a nominal smoke-duration claim but does
+  not invalidate the package-topology proof. This closes E3-WDOG under the
+  outcome-first policy. `net481` package parity, full windows, a four-hour soak,
+  and campaign registration remain optional.
