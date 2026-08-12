@@ -18,11 +18,16 @@ of the four.
 
 - **Oracle pass — interactive, 2026-08-01**, unchanged and still valid. See
   [Verification record](#verification-record).
-- **E3-DEV automated modes — first development probes, 2026-08-11.** The real
-  COM preflight is proven, two scenario defects found by the first run are
-  fixed, and the same two-minute probe now exits 0 on both targets. These runs
-  are below the historical nominal smoke window. One compact representative
-  recovery sweep remains to execute all five peer faults.
+- **E3-DEV automated modes — outcome-first gate complete, 2026-08-12.** With
+  NekoPcbEmulator stopped, the compact `net9.0` recovery sweep passed **33/33
+  checks, zero failed, zero skipped, exit 0** in 467.2 seconds, with the
+  **recovery phase 5/5**: all five peer faults reached their expected terminal
+  and were each followed by a clean request. COM19, COM20, COM9 and COM10 were
+  reopened and released. Artifact
+  `artifacts/validation/phase-e/e3dev-recovery-net9.0-s20260808-20260812T140422862Z`.
+  The run is below the historical nominal rehearsal window and records
+  `belowSpecifiedWindow: true`. Earlier two-minute probes on both targets remain
+  recorded below.
 
 ## Two paths, deliberately mutually exclusive
 
@@ -309,12 +314,11 @@ incomplete.
    times; a different `--seed` gives a different hash.
 3. Stop the emulator, then `--smoke`. Expected: exit `0`, every check passing,
    and a cleanup block reporting all four ports reopened and released.
-4. For the remaining outcome-first gate, run
-   `--recovery-rehearsal --rehearsal-duration 10m` on one representative
-   target. Expected: exit `0`, all five faults reporting `ok`, successful clean
-   requests after each recovery, and all four ports reopened/released. The
-   artifact will truthfully remain below the historical nominal rehearsal
-   window.
+4. `--recovery-rehearsal --rehearsal-duration 10m` on one representative
+   target — the run that closed the outcome-first gate on 2026-08-12. Expected:
+   exit `0`, all five faults reporting `ok`, successful clean requests after
+   each recovery, and all four ports reopened/released. The artifact truthfully
+   remains below the historical nominal rehearsal window.
 
 ## Verification record
 
@@ -328,17 +332,29 @@ incomplete.
 | 2026-08-10 | E3-DEV, automated | **Environment record**, written by the same port-absent runs: `com0com 3.0.0.0` read from `C:\Program Files (x86)\com0com\com0com.sys`, no setup gaps, and the machine's installed ports recorded as COM1, COM3, COM4, COM9, COM10, COM19, COM20 — the list the 2026-08-10 prerequisite note reported. Identical on both targets. |
 | 2026-08-11 | E3-DEV, first `net9.0` two-minute probe | Exit 4 in 127 seconds: 156 passed, 26 failed, 0 skipped over 12 cycles. Both cross-connections were proven. The same two checks failed in every cycle: the slow-chunk check reopened 300 ms before the final line terminator could arrive, and the RTS/CTS check asserted an unexecuted platform assumption that runtime refuted. Cleanup reconciled and all four ports reopened. |
 | 2026-08-11 | E3-DEV, corrected two-minute probes | The same command exited 0 on `net9.0` and `net481`: 168/168 checks passed, 0 failed, 0 skipped, 11 cycles in 124 seconds on each target. The peers closed normally, every transport was disposed, and COM19, COM20, COM9 and COM10 were each reopened and released. These are development probes below the 15-minute smoke minimum, not smoke-gate evidence. |
+| 2026-08-12 | E3-DEV, compact recovery sweep, `net9.0` | **Outcome-first gate passed, exit 0**, first attempt. `--recovery-rehearsal --rehearsal-duration 10m --seed 20260808`, 467.2 seconds, **33/33 checks passed, 0 failed, 0 skipped** across transport 14, protocol 12, lifecycle 2 and **recovery 5**. NekoPcbEmulator was confirmed stopped and all four ports verified free beforehand; preflight then proved both cross-connections with a real exchange. Each peer fault reached its expected terminal and was followed by a clean request: `peer-delays-response` timed out at 403 ms rather than waiting; `peer-restarts` completed two restarts with the caller's port still working without reopening; `peer-disconnects` gave no data and no exception in 804 ms; `peer-sends-malformed-frame` was rejected on CRC-16/CCITT-FALSE, `0xE52D` against the expected `0x1A2D`; `peer-falls-silent` produced the documented no-data result three times before the same transport served normally. PCB-A text framing and PCB-B binary framing/CRC both passed in each matrix pass. Counters 99 operations / 75 successes / 20 expected failures / 4 cancellations / **0 unexpected failures**. Cleanup closed both peers — COM9 after 60 responses and 3 restarts, COM10 after 25 responses — and **reopened and released COM19, COM20, COM9 and COM10**; `cleanupProblems` and `setupGaps` empty, `stderr.log` empty, no scenario or emulator process remained, and the four ports were independently re-verified free afterwards. Schedule `fnv1a64:ca1bf7c85e9c5f48` persisted before the first exchange; `belowSpecifiedWindow: true`. Artifact `artifacts/validation/phase-e/e3dev-recovery-net9.0-s20260808-20260812T140422862Z`. The recorded `repository.dirty: true` comes solely from the then-uncommitted E3-PIPE scenario fix; nothing under `src/Devices` or this scenario changed. |
 
 The emulator serial changes were still uncommitted during the 2026-08-01 run.
 That result proves the tested working-tree combination; repeat it after both
 sides have immutable commits before using it as release evidence.
 
 **No full nominal-window E3-DEV smoke, rehearsal, soak or campaign has been
-run.** The real COM preflight and ordinary workload pass on both target
-families, but smoke carries no scheduled fault. Under outcome-first acceptance,
-one compact recovery sweep on a representative target must still prove all five
-peer faults, their expected terminals, clean post-recovery requests, and
-four-port release. Duplicate full windows and a four-hour soak are not required.
+run.** The compact 2026-08-12 sweep closed the outcome-first gate — all five
+peer faults, their expected terminals, clean post-recovery requests, artifacts
+and four-port release — but it is a ten-minute run that records
+`belowSpecifiedWindow: true` and must not be cited as a nominal rehearsal.
+Runtime fault coverage exists on `net9.0` only; `net481` has real-COM parity
+from its builds, isolated checks and two-minute probes rather than from a fault
+sweep. A `net481` runtime repeat, duplicate full windows and a four-hour soak
+remain optional.
+
+The limits stated elsewhere in this document are unchanged by that run: it is
+real Windows serial API behaviour over a real com0com driver, **not** physical
+UART levels, wiring, USB adapters or electrical conditions, and **not** protocol
+parity — with both ends written here, their agreement proves framing was carried
+intact, not that either half is right. That claim belongs to the oracle pass
+alone, which requires NekoPcbEmulator running and therefore cannot execute at
+the same time.
 
 ## Not covered
 

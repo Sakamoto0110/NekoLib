@@ -11,13 +11,16 @@
 **Prerequisites:** none beyond the .NET SDK. No container, no service, no
 hardware. The scenario allocates its own named pipe per run.
 
-**Last verification:** 2026-08-11 — **automated runtime, two successful
-2-minute development probes.** See [Verification record](#verification-record).
-Both `net9.0` and `net481` completed four atomic cycles in 133 seconds with
-75/75 checks passing, zero skipped, exit 0 and complete cleanup. The runs are
-deliberately below the historical nominal smoke window. One compact
-representative recovery sweep remains to execute all six scheduled faults;
-duplicate full windows and a four-hour soak are not outcome-first gates.
+**Last verification:** 2026-08-12 — **automated runtime, outcome-first gate
+complete.** The compact `net9.0` recovery sweep passed **37/37 checks, zero
+failed, zero skipped, exit 0** in 530.6 seconds, with the **recovery phase 6/6**:
+every scheduled fault reached its expected terminal and its post-recovery probe.
+Artifact
+`artifacts/validation/phase-e/e3pipe-recovery-net9.0-s20260808-20260812T135339773Z`.
+See [Verification record](#verification-record). The run is deliberately below
+the historical nominal rehearsal window and records
+`belowSpecifiedWindow: true`; duplicate full windows, a `net481` runtime repeat
+and a four-hour soak are not outcome-first gates.
 
 ## Purpose
 
@@ -230,12 +233,14 @@ Preflight refuses to start if the allocated endpoint is already bound.
    times; a different `--seed` gives a different hash.
 3. `--smoke`. Expected: exit `0`, every check passing, and a cleanup line
    reporting the endpoint released.
-4. For the remaining outcome-first gate, run
-   `--recovery-rehearsal --rehearsal-duration 10m` on one representative
-   target. Expected: exit `0`, all six faults reporting `ok`, and the client
-   children's totals showing failures during the fault windows and successes
-   outside them. The artifact will truthfully remain below the historical
-   nominal rehearsal window.
+4. `--recovery-rehearsal --rehearsal-duration 10m` on one representative
+   target — the run that closed the outcome-first gate on 2026-08-12. Expected:
+   exit `0`, all six faults reporting `ok`, and the client children's totals
+   showing failures during the fault windows and successes outside them. The
+   artifact truthfully remains below the historical nominal rehearsal window.
+5. `--contracts` on each target. Expected: `18/18 passed` and exit `0`. It
+   opens no pipe and starts no process, so it is not runtime evidence — it
+   pins the terminal classification the recovery sweep depends on.
 
 ## Verification record
 
@@ -248,6 +253,9 @@ Preflight refuses to start if the allocated endpoint is already bound.
 | 2026-08-11 | `net9.0` | **First run after the product fix, exit 4.** Subscriber churn and rebind passed in every cycle, proving `PIPE-EVENTHUB-SLOTS` closed. The eight remaining failures were both overflow checks in four cycles; investigation confirmed the separate scenario endpoint defect below. 52 passed, 8 failed in 126 seconds, with complete cleanup. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T025626189Z`. |
 | 2026-08-11 | `net9.0` | **Development probe passed, exit 0.** Four cycles, 75 passed, 0 failed, 0 skipped in 133 seconds. Server child exit 0, endpoint released, no scenario process or pipe remained. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net9.0-s20260808-20260811T025942081Z`. |
 | 2026-08-11 | `net481` | **Development probe passed, exit 0.** Four cycles, 75 passed, 0 failed, 0 skipped in 133 seconds. Server child exit 0, endpoint released, no scenario process or pipe remained. Artifacts at `artifacts/validation/phase-e/e3pipe-smoke-net481-s20260808-20260811T030208668Z`. |
+| 2026-08-12 | `net9.0` | **First recovery sweep ever executed, exit 4.** `--recovery-rehearsal --rehearsal-duration 10m --seed 20260808`, 680.4 s, 20 passed and 17 failed, recovery phase 0/6. Smoke generates no faults, so this was the first execution of any scheduled fault. One root failure, `kill-server-process`, cascaded into sixteen more against an absent server. Cleanup was still complete and truthful. Artifacts at `artifacts/validation/phase-e/e3pipe-recovery-net9.0-s20260808-20260812T001144164Z`. |
+| 2026-08-12 | `net9.0` | **After the terminal-classification and restoration fix, exit 4.** Same command, 535.5 s, 36 passed and 1 failed, **recovery 6/6** — all six faults with their expected terminals and post-recovery probes, cascade gone. The single failure was `client-children-correlation`, which exposed a third latent defect. Artifacts at `artifacts/validation/phase-e/e3pipe-recovery-net9.0-s20260808-20260812T003754663Z`. |
+| 2026-08-12 | `net9.0` | **Outcome-first gate passed, exit 0.** Same command, 530.6 s, **37 passed, 0 failed, 0 skipped**, recovery 6/6. Counters 347 operations / 317 successes / 28 expected failures / **0 unexpected failures**; the two surviving client children reported 3,497,665 requests with **0 mismatched correlation**, the third destroyed by `kill-client-process` by design. `cleanupProblems` and `setupGaps` empty, replacement server exit 0, endpoint released, `stderr.log` empty, no process or pipe remained. Schedule `fnv1a64:9bb70da48460e7bd` persisted before launch; `belowSpecifiedWindow: true`. Artifacts at `artifacts/validation/phase-e/e3pipe-recovery-net9.0-s20260808-20260812T135339773Z`. |
 
 **The first execution found a product defect**, which is why the caveat below
 was worth writing before it ran.
@@ -312,13 +320,61 @@ canonical resolver as the rest of the scenario. The final probes prove both
 policies: `DropNewest` keeps the slow subscriber while counting failed
 deliveries, and `DisconnectSubscriber` removes it after overflow.
 
-**No full nominal-window smoke, rehearsal, soak or campaign has been run.** The
-successful short probes remain development evidence. Under outcome-first
-acceptance, the only missing runtime outcome is one representative compact
-recovery sweep that proves all six faults, expected terminals, post-recovery
-probes, artifacts, and cleanup. The source was run from a dirty working tree
-based on `d515137`; the assembly informational version in the artifacts does
-not attest the uncommitted product diff. No package was created.
+### The three recovery-sweep findings — all scenario/oracle, none in `src/Pipes`
+
+Running the recovery phase for the first time cost three attempts. **Every one
+of the three defects was in this scenario's own oracle, and `src/Pipes` was not
+touched.** They are recorded here because the first masked the second and the
+second masked the third, which is the part worth remembering.
+
+**`PIPE-KILLSERVER-TERMINAL` — closed.** `kill-server-process` captured only the
+*exception* from the in-flight request and read "no exception" as the request
+having survived the kill. It had not:
+[`PipeClient.SendAsync`](../../../src/Pipes/NekoLib.Pipes/PipeClient.cs) reads
+the response frame with `TryReadAsync(...) ?? ConnectionClosedResponse(request)`,
+so a pipe that closes first yields a `PipeMessage` carrying `Ok = false` and
+`Error.Code = "connection_closed"` rather than throwing. That is the documented
+terminal, and the oracle was reporting it as a failure. The check now proves
+admission through a server-side counter instead of a fixed delay, preserves the
+response *and* the exception, and accepts either a transport/cancellation
+exception or `connection_closed`. A successful response still fails and is
+recorded whole, because *that* would be a product question.
+
+**`PIPE-RECOVERY-CASCADE` — closed.** The failed assertion above aborted the
+check body before `RestartServer`, so the run continued with no server at all
+and sixteen later checks failed on timeouts and cancellations against an absent
+endpoint — one finding reported as seventeen. Restoration now runs from a
+non-throwing `finally`, and the dispatch loop carries a recorded per-fault
+topology net, so a failed assertion can no longer leave the following faults
+without an endpoint.
+
+**`PIPE-CHILD-REPORT-RACE` — closed.** Only visible once the topology stayed
+healthy. `client-children-correlation` reads each child's result document, which
+a child writes as it exits; the clients are deliberately given a lifetime longer
+than the controller's run. Previously the clients had quit early because the
+server was dead, so the documents happened to exist — the check was passing on
+data from a broken run. The controller now asks the clients to stop through a
+`--child-stop-file` sentinel and waits boundedly before reading, and the check
+became *stricter*: it requires a document from every child that was alive at the
+stop, while exempting the one `kill-client-process` destroys on purpose.
+
+The classification rule is pinned by `--contracts`, 18 isolated assertions that
+open no pipe and start no process and pass on both targets. The scenario fix was
+committed afterwards as `698960a`; **the three 2026-08-12 runs executed it
+before that commit, so their artifacts record `repository.dirty: true`.** That is
+honest runtime evidence of the code that became `698960a`, not evidence produced
+from a clean worktree.
+
+### Coverage that remains open
+
+**No full nominal-window smoke, rehearsal, soak or campaign has been run**, and
+the passing sweep is a ten-minute run that records `belowSpecifiedWindow: true`.
+It closes fault, terminal, recovery, artifact and cleanup coverage — not the
+nominal 60-90 minute rehearsal window. Metric stability under sustained traffic
+is sampled but not asserted, `MaxClients` saturation is untested, and event
+delivery across a server restart through `AutoReconnect` is unexercised. A
+`net481` runtime repeat, full windows and a four-hour soak remain optional. No
+package was created.
 
 The caveat that motivated running a short probe first, kept because it proved
 correct: **a scenario that has never executed is the least-verified thing in this

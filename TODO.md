@@ -1035,12 +1035,21 @@ pending validation — those are gaps in evidence awaiting that phase, not open
 defects. It also keeps the host free, which the recorded load finding shows
 matters for any measurement of drift.
 
-Every E3 scenario now has source. Under the outcome-first decision, E3-ORCH,
-E3-NAV, E3-OBS, E3-WDOG, and E4-SQL have complete automated runtime evidence.
-E3-PIPE needs one representative recovery run covering all six faults. E3-DEV
-needs one representative real-COM recovery run covering all five peer faults.
-E3-WDOG closed its final topology boundary on 2026-08-11 with an exact
-package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
+Every E3 scenario now has source, and **under the outcome-first decision every
+E3 scenario has complete automated runtime evidence as of 2026-08-12.** E3-ORCH,
+E3-NAV, E3-OBS, and E4-SQL closed earlier. E3-WDOG closed its final topology
+boundary on 2026-08-11 with an exact package-backed deployed-Host pass from
+immutable version `1.0.0-local.10`. E3-PIPE and E3-DEV closed on 2026-08-12 with
+one compact representative recovery sweep each: E3-PIPE 37/37 with all six
+scheduled faults, and E3-DEV 33/33 with all five peer faults against the real
+com0com pairs.
+
+What remains for every E3 scenario is optional confidence rather than a gate:
+additional target parity, the nominal 15-30 minute smoke and 60-90 minute
+rehearsal windows, four-hour soaks, interactive parity, and `campaign.json`
+registration. The compact sweeps deliberately ran for ten minutes and record
+`belowSpecifiedWindow: true`; they close fault, terminal, recovery, artifact and
+cleanup coverage, and are **not** relabelled as nominal rehearsals.
 
 - [x] **E3-ORCH — deterministic campaign orchestration.** **Implemented
   2026-08-08** at [`runtime_tests/Confidence/LongRunning/`](runtime_tests/Confidence/LongRunning/README.md):
@@ -1293,7 +1302,7 @@ package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
   E3-NAV reused the existing schedule, artifact, check, sampling, summary, and
   counter contracts without expanding the harness; its native host and workload
   controls stayed scenario-owned.
-- [ ] **E3-PIPE — Pipes long-running and recovery.** **First pass delivered
+- [x] **E3-PIPE — Pipes long-running and recovery.** **First pass delivered
   2026-08-10** at [`runtime_tests/Pipes/LongRunningRecovery/`](runtime_tests/Pipes/LongRunningRecovery/README.md):
   one executable in three roles — controller, server child, client child — so the
   suite's separate processes are real processes on a real named pipe without
@@ -1391,14 +1400,49 @@ package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
   same two-minute command completed four atomic cycles in 133 seconds with
   75/75 checks passing, zero skipped, exit 0 and complete child/endpoint cleanup
   on `net9.0` and `net481`. These deliberately short runs remain recorded as
-  development probes. **Only one outcome-first gate remains:** run a compact
-  recovery rehearsal on one representative target and prove all six scheduled
-  faults, their terminals, post-recovery probes, artifacts, and cleanup. The
-  existing builds and passing probes provide target parity; duplicate full
-  smoke/recovery windows and a four-hour soak are not required without a new
-  duration-dependent finding. E3-PIPE remains out of `campaign.json`; the
-  standalone eligibility condition is met, but registration is a separate
-  decision.
+  development probes.
+  **The outcome-first gate closed on 2026-08-12**, and closing it took three
+  attempts that are all preserved. The compact `net9.0` recovery sweep
+  (`--recovery-rehearsal --rehearsal-duration 10m --seed 20260808`) finally
+  passed **37/37 checks, zero failed, zero skipped, exit 0 in 530.6 seconds**,
+  with the **recovery phase 6/6**: every scheduled fault reached its expected
+  terminal and its post-recovery probe. Counters recorded 347 operations, 317
+  successes, 28 expected failures and **zero unexpected failures**; the two
+  surviving client children reported 3,497,665 requests with **zero mismatched
+  correlation**, the third having been destroyed by `kill-client-process` by
+  design. `cleanupProblems` and `setupGaps` were both empty, the replacement
+  server exited 0, the endpoint was released, and no scenario process or pipe
+  remained. Artifact:
+  `artifacts/validation/phase-e/e3pipe-recovery-net9.0-s20260808-20260812T135339773Z`,
+  schedule `fnv1a64:9bb70da48460e7bd` persisted before launch. The run records
+  `belowSpecifiedWindow: true`, which is expected and preserved: it closes fault
+  coverage, not the nominal 60-90 minute rehearsal window.
+  **The first two attempts found two more scenario-oracle defects, and neither
+  was a `NekoLib.Pipes` finding.** `PIPE-KILLSERVER-TERMINAL`: the
+  `kill-server-process` check captured only the exception from the in-flight
+  request and read "no exception" as the request having survived, but
+  `PipeClient.SendAsync` substitutes a `PipeMessage` carrying `Ok=false` and
+  `Error.Code="connection_closed"` when the pipe closes before the response
+  frame. `PIPE-RECOVERY-CASCADE`: that failed assertion aborted the check before
+  `RestartServer`, so the run continued with no server and sixteen further checks
+  failed against an absent endpoint. A third, `PIPE-CHILD-REPORT-RACE`, only
+  became visible once the topology stayed healthy — the client children then ran
+  to their full lifetime instead of quitting early against a dead server, so
+  `client-children-correlation` read result documents that did not exist yet.
+  All three were fixed in the scenario only and committed in `698960a`; the
+  terminal classification is pinned by 18 isolated `--contracts` assertions that
+  open no pipe and start no process, passing on both targets. No file under
+  `src/Pipes`, the shared harness or `campaign.json` changed, and the schedule
+  hash is unchanged.
+  **Provenance, stated exactly:** the three 2026-08-12 runs executed the fix
+  before it was committed, so their artifacts record `repository.dirty: true`.
+  That is honest runtime evidence of the code that later became `698960a`; the
+  artifacts were not produced from a clean worktree, and a clean-provenance
+  repeat is optional confidence rather than a gate.
+  **Optional, not required:** duplicate full smoke/recovery windows, a
+  `net481` runtime repeat, and a four-hour soak, absent a new duration-dependent
+  finding. E3-PIPE remains out of `campaign.json`; the standalone eligibility
+  condition is met, but registration is a separate decision.
 - [x] **E3-WDOG — deployed-Host crash and recovery.** **Scenario source
   delivered 2026-08-10** at
   [`runtime_tests/Watchdog/CrashRecovery/`](runtime_tests/Watchdog/CrashRecovery/README.md):
@@ -1459,7 +1503,7 @@ package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
   package repeat, full mode windows, and a four-hour soak are optional. E3-WDOG
   remains out of `campaign.json`; registration is a separate decision, not an
   outcome-first closure gate.
-- [ ] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
+- [x] **E3-DEV — Devices virtual-COM soak and recovery.** **Automated modes
   delivered 2026-08-10** inside the existing
   [`runtime_tests/Devices/Com0Com/`](runtime_tests/Devices/Com0Com/README.md)
   project: the harness reference, the three-mode contract, a scenario-owned peer
@@ -1503,12 +1547,38 @@ package-backed deployed-Host pass from immutable version `1.0.0-local.10`.
   zero failed, zero skipped and exit 0. Both peers closed normally, cleanup
   reopened and released COM19, COM20, COM9 and COM10, and no scenario or emulator
   process remained. These runs remain development probes and exercise no
-  scheduled recovery fault. **Only one outcome-first gate remains:** with the
-  independent emulator stopped, run a compact recovery rehearsal on one
-  representative target and prove all five peer faults, expected terminals,
-  clean requests after recovery, artifacts, and four-port release. The existing
-  builds and real-COM probes provide target parity; duplicate full windows and a
-  four-hour soak are not required. Registration in `E3-ORCH`'s `campaign.json`
+  scheduled recovery fault.
+  **The outcome-first gate closed on 2026-08-12, first attempt.** With
+  NekoPcbEmulator confirmed stopped and all four ports verified free, the compact
+  `net9.0` recovery sweep
+  (`--recovery-rehearsal --rehearsal-duration 10m --seed 20260808`) passed
+  **33/33 checks, zero failed, zero skipped, exit 0 in 467.2 seconds**, with the
+  **recovery phase 5/5**. Preflight proved both cross-connections with a real
+  exchange. Each peer fault reached its expected terminal and was followed by a
+  clean request: the delay timed out at 403 ms rather than waiting for the peer;
+  two restarts left the caller's port working without reopening; the disconnect
+  produced no data and no exception in 804 ms; the malformed frame was rejected
+  on CRC-16/CCITT-FALSE (`0xE52D` against the expected `0x1A2D`); and the silent
+  peer produced the documented no-data result three times before the same
+  transport served normally. PCB-A text framing and PCB-B binary framing/CRC both
+  passed in each matrix pass. Counters recorded 99 operations, 75 successes, 20
+  expected failures, 4 cancellations and **zero unexpected failures**. Cleanup
+  closed both peers and **reopened and released COM19, COM20, COM9 and COM10**,
+  with `cleanupProblems` and `setupGaps` empty and no scenario or emulator
+  process remaining; the four ports were independently re-verified free
+  afterwards. Artifact:
+  `artifacts/validation/phase-e/e3dev-recovery-net9.0-s20260808-20260812T140422862Z`,
+  schedule `fnv1a64:ca1bf7c85e9c5f48` persisted before the first exchange. The
+  run records `belowSpecifiedWindow: true`, expected and preserved.
+  **What this evidence is and is not.** It is real Windows serial API behaviour
+  against a real com0com driver with the independent emulator stopped and the
+  scenario owning both ends. It is **not** protocol parity — that claim belongs
+  to the oracle pass alone — and **not** physical hardware: com0com is a virtual
+  pair and emulates no baud, framing, line levels, wiring or electrical
+  behaviour. Its `repository.dirty: true` comes solely from the then-uncommitted
+  E3-PIPE scenario fix; nothing under `src/Devices` or this scenario changed.
+  **Optional, not required:** a `net481` runtime repeat, full nominal windows,
+  and a four-hour soak. Registration in `E3-ORCH`'s `campaign.json`
   remains deferred because a COM-pair prerequisite and adoption contract the
   orchestrator cannot validate would be a claim rather than a fact.
   **Design decision taken 2026-08-10, before any code.** The specification asks
