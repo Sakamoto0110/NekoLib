@@ -7,27 +7,32 @@
 **Subject:** implementation specification for Phase E long-running, recovery,
 and real-integration runtime scenarios
 
-**Status:** planned; this document is not executable evidence
+**Status:** delivered; this specification is not executable evidence
 
-**Roadmap owner:** [`TODO.md`](../TODO.md), Phase E3 and E4
+**Historical roadmap:**
+[`Phase E completion snapshot`](../docs/history/phase-e-confidence-stabilization-2026-08-12.md),
+E3 and E4
+
+**Current roadmap owner:** [`TODO.md`](../TODO.md)
 
 ## Purpose
 
-This document is the implementation brief for the runtime scenarios that close
-the remaining Phase E3 and E4 confidence gaps. It tells an implementer what to
-build, what each scenario must prove, and how to record evidence. It does not
-track completion; `TODO.md` remains the only live roadmap.
+This document is the implementation brief used to build the runtime scenarios
+that closed the Phase E3 and E4 confidence gaps. It specifies what each scenario
+must prove and how evidence is recorded. It does not itself prove execution;
+the operational README for each delivered scenario owns that evidence, and
+`TODO.md` remains the only live roadmap.
 
-As each scenario becomes runnable, create its directory and operational
-`README.md` from [`SCENARIO_TEMPLATE.md`](SCENARIO_TEMPLATE.md), move the
-scenario-specific procedure there, and add it to the active inventory in
-[`runtime_tests/README.md`](README.md). Do not mark a scenario active from this
-specification alone.
+Every listed scenario now has a versioned directory and operational `README.md`
+derived from [`SCENARIO_TEMPLATE.md`](SCENARIO_TEMPLATE.md), and appears in the
+active inventory in [`runtime_tests/README.md`](README.md). Future maintenance
+must continue to update the owning scenario README rather than treating this
+specification as runtime evidence.
 
-The planned suite is deliberately a set of small executables and scripts, not a
+The delivered suite is deliberately a set of small executables and scripts, not a
 new test framework:
 
-| ID | Planned path | Primary scope |
+| ID | Versioned path | Primary scope |
 |---|---|---|
 | `E3-ORCH` | `runtime_tests/Confidence/LongRunning/` | Deterministic campaign orchestration and evidence collection |
 | `E3-NAV` | `runtime_tests/Navigation/LongRunningRecovery/` | Navigation lifetime, recovery, native adapter, and resource stability |
@@ -178,6 +183,7 @@ scenario evidence cannot collide:
         stdout.log
         stderr.log
         samples.csv
+        checks.ndjson
         result.json
 ```
 
@@ -186,7 +192,8 @@ the assertions it executes. An orchestrator supplies both `--campaign-id` and
 `--worker-id`, and the aggregate `summary.json` indexes every worker result.
 Standalone scenarios keep the original v1 layout directly under their generated
 run directory. Existing v1 artifacts are historical evidence and are never
-moved or rewritten.
+moved or rewritten. `checks.ndjson` is scenario-local and lazy: short modes
+that retain complete check detail in memory do not create an empty placeholder.
 
 The environment record must include the repository commit and dirty state,
 Windows version, process architecture, target framework, .NET runtime/SDK,
@@ -821,7 +828,7 @@ be expressed through the current seam.
 | Manual versus versioned automated UI evidence remains explicit | `E3-NAV`, `E4-SQL`, and the suite evidence rules |
 | Watchdog package claims use deployed sidecar layout | `E3-WDOG` |
 
-## Suggested implementation order
+## Historical implementation order
 
 1. Implement `E4-SQL` smoke and recovery modes while the local container
    environment is being established.

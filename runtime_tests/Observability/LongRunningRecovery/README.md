@@ -174,6 +174,7 @@ e3obs-<mode>-<tfm>-s<seed>-<timestamp>/
     stdout.log
     stderr.log
     samples.csv
+    checks.ndjson      present only when bounded check retention is enabled
     result.json
 ```
 
@@ -188,12 +189,13 @@ campaign and worker identities and the same files land in layout v2:
       process.stdout.log  process.stderr.log
       environment.json  schedule.json  events.jsonl  summary.json  summary.md
       E3-OBS/
-        stdout.log  stderr.log  samples.csv  result.json
+        stdout.log  stderr.log  samples.csv  checks.ndjson  result.json
 ```
 
 `environment.json`, `result.json` and the readable summary state the artifact
 layout version and worker id. Runs without both `--campaign-id` and
-`--worker-id` keep v1; existing v1 artifacts are not moved.
+`--worker-id` keep v1; existing v1 artifacts are not moved. `checks.ndjson` is
+created lazily only when bounded retention streams full check detail.
 
 `samples.csv` carries the columns every scenario shares plus this scenario's
 own: `log_entries_written`, `log_files_rolled`, `log_recent_retained`,
