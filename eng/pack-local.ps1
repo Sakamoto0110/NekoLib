@@ -164,6 +164,7 @@ if (-not $SkipTests) {
         $solution,
         "-c",
         $Configuration,
+        "-m:1",
         "--no-build",
         "--no-restore"
     ) + $commonProperties)

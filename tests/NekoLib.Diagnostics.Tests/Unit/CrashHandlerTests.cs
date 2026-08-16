@@ -94,7 +94,7 @@ namespace NekoLib.Diagnostics.Tests.Unit
                 {
                     CrashRootDirectory = root,
                     DumpLevel = CrashDumpLevel.None,
-                    EvidenceCollectionTimeout = TimeSpan.FromMilliseconds(50),
+                    EvidenceCollectionTimeout = TimeSpan.FromMilliseconds(250),
                     LogSnapshotSource = new StaticLogSource(),
                     TelemetrySnapshotSource = new SlowTelemetrySource(),
                     InspectionSnapshotSource = new ThrowingInspectionSource()
@@ -107,7 +107,7 @@ namespace NekoLib.Diagnostics.Tests.Unit
                 InvokeHandleCrash(handler);
 
                 watch.Stop();
-                Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1));
+                Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2));
                 var report = File.ReadAllText(crashTextPath);
                 Assert.Contains("surviving log", report);
                 Assert.Contains("<contributor timed out>", report);
@@ -290,7 +290,7 @@ namespace NekoLib.Diagnostics.Tests.Unit
         {
             public IReadOnlyList<TelemetryOperation> GetRecentOperations(int maxOperations)
             {
-                Thread.Sleep(500);
+                Thread.Sleep(2000);
                 return new TelemetryOperation[0];
             }
         }
