@@ -6,9 +6,9 @@
 
 **Subject:** audit artifact registry
 
-**Reference date:** 2026-08-01
+**Reference date:** 2026-08-16
 
-**Reference commit:** working tree after `c5a152f`
+**Reference commit:** working tree after `f73ba4a`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -25,6 +25,7 @@ and active freezes belong in [`TODO.md`](../../TODO.md).
 | [`navigation-adapter-review-2026-08-03.md`](navigation-adapter-review-2026-08-03.md) | Navigation WinForms/WPF adapter review | historical; all eleven findings closed | 2026-08-03 | `ae1781086b3858cdc9cb025473ed18e3445ee1eb` | 2026-08-04 | [`TODO.md`](../../TODO.md) Phase E2 |
 | [`navigation-audit.md`](navigation-audit.md) | Navigation passes 1-6 | historical | 2026-05-28 to 2026-06-03 | not recorded | 2026-08-01 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md), [`TODO.md`](../../TODO.md) |
 | [`navigation-design-time-2026-08-06.md`](navigation-design-time-2026-08-06.md) | Navigation design-time loadability | current; both findings implemented, one residual gap unscheduled | 2026-08-06 | `5418cb27f8da669a060ac382fa277c59d2322769` | reconciled 2026-08-08 into E2 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md) |
+| [`payments-pix-design-review-2026-08-16.md`](payments-pix-design-review-2026-08-16.md) | Payments/Pix product boundary and first provider model | current; review complete, implementation decision pending | 2026-08-16 | `f73ba4a2fd01b66f5df6c172ba15d6d39d01a072` | none | [`TODO.md`](../../TODO.md) Phase G2 |
 | [`pipes-first-pass.md`](pipes-first-pass.md) | Pipes first-pass review | historical | 2026-06-04 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
 | [`pipes-ipc-hardening-review-2026-08-08.md`](pipes-ipc-hardening-review-2026-08-08.md) | Pipes and Watchdog IPC hardening | historical; accepted dispositions promoted to E5 | 2026-08-08 | `941e17e8224dff3b34b7495d7bd0f7cf12c8f4ed` | 2026-08-08 | [`TODO.md`](../../TODO.md) Phase E5 |
 | [`repository-hygiene-phase-c-readiness-2026-08-01.md`](repository-hygiene-phase-c-readiness-2026-08-01.md) | Phase C readiness | historical; complete | 2026-08-01 | `88b07d83f037db6bf13eab34ac3f5abafba787b1` | 2026-08-01 | [`TODO.md`](../../TODO.md) |

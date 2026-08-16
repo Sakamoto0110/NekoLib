@@ -23,9 +23,9 @@ commit-bound validation are preserved in the
 
 Phase G1 is complete at its deterministic, package, and real-provider runtime
 boundaries. The optional TheCatAPI probe passed on both target families with
-run-owned mutation, reconciliation, and complete cleanup. Phase F and Phase G2
-remain gated and must be promoted explicitly before any of their candidates
-becomes live work.
+run-owned mutation, reconciliation, and complete cleanup. The Phase G2 design
+review is complete and awaiting an explicit architecture decision; product
+implementation remains gated. Phase F remains gated.
 
 The Phase G1 work preserved these rules, which continue to apply:
 
@@ -115,14 +115,39 @@ the artifact-specific evidence; no credential, header, or body was persisted.
 The completed work log is archived in the
 [`Phase G1 completion snapshot`](docs/history/phase-g1-http-integration-2026-08-16.md).
 
-### G2 — Payments and Pix (gated)
+### G2 — Payments and Pix (design review complete; implementation gated)
 
-**GATED — DO NOT START.** After G1 has executable evidence, perform a separate
-code-first design review for merchant payment acceptance. Pix is the first
-provider/rail model, not permission to force provider-specific charge,
-webhook, certificate, OAuth, QR, idempotency, or reconciliation concepts into
-`NekoLib.Http`. Consumer-owned persistence and authoritative provider
-reconciliation remain required design inputs.
+**Review promotion — 2026-08-16:** the authorized code-first review is complete
+at [`docs/audit/payments-pix-design-review-2026-08-16.md`](docs/audit/payments-pix-design-review-2026-08-16.md).
+It changed no product code, solution membership, package topology, or public
+API. Pix is the payment rail and API standard; a PSP supplies the merchant
+account, credentials, certificates, endpoints, and sandbox.
+
+The review recommends one deliberately narrow first implementation:
+
+- one dual-target `NekoLib.Payments` package referencing `NekoLib.Http`, with a
+  Pix-specific public surface rather than a speculative universal payment
+  provider interface;
+- immediate Pix charge creation with a caller-persisted `txid`, charge lookup,
+  copy-and-paste payload, tolerant status handling, and ambiguous-outcome
+  reconciliation by lookup;
+- the Efí Bank homologation environment as the first external provider model,
+  because it closely follows the official API Pix, supplies separate OAuth2 +
+  mTLS credentials, and simulates active and completed charges without real
+  settlement;
+- consumer-owned persistence, `HttpClient`, OAuth token handling, certificate,
+  timeout, retry decisions, secrets, and authoritative reconciliation against
+  the PSP;
+- no webhook receiver, refund, due-date charge, Pix Automatic, outgoing Pix,
+  split, production credential, real-money test, QR image renderer, provider
+  SDK wrapper, or second provider in the first slice.
+
+**DECISION REQUIRED — DO NOT IMPLEMENT YET.** Accept or revise the recommended
+package boundary, Efí sandbox selection, and first-slice scope. Do not add G2
+implementation checkboxes, projects, tests, scenarios, packages, credentials,
+or certificates until that decision is explicit. No G2 decision may move Pix,
+OAuth, mTLS, webhook, idempotency, or reconciliation policy into
+`NekoLib.Http`.
 
 ## Active freezes
 
