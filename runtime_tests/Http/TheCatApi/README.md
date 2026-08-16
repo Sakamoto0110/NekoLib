@@ -11,8 +11,9 @@
 **Prerequisites:** internet access, a maintainer-owned TheCatAPI key in
 `NEKOLIB_THECATAPI_KEY`, and a writable repository `artifacts/` directory
 
-**Last verification:** 2026-08-12, working tree after `71bcc2e`; Debug build
-passed on `net481` and `net9.0` with 0 warnings and 0 errors; provider run not
+**Last verification:** 2026-08-16, implementation commit `ae711fb`; Debug build
+passed on `net481` and `net9.0` with 0 warnings and 0 errors. The missing-key
+path exited `3` on both targets without sending a request; provider run not
 executed
 
 ## Purpose
@@ -97,6 +98,13 @@ same account to locate and remove the residue before discarding the artifact.
 
 ## Verification record
 
-No external provider run has been performed yet. Record a run only after its
-exit code and `result.json` have both been inspected and the provider account
-has no run-owned favourite left behind.
+On 2026-08-16 the missing-key path ran independently on `net481` and `net9.0`.
+Both invocations exited `3`, recorded `ApiKeyPresent: false`, sent no provider
+request, reported zero cleanup problems, and produced sanitized artifacts under
+`artifacts/validation/http/`. This proves prerequisite handling, artifact
+finalization and the no-request boundary; it is not provider evidence.
+
+No external provider run has been performed yet because
+`NEKOLIB_THECATAPI_KEY` was absent. Record a provider run only after its exit
+code and `result.json` have both been inspected and the provider account has no
+run-owned favourite left behind.

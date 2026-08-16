@@ -6,9 +6,10 @@
 
 **Subject:** typed HTTP endpoint catalogs and consumer-owned execution
 
-**Reference date:** 2026-08-12
+**Reference date:** 2026-08-16
 
-**Reference commit:** working tree after `71bcc2e`
+**Implementation/package reference commit:**
+`ae711fb51d27af29701d332a453912ad1f87a029`
 
 `NekoLib.Http` centralizes HTTP methods, relative routes and request/response
 types without hiding the HTTP protocol. It is an opt-in `net481`/`net9.0`
@@ -128,3 +129,15 @@ dotnet test tests\NekoLib.Http.Tests\Unit\NekoLib.Http.Tests.Unit.csproj
 The optional external provider scenario is documented in
 [`runtime_tests/Http/TheCatApi/README.md`](../../../runtime_tests/Http/TheCatApi/README.md).
 Its build and real-provider evidence are deliberately recorded separately.
+
+The 2026-08-16 closure gate passed 16/16 deterministic tests on each target and
+1,281/1,281 serial full-solution executions. Clean package flow
+`1.0.0-local.11` published all 16 packages and passed the external package
+consumers. The HTTP package contains `net481` and `net9.0` assets, records the
+implementation commit above, and has SHA-256
+`30464eca19e909a993d6e02e84d20b2cf3cb44b909cde3980ffc03cc44b81c1e`.
+
+The scenario's missing-key path was executed on both targets and exited `3`
+without sending a provider request. A real TheCatAPI run has not been executed
+because no maintainer-owned key was supplied; the package and deterministic
+evidence do not claim provider interoperability.

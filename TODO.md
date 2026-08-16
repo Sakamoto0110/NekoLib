@@ -21,11 +21,13 @@ log, outcome-first runtime evidence, residual confidence options, and final
 commit-bound validation are preserved in the
 [`Phase E completion snapshot`](docs/history/phase-e-confidence-stabilization-2026-08-12.md).
 
-Phase G1 is active for one bounded, opt-in typed HTTP endpoint catalog. Phase F
-remains gated and must be promoted explicitly before any of its candidates
-becomes live work. Completing Phase E did not activate Phase F automatically.
+Phase G1 is complete at its deterministic, package, and prerequisite-runtime
+boundaries. The optional real-provider TheCatAPI run has not been executed
+because no maintainer-owned key was supplied; no provider evidence is claimed.
+Phase F and Phase G2 remain gated and must be promoted explicitly before any of
+their candidates becomes live work.
 
-During Phase G1:
+The Phase G1 work preserved these rules, which continue to apply:
 
 - preserve the validated Phase E behavior and evidence boundaries;
 - prefer evidence over new abstractions and narrow fixes over new modules;
@@ -54,11 +56,11 @@ manually triggered, and Windows is required for full dual-target validation.
 
 ## Phase G — Applied integrations
 
-> **Status: G1 ACTIVE; later items remain gated.** This phase is independent of
-> the gated scale-preparation work in Phase F. Its authorization is limited to
-> the concrete HTTP catalog below and does not activate an API gateway,
-> application host, dependency-injection framework, global registry, retry
-> framework, secret store, or remote service.
+> **Status: G1 COMPLETE; later items remain gated.** This phase is independent
+> of the gated scale-preparation work in Phase F. Its completed authorization
+> was limited to the concrete HTTP catalog below and did not activate an API
+> gateway, application host, dependency-injection framework, global registry,
+> retry framework, secret store, or remote service.
 
 ### G1 — Typed HTTP endpoint catalog
 
@@ -71,29 +73,45 @@ domain model.
 
 Accepted boundaries:
 
-- [ ] Add a `net481`/`net9.0` package with no NekoLib project dependency. Keep
+- [x] Add a `net481`/`net9.0` package with no NekoLib project dependency. Keep
   endpoint catalogs instance-scoped and immutable after construction; do not
   add reflection scanning, attributes, source generation, or global state.
-- [ ] Provide typed GET, POST, PUT, PATCH, and DELETE descriptors, safe relative
+- [x] Provide typed GET, POST, PUT, PATCH, and DELETE descriptors, safe relative
   path/query construction, duplicate-name validation, and one consumer-owned
   `HttpClient` execution surface. The consumer owns base address, lifetime,
   authentication, certificates, timeout, handlers, and policy configuration.
-- [ ] Preserve HTTP evidence: return status, reason, headers, raw response body,
+- [x] Preserve HTTP evidence: return status, reason, headers, raw response body,
   and a typed success value. Bound response buffering and never log bodies,
   headers, credentials, or API keys. Do not retry automatically, especially for
   methods that may create or mutate state.
-- [ ] Cover URI escaping, registration, request construction, JSON bodies,
+- [x] Cover URI escaping, registration, request construction, JSON bodies,
   success/error/no-content responses, size limits, and cancellation through
   deterministic dual-target tests backed by a controlled
   `HttpMessageHandler`; these tests must not depend on the public internet.
-- [ ] Add an optional standalone TheCatAPI scenario that models image search,
+- [x] Add an optional standalone TheCatAPI scenario that models image search,
   image lookup, favourite creation/query/deletion, secret injection, bounded
   cleanup, and exit-code outcomes. A build is build evidence only; provider
   evidence requires an actual run with a maintainer-owned API key and must not
   expose the key or use personal data as `sub_id`.
-- [ ] Reconcile the module map, package workflow, test inventory, scenario
+- [x] Reconcile the module map, package workflow, test inventory, scenario
   inventory, and documentation verifier. Validate the focused tests and the
   full solution on both target families before closing G1.
+
+**Completion record — 2026-08-16:** the implementation baseline is
+`ae711fb51d27af29701d332a453912ad1f87a029`. Deterministic HTTP tests passed
+16/16 on each target; the full serial solution gate passed 1,281 executions
+with 0 failures and 0 skips; the rebuild emitted 515 existing warning
+occurrences, no new normalized warning identity, and omitted five baseline
+identities. Clean package flow `1.0.0-local.11` published 16 packages and passed
+all external package-consumer probes. `NekoLib.Http.1.0.0-local.11.nupkg`
+contains both target assets, records the implementation commit, and has SHA-256
+`30464eca19e909a993d6e02e84d20b2cf3cb44b909cde3980ffc03cc44b81c1e`.
+The TheCatAPI prerequisite path exited `3` without a request on both targets and
+produced sanitized, cleanup-complete artifacts. A real provider run was not
+executed because `NEKOLIB_THECATAPI_KEY` was absent; this optional evidence gap
+is preserved in the scenario README and does not claim provider compatibility.
+The completed work log is archived in the
+[`Phase G1 completion snapshot`](docs/history/phase-g1-http-integration-2026-08-16.md).
 
 ### G2 — Payments and Pix (gated)
 
