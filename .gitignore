@@ -51,6 +51,7 @@ CLAUDE.md
 
 # Machine-only experiments and scratch data
 /.local/
+/experiments/
 
 # Runtime scenario source and instructions are versioned. Global bin/obj/log
 # rules above keep their generated output out of Git.
