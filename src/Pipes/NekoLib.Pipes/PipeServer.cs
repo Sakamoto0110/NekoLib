@@ -235,6 +235,12 @@ namespace NekoLib.Pipes
                     };
                 }
 
+                // On net481 a cancelled blocking write continues on its worker thread
+                // until the pipe is disposed. Starting it during shutdown can emit only
+                // part of the frame before disposal, so close cleanly instead.
+                if (ct.IsCancellationRequested)
+                    break;
+
                 var toSend = response;
                 try
                 {
