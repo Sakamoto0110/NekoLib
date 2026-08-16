@@ -69,3 +69,20 @@ A real provider run remains optional evidence. If performed, its exit code and
 sanitized `result.json` must be inspected together and the provider account must
 contain no run-owned favourite afterward. Phase G2 Payments/Pix and Phase F
 remain gated; completing G1 does not activate either one.
+
+## Post-closure provider reconciliation — 2026-08-16
+
+After the package and documentation baseline above was closed, a
+maintainer-owned key was supplied without being printed or persisted in an
+artifact. The real-provider scenario then passed 10/10 with exit `0` on both
+`net9.0` and `net481`. Each run proved typed image search/lookup, run-owned
+favourite creation/query/deletion, post-delete absence, and final
+reconciliation with zero cleanup problems.
+
+The inspected artifacts are
+`thecatapi-net9.0-20260816T222349134Z/result.json` and
+`thecatapi-net481-20260816T222415829Z/result.json` under the ignored
+`artifacts/validation/http/` tree. They contain no credential value, header,
+request body, response body, or personal identifier. This later evidence closes
+the optional provider gap without changing the immutable package baseline or
+activating Phase G2 or Phase F.

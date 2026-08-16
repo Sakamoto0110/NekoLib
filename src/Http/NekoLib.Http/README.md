@@ -138,6 +138,8 @@ implementation commit above, and has SHA-256
 `30464eca19e909a993d6e02e84d20b2cf3cb44b909cde3980ffc03cc44b81c1e`.
 
 The scenario's missing-key path was executed on both targets and exited `3`
-without sending a provider request. A real TheCatAPI run has not been executed
-because no maintainer-owned key was supplied; the package and deterministic
-evidence do not claim provider interoperability.
+without sending a provider request. Real TheCatAPI runs then passed 10/10 with
+exit `0` on `net9.0` and `net481`. Both created, queried, deleted and reconciled
+their run-owned favourite with zero cleanup problems. This provider evidence is
+separate from the deterministic and package evidence and does not transfer
+credential, retry, or provider-policy ownership into the module.

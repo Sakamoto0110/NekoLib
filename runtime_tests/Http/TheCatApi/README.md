@@ -12,9 +12,9 @@
 `NEKOLIB_THECATAPI_KEY`, and a writable repository `artifacts/` directory
 
 **Last verification:** 2026-08-16, implementation commit `ae711fb`; Debug build
-passed on `net481` and `net9.0` with 0 warnings and 0 errors. The missing-key
-path exited `3` on both targets without sending a request; provider run not
-executed
+passed on `net481` and `net9.0` with 0 warnings and 0 errors. Missing-key and
+real-provider paths executed on both targets; both provider runs passed 10/10,
+exited `0`, and reconciled cleanup
 
 ## Purpose
 
@@ -104,7 +104,15 @@ request, reported zero cleanup problems, and produced sanitized artifacts under
 `artifacts/validation/http/`. This proves prerequisite handling, artifact
 finalization and the no-request boundary; it is not provider evidence.
 
-No external provider run has been performed yet because
-`NEKOLIB_THECATAPI_KEY` was absent. Record a provider run only after its exit
-code and `result.json` have both been inspected and the provider account has no
-run-owned favourite left behind.
+Later on 2026-08-16, real-provider runs passed on both targets:
+
+| Target | Exit / checks | Provider outcomes | Cleanup | Artifact |
+|---|---|---|---|---|
+| `net9.0` | `0`; 10/10 passed | Search and lookup returned HTTP 200; favourite creation returned HTTP 201; query and deletion passed | Zero cleanup problems; explicit deletion and no run-owned favourite remaining | `artifacts/validation/http/thecatapi-net9.0-20260816T222349134Z/result.json` |
+| `net481` | `0`; 10/10 passed | Search and lookup returned HTTP 200; favourite creation returned HTTP 201; query and deletion passed | Zero cleanup problems; explicit deletion and no run-owned favourite remaining | `artifacts/validation/http/thecatapi-net481-20260816T222415829Z/result.json` |
+
+Both artifacts were inspected after execution. They record that a key was
+present but contain no key value, credential header, request body, response
+body, or personal `sub_id`. This is provider interoperability evidence for the
+declared flow on the execution date; it does not establish provider uptime or
+policy beyond these bounded runs.

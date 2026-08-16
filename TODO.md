@@ -21,11 +21,11 @@ log, outcome-first runtime evidence, residual confidence options, and final
 commit-bound validation are preserved in the
 [`Phase E completion snapshot`](docs/history/phase-e-confidence-stabilization-2026-08-12.md).
 
-Phase G1 is complete at its deterministic, package, and prerequisite-runtime
-boundaries. The optional real-provider TheCatAPI run has not been executed
-because no maintainer-owned key was supplied; no provider evidence is claimed.
-Phase F and Phase G2 remain gated and must be promoted explicitly before any of
-their candidates becomes live work.
+Phase G1 is complete at its deterministic, package, and real-provider runtime
+boundaries. The optional TheCatAPI probe passed on both target families with
+run-owned mutation, reconciliation, and complete cleanup. Phase F and Phase G2
+remain gated and must be promoted explicitly before any of their candidates
+becomes live work.
 
 The Phase G1 work preserved these rules, which continue to apply:
 
@@ -107,9 +107,11 @@ all external package-consumer probes. `NekoLib.Http.1.0.0-local.11.nupkg`
 contains both target assets, records the implementation commit, and has SHA-256
 `30464eca19e909a993d6e02e84d20b2cf3cb44b909cde3980ffc03cc44b81c1e`.
 The TheCatAPI prerequisite path exited `3` without a request on both targets and
-produced sanitized, cleanup-complete artifacts. A real provider run was not
-executed because `NEKOLIB_THECATAPI_KEY` was absent; this optional evidence gap
-is preserved in the scenario README and does not claim provider compatibility.
+produced sanitized, cleanup-complete artifacts. The later real-provider runs
+passed 10/10 with exit `0` on `net9.0` and `net481`: image search/lookup,
+favourite creation/query/deletion, post-delete absence, and final
+reconciliation all passed with zero cleanup problems. The scenario README owns
+the artifact-specific evidence; no credential, header, or body was persisted.
 The completed work log is archived in the
 [`Phase G1 completion snapshot`](docs/history/phase-g1-http-integration-2026-08-16.md).
 
