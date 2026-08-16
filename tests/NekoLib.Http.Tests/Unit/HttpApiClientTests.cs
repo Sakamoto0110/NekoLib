@@ -76,6 +76,42 @@ namespace NekoLib.Http.Tests.Unit
             Assert.Equal(42, result.RequireValue().Id);
         }
 
+        [Theory]
+        [InlineData("PUT")]
+        [InlineData("PATCH")]
+        public async Task SendAsync_WriteVerbFactory_ConstructsExpectedMethodAndJsonBody(
+            string method)
+        {
+            CapturedRequest captured = null;
+            var handler = new DelegateHandler(async (request, cancellationToken) =>
+            {
+                captured = await CapturedRequest.CreateAsync(request);
+                return JsonResponse(HttpStatusCode.OK, "{\"id\":7}");
+            });
+            HttpEndpoint<CreateRequest, CreatedResponse> endpoint = method == "PUT"
+                ? HttpEndpoint.Put<CreateRequest, CreatedResponse>(
+                    "cats.update.put",
+                    request => RelativeUri.FromPathSegments("favourites", request.ImageId),
+                    request => new CreateBody { ImageId = request.ImageId })
+                : HttpEndpoint.Patch<CreateRequest, CreatedResponse>(
+                    "cats.update.patch",
+                    request => RelativeUri.FromPathSegments("favourites", request.ImageId),
+                    request => new CreateBody { ImageId = request.ImageId });
+            var client = CreateClient(handler, endpoint);
+
+            var result = await client.SendAsync(endpoint, new CreateRequest
+            {
+                ImageId = "fav-7",
+                OperationId = "unused"
+            });
+
+            Assert.Equal(method, captured.Method.Method);
+            Assert.Equal("https://api.example.test/v1/favourites/fav-7", captured.Uri.AbsoluteUri);
+            Assert.Equal("application/json", captured.ContentType);
+            Assert.Equal("{\"ImageId\":\"fav-7\"}", captured.Body);
+            Assert.Equal(7, result.RequireValue().Id);
+        }
+
         [Fact]
         public async Task SendAsync_NonSuccess_ReturnsRawBodyWithoutDeserializingIt()
         {

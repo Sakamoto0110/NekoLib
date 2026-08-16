@@ -86,6 +86,17 @@ namespace NekoLib.Http.RuntimeTests.TheCatApi
                     result.ExitCode = ScenarioExitCodes.CheckFailed;
                     AddCheck(result, "scenario-terminal", false, ex.Message);
                 }
+                catch (Exception ex) when (
+                    ex is HttpResponseDeserializationException ||
+                    ex is HttpResponseContentTooLargeException)
+                {
+                    result.ExitCode = ScenarioExitCodes.CheckFailed;
+                    AddCheck(
+                        result,
+                        "provider-contract",
+                        false,
+                        ex.GetType().Name + ": the provider response violated the bounded contract.");
+                }
                 catch (OperationCanceledException)
                 {
                     result.ExitCode = interrupted
