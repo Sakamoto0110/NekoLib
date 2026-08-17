@@ -16,7 +16,7 @@
 		<IsPackable>true</IsPackable>
 		<PackageId>NekoLib.Data</PackageId>
 		<Title>NekoLib Data</Title>
-		<Description>Provider-neutral database gateway with fluent SQL building, typed and dynamic reads, streaming and transactions.</Description>
+		<Description>Provider-neutral database gateway with fluent SQL building, explicit raw, DTO and dynamic reads, target-specific streaming, sessions and transactions.</Description>
 		<PackageTags>nekolib;data;database;sql;ado-net</PackageTags>
  
 		<!-- Identity -->
