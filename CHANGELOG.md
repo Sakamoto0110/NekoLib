@@ -16,6 +16,22 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Telemetry — behavioral pre-stable candidate correction for the first
+  `1.0.0` stable family release.** No public type, member, signature,
+  nullability annotation, default value, namespace, target, or dependency
+  changed, and both accepted API manifests are unchanged; consumers need no
+  source change. `ITelemetryOperation.Complete` now materializes the caller's
+  terminal dimensions and measurements before committing completion state: a
+  malformed dictionary previously left the operation marked terminal but never
+  retained, never dispatched to a sink, and unable to be completed again, which
+  silently destroyed the record. The exception still surfaces; the operation now
+  survives it. `TelemetryPipeline.StartOperation` now normalizes a
+  null-or-whitespace `parentOperationId` to `null`, matching how a blank
+  `operationId` is already replaced and restoring the documented contract that a
+  root operation has no parent — a whitespace parent previously read as a real
+  correlation link. `TelemetryPipeline` now copies the supplied sink array, so a
+  caller mutating its own array can no longer re-target a live pipeline. See the
+  [F1-TEL migration guide](docs/migrations/f1-telemetry.md).
 - **NekoLib.Logging — behavioral pre-stable candidate correction for the first
   `1.0.0` stable family release.** No public type, member, signature,
   nullability annotation, default value, namespace, target, or dependency

@@ -13,6 +13,7 @@ the handoff state and the rules that are easy to get wrong.
 | Typed HTTP catalogs, ownership, and response boundaries | [`src/Http/NekoLib.Http/README.md`](src/Http/NekoLib.Http/README.md) |
 | Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`src/Logging/NekoLib.Logging/README.md`](src/Logging/NekoLib.Logging/README.md) |
+| Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`src/Telemetry/NekoLib.Telemetry/README.md`](src/Telemetry/NekoLib.Telemetry/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |

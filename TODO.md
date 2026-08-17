@@ -386,6 +386,28 @@ consumers does not prove that a public member is unused.
    `8378290431CA1036BD8E70E254C6995415DC755B6A91D82D7CAEDD7802AF3991`.
 4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
    dimensions, bounded-retention, and snapshot contracts.
+   **Accepted 2026-08-17:** retain the entire compiled surface — both public
+   sealed types and all 5 members, on both targets — as stable candidates with
+   no removal, rename, namespace move, internalization, deprecation, or
+   experimental marker, and correct behavior only. `Complete` materializes the
+   caller's terminal dimensions and measurements before committing completion
+   state, so a malformed dictionary no longer marks the operation terminal while
+   destroying its record; `StartOperation` normalizes a blank
+   `parentOperationId` to `null` as it already did for a blank `operationId`;
+   and the pipeline copies the supplied sink array. `TelemetryPipelineOptions`
+   defaults are frozen. Synchronous inline dispatch, retention before sink
+   fanout, one identical order across sinks and retention,
+   first-completion-wins, non-terminal abandonment, permissive measurements,
+   shallow dimension values, and unbounded per-operation checkpoints are all
+   retained and documented rather than changed. A dedicated Telemetry technical
+   reference now owns the lifecycle, ordering, backpressure, reentrancy,
+   time, dimension-merge, and retention contracts that previously had no owner.
+   A facade, global provider, registry, asynchronous queue, persistent store,
+   aggregation or metrics subsystem, `IDisposable`/finalizer lifecycle, implicit
+   terminal for abandoned operations, and any new cross-module dependency were
+   all rejected. No Core-contract conflict was found. The accepted rationale,
+   evidence, and rejected alternatives are recorded in
+   [`docs/audit/telemetry-public-api-review-2026-08-17.md`](docs/audit/telemetry-public-api-review-2026-08-17.md).
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
    snapshot-source, provider, and opt-in lifecycle surface without unfreezing
    broad module instrumentation or privileged actions.

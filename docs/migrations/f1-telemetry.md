@@ -1,0 +1,93 @@
+# F1-TEL Candidate Migration
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Telemetry candidate surface to the
+accepted F1-TEL contract
+
+This guide covers the pre-stable `NekoLib.Telemetry` correction accepted on
+2026-08-17. The rationale, evidence, and rejected alternatives are preserved in
+the [Telemetry public API review](../audit/telemetry-public-api-review-2026-08-17.md).
+
+**No public type, member, signature, nullability annotation, default value,
+namespace, target, or project reference changed.** Both accepted API manifests
+are unchanged. Every correction below is behavioral, and no source change is
+required to keep compiling.
+
+## A failed terminal payload no longer destroys the operation
+
+`Complete` marked the operation terminal and stopped its stopwatch *before*
+copying the caller's terminal dimensions and measurements. A malformed
+dictionary — one enumerating a null key, or whose enumerator threw — therefore
+threw out of `Complete` after the operation was already terminal but before it
+reached retention or any sink. The operation reported `IsCompleted == true`,
+produced no record, and refused every later `Complete`.
+
+Both payloads are now materialized before any state is committed:
+
+```csharp
+try
+{
+    operation.Complete(TelemetryOutcome.Succeeded, dimensions);
+}
+catch (ArgumentNullException)
+{
+    // The operation is still completable; a corrected retry now records.
+    operation.Complete(TelemetryOutcome.Succeeded);
+}
+```
+
+`Complete` still throws for malformed caller data — a bad dimension dictionary
+is a caller defect and is not silently absorbed. What changed is that the
+operation survives it.
+
+## A blank parent operation ID is normalized to null
+
+`StartOperation` already replaced a blank `operationId` with a generated
+identifier, but retained a blank `parentOperationId` verbatim. A whitespace
+parent was preserved as `"   "`, which reads as a real correlation link.
+
+A null-or-whitespace parent now becomes `null`, so a root operation is always
+`ParentOperationId == null`.
+
+Code that deliberately passed whitespace and then compared the retained value to
+`""` must compare to `null` instead. That comparison was already describing a
+correlation chain that pointed nowhere.
+
+## The sink array is copied
+
+`TelemetryPipeline` stored the supplied `ITelemetrySink[]` directly. A caller
+that passed an explicitly constructed array could swap an element afterwards and
+re-target the live pipeline.
+
+The constructor now takes its own copy, and null elements are dropped once
+rather than being re-checked on every completion. Ordinary `params` call syntax
+was never affected, because the compiler already synthesized a fresh array.
+
+Code that deliberately mutated a shared array to re-target a running pipeline
+must construct a new `TelemetryPipeline` instead.
+
+## Unchanged contracts
+
+- package ID, namespaces, targets, type names, member signatures, nullability,
+  and the `NekoLib.Core`-only project reference;
+- the `RecentOperationCapacity` default of `1024` and its minimum of 1 — now
+  frozen and covered by regressions;
+- explicit checkpoint and terminal lifecycle, first-completion-wins under
+  concurrency, and no implicit terminal for an abandoned operation;
+- `ITelemetryOperation` is still not `IDisposable`, and `TelemetryPipeline` is
+  still not `IDisposable`;
+- synchronous inline sink dispatch, registration ordering, one identical order
+  across all sinks and retention, and sink-failure isolation;
+- retention before sink dispatch, so snapshots are never blocked by a slow sink;
+- bounded newest-window snapshots in completion order, empty for non-positive
+  limits, over models that never change again;
+- terminal dimensions override initial ones on collision; `StringComparer.Ordinal`
+  keys; shallow dimension values;
+- permissive measurements, including `NaN`, infinities, and negative values;
+- a checkpoint after completion is ignored and returns the final duration;
+- checkpoints remain unbounded per operation;
+- no global provider, registry, facade, asynchronous queue, persistent store,
+  aggregation layer, or new dependency was added.

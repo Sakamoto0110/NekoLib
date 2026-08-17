@@ -8,13 +8,13 @@
 operation lifecycle, dimension and measurement semantics, bounded retention,
 snapshot and sink-dispatch contracts, and compatibility boundaries
 
-**Status:** review complete; decision pending
+**Status:** all dispositions accepted and implemented; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `6480c9e57a42af3490eeda55b0f66400e75782cd`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-TEL
 
@@ -621,3 +621,59 @@ migration, roadmap, or package changes. F1-TEL must stop here until the user
 explicitly accepts, modifies, or rejects the recommended dispositions —
 especially the behavioral corrections TEL-01, TEL-02, and TEL-03, and the new
 module reference in TEL-15.
+
+## Reconciliation — 2026-08-17
+
+The user accepted the recommended dispositions without modification. The
+implementation is confined to method bodies and documentation:
+
+- **TEL-01** — the constructor copies the sink array and drops null elements
+  once, so `Record` no longer needs a per-dispatch null check.
+- **TEL-02** — `Complete` materializes the terminal dimensions and measurements
+  before setting `_completed` and stopping the stopwatch. The exception still
+  surfaces to the caller; the operation now survives it and a corrected retry
+  records normally. One deliberate consequence: because the stopwatch is no
+  longer stopped before the copies, `Duration` now includes the cost of copying
+  the caller's terminal payload — normally sub-microsecond. Stopping it earlier
+  was rejected, because a failed attempt would then freeze the duration of an
+  operation that is still in flight.
+- **TEL-03** — `StartOperation` normalizes a null-or-whitespace
+  `parentOperationId` to `null`.
+- **TEL-04 to TEL-14** — retained and documented, with XML summaries on the
+  contract-significant members and the full contract in the new module
+  reference.
+- **TEL-15** — [`src/Telemetry/NekoLib.Telemetry/README.md`](../../src/Telemetry/NekoLib.Telemetry/README.md)
+  is the module's current technical reference, registered in the documentation
+  index and the `AGENTS.md` routing table.
+- **TEL-16** — sixteen focused regressions were added, taking the suite from 6
+  to 22 per target and covering every gap listed in that finding.
+
+As the review predicted, **both accepted API manifests verified unchanged**; no
+baseline was updated. The accepted work therefore carries no source or binary
+compatibility break, only the behavioral corrections recorded in
+[`CHANGELOG.md`](../../CHANGELOG.md) and
+[`docs/migrations/f1-telemetry.md`](../migrations/f1-telemetry.md).
+
+One process note worth preserving: the first draft of the concurrency
+regressions introduced two `xUnit1031` analyzer warnings by blocking on tasks
+inside test methods. They were converted to `async` tests awaiting
+`Task.WhenAll` before any validation was reported, so the accepted change adds
+no new warning identity.
+
+No repository consumer or runtime scenario source required migration. The
+Observability `LongRunningRecovery` scenario compiles unchanged against the
+corrected pipeline on both target families; it was built, not launched, and no
+runtime scenario was executed.
+
+The package gate remains **explicitly pending for Codex**. Telemetry assembly
+bits changed, so `1.0.0-local.17` is prior evidence only and cannot be reused: a
+new immutable coordinated family version from the implementation commit,
+PackageReference consumer probes, and provenance/hash recording are still
+required. No package was created, modified, or consumed by this work, and F1-TEL
+is deliberately not marked complete.
+
+The residual validation limits recorded above still stand, with one narrowing:
+TEL-01, TEL-02, TEL-03, TEL-06, TEL-07, TEL-11, TEL-12, and TEL-14 now have
+executable dual-target regressions, so the `net9.0`-only probe limitation no
+longer applies to them. TEL-04, TEL-05, TEL-09, TEL-10, and TEL-13 remain
+documented behavior backed by probe observation rather than by a regression.

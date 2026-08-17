@@ -8,6 +8,12 @@ namespace NekoLib.Telemetry
     /// <summary>
     /// In-process operation telemetry pipeline. Version 1 intentionally keeps
     /// raw completed operations in bounded memory and does not persist them.
+    /// <para/>
+    /// Completion is synchronous: <c>Complete</c> retains the operation and then
+    /// dispatches it to every sink inline, in registration order, before it
+    /// returns. All sinks therefore observe one identical order, which is also
+    /// the retained order. A slow sink applies backpressure to every completing
+    /// thread.
     /// </summary>
     public sealed class TelemetryPipeline : ITelemetry, ITelemetrySnapshotSource
     {
@@ -27,9 +33,44 @@ namespace NekoLib.Telemetry
 
             _capacity = options.RecentOperationCapacity;
             _recent = new Queue<TelemetryOperation>(_capacity);
-            _sinks = sinks ?? Array.Empty<ITelemetrySink>();
+            _sinks = CopySinks(sinks);
         }
 
+        /// <summary>
+        /// Takes the pipeline's own copy of the sink set. A caller that passes an
+        /// explicitly constructed array keeps a reference to it, and swapping an
+        /// element afterwards must not re-target dispatch. Null elements are
+        /// dropped once here rather than being re-checked on every completion.
+        /// </summary>
+        private static ITelemetrySink[] CopySinks(ITelemetrySink[]? sinks)
+        {
+            if (sinks == null || sinks.Length == 0)
+                return Array.Empty<ITelemetrySink>();
+
+            var accepted = new List<ITelemetrySink>(sinks.Length);
+            for (int i = 0; i < sinks.Length; i++)
+            {
+                var sink = sinks[i];
+                if (sink != null)
+                    accepted.Add(sink);
+            }
+
+            return accepted.Count == 0
+                ? Array.Empty<ITelemetrySink>()
+                : accepted.ToArray();
+        }
+
+        /// <summary>
+        /// Starts one caller-owned operation. A blank <paramref name="operationId"/>
+        /// is replaced by a generated identifier and a blank
+        /// <paramref name="parentOperationId"/> is normalized to <c>null</c>.
+        /// Initial dimensions are copied immediately; terminal dimensions
+        /// supplied to <c>Complete</c> override them on a key collision.
+        /// <para/>
+        /// The caller owns the single explicit terminal. An operation that is
+        /// never completed is simply never recorded, and the pipeline keeps no
+        /// reference to it.
+        /// </summary>
         public ITelemetryOperation StartOperation(
             string module,
             string name,
@@ -49,10 +90,24 @@ namespace NekoLib.Telemetry
                 string.IsNullOrWhiteSpace(operationId)
                     ? Guid.NewGuid().ToString("N")
                     : operationId!,
-                parentOperationId,
+                // A blank parent is normalized like a blank operation id rather
+                // than retained: consumers test the retained value against null
+                // to decide whether an operation is a root, and whitespace would
+                // read as a correlation link that points nowhere.
+                string.IsNullOrWhiteSpace(parentOperationId)
+                    ? null
+                    : parentOperationId,
                 Copy(dimensions));
         }
 
+        /// <summary>
+        /// Returns the newest completed operations in completion order, bounded by
+        /// <paramref name="maxOperations"/> and by the configured capacity. The
+        /// result is a fresh collection over models that never change again.
+        /// <para/>
+        /// Retention happens before sink dispatch and takes a separate lock, so a
+        /// snapshot is never blocked by a slow sink.
+        /// </summary>
         public IReadOnlyList<TelemetryOperation> GetRecentOperations(int maxOperations)
         {
             if (maxOperations <= 0)
@@ -81,7 +136,7 @@ namespace NekoLib.Telemetry
 
                 for (int i = 0; i < _sinks.Length; i++)
                 {
-                    try { _sinks[i]?.Write(operation); }
+                    try { _sinks[i].Write(operation); }
                     catch { /* telemetry must never break feature behavior */ }
                 }
             }
@@ -91,6 +146,18 @@ namespace NekoLib.Telemetry
             IReadOnlyDictionary<string, object>? values)
         {
             var result = new Dictionary<string, object>(StringComparer.Ordinal);
+            if (values == null)
+                return result;
+
+            foreach (var pair in values)
+                result[pair.Key] = pair.Value;
+            return result;
+        }
+
+        private static Dictionary<string, double> CopyMeasurements(
+            IReadOnlyDictionary<string, double>? values)
+        {
+            var result = new Dictionary<string, double>(StringComparer.Ordinal);
             if (values == null)
                 return result;
 
@@ -162,24 +229,25 @@ namespace NekoLib.Telemetry
                 IReadOnlyDictionary<string, object>? dimensions = null,
                 IReadOnlyDictionary<string, double>? measurements = null)
             {
-                TelemetryOperation? completed;
+                TelemetryOperation completed;
                 lock (_gate)
                 {
                     if (_completed)
                         return;
 
+                    // The caller's payload is materialized before any state is
+                    // committed. A malformed dictionary - a null key, a throwing
+                    // enumerator - must surface to the caller without destroying
+                    // the operation, which would otherwise report itself
+                    // completed, never reach a sink, and refuse a corrected retry.
+                    var terminalDimensions = Copy(dimensions);
+                    var copiedMeasurements = CopyMeasurements(measurements);
+
                     _completed = true;
                     _watch.Stop();
 
-                    foreach (var pair in Copy(dimensions))
+                    foreach (var pair in terminalDimensions)
                         _dimensions[pair.Key] = pair.Value;
-
-                    var copiedMeasurements = new Dictionary<string, double>(StringComparer.Ordinal);
-                    if (measurements != null)
-                    {
-                        foreach (var pair in measurements)
-                            copiedMeasurements[pair.Key] = pair.Value;
-                    }
 
                     completed = new TelemetryOperation(
                         _startedUtc,
