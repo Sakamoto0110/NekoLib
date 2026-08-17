@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-17
 
-**Reference commit:** working tree after `518c078`
+**Reference commit:** working tree after `7c4d449`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -25,6 +25,7 @@ and active freezes belong in [`TODO.md`](../../TODO.md).
 | [`devices-first-pass.md`](devices-first-pass.md) | Devices first-pass review | historical | 2026-06-10 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
 | [`diagnostics-boundaries-review-2026-07-30.md`](diagnostics-boundaries-review-2026-07-30.md) | Diagnostics-sector boundaries and naming | historical; E6 dispositions promoted | 2026-07-30 | `1727a1cac3f66666b2df02bc618ad6ab45807a49` | 2026-08-08 | [`TODO.md`](../../TODO.md) Phase E6, [`README.md`](../../README.md) |
 | [`logging-public-api-review-2026-08-17.md`](logging-public-api-review-2026-08-17.md) | Logging F1 public API finalization | historical; all dispositions implemented and package-validated | 2026-08-17 | `c7967e784914b56863a1b2da97cfafecb32ea494` | 2026-08-17 | [Logging reference](../../src/Logging/NekoLib.Logging/README.md), [`TODO.md`](../../TODO.md) F1-LOG |
+| [`inspection-public-api-review-2026-08-17.md`](inspection-public-api-review-2026-08-17.md) | Inspection F1 public API and behavior finalization | current; review complete, implementation decision pending | 2026-08-17 | `7c4d449ec3a6854b0561c8514701a1ec31fe3c35` | none | [`TODO.md`](../../TODO.md) F1-INSP |
 | [`navigation-adapter-review-2026-08-03.md`](navigation-adapter-review-2026-08-03.md) | Navigation WinForms/WPF adapter review | historical; all eleven findings closed | 2026-08-03 | `ae1781086b3858cdc9cb025473ed18e3445ee1eb` | 2026-08-04 | [`TODO.md`](../../TODO.md) Phase E2 |
 | [`navigation-audit.md`](navigation-audit.md) | Navigation passes 1-6 | historical | 2026-05-28 to 2026-06-03 | not recorded | 2026-08-01 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md), [`TODO.md`](../../TODO.md) |
 | [`navigation-design-time-2026-08-06.md`](navigation-design-time-2026-08-06.md) | Navigation design-time loadability | current; both findings implemented, one residual gap unscheduled | 2026-08-06 | `5418cb27f8da669a060ac382fa277c59d2322769` | reconciled 2026-08-08 into E2 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md) |
