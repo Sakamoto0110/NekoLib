@@ -6,9 +6,9 @@
 
 **Subject:** repository documentation governance
 
-**Reference date:** 2026-08-12
+**Reference date:** 2026-08-16
 
-**Reference commit:** working tree after `71bcc2e`
+**Reference commit:** working tree after `5586d92`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -64,9 +64,11 @@ reference commit.
 |---|---|---|---|
 | [`README.md`](../README.md) | reference | current | Product overview, compatibility, module map, and package entry points |
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Open work, accepted decisions, freezes, and completion criteria |
+| [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
 | [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
+| [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |

@@ -200,6 +200,11 @@ and package/runtime exceptions are documented in
 | Tooling | Visual Studio 2022 or the `dotnet` CLI. No CI/CD — builds are manual |
 | Platform | `net481` and every `-windows` target build on Windows only |
 
+Public API stability, coordinated SemVer, deprecation, compatibility baselines,
+and migration follow the current
+[`public API and release policy`](docs/public-api-release-policy.md).
+Consumer-visible changes are recorded in [`CHANGELOG.md`](CHANGELOG.md).
+
 ```bash
 dotnet build NekoLib.sln
 dotnet test NekoLib.sln

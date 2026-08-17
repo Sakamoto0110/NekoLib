@@ -7,7 +7,7 @@
 **Subject:** current direction, live work, accepted future work, active freezes,
 phase gates, and completion criteria
 
-**Direction decision date:** 2026-08-12
+**Direction decision date:** 2026-08-16
 
 Audit snapshots are indexed under [`docs/audit/`](docs/audit/README.md).
 Completed roadmap and validation history is indexed under
@@ -25,7 +25,8 @@ Phase G1 is complete at its deterministic, package, and real-provider runtime
 boundaries. The optional TheCatAPI probe passed on both target families with
 run-owned mutation, reconciliation, and complete cleanup. The Phase G2 design
 review is complete and awaiting an explicit architecture decision; product
-implementation remains gated. Phase F remains gated.
+implementation remains gated. Phase F is active only for F1 public API and
+release stability; F2-F7 remain gated.
 
 The Phase G1 work preserved these rules, which continue to apply:
 
@@ -228,23 +229,110 @@ evidence, be promoted selectively to this roadmap, receive an explicit
 module-scoped unfreeze, and preserve the canonical lifecycle invariants. The
 freeze is restored after the authorized scope.
 
-## Phase F — Scale preparation (gated)
+## Phase F — Scale preparation (F1 active; F2-F7 gated)
 
-> **Status: GATED — NOT ACTIVE.** Phase E is complete and archived, but that
-> does not activate these candidates. Explicit promotion is still required.
-> Until then, do not implement them, investigate them incidentally, or create
-> files for them.
+> **Status: PARTIALLY ACTIVE.** F1 was explicitly promoted on 2026-08-16.
+> F2-F7 remain gated and must not be investigated or implemented without their
+> own explicit promotion.
 
 ### F1 — Public API and release stability
 
-**GATED — DO NOT START.** Define a SemVer policy; stable versus experimental
-APIs; coordinated package-family compatibility; changelog and real migration
-guidance; automated public API compatibility checks; breaking-change approval;
-deprecation policy; and a support window if multiple package versions are
-maintained.
+**ACTIVE — promotion decision 2026-08-16.** Finalize the public package family
+one module at a time under the accepted
+[`public API and release policy`](docs/public-api-release-policy.md). F1 does
+not activate F2 automation/CI, unrelated Phase F candidates, broad Inspection
+instrumentation, or Navigation runtime changes in frozen components.
 
-**Recorded inputs — public-surface changes already made.** Not F1 work; these
-are facts the policy will have to account for when it is written.
+#### F1.0 — Policy foundation
+
+- [x] Define the coordinated package-family SemVer rules, pre-stable candidate
+  boundary, stable versus experimental classification, source/binary/behavioral
+  compatibility, breaking-change approval, deprecation window, single active
+  release-line policy, changelog, migration requirements, and stable-release
+  completion evidence.
+- [x] Register the current policy and changelog in the documentation authority
+  index. No product assembly or public API changed in this block.
+
+#### F1.1 — Automated candidate and stable API baselines
+
+- [ ] Select and implement an assembly-derived public API manifest and
+  compatibility check for every library package and target framework. Keep the
+  existing package validation; do not mistake it for comparison against a
+  historical accepted surface.
+- [ ] Produce a reviewable candidate snapshot before the first module change.
+  Baseline updates must accompany an accepted API decision, implementation,
+  tests, changelog, and migration record; an unexplained public/protected diff
+  fails validation.
+- [ ] Define the cross-target marker and documentation rule for experimental
+  APIs before any API is classified that way. A namespace or naming convention
+  alone is not a marker.
+
+#### F1.2 — Module-by-module public API finalization
+
+Use one narrow review/decision/implementation/validation block per entry. An
+inventory does not authorize a breaking change, and the absence of repository
+consumers does not prove that a public member is unused.
+
+1. [ ] **F1-DATA — Data.** Reverify DATA-016 against the compiled dual-target
+   surface and supported gateway use cases. Decide one coherent public gateway
+   contract before any namespace move, overload removal, internal executor, or
+   compatibility shim is implemented.
+2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
+   surface before the dependent capability packages.
+3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
+   sink, snapshot, and disposal contracts without adding global state.
+4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
+   dimensions, bounded-retention, and snapshot contracts.
+5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
+   snapshot-source, provider, and opt-in lifecycle surface without unfreezing
+   broad module instrumentation or privileged actions.
+6. [ ] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
+   dump-writer, external notification, ownership, and partial-evidence
+   contracts.
+7. [ ] **F1-WIN — Diagnostics.Windows.** Finalize Windows crash hooks,
+   minidump composition, platform behavior, and the Diagnostics package
+   boundary.
+8. [ ] **F1-HTTP — HTTP.** Finalize the typed catalog, relative URI, request,
+   response-evidence, ownership, and bounded-buffer contracts without adding
+   policy or credentials.
+9. [ ] **F1-MVVM — Mvvm.** Finalize the deliberately small binding helper and
+   command surface.
+10. [ ] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol
+    extension contracts, configurations, timeouts, cancellation, and public
+    models without adding a general forwarding facade.
+11. [ ] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
+    boundary, shutdown, security-policy, and error contracts.
+12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
+    advanced consumer surface or Host infrastructure, then finalize bootstrap,
+    controller, options, IPC, process, and ownership contracts.
+13. [ ] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
+    payload layout, build targets, bootstrap arguments, and Host/application
+    protocol rather than treating the executable as a compile-time API.
+14. [ ] **F1-NAV — Navigation.** Finalize the public facade, contracts,
+    registration, lifecycle, history, guard, session, surface, and diagnostic
+    API last. Review does not unfreeze `NavigationContext`,
+    `NavigationRuntime`, `PageRegistry`, or `PageFactory`.
+15. [ ] **F1-NAV-WF — Navigation.WinForms.** Finalize the adapter, native host,
+    base-view, dispatcher, timer, interaction, and surface contracts against the
+    accepted Navigation API.
+16. [ ] **F1-NAV-WPF — Navigation.Wpf.** Finalize the matching WPF adapter and
+    base-view contracts, preserving intentional platform differences.
+
+#### F1 completion gate
+
+- [ ] Every shipped library package and the Watchdog Host deployment contract
+  has an accepted classification, current documentation, and a reviewed API or
+  protocol baseline for each supported target.
+- [ ] Every accepted breaking change has a changelog entry, migration guidance,
+  and coordinated release target; no accidental diff remains.
+- [ ] The final clean package-family candidate passes the canonical package
+  flow and external PackageReference consumer probes without `-SkipTests`.
+- [ ] The first stable family release and its baseline are declared explicitly;
+  completing module reviews alone does not publish or promise that release.
+
+**Recorded inputs — public-surface changes made before F1.** These are
+historical facts for the first candidate baseline and changelog reconciliation,
+not new implementation items.
 
 - **2026-08-03, NAV-008(c).** `NekoLib.Navigation.Wpf.Adapters.InteractionObserver`
   and `NekoLib.Navigation.Wpf.Adapters.EventSubscriptionAdapter` were removed.
@@ -357,8 +445,8 @@ and require an explicit, narrowly scoped unfreeze before modifying it.
 
 ## Explicit non-goals
 
-Outside the explicitly promoted Phase G1 boundary, and while Phase F remains
-gated, do not create a generic application host,
+Outside the explicitly active F1 and promoted Phase G1 boundaries, and while
+F2-F7 remain gated, do not create a generic application host,
 Neko-specific DI container, Microsoft DI wrapper, global service registry,
 message bus, event bus, universal exception policy, broader HTTP client
 abstraction, API gateway, ORM expansion, repository/unit-of-work framework,
