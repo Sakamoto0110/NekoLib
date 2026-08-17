@@ -347,7 +347,7 @@ consumers does not prove that a public member is unused.
    WPF consumers on both target families with zero consumer warnings. Its
    SHA-256 is
    `0C26641F8D28779665F13DB407EC07C49AF75105D3A302496F1A5C95F568167E`.
-3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
+3. [x] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
    sink, snapshot, and disposal contracts without adding global state.
    **Accepted 2026-08-17:** retain the entire compiled surface — all 5 public
    sealed types and 21 members, on both targets — as stable candidates with no
@@ -367,17 +367,23 @@ consumers does not prove that a public member is unused.
    all rejected. The accepted rationale, evidence, and rejected alternatives are
    recorded in
    [`docs/audit/logging-public-api-review-2026-08-17.md`](docs/audit/logging-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17** in `3ae27fe`. Logging passed 28/28
-   tests on `net481` and 28/28 on `net9.0`; the full solution passed
-   1,348/1,348 tests with 0 failures, 0 skips, and 0 warnings; both Logging API
-   manifests verified **unchanged**, as the accepted corrections are confined to
-   method bodies; documentation verification and diff hygiene passed; and the
-   Observability runtime scenario compiles unchanged on both target families
-   (built, not launched).
-   The package gate is **pending for Codex**: assembly bits changed, so
-   `1.0.0-local.16` is not evidence for this work and a new immutable
-   coordinated family version, PackageReference consumer probes, and
-   provenance/hash recording are still required before F1-LOG can be closed.
+   **Completed 2026-08-17:** the initial implementation landed in `3ae27fe`.
+   Independent packaging review corrected the accepted total-budget wording and
+   serialized concurrent `Flush`/`Dispose` completion in `dd0cfb8`, adding two
+   focused regressions. Logging passed 30/30 tests on `net481` and 30/30 on
+   `net9.0`; the full solution passed 1,352/1,352 tests with no failures or
+   skips; the canonical clean package rebuild emitted the existing 515-warning
+   baseline and no errors; both Logging API manifests verified **unchanged**;
+   documentation verification and diff hygiene passed; and the Observability
+   runtime scenario compiled with no warnings on both targets without being
+   launched. Immutable package
+   `NekoLib.Logging.1.0.0-local.17.nupkg` was built from
+   `dd0cfb8d9c0b69f234cb8cbe802ed8cac4b14213`, contains both supported target
+   assemblies, and declares the aligned `NekoLib.Core` dependency. The canonical
+   PackageReference-only WinForms and WPF consumers restored, built, and ran on
+   both target families with zero consumer warnings, and the remaining package,
+   deployment, publish, and clean probes passed. The package SHA-256 is
+   `8378290431CA1036BD8E70E254C6995415DC755B6A91D82D7CAEDD7802AF3991`.
 4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
    dimensions, bounded-retention, and snapshot contracts.
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,

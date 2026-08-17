@@ -2,13 +2,13 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-LOG compiled public surface, pipeline ownership, sink lifecycle,
 flush and disposal contracts, rolling-file persistence, and compatibility
 boundaries
 
-**Status:** all dispositions accepted and implemented; package gate pending
+**Status:** all dispositions accepted, implemented, and package-validated
 
 **Reference date:** 2026-08-17
 
@@ -770,3 +770,37 @@ The residual validation limits recorded above still stand, with one narrowing:
 the corrected behaviors now have executable dual-target regressions, so the
 `net9.0`-only probe limitation no longer applies to LOG-01 through LOG-05 or
 LOG-11.
+
+## Package reconciliation — 2026-08-17
+
+Independent packaging review found two pre-package inconsistencies in the
+accepted implementation. Documentation said every sink was attempted without
+stating the already accepted total-budget boundary, while the implementation
+correctly stopped admitting later flushes after budget exhaustion. More
+importantly, `Dispose` published `_disposed` before its final flush acquired the
+pipeline gate, allowing a concurrent `Flush` to report success before disposal
+completed or to reach already disposed sinks. Commit
+`dd0cfb8d9c0b69f234cb8cbe802ed8cac4b14213` aligned the wording, moved disposal
+admission under the pipeline gate, and added regressions for both budget
+exhaustion and concurrent disposal.
+
+The final Logging suite passed 30/30 on `net481` and 30/30 on `net9.0`; the full
+solution passed 1,352/1,352 tests with no failures or skips. Both Logging API
+manifests remained unchanged, documentation and diff hygiene passed, and the
+Observability scenario compiled without warnings on both targets without being
+launched. The canonical clean package build emitted the existing 515-warning
+baseline and no errors.
+
+The canonical package flow created coordinated immutable family version
+`1.0.0-local.17` from `dd0cfb8d9c0b69f234cb8cbe802ed8cac4b14213`.
+`NekoLib.Logging.1.0.0-local.17.nupkg` contains `net481` and `net9.0`
+assemblies, declares `NekoLib.Core` at the same version, records that source
+commit in its NuGet metadata, and has SHA-256
+`8378290431CA1036BD8E70E254C6995415DC755B6A91D82D7CAEDD7802AF3991`.
+
+PackageReference-only WinForms and WPF consumers restored, built, and ran on
+both target families with zero consumer warnings. The multitarget consumer,
+package structure, Watchdog Host payload, deployment opt-out, stale-payload
+replacement, publish, and clean probes also passed. This is package and
+package-consumer evidence, not a long-running application scenario; none was
+launched or required. F1-LOG is complete, and this review is historical.
