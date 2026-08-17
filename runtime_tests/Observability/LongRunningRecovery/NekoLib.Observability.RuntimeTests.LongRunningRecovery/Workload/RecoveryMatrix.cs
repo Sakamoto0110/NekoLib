@@ -406,8 +406,6 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                     check.Equal(baseline, runtime.GetDiagnostics().ProviderCount,
                         "providers after the fault's registrations were disposed");
 
-                    check.Equal(0, runtime.GetDiagnostics().ActionCount, "actions after the fault");
-
                     context.Counters.ExpectedFailure();
                     return PhaseContext.CompletedTask;
                 });

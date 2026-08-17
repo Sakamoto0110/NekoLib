@@ -86,7 +86,7 @@ optional unless one of their documented dependents brings them transitively.
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
 | `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | `NekoLib.Devices` | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
-| `NekoLib.Inspection` | Opt-in in-process runtime inspection: a bounded operation buffer, pull-based state providers, runtime diagnostics, and constrained actions. No-op when disabled. Broad module instrumentation remains frozen — see [`TODO.md`](TODO.md). |
+| [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
 Ordinary logging does not require Diagnostics or Inspection:
 
@@ -119,10 +119,13 @@ PageNavBootstrap
 
 `InspectionProvider.Current` lives in Core and defaults to
 `NullInspection.Instance`. Only one global runtime may be active. Disposing it
-restores the NO-OP and clears operations, state providers, and actions. The
-overload `UseInspection(IInspectionRecorder)` accepts an explicit non-global
-recorder. Diagnostics sees only `IInspectionSnapshotSource`, so it cannot invoke
-registered actions.
+restores the NO-OP and clears operations and state providers. The experimental
+action registry is also cleared. The overload
+`UseInspection(IInspectionRecorder)` accepts an explicit non-global recorder.
+Diagnostics sees only `IInspectionSnapshotSource`, so it cannot invoke
+registered actions. See the
+[Inspection reference](src/Inspection/NekoLib.Inspection/README.md) for identity,
+ordering, budget, lifecycle, and experimental-boundary contracts.
 
 Navigation telemetry creates one correlated `Navigation/page_switch` operation.
 It owns the page-switch start and synchronous lifecycle-completed `page_ready`
@@ -165,7 +168,7 @@ technical manual.
 | [Core](src/Core/NekoLib.Core/README.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
 | [Logging](src/Logging/NekoLib.Logging/README.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
 | [Telemetry](src/Telemetry/NekoLib.Telemetry/README.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
-| Inspection | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; at most one global runtime; broad module rollout is frozen | `NekoLib.Inspection.Tests.Unit` |
+| [Inspection](src/Inspection/NekoLib.Inspection/README.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
 | Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production and external notification are composition-owned, and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
 | Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
@@ -334,6 +337,7 @@ cycles.
 | | |
 |---|---|
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
+| Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |

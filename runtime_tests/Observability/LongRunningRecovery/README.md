@@ -34,10 +34,9 @@ that the modules are instrumented.
 - **No module emits because of this scenario.** Only Navigation has Inspection
   hooks. `Data`, `Pipes`, `Watchdog`, `Devices` and `Diagnostics` have none.
   Everything recorded here was pushed by the scenario itself.
-- **No action is registered or invoked.** The Inspection action channel and the
-  module-instrumentation rollout are frozen and explicitly out of scope. A check
-  exists solely to assert that this scenario's action count stays zero, so a
-  future run cannot quietly start proving otherwise.
+- **The experimental action surface is not referenced.** Registration,
+  discovery, invocation, and action diagnostics remain outside this passive
+  scenario. The action channel and module-instrumentation rollout are frozen.
 - **Every injected failure is scenario-owned.** The failing sinks, the blocking
   sink, the file lock and the misbehaving state providers all live in this
   project. No fault-injection or `TestControl` API was added to any product

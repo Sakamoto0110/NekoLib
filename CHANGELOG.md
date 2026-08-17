@@ -16,6 +16,21 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Inspection - behavioral and experimental pre-stable candidate
+  correction for the first `1.0.0` stable family release.** No public type,
+  member, signature, nullability annotation, default value, namespace, target,
+  or dependency was removed or changed. `RegisterAction`, `TryInvokeAction`,
+  `ActionKeys`, and `InspectionRuntimeDiagnostics.ActionCount` now carry the
+  exact `NEKOEXP0001` marker on both targets; deliberate callers gain `CS0618`
+  and must opt into this in-process experiment narrowly. Valid passive APIs
+  retain `module::key` output while rejecting blank or delimiter-ambiguous
+  identities, and identity comparison is explicitly ordinal and case-sensitive.
+  Provider invocation and key discovery now follow registration order. Repeated
+  budgeted snapshots share one outstanding task per provider registration and
+  observe late failures without adding cancellation. Invalid capacity now
+  reports `Capacity`, and clear is inert after disposal while enabled empty
+  clears still count. See the
+  [F1-INSP migration guide](docs/migrations/f1-inspection.md).
 - **NekoLib.Telemetry — behavioral pre-stable candidate correction for the first
   `1.0.0` stable family release.** No public type, member, signature,
   nullability annotation, default value, namespace, target, or dependency

@@ -24,9 +24,9 @@ namespace NekoLib.Inspection
         private readonly Queue<InspectionOperation> _operations;
         private readonly object _registryGate = new object();
         private readonly Dictionary<string, StateRegistration> _stateProviders =
-            new Dictionary<string, StateRegistration>();
+            new Dictionary<string, StateRegistration>(StringComparer.Ordinal);
         private readonly Dictionary<string, ActionRegistration> _actions =
-            new Dictionary<string, ActionRegistration>();
+            new Dictionary<string, ActionRegistration>(StringComparer.Ordinal);
         private long _nextSequence;
         private long _totalRecorded;
         private long _evictedCount;
@@ -39,7 +39,7 @@ namespace NekoLib.Inspection
         {
             var capacity = options?.Capacity ?? 1024;
             if (capacity < 1)
-                throw new ArgumentOutOfRangeException(nameof(options));
+                throw new ArgumentOutOfRangeException(nameof(InspectionOptions.Capacity));
 
             _capacity = capacity;
             _operations = new Queue<InspectionOperation>(_capacity);
@@ -83,10 +83,8 @@ namespace NekoLib.Inspection
 
         public void Record(string module, string operation, Func<object>? payload = null)
         {
-            if (module == null)
-                throw new ArgumentNullException(nameof(module));
-            if (operation == null)
-                throw new ArgumentNullException(nameof(operation));
+            ValidateModule(module, nameof(module));
+            ValidateRequired(operation, nameof(operation));
             if (!IsEnabled)
                 return;
 
@@ -124,10 +122,8 @@ namespace NekoLib.Inspection
             string key,
             Func<object> snapshot)
         {
-            if (module == null)
-                throw new ArgumentNullException(nameof(module));
-            if (key == null)
-                throw new ArgumentNullException(nameof(key));
+            ValidateModule(module, nameof(module));
+            ValidateIdentityComponent(key, nameof(key));
             if (snapshot == null)
                 throw new ArgumentNullException(nameof(snapshot));
             if (!IsEnabled)
@@ -149,15 +145,14 @@ namespace NekoLib.Inspection
             return new Unregister(() => UnregisterStateProvider(id, registrationId));
         }
 
+        [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public IDisposable RegisterAction(
             string module,
             string name,
             Func<object?, object?> action)
         {
-            if (module == null)
-                throw new ArgumentNullException(nameof(module));
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
+            ValidateModule(module, nameof(module));
+            ValidateIdentityComponent(name, nameof(name));
             if (action == null)
                 throw new ArgumentNullException(nameof(action));
             if (!IsEnabled)
@@ -202,6 +197,7 @@ namespace NekoLib.Inspection
             List<KeyValuePair<string, StateRegistration>> providers;
             lock (_registryGate)
                 providers = new List<KeyValuePair<string, StateRegistration>>(_stateProviders);
+            providers.Sort(CompareStateRegistrations);
 
             var watch = Stopwatch.StartNew();
             var state = new Dictionary<string, object>(providers.Count, StringComparer.Ordinal);
@@ -216,14 +212,17 @@ namespace NekoLib.Inspection
 
                 try
                 {
-                    var task = Task.Run(pair.Value.Snapshot);
+                    var task = pair.Value.GetOrStartSnapshot();
                     if (!task.Wait(remaining))
                     {
                         state[pair.Key] = "<snapshot timed out>";
                         continue;
                     }
 
-                    state[pair.Key] = task.Result ?? "<null>";
+                    var capture = task.Result;
+                    state[pair.Key] = capture.ExceptionType == null
+                        ? capture.Value ?? "<null>"
+                        : "<snapshot threw: " + capture.ExceptionType + ">";
                 }
                 catch (Exception ex)
                 {
@@ -250,6 +249,7 @@ namespace NekoLib.Inspection
             List<KeyValuePair<string, StateRegistration>> providers;
             lock (_registryGate)
                 providers = new List<KeyValuePair<string, StateRegistration>>(_stateProviders);
+            providers.Sort(CompareStateRegistrations);
 
             var state = new Dictionary<string, object>(providers.Count, StringComparer.Ordinal);
             foreach (var pair in providers)
@@ -274,6 +274,9 @@ namespace NekoLib.Inspection
         {
             lock (_operationGate)
             {
+                if (!IsEnabled)
+                    return;
+
                 _operations.Clear();
                 _clearCount++;
             }
@@ -318,16 +321,15 @@ namespace NekoLib.Inspection
                 actionCount);
         }
 
+        [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public bool TryInvokeAction(
             string module,
             string name,
             object? argument,
             out object? result)
         {
-            if (module == null)
-                throw new ArgumentNullException(nameof(module));
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
+            ValidateModule(module, nameof(module));
+            ValidateIdentityComponent(name, nameof(name));
 
             ActionRegistration? registration;
             lock (_registryGate)
@@ -346,13 +348,28 @@ namespace NekoLib.Inspection
         public IReadOnlyList<string> StateKeys()
         {
             lock (_registryGate)
-                return new List<string>(_stateProviders.Keys);
+            {
+                var providers = new List<KeyValuePair<string, StateRegistration>>(_stateProviders);
+                providers.Sort(CompareStateRegistrations);
+                var keys = new List<string>(providers.Count);
+                foreach (var pair in providers)
+                    keys.Add(pair.Key);
+                return keys;
+            }
         }
 
+        [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public IReadOnlyList<string> ActionKeys()
         {
             lock (_registryGate)
-                return new List<string>(_actions.Keys);
+            {
+                var actions = new List<KeyValuePair<string, ActionRegistration>>(_actions);
+                actions.Sort(CompareActionRegistrations);
+                var keys = new List<string>(actions.Count);
+                foreach (var pair in actions)
+                    keys.Add(pair.Key);
+                return keys;
+            }
         }
 
         public void Dispose()
@@ -371,7 +388,39 @@ namespace NekoLib.Inspection
                 _operations.Clear();
         }
 
+        private static int CompareStateRegistrations(
+            KeyValuePair<string, StateRegistration> left,
+            KeyValuePair<string, StateRegistration> right)
+            => left.Value.RegistrationId.CompareTo(right.Value.RegistrationId);
+
+        private static int CompareActionRegistrations(
+            KeyValuePair<string, ActionRegistration> left,
+            KeyValuePair<string, ActionRegistration> right)
+            => left.Value.RegistrationId.CompareTo(right.Value.RegistrationId);
+
         private static string Compose(string module, string name) => module + "::" + name;
+
+        private static void ValidateModule(string value, string paramName)
+        {
+            ValidateRequired(value, paramName);
+            if (value.IndexOf("::", StringComparison.Ordinal) >= 0)
+                throw new ArgumentException("Module cannot contain '::'.", paramName);
+        }
+
+        private static void ValidateIdentityComponent(string value, string paramName)
+        {
+            ValidateRequired(value, paramName);
+            if (value.IndexOf("::", StringComparison.Ordinal) >= 0)
+                throw new ArgumentException("Identity component cannot contain '::'.", paramName);
+        }
+
+        private static void ValidateRequired(string value, string paramName)
+        {
+            if (value == null)
+                throw new ArgumentNullException(paramName);
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Value cannot be empty or whitespace.", paramName);
+        }
 
         private static InvalidOperationException DuplicateRegistration(string kind, string id)
             => new InvalidOperationException("A " + kind + " is already registered for '" + id + "'.");
@@ -411,6 +460,9 @@ namespace NekoLib.Inspection
 
         private sealed class StateRegistration
         {
+            private readonly object _captureGate = new object();
+            private Task<StateCapture>? _inFlight;
+
             public StateRegistration(long registrationId, Func<object> snapshot)
             {
                 RegistrationId = registrationId;
@@ -419,6 +471,47 @@ namespace NekoLib.Inspection
 
             public long RegistrationId { get; }
             public Func<object> Snapshot { get; }
+
+            public Task<StateCapture> GetOrStartSnapshot()
+            {
+                lock (_captureGate)
+                {
+                    if (_inFlight == null || _inFlight.IsCompleted)
+                    {
+                        _inFlight = Task.Run(() =>
+                        {
+                            try
+                            {
+                                return StateCapture.FromValue(Snapshot());
+                            }
+                            catch (Exception ex)
+                            {
+                                return StateCapture.FromException(RootExceptionType(ex));
+                            }
+                        });
+                    }
+
+                    return _inFlight;
+                }
+            }
+        }
+
+        private sealed class StateCapture
+        {
+            private StateCapture(object? value, string? exceptionType)
+            {
+                Value = value;
+                ExceptionType = exceptionType;
+            }
+
+            public object? Value { get; }
+            public string? ExceptionType { get; }
+
+            public static StateCapture FromValue(object? value)
+                => new StateCapture(value, null);
+
+            public static StateCapture FromException(string exceptionType)
+                => new StateCapture(null, exceptionType);
         }
 
         private sealed class ActionRegistration

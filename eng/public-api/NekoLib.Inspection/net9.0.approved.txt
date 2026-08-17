@@ -12,6 +12,7 @@ namespace NekoLib.Inspection
     {
         public InspectionRuntime(NekoLib.Inspection.InspectionOptions? options = null) { }
         public bool IsEnabled { get; }
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", false)]
         public System.Collections.Generic.IReadOnlyList<string> ActionKeys() { }
         public NekoLib.Core.Inspection.InspectionSnapshot CaptureSnapshot(int maxOperations, System.TimeSpan timeout) { }
         public System.Collections.Generic.IReadOnlyDictionary<string, object> CaptureState() { }
@@ -20,14 +21,17 @@ namespace NekoLib.Inspection
         public NekoLib.Inspection.InspectionRuntimeDiagnostics GetDiagnostics() { }
         public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Inspection.InspectionOperation> GetOperations() { }
         public void Record(string module, string operation, System.Func<object>? payload = null) { }
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", false)]
         public System.IDisposable RegisterAction(string module, string name, System.Func<object?, object?> action) { }
         public System.IDisposable RegisterStateProvider(string module, string key, System.Func<object> snapshot) { }
         public System.Collections.Generic.IReadOnlyList<string> StateKeys() { }
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", false)]
         public bool TryInvokeAction(string module, string name, object? argument, out object? result) { }
         public static NekoLib.Inspection.InspectionRuntime EnableGlobal(NekoLib.Inspection.InspectionOptions? options = null) { }
     }
     public sealed class InspectionRuntimeDiagnostics
     {
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", false)]
         public int ActionCount { get; }
         public int Capacity { get; }
         public long ClearCount { get; }

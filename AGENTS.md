@@ -14,6 +14,7 @@ the handoff state and the rules that are easy to get wrong.
 | Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`src/Logging/NekoLib.Logging/README.md`](src/Logging/NekoLib.Logging/README.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`src/Telemetry/NekoLib.Telemetry/README.md`](src/Telemetry/NekoLib.Telemetry/README.md) |
+| Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
@@ -58,7 +59,8 @@ the handoff state and the rules that are easy to get wrong.
   it does not persist raw operations in v1.
 - Inspection retains the opt-in singleton-capable model. Module-facing
   `IInspectionRecorder` is separate from read-only
-  `IInspectionSnapshotSource`; Diagnostics cannot invoke actions.
+  `IInspectionSnapshotSource`; Diagnostics cannot invoke actions. Concrete
+  actions remain explicitly experimental and are not an authorization boundary.
 - Diagnostics owns incident evidence. Optional Logging, Telemetry, and
   Inspection sources are supplied through Core contracts, are collected with
   budgets and redaction, and may yield a partial bundle.

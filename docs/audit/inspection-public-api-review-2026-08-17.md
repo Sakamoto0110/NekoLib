@@ -8,13 +8,13 @@
 snapshot behavior, owner diagnostics, opt-in lifecycle, experimental action
 boundary, and compatibility impact
 
-**Status:** review complete; dispositions pending explicit decision
+**Status:** dispositions accepted and implemented; immutable package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `7c4d449ec3a6854b0561c8514701a1ec31fe3c35`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-INSP
 
@@ -569,3 +569,67 @@ accepts, modifies, or rejects:
   without cancellation;
 - capacity parameter-name and post-disposal-clear corrections;
 - the current Inspection technical reference and expanded regressions.
+
+## Reconciliation - 2026-08-17
+
+The user accepted every recommended disposition without modification. The
+implementation remains confined to `NekoLib.Inspection`, its direct tests and
+compiled API manifests, `TODO.md`, and current release/documentation owners.
+Core, Navigation, Diagnostics, F1-DIAG, and every frozen producer remain
+unchanged.
+
+- **INSP-01** - `RegisterAction`, `TryInvokeAction`, `ActionKeys`, and
+  `InspectionRuntimeDiagnostics.ActionCount` now carry the exact
+  `NEKOEXP0001` marker on both targets. The package wording is passive-first and
+  states that actions are not authorization.
+- **INSP-02** - required identifiers reject blank values; modules and
+  provider/action components reject `::`; valid `module::key` output remains
+  ordinal and case-sensitive. Operation names are required but are not flattened
+  registration components.
+- **INSP-03** - provider invocation, `StateKeys`, and the experimental
+  `ActionKeys` now use registration IDs as their deterministic order.
+- **INSP-04** - each registration owns at most one outstanding budgeted
+  provider task. Concurrent/repeated snapshots share it, provider failures are
+  captured as non-faulted task data even after caller timeout, and a later
+  capture can begin fresh work after completion. Timeout still never cancels
+  application code, and `CaptureState` remains direct and unbudgeted.
+- **INSP-05** - invalid capacity now reports `ParamName == "Capacity"`.
+- **INSP-06** - enabled empty clears still count and preserve lifetime state;
+  post-disposal clear is inert.
+- **INSP-07** -
+  [`src/Inspection/NekoLib.Inspection/README.md`](../../src/Inspection/NekoLib.Inspection/README.md)
+  is the current concrete-runtime owner and is indexed from repository routing
+  and documentation tables.
+- **INSP-08** - twenty-seven deterministic cases were added, taking the focused
+  suite from 13 to 40 per target. Release `net481` and `net9.0` each passed
+  40/40 with no failures or skips.
+
+The scoped baseline update and verifier produced exactly the four accepted
+`ObsoleteAttribute` additions in each target manifest. No type, member,
+signature, nullability, default, namespace, target, dependency, or assembly
+friend declaration changed, and both targets built with zero warnings and zero
+errors during the update.
+
+Consumer-visible behavior and warning impact are recorded in
+[`CHANGELOG.md`](../../CHANGELOG.md) and
+[`docs/migrations/f1-inspection.md`](../migrations/f1-inspection.md). The
+Observability scenario removed passive zero-action probes rather than opting
+into an experiment it does not exercise; its passive boundary check and README
+now state that action APIs are intentionally unreferenced. The scenario then
+built on both target families with zero warnings and zero errors. It was not
+launched.
+
+The final pre-commit gates passed. The full Release `Rebuild` completed with the
+existing 515-warning baseline and zero errors. Documentation verification found
+no new warning identity; five baseline identities were not emitted by this
+build. The full Release solution test run passed 1,438/1,438 tests with zero
+failures and zero skips. Scoped API verification passed 2/2, documentation
+verification passed with the captured build log, both Observability target
+builds remained warning-free, and staged/unstaged diff hygiene passed. These are
+build, test, contract, and documentation claims only; no runtime scenario was
+executed. The canonical immutable package campaign remains pending.
+
+Assembly bits changed, so `1.0.0-local.18` remains prior evidence only. F1-INSP
+is deliberately open and this audit remains current until Codex commits the
+implementation and completes the clean canonical package gate with a new
+immutable coordinated family version.

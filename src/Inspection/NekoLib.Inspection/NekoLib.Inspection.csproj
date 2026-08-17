@@ -13,7 +13,7 @@
 		<IsPackable>true</IsPackable>
 		<PackageId>NekoLib.Inspection</PackageId>
 		<Title>NekoLib Inspection</Title>
-		<Description>Opt-in in-process runtime inspection with bounded operations, state snapshots and constrained actions.</Description>
+		<Description>Opt-in passive in-process inspection with bounded operations and budgeted state snapshots.</Description>
 		<PackageTags>nekolib;inspection;debugging;diagnostics;desktop</PackageTags>
 
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>

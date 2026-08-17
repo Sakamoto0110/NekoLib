@@ -33,7 +33,7 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
             await LocalRuntimeCycles(context).ConfigureAwait(false);
             await GlobalEnableDisposeCycles(context).ConfigureAwait(false);
             await ConcurrentRecordAndCapture(context).ConfigureAwait(false);
-            await NoActionsRegistered(context).ConfigureAwait(false);
+            await PassiveSurfaceBoundary(context).ConfigureAwait(false);
             await OwnershipAfterDisposal(context).ConfigureAwait(false);
         }
 
@@ -320,7 +320,6 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                                 "providers after cycle " + cycle);
                         }
 
-                        check.Equal(0, runtime.GetDiagnostics().ActionCount, "actions this scenario registered");
                         check.Note(cycles + " cycles of " + perCycle +
                                    " registrations returned to a provider count of " + baseline +
                                    ", including after double disposal");
@@ -363,12 +362,11 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                         InspectionRuntimeDiagnostics after = runtime.GetDiagnostics();
                         check.That(!after.IsEnabled, "a disposed runtime in cycle " + cycle + " still reports enabled");
                         check.Equal(0, after.ProviderCount, "providers left after cycle " + cycle);
-                        check.Equal(0, after.ActionCount, "actions left after cycle " + cycle);
                         check.Equal(0, after.RetainedCount, "operations left after cycle " + cycle);
                     }
 
-                    check.Note(cycles + " local runtimes created, used and disposed; each ended with no provider, " +
-                               "no action and no retained operation, and a second Dispose was harmless");
+                    check.Note(cycles + " local runtimes created, used and disposed; each ended with no provider " +
+                               "and no retained operation, and a second Dispose was harmless");
 
                     context.Counters.Success();
                     return PhaseContext.CompletedTask;
@@ -531,10 +529,10 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                 });
         }
 
-        private static Task NoActionsRegistered(PhaseContext context)
+        private static Task PassiveSurfaceBoundary(PhaseContext context)
         {
-            return context.Runner.RunAsync(Phase, "no-actions-registered",
-                "this scenario registers no action and its action count stays zero throughout",
+            return context.Runner.RunAsync(Phase, "passive-surface-boundary",
+                "this scenario exercises only passive operation and state-provider surfaces",
                 check =>
                 {
                     using (InspectionRuntime runtime = new InspectionRuntime(
@@ -548,22 +546,12 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
 
                             runtime.CaptureSnapshot(int.MaxValue, TimeSpan.FromSeconds(2));
 
-                            check.Equal(0, runtime.GetDiagnostics().ActionCount, "registered actions");
-                            check.Equal(0, runtime.ActionKeys().Count, "action keys");
                             check.Equal(1, runtime.StateKeys().Count, "state keys");
-
-                            // Nothing to invoke, and asking must simply say so.
-                            object? result;
-                            check.That(!runtime.TryInvokeAction("scenario", "anything", null, out result),
-                                "TryInvokeAction found an action this scenario never registered");
-                            check.That(result == null, "a refused invocation returned a result");
                         }
-
-                        check.Equal(0, runtime.GetDiagnostics().ActionCount, "actions after unregistering the provider");
                     }
 
-                    check.Note("action invocation and the module-instrumentation rollout are frozen and out of scope; " +
-                               "this check exists so a run cannot quietly start proving otherwise");
+                    check.Note("the experimental action surface is intentionally not referenced; " +
+                               "action adoption and the module-instrumentation rollout remain out of scope");
 
                     context.Counters.Success();
                     return PhaseContext.CompletedTask;
@@ -590,7 +578,6 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                     check.That(!runtime.IsEnabled, "a disposed runtime reports itself enabled");
                     check.Equal(0, runtime.GetOperations().Count, "operations after disposal");
                     check.Equal(0, runtime.GetDiagnostics().ProviderCount, "providers after disposal");
-                    check.Equal(0, runtime.GetDiagnostics().ActionCount, "actions after disposal");
 
                     long recordedBefore = runtime.GetDiagnostics().TotalRecorded;
                     runtime.Record("scenario", "after-disposal");

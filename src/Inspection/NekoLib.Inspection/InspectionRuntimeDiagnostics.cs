@@ -2,6 +2,8 @@ namespace NekoLib.Inspection
 {
     public sealed class InspectionRuntimeDiagnostics
     {
+        private readonly int _actionCount;
+
         internal InspectionRuntimeDiagnostics(
             bool isEnabled,
             int capacity,
@@ -23,7 +25,7 @@ namespace NekoLib.Inspection
             OldestSequence = oldestSequence;
             NewestSequence = newestSequence;
             ProviderCount = providerCount;
-            ActionCount = actionCount;
+            _actionCount = actionCount;
         }
 
         public bool IsEnabled { get; }
@@ -35,6 +37,7 @@ namespace NekoLib.Inspection
         public long? OldestSequence { get; }
         public long? NewestSequence { get; }
         public int ProviderCount { get; }
-        public int ActionCount { get; }
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
+        public int ActionCount => _actionCount;
     }
 }

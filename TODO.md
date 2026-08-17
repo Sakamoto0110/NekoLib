@@ -426,6 +426,19 @@ consumers does not prove that a public member is unused.
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
    snapshot-source, provider, and opt-in lifecycle surface without unfreezing
    broad module instrumentation or privileged actions.
+   - **Accepted 2026-08-17:** keep the three concrete public types and their
+     passive recorder, snapshot, diagnostics, provider-registration, and
+     opt-in global lifecycle members stable. Keep only `RegisterAction`,
+     `TryInvokeAction`, `ActionKeys`, and `InspectionRuntimeDiagnostics.ActionCount`
+     explicitly experimental under `NEKOEXP0001`; do not expand the action
+     channel or introduce remote/control infrastructure. Tighten identity
+     validation, preserve ordinal case-sensitive `module::key` identities,
+     expose provider and key order by registration, share one outstanding
+     budgeted capture task per provider registration, make post-disposal clear
+     inert, correct the capacity exception parameter, and retain the internal
+     post-install hook solely for deterministic lifecycle testing. Completion
+     remains pending implementation, dual-target/API/docs gates, and canonical
+     immutable package validation.
 6. [ ] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
    dump-writer, external notification, ownership, and partial-evidence
    contracts.

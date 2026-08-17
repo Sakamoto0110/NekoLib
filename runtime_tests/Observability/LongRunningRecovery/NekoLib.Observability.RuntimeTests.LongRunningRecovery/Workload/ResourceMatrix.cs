@@ -134,9 +134,6 @@ namespace NekoLib.Observability.RuntimeTests.LongRunningRecovery.Workload
                     check.Equal(0, context.Workspace.Inspection.GetDiagnostics().ProviderCount,
                         "state providers still registered on the shared runtime at the end");
 
-                    check.Equal(0, context.Workspace.Inspection.GetDiagnostics().ActionCount,
-                        "actions registered at the end");
-
                     return PhaseContext.CompletedTask;
                 });
         }
