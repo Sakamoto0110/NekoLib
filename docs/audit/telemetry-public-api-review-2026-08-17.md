@@ -2,13 +2,13 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-TEL compiled public surface, pipeline and options ownership,
 operation lifecycle, dimension and measurement semantics, bounded retention,
 snapshot and sink-dispatch contracts, and compatibility boundaries
 
-**Status:** all dispositions accepted and implemented; package gate pending
+**Status:** all dispositions accepted, implemented, and package-validated
 
 **Reference date:** 2026-08-17
 
@@ -677,3 +677,27 @@ TEL-01, TEL-02, TEL-03, TEL-06, TEL-07, TEL-11, TEL-12, and TEL-14 now have
 executable dual-target regressions, so the `net9.0`-only probe limitation no
 longer applies to them. TEL-04, TEL-05, TEL-09, TEL-10, and TEL-13 remain
 documented behavior backed by probe observation rather than by a regression.
+
+## Package reconciliation — 2026-08-17
+
+An independent review of the accepted implementation found no additional
+product defect or contract mismatch. The final Telemetry suite passed 22/22 on
+`net481` and 22/22 on `net9.0`; both compiled API manifests remained unchanged.
+The canonical clean package flow passed the full solution's 1,384/1,384 tests
+with no failures or skips, built with the existing 515-warning baseline and no
+errors, and preserved a clean tracked worktree.
+
+The canonical package flow created coordinated immutable family version
+`1.0.0-local.18` from
+`518c078abc9bd9b340fbb7200470de47cde93452`.
+`NekoLib.Telemetry.1.0.0-local.18.nupkg` contains `net481` and `net9.0`
+assemblies, declares `NekoLib.Core` at the same version, records that source
+commit in its NuGet metadata, and has SHA-256
+`8B3DDABA5B16A91D0518258B8246022688E3E8E042BF03BC079A7D4AFE9BA185`.
+
+PackageReference-only WinForms and WPF consumers restored, built, and ran on
+both target families with zero consumer warnings. The multitarget consumer,
+package structure, Watchdog Host payload, deployment opt-out, stale-payload
+replacement, publish, and clean probes also passed. This is package and
+package-consumer evidence, not a long-running application scenario; none was
+launched or required. F1-TEL is complete, and this review is historical.

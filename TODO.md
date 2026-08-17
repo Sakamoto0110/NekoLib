@@ -384,7 +384,7 @@ consumers does not prove that a public member is unused.
    both target families with zero consumer warnings, and the remaining package,
    deployment, publish, and clean probes passed. The package SHA-256 is
    `8378290431CA1036BD8E70E254C6995415DC755B6A91D82D7CAEDD7802AF3991`.
-4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
+4. [x] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
    dimensions, bounded-retention, and snapshot contracts.
    **Accepted 2026-08-17:** retain the entire compiled surface — both public
    sealed types and all 5 members, on both targets — as stable candidates with
@@ -408,18 +408,21 @@ consumers does not prove that a public member is unused.
    all rejected. No Core-contract conflict was found. The accepted rationale,
    evidence, and rejected alternatives are recorded in
    [`docs/audit/telemetry-public-api-review-2026-08-17.md`](docs/audit/telemetry-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17** in `4934859`. Telemetry passed 22/22
-   tests on `net481` and 22/22 on `net9.0`; the full solution passed
-   1,384/1,384 tests with 0 failures, 0 skips, and 0 warnings; both Telemetry
-   API manifests verified **unchanged**, as the accepted corrections are
-   confined to method bodies; the full Release rebuild emitted 515 existing
-   warning occurrences with no new normalized identity; documentation
-   verification and diff hygiene passed; and the Observability runtime scenario
-   compiles unchanged on both target families (built, not launched).
-   The package gate is **pending for Codex**: assembly bits changed, so
-   `1.0.0-local.17` is not evidence for this work and a new immutable
-   coordinated family version, PackageReference consumer probes, and
-   provenance/hash recording are still required before F1-TEL can be closed.
+   **Completed 2026-08-17:** implementation landed in `4934859`, with final
+   implementation validation recorded in `518c078`. Telemetry passed 22/22
+   tests on `net481` and 22/22 on `net9.0`; the canonical clean package flow
+   passed the full 1,384/1,384-test solution with no failures or skips and built
+   with the existing 515-warning baseline and no errors. Both Telemetry API
+   manifests verified **unchanged**, documentation verification and diff hygiene
+   passed, and the Observability runtime scenario compiled unchanged on both
+   target families without being launched. Immutable package
+   `NekoLib.Telemetry.1.0.0-local.18.nupkg` was built from
+   `518c078abc9bd9b340fbb7200470de47cde93452`, contains both supported target
+   assemblies, and declares the aligned `NekoLib.Core` dependency. The canonical
+   PackageReference-only WinForms and WPF consumers restored, built, and ran on
+   both target families with zero consumer warnings; the multitarget, package,
+   deployment, publish, and clean probes also passed. The package SHA-256 is
+   `8B3DDABA5B16A91D0518258B8246022688E3E8E042BF03BC079A7D4AFE9BA185`.
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
    snapshot-source, provider, and opt-in lifecycle surface without unfreezing
    broad module instrumentation or privileged actions.
