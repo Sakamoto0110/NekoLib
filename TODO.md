@@ -311,6 +311,15 @@ consumers does not prove that a public member is unused.
    compatibility. Unconstrained deletes are fail-closed by default and require
    the statement-local `AllowAllRowsDelete()` opt-in. Tracked Data scenarios
    must use the builder, including explicit opt-in at intentional table wipes.
+   **Follow-up completed 2026-08-17:** implementation landed in `89d1ed1`.
+   Data passed 119/119 tests on `net481` and 127/127 on `net9.0`; the full
+   solution passed 1296/1296 tests; both Data API manifests and documentation
+   verification passed; and the Farm and SQL Server scenarios compile on both
+   target families. Immutable package `NekoLib.Data.1.0.0-local.15.nupkg` was
+   built from `89d1ed1bbc7b4a42533150e808e4a03f868aff30`, and the
+   PackageReference-only consumers passed on both targets with zero consumer
+   warnings. Its SHA-256 is
+   `977D8F3DAABB63ECF3855F1F43ED60CCD8DE40E5981591B6E5F9DC7F266B8E70`.
 2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
