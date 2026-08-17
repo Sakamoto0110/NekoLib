@@ -16,7 +16,7 @@ F1 decision gate
 
 **Reference commit:** `a6af985245180bf1d5aa4581dbeb3352fee3e885`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17 — DEV-01 remedy revised at the decision gate
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-DEV
 
@@ -711,3 +711,113 @@ DEV-08, and DEV-10 through DEV-14 are recommended as documentation-only, with a
 new module reference. DEV-15 is recommended as test-only. The historical audit is
 fully reconciled and closed. Nothing here may be implemented until the
 consolidated F1 decision gate accepts or modifies these dispositions.
+
+## Reconciliation — 2026-08-17: DEV-01 remedy revised
+
+The observed facts, evidence, and probe results recorded above are unchanged and
+remain the snapshot. This section records a revision to **the recommended remedy
+for DEV-01 only**, made during the consolidated F1 decision gate after an impact
+analysis that the original disposition had not performed. Nothing else in this
+review is affected, and no product code was changed by this reconciliation.
+
+### Why the original remedy was withdrawn
+
+The original DEV-01 disposition recommended an opt-in pre-write drain in
+`HardwareEngine`. Impact analysis found two defects in that proposal:
+
+1. **It does not close the hazard.** The sequence would be
+   `drain → write → read`. A late reply from operation *N-1* arriving between the
+   drain and the read still satisfies operation *N*. The drain narrows the window;
+   it never eliminates it. The original text claimed a stronger outcome than the
+   mechanism delivers.
+2. **It costs the most public surface of any option.** `ICommTransport` has no
+   discard member, and adding one would break every custom transport
+   implementation — which the Devices skill explicitly protects. Reusing the
+   existing interface is not viable either: `ReadAll(0, 0)` drains
+   `StreamCommTransport`, because `Remaining(0, …)` returns `0` after one
+   `TakeAvailable`, but is a silent no-op on `SerialCommTransport`, whose loop
+   condition `sw.ElapsedMilliseconds < timeoutMs` never executes at zero. A drain
+   would therefore require a new optional interface plus an engine switch, and
+   would still be inert for any transport that did not adopt it.
+
+### Revised remedy — close the transport when no bytes were received
+
+`HardwareEngine` already has the trigger and the mechanism it needs, with no new
+interface:
+
+- the engine sees `rspBytes == null` directly, which is the transport-level
+  signal that nothing arrived within the budget
+  ([`HardwareEngine.cs:186`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L186));
+- `ICommTransport.Close()` already exists
+  ([`ISerialCommTransport.cs:64`](../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L64));
+- the next `SendAsync` reopens, because `ExecuteCore` opens whenever
+  `!_transport.IsOpen`
+  ([`HardwareEngine.cs:169`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L169));
+- `StreamCommTransport.OpenCore` clears `_receiveBuffer` on every open
+  ([`StreamCommTransport.cs:432`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L432)),
+  so the reopened transport starts from a verified clean boundary.
+
+The accepted remedy is therefore a single opt-in `HardwareEngine` property,
+default **off**, named for its trigger rather than for a timeout — `ReadAll`
+returns `null` both when the budget expires and when the connection closed with
+nothing buffered, and `"NoResponse"` is already the vocabulary `ProtocolRaw` uses
+for that outcome
+([`ProtocolRaw.cs:160`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L160)).
+When enabled, the engine closes the transport after an operation that received no
+bytes, so the next operation cannot inherit a late reply.
+
+**Serial half.** `SerialCommTransport.OpenCore` only calls `_port.Open()`
+([`SerialCommTransport.cs:439`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L439));
+unlike the stream transport it performs no explicit discard. To make the
+close/reopen boundary symmetric, the implementation should also call
+`SerialPort.DiscardInBuffer()` after a successful open. A freshly opened port
+carrying no stale data is the defensible contract, and this makes the guarantee
+explicit rather than dependent on OS handle semantics.
+
+### Comparison recorded for the decision
+
+| | Withdrawn: pre-write drain | Accepted: close on no response |
+|---|---|---|
+| New public surface | optional interface + member + engine property | one engine property |
+| Risk to custom transports | inert unless they adopt the interface | none |
+| Closes the hazard | no — narrows the window | yes, on reopen |
+| Runtime cost | negligible | one reconnect per empty response |
+| Unsolicited/push traffic | discarded when enabled | preserved |
+| Serial coverage | needs `DiscardInBuffer` in the new interface | needs `DiscardInBuffer` on open |
+
+### Consequences to carry into implementation
+
+- **Default off, so the default behavior is unchanged.** Every existing consumer,
+  test, and the com0com scenario are unaffected unless they opt in.
+- **Enabled, a protocol with legitimate fire-and-forget commands reconnects after
+  every unanswered operation.** That is the reason the switch is opt-in and must
+  be documented as such.
+- **Enabled, a failed reconnection changes the next operation's failure mode**
+  from "no response" to the transport's connect error, surfaced through the
+  DEV-03 failure evidence. This must be stated in the module reference.
+- The `TcpCommTransport` and `NamedPipeCommTransport` defaults of
+  `ConnectTimeout = 5000` bound that reconnection.
+- No deadlock is introduced: `ReadAll` releases the transport gate before
+  `ExecuteCore` would call `Close()`, and the engine's own operation gate is a
+  different primitive.
+
+### What this supersedes and what it does not
+
+This section supersedes the DEV-01 recommended disposition, its row in the
+"Likely migration cost" table, and step 2 of the proposed implementation block,
+in each case only as they concern DEV-01. The DEV-01 evidence, the probe output,
+the `SerialCommTransport` exposure recorded as unverified, and every other
+finding stand exactly as written.
+
+The residual limits also stand: the revised remedy's clean-boundary guarantee is
+**verified only for stream transports**, where `OpenCore` clears the buffer
+explicitly. The serial equivalent depends on handle semantics plus the proposed
+`DiscardInBuffer` call and remains unverified, because no serial port was opened
+by this review.
+
+The rejected alternatives list gains one entry: **the opt-in pre-write drain**,
+rejected for the two reasons above. Documentation-only — stating that a timed-out
+operation leaves the transport in an indeterminate receive state and that
+`Close()` is the caller's remedy — remains the fallback if the decision gate
+declines any new public surface in this module; the hazard then stays real but
+stops being invisible.
