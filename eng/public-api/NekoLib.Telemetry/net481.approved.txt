@@ -1,0 +1,15 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+namespace NekoLib.Telemetry
+{
+    public sealed class TelemetryPipeline : NekoLib.Core.Telemetry.ITelemetry, NekoLib.Core.Telemetry.ITelemetrySnapshotSource
+    {
+        public TelemetryPipeline(NekoLib.Telemetry.TelemetryPipelineOptions? options = null, params NekoLib.Core.Telemetry.ITelemetrySink[]? sinks) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Telemetry.TelemetryOperation> GetRecentOperations(int maxOperations) { }
+        public NekoLib.Core.Telemetry.ITelemetryOperation StartOperation(string module, string name, string? operationId = null, string? parentOperationId = null, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null) { }
+    }
+    public sealed class TelemetryPipelineOptions
+    {
+        public TelemetryPipelineOptions() { }
+        public int RecentOperationCapacity { get; set; }
+    }
+}

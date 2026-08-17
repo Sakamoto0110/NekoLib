@@ -1,0 +1,42 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NekoLib.Inspection.Tests.Unit")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+namespace NekoLib.Inspection
+{
+    public sealed class InspectionOptions
+    {
+        public InspectionOptions() { }
+        public int Capacity { get; set; }
+    }
+    public sealed class InspectionRuntime : NekoLib.Core.Inspection.IInspectionRecorder, NekoLib.Core.Inspection.IInspectionSnapshotSource, System.IDisposable
+    {
+        public InspectionRuntime(NekoLib.Inspection.InspectionOptions? options = null) { }
+        public bool IsEnabled { get; }
+        public System.Collections.Generic.IReadOnlyList<string> ActionKeys() { }
+        public NekoLib.Core.Inspection.InspectionSnapshot CaptureSnapshot(int maxOperations, System.TimeSpan timeout) { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> CaptureState() { }
+        public void ClearOperations() { }
+        public void Dispose() { }
+        public NekoLib.Inspection.InspectionRuntimeDiagnostics GetDiagnostics() { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Inspection.InspectionOperation> GetOperations() { }
+        public void Record(string module, string operation, System.Func<object>? payload = null) { }
+        public System.IDisposable RegisterAction(string module, string name, System.Func<object?, object?> action) { }
+        public System.IDisposable RegisterStateProvider(string module, string key, System.Func<object> snapshot) { }
+        public System.Collections.Generic.IReadOnlyList<string> StateKeys() { }
+        public bool TryInvokeAction(string module, string name, object? argument, out object? result) { }
+        public static NekoLib.Inspection.InspectionRuntime EnableGlobal(NekoLib.Inspection.InspectionOptions? options = null) { }
+    }
+    public sealed class InspectionRuntimeDiagnostics
+    {
+        public int ActionCount { get; }
+        public int Capacity { get; }
+        public long ClearCount { get; }
+        public long EvictedCount { get; }
+        public bool IsEnabled { get; }
+        public long? NewestSequence { get; }
+        public long? OldestSequence { get; }
+        public int ProviderCount { get; }
+        public int RetainedCount { get; }
+        public long TotalRecorded { get; }
+    }
+}

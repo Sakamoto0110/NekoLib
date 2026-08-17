@@ -1,0 +1,170 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+namespace NekoLib.Core
+{
+    public static class Disposable
+    {
+        public static System.IDisposable Empty { get; }
+    }
+}
+namespace NekoLib.Core.Inspection
+{
+    public interface IInspectionRecorder
+    {
+        bool IsEnabled { get; }
+        void Record(string module, string operation, System.Func<object>? payload = null);
+        System.IDisposable RegisterAction(string module, string name, System.Func<object?, object?> action);
+        System.IDisposable RegisterStateProvider(string module, string key, System.Func<object> snapshot);
+    }
+    public interface IInspectionSnapshotSource
+    {
+        NekoLib.Core.Inspection.InspectionSnapshot CaptureSnapshot(int maxOperations, System.TimeSpan timeout);
+    }
+    public sealed class InspectionOperation
+    {
+        public InspectionOperation(long sequence, System.DateTime timestampUtc, string module, string operation, object? payload) { }
+        public string Module { get; }
+        public string Operation { get; }
+        public object? Payload { get; }
+        public long Sequence { get; }
+        public System.DateTime TimestampUtc { get; }
+        public override string ToString() { }
+    }
+    public static class InspectionProvider
+    {
+        public static NekoLib.Core.Inspection.IInspectionRecorder Current { get; }
+        public static System.IDisposable Install(NekoLib.Core.Inspection.IInspectionRecorder inspection) { }
+    }
+    public sealed class InspectionSnapshot
+    {
+        public InspectionSnapshot(System.DateTime capturedUtc, System.Collections.Generic.IReadOnlyList<NekoLib.Core.Inspection.InspectionOperation> operations, System.Collections.Generic.IReadOnlyDictionary<string, object> state, int capacity, long totalRecorded, long evictedCount) { }
+        public int Capacity { get; }
+        public System.DateTime CapturedUtc { get; }
+        public long EvictedCount { get; }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Inspection.InspectionOperation> Operations { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> State { get; }
+        public long TotalRecorded { get; }
+    }
+    public sealed class NullInspection : NekoLib.Core.Inspection.IInspectionRecorder, NekoLib.Core.Inspection.IInspectionSnapshotSource
+    {
+        public static readonly NekoLib.Core.Inspection.NullInspection Instance;
+        public bool IsEnabled { get; }
+        public NekoLib.Core.Inspection.InspectionSnapshot CaptureSnapshot(int maxOperations, System.TimeSpan timeout) { }
+        public void Record(string module, string operation, System.Func<object>? payload = null) { }
+        public System.IDisposable RegisterAction(string module, string name, System.Func<object?, object?> action) { }
+        public System.IDisposable RegisterStateProvider(string module, string key, System.Func<object> snapshot) { }
+    }
+}
+namespace NekoLib.Core.Logging
+{
+    public interface IFlushableLogSink : NekoLib.Core.Logging.ILogSink
+    {
+        void Flush();
+    }
+    public interface ILogFlusher
+    {
+        bool Flush(System.TimeSpan timeout);
+    }
+    public interface ILogSink
+    {
+        void Write(NekoLib.Core.Logging.LogEntry entry);
+    }
+    public interface ILogSnapshotSource
+    {
+        System.Collections.Generic.IReadOnlyList<NekoLib.Core.Logging.LogEntry> GetRecentEntries(int maxEntries);
+    }
+    public interface ILogger
+    {
+        void Log(NekoLib.Core.Logging.LogLevel level, string message, System.Exception? exception = null, string? category = null);
+    }
+    public sealed class LogEntry
+    {
+        public LogEntry(System.DateTime timestampUtc, NekoLib.Core.Logging.LogLevel level, string message, System.Exception? exception = null, string? category = null) { }
+        public string? Category { get; }
+        public System.Exception? Exception { get; }
+        public NekoLib.Core.Logging.LogLevel Level { get; }
+        public string Message { get; }
+        public System.DateTime TimestampUtc { get; }
+        public override string ToString() { }
+    }
+    public enum LogLevel
+    {
+        Trace = 0,
+        Debug = 1,
+        Info = 2,
+        Warn = 3,
+        Error = 4,
+        Fatal = 5,
+    }
+    public static class LoggerExtensions
+    {
+        public static void Debug(this NekoLib.Core.Logging.ILogger logger, string message, string? category = null) { }
+        public static void Error(this NekoLib.Core.Logging.ILogger logger, string message, System.Exception? exception = null, string? category = null) { }
+        public static void Fatal(this NekoLib.Core.Logging.ILogger logger, string message, System.Exception? exception = null, string? category = null) { }
+        public static void Info(this NekoLib.Core.Logging.ILogger logger, string message, string? category = null) { }
+        public static void Trace(this NekoLib.Core.Logging.ILogger logger, string message, string? category = null) { }
+        public static void Warn(this NekoLib.Core.Logging.ILogger logger, string message, string? category = null) { }
+    }
+    public sealed class NullLogger : NekoLib.Core.Logging.ILogFlusher, NekoLib.Core.Logging.ILogSnapshotSource, NekoLib.Core.Logging.ILogger
+    {
+        public static readonly NekoLib.Core.Logging.NullLogger Instance;
+        public bool Flush(System.TimeSpan timeout) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Logging.LogEntry> GetRecentEntries(int maxEntries) { }
+        public void Log(NekoLib.Core.Logging.LogLevel level, string message, System.Exception? exception = null, string? category = null) { }
+    }
+}
+namespace NekoLib.Core.Telemetry
+{
+    public interface ITelemetry
+    {
+        NekoLib.Core.Telemetry.ITelemetryOperation StartOperation(string module, string name, string? operationId = null, string? parentOperationId = null, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null);
+    }
+    public interface ITelemetryOperation
+    {
+        bool IsCompleted { get; }
+        string OperationId { get; }
+        System.TimeSpan Checkpoint(string name, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null);
+        void Complete(NekoLib.Core.Telemetry.TelemetryOutcome outcome, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null, System.Collections.Generic.IReadOnlyDictionary<string, double>? measurements = null);
+    }
+    public interface ITelemetrySink
+    {
+        void Write(NekoLib.Core.Telemetry.TelemetryOperation operation);
+    }
+    public interface ITelemetrySnapshotSource
+    {
+        System.Collections.Generic.IReadOnlyList<NekoLib.Core.Telemetry.TelemetryOperation> GetRecentOperations(int maxOperations);
+    }
+    public sealed class NullTelemetry : NekoLib.Core.Telemetry.ITelemetry, NekoLib.Core.Telemetry.ITelemetrySnapshotSource
+    {
+        public static readonly NekoLib.Core.Telemetry.NullTelemetry Instance;
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Telemetry.TelemetryOperation> GetRecentOperations(int maxOperations) { }
+        public NekoLib.Core.Telemetry.ITelemetryOperation StartOperation(string module, string name, string? operationId = null, string? parentOperationId = null, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null) { }
+    }
+    public sealed class TelemetryCheckpoint
+    {
+        public TelemetryCheckpoint(string name, System.TimeSpan elapsed, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null) { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> Dimensions { get; }
+        public System.TimeSpan Elapsed { get; }
+        public string Name { get; }
+    }
+    public sealed class TelemetryOperation
+    {
+        public TelemetryOperation(System.DateTime startedUtc, string module, string name, string operationId, string? parentOperationId, NekoLib.Core.Telemetry.TelemetryOutcome outcome, System.TimeSpan duration, System.Collections.Generic.IReadOnlyList<NekoLib.Core.Telemetry.TelemetryCheckpoint>? checkpoints = null, System.Collections.Generic.IReadOnlyDictionary<string, object>? dimensions = null, System.Collections.Generic.IReadOnlyDictionary<string, double>? measurements = null) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Telemetry.TelemetryCheckpoint> Checkpoints { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> Dimensions { get; }
+        public System.TimeSpan Duration { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, double> Measurements { get; }
+        public string Module { get; }
+        public string Name { get; }
+        public string OperationId { get; }
+        public NekoLib.Core.Telemetry.TelemetryOutcome Outcome { get; }
+        public string? ParentOperationId { get; }
+        public System.DateTime StartedUtc { get; }
+    }
+    public enum TelemetryOutcome
+    {
+        Unknown = 0,
+        Succeeded = 1,
+        Failed = 2,
+        Cancelled = 3,
+    }
+}

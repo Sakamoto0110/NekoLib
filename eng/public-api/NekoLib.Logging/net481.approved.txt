@@ -1,0 +1,43 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+namespace NekoLib.Logging
+{
+    public sealed class Logger : NekoLib.Core.Logging.ILogFlusher, NekoLib.Core.Logging.ILogSnapshotSource, NekoLib.Core.Logging.ILogger, System.IDisposable
+    {
+        public Logger(NekoLib.Core.Logging.LogLevel minLevel, params NekoLib.Core.Logging.ILogSink[]? sinks) { }
+        public Logger(NekoLib.Logging.LoggerOptions? options = null, params NekoLib.Core.Logging.ILogSink[]? sinks) { }
+        public void Dispose() { }
+        public bool Flush(System.TimeSpan timeout) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Core.Logging.LogEntry> GetRecentEntries(int maxEntries) { }
+        public void Log(NekoLib.Core.Logging.LogLevel level, string message, System.Exception? exception = null, string? category = null) { }
+    }
+    public sealed class LoggerOptions
+    {
+        public LoggerOptions() { }
+        public bool DisposeSinks { get; set; }
+        public NekoLib.Core.Logging.LogLevel MinimumLevel { get; set; }
+        public int RecentEntryCapacity { get; set; }
+    }
+}
+namespace NekoLib.Logging.Sinks
+{
+    public sealed class DebugLogSink : NekoLib.Core.Logging.ILogSink
+    {
+        public DebugLogSink() { }
+        public void Write(NekoLib.Core.Logging.LogEntry entry) { }
+    }
+    public sealed class RollingFileLogSink : NekoLib.Core.Logging.IFlushableLogSink, NekoLib.Core.Logging.ILogSink
+    {
+        public RollingFileLogSink(NekoLib.Logging.Sinks.RollingFileLogSinkOptions options) { }
+        public string FilePath { get; }
+        public void Flush() { }
+        public void Write(NekoLib.Core.Logging.LogEntry entry) { }
+    }
+    public sealed class RollingFileLogSinkOptions
+    {
+        public RollingFileLogSinkOptions() { }
+        public System.Text.Encoding Encoding { get; set; }
+        public string FilePath { get; set; }
+        public long MaximumFileBytes { get; set; }
+        public int RetainedFileCount { get; set; }
+    }
+}

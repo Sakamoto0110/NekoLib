@@ -1,0 +1,179 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NekoLib.Pipes.Tests.Unit")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8.1", FrameworkDisplayName=".NET Framework 4.8.1")]
+namespace NekoLib.Pipes
+{
+    public interface IPipeMetrics
+    {
+        void OnClientConnect(string pipeName, System.TimeSpan elapsed, bool ok, string? errorCode);
+        void OnClientRequest(string pipeName, string name);
+        void OnClientResponse(string pipeName, string name, bool ok, System.TimeSpan elapsed, string? errorCode);
+        void OnError(string pipeName, string @where, System.Exception ex);
+        void OnServerClientConnected(string pipeName);
+        void OnServerClientDisconnected(string pipeName);
+        void OnServerEventPublished(string pipeName, string eventName, int subscribers, int success, int failed);
+        void OnServerRequestReceived(string pipeName, string name);
+        void OnServerResponseSent(string pipeName, string name, bool ok, System.TimeSpan elapsed);
+        NekoLib.Pipes.PipeMetricsSnapshot? Snapshot();
+    }
+    public sealed class NoopPipeMetrics : NekoLib.Pipes.IPipeMetrics
+    {
+        public static readonly NekoLib.Pipes.NoopPipeMetrics Instance;
+        public NoopPipeMetrics() { }
+        public void OnClientConnect(string pipeName, System.TimeSpan elapsed, bool ok, string? errorCode) { }
+        public void OnClientRequest(string pipeName, string name) { }
+        public void OnClientResponse(string pipeName, string name, bool ok, System.TimeSpan elapsed, string? errorCode) { }
+        public void OnError(string pipeName, string @where, System.Exception ex) { }
+        public void OnServerClientConnected(string pipeName) { }
+        public void OnServerClientDisconnected(string pipeName) { }
+        public void OnServerEventPublished(string pipeName, string eventName, int subscribers, int success, int failed) { }
+        public void OnServerRequestReceived(string pipeName, string name) { }
+        public void OnServerResponseSent(string pipeName, string name, bool ok, System.TimeSpan elapsed) { }
+    }
+    public enum PipeAccessPolicy
+    {
+        PlatformDefault = 0,
+        CurrentUserOnly = 1,
+    }
+    public sealed class PipeClient : System.IDisposable
+    {
+        public PipeClient(NekoLib.Pipes.PipeClientOptions options) { }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task<NekoLib.Pipes.PipeMessage> SendAsync(string name, object? payload = null, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class PipeClientOptions
+    {
+        public PipeClientOptions() { }
+        public System.TimeSpan ConnectTimeout { get; set; }
+        public int MaxMessageBytes { get; set; }
+        public NekoLib.Pipes.IPipeMetrics? Metrics { get; set; }
+        public string PipeName { get; set; }
+        public System.TimeSpan RequestTimeout { get; set; }
+    }
+    public sealed class PipeError
+    {
+        public PipeError() { }
+        public string Code { get; set; }
+        public string Message { get; set; }
+    }
+    public sealed class PipeEventClient : System.IDisposable
+    {
+        public PipeEventClient(string basePipeName) { }
+        public bool AutoReconnect { get; set; }
+        public System.TimeSpan ConnectTimeout { get; set; }
+        public System.TimeSpan ReconnectDelay { get; set; }
+        public event System.Action? OnConnected;
+        public event System.Action? OnDisconnected;
+        public event System.Action<NekoLib.Pipes.PipeMessage>? OnEvent;
+        public void Dispose() { }
+        public void Start() { }
+    }
+    public sealed class PipeEventHub : System.IDisposable
+    {
+        public PipeEventHub(string basePipeName, int maxSubscribers, NekoLib.Pipes.IPipeMetrics? metrics = null) { }
+        public PipeEventHub(string basePipeName, int maxSubscribers, NekoLib.Pipes.PipeAccessPolicy accessPolicy, NekoLib.Pipes.IPipeMetrics? metrics = null) { }
+        public PipeEventHub(string basePipeName, int maxSubscribers, NekoLib.Pipes.PipeAccessPolicy accessPolicy, int subscriberQueueCapacity, NekoLib.Pipes.PipeEventQueueOverflowPolicy overflowPolicy, NekoLib.Pipes.IPipeMetrics? metrics = null) { }
+        public int SubscriberCount { get; }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task PublishAsync(string eventName, object? payload, System.Threading.CancellationToken ct = default) { }
+        public void Start() { }
+    }
+    public enum PipeEventQueueOverflowPolicy
+    {
+        DropNewest = 0,
+        DisconnectSubscriber = 1,
+    }
+    public sealed class PipeMessage
+    {
+        public PipeMessage() { }
+        public Newtonsoft.Json.Linq.JToken? Data { get; set; }
+        public NekoLib.Pipes.PipeError? Error { get; set; }
+        public System.Guid Id { get; set; }
+        public string Name { get; set; }
+        public bool Ok { get; set; }
+        public string Type { get; set; }
+    }
+    public sealed class PipeMetricsSnapshot
+    {
+        public PipeMetricsSnapshot(NekoLib.Pipes.PipeMetricsSnapshot.ServerMetrics server, NekoLib.Pipes.PipeMetricsSnapshot.ClientMetrics client, NekoLib.Pipes.PipeMetricsSnapshot.EventMetrics events, NekoLib.Pipes.PipeMetricsSnapshot.ErrorMetrics errors) { }
+        public NekoLib.Pipes.PipeMetricsSnapshot.ClientMetrics Client { get; }
+        public NekoLib.Pipes.PipeMetricsSnapshot.ErrorMetrics Errors { get; }
+        public NekoLib.Pipes.PipeMetricsSnapshot.EventMetrics Events { get; }
+        public NekoLib.Pipes.PipeMetricsSnapshot.ServerMetrics Server { get; }
+        public sealed class ClientMetrics
+        {
+            public ClientMetrics(long connectAttempts, long connectSuccess, long connectFailures, long requests, long success, long failures, long lastLatencyMs, long maxLatencyMs, double averageLatencyMs, double emaLatencyMs) { }
+            public double AverageLatencyMs { get; }
+            public long ConnectAttempts { get; }
+            public long ConnectFailures { get; }
+            public long ConnectSuccess { get; }
+            public double EmaLatencyMs { get; }
+            public long Failures { get; }
+            public long LastLatencyMs { get; }
+            public long MaxLatencyMs { get; }
+            public long Requests { get; }
+            public long Success { get; }
+        }
+        public sealed class ErrorMetrics
+        {
+            public ErrorMetrics(long total) { }
+            public long Total { get; }
+        }
+        public sealed class EventMetrics
+        {
+            public EventMetrics(long published, long delivered, long failed) { }
+            public long Delivered { get; }
+            public long Failed { get; }
+            public long Published { get; }
+        }
+        public sealed class ServerMetrics
+        {
+            public ServerMetrics(long connectedClients, long requests, long success, long failures, long lastLatencyMs, long maxLatencyMs, double averageLatencyMs, double emaLatencyMs) { }
+            public double AverageLatencyMs { get; }
+            public long ConnectedClients { get; }
+            public double EmaLatencyMs { get; }
+            public long Failures { get; }
+            public long LastLatencyMs { get; }
+            public long MaxLatencyMs { get; }
+            public long Requests { get; }
+            public long Success { get; }
+        }
+    }
+    public sealed class PipeServer : System.IDisposable
+    {
+        public PipeServer(NekoLib.Pipes.PipeServerOptions options) { }
+        public NekoLib.Pipes.PipeAccessPolicy AccessPolicy { get; }
+        public NekoLib.Pipes.PipeEventHub? Events { get; }
+        public void Dispose() { }
+        public void Map(string name, System.Func<NekoLib.Pipes.PipeMessage, System.Threading.CancellationToken, System.Threading.Tasks.Task<NekoLib.Pipes.PipeMessage>> handler) { }
+        public void Start() { }
+    }
+    public sealed class PipeServerOptions
+    {
+        public PipeServerOptions() { }
+        public NekoLib.Pipes.PipeAccessPolicy AccessPolicy { get; set; }
+        public System.TimeSpan ClientIdleTimeout { get; set; }
+        public bool EnableEvents { get; set; }
+        public NekoLib.Pipes.PipeEventQueueOverflowPolicy EventQueueOverflowPolicy { get; set; }
+        public int EventSubscriberQueueCapacity { get; set; }
+        public int MaxClients { get; set; }
+        public int MaxEventSubscribers { get; set; }
+        public int MaxMessageBytes { get; set; }
+        public NekoLib.Pipes.IPipeMetrics? Metrics { get; set; }
+        public string PipeName { get; set; }
+    }
+    public class SimplePipeMetrics : NekoLib.Pipes.IPipeMetrics
+    {
+        public SimplePipeMetrics() { }
+        public void OnClientConnect(string pipeName, System.TimeSpan elapsed, bool ok, string? errorCode) { }
+        public void OnClientRequest(string pipeName, string name) { }
+        public void OnClientResponse(string pipeName, string name, bool ok, System.TimeSpan elapsed, string? errorCode) { }
+        public void OnError(string pipeName, string @where, System.Exception ex) { }
+        public void OnServerClientConnected(string pipeName) { }
+        public void OnServerClientDisconnected(string pipeName) { }
+        public void OnServerEventPublished(string pipeName, string eventName, int subscribers, int success, int failed) { }
+        public void OnServerRequestReceived(string pipeName, string name) { }
+        public void OnServerResponseSent(string pipeName, string name, bool ok, System.TimeSpan elapsed) { }
+        public NekoLib.Pipes.PipeMetricsSnapshot Snapshot() { }
+    }
+}

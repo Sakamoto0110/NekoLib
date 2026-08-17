@@ -112,9 +112,11 @@ the decision documents why that is impossible.
 
 ## Automated API baseline
 
-F1.1 will establish an assembly-derived API manifest and compatibility check
-for every library package and target framework. Source searches and syntax
-catalogs may help discovery, but compiled package assets are the compatibility
+F1.1 uses the versioned `NekoLib.PublicApiTool`, backed by
+`PublicApiGenerator` 11.5.4, to reflect each built library assembly. The
+accepted candidate manifests live under `eng/public-api/<PackageId>/` with one
+`*.approved.txt` file per target framework. Source searches and syntax catalogs
+may help discovery, but these assembly-derived manifests are the public API
 oracle.
 
 The check must:
@@ -129,10 +131,61 @@ The check must:
 - update a baseline only in the same narrow change that carries the accepted
   decision, implementation, tests, changelog, and migration record.
 
+Run the complete build and comparison from the repository root:
+
+```powershell
+.\eng\verify-public-api.ps1
+```
+
+During one accepted module block, scope the comparison explicitly:
+
+```powershell
+.\eng\verify-public-api.ps1 -PackageId NekoLib.Data
+```
+
+When that block intentionally changes the accepted surface, review the
+generated files under `artifacts/public-api/` and update only the affected
+baseline in the same change:
+
+```powershell
+.\eng\verify-public-api.ps1 -UpdateBaseline -PackageId NekoLib.Data
+```
+
+`-UpdateBaseline` is not a fix for a failing check. It is an approval operation
+and is valid only after the API decision, implementation, tests, changelog, and
+migration record exist. The initial 30-file candidate snapshot records what
+exists before the module reviews; it does not classify every current member as
+an accepted stable API.
+
 The existing `EnablePackageValidation` setting remains part of packaging. It
 validates package structure and cross-target compatibility, but without a
 historical baseline it does not replace the F1 compatibility check against an
 accepted prior surface.
+
+## Experimental API marker
+
+No API is experimental merely because of its namespace, name, age, or audit
+status. An experimental public or protected type or member must use this
+cross-target marker on every target that exposes it:
+
+```csharp
+[Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
+```
+
+The `NEKOEXP####` identifier is stable for the lifetime of that experiment.
+The `Experimental API <id>:` prefix distinguishes this marker from normal
+stable deprecation. It deliberately uses `ObsoleteAttribute` because the
+attribute and its compiler warning work on both `net481` and `net9.0`; the
+warning is part of the reflected API manifest. The stable deprecation window
+does not apply while the API remains explicitly experimental.
+
+The owning module's current documentation must contain an **Experimental
+APIs** section that names the identifier, exact symbols, exposed targets,
+supported entry point, instability boundary, and migration or removal path.
+`CHANGELOG.md` must record introduction, incompatible evolution, promotion to
+stable, or removal. Promotion removes the marker through a reviewed API diff;
+removal or incompatible evolution still requires migration guidance. No
+current NekoLib API is classified experimental by F1.1 itself.
 
 ## Module finalization workflow
 

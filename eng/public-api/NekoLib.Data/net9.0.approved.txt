@@ -1,0 +1,421 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+namespace NekoLib.Data.Connection
+{
+    public class DbConnectionAbstractFactory<T> : NekoLib.Data.Connection.IDbConnectionFactory, System.IDisposable
+        where T : System.Data.Common.DbConnection
+    {
+        public DbConnectionAbstractFactory(string connectionString) { }
+        public System.Threading.Tasks.Task<System.Data.Common.DbConnection> Create() { }
+        public void Dispose() { }
+    }
+    public enum DbConnectionFactoryOwnership
+    {
+        ContextOwned = 0,
+        External = 1,
+    }
+    public interface IDbConnectionFactory : System.IDisposable
+    {
+        System.Threading.Tasks.Task<System.Data.Common.DbConnection> Create();
+    }
+}
+namespace NekoLib.Data
+{
+    public sealed class DatabaseGatewayOptions
+    {
+        public DatabaseGatewayOptions() { }
+        public bool AllowExpandoFallback { get; set; }
+        public bool ClearEventsOnContextDispose { get; set; }
+        public int? DefaultCommandTimeoutSeconds { get; set; }
+        public NekoLib.Data.DynamicMode DynamicMode { get; set; }
+        public bool EmitRawSqlInEvents { get; set; }
+        public bool FailOnDynamicSchemaLimit { get; set; }
+        public bool IncludeCommandResultInSuccessEvents { get; set; }
+        public NekoLib.Data.Mapping.DataMappingFailureMode MappingFailureMode { get; set; }
+        public int MaxDynamicSchemas { get; set; }
+        public int MaxObserverFailures { get; set; }
+        public NekoLib.Data.DbParameterBindingMode ParameterBindingMode { get; set; }
+        public NekoLib.Data.DbSynchronousFallbackMode SynchronousFallbackMode { get; set; }
+        public void Validate() { }
+    }
+    public sealed class DbCommandPolicy
+    {
+        public DbCommandPolicy() { }
+        public int? TimeoutSeconds { get; set; }
+    }
+    public enum DbParameterBindingMode
+    {
+        Automatic = 0,
+        Named = 1,
+        Positional = 2,
+    }
+    public sealed class DbParameterSpec
+    {
+        public DbParameterSpec(object? value) { }
+        public System.Data.DbType? DbType { get; set; }
+        public System.Data.ParameterDirection Direction { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
+        public int? Size { get; set; }
+        public object? Value { get; set; }
+    }
+    public sealed class DbSession : System.IDisposable
+    {
+        public DbSession(System.Data.Common.DbConnection connection) { }
+        public System.Data.Common.DbConnection Connection { get; }
+        public System.Data.Common.DbTransaction? Transaction { get; }
+        public void BeginTransaction() { }
+        public void BeginTransaction(System.Data.IsolationLevel isolation) { }
+        public void Commit() { }
+        public void Dispose() { }
+        public void Rollback() { }
+    }
+    public enum DbSynchronousFallbackMode
+    {
+        Disabled = 0,
+        Enabled = 1,
+    }
+    [System.Flags]
+    public enum DynamicMode
+    {
+        IL = 1,
+        Expando = 2,
+        Disabled = 4,
+    }
+    public class RecordItem
+    {
+        public string Name;
+        public string Type;
+        public string Value;
+        public RecordItem() { }
+        public RecordItem(double V) { }
+        public RecordItem(int V) { }
+        public RecordItem(string V) { }
+        public T As<T>(T DefaultValue = default) { }
+        public override string ToString() { }
+        public string ToString(string Format, System.IFormatProvider FormatProvider) { }
+        public static int op_Explicit(NekoLib.Data.RecordItem Item) { }
+        public static double op_Explicit(NekoLib.Data.RecordItem Item) { }
+        public static string op_Implicit(NekoLib.Data.RecordItem Item) { }
+    }
+}
+namespace NekoLib.Data.Dynamic
+{
+    public sealed class DynamicIlMetrics
+    {
+        public long CacheHits { get; }
+        public long CacheMisses { get; }
+        public int EmittedSchemaCount { get; }
+        public long LimitRejections { get; }
+        public int SchemaLimit { get; }
+    }
+    public sealed class DynamicRow : System.Dynamic.DynamicObject
+    {
+        public DynamicRow(System.Collections.Generic.IDictionary<string, object?> dict) { }
+        public DynamicRow(object instance) { }
+        public object? this[string name] { get; set; }
+        public override bool TryGetIndex(System.Dynamic.GetIndexBinder binder, object[] indexes, out object? result) { }
+        public override bool TryGetMember(System.Dynamic.GetMemberBinder binder, out object? result) { }
+        public override bool TrySetIndex(System.Dynamic.SetIndexBinder binder, object[] indexes, object? value) { }
+        public override bool TrySetMember(System.Dynamic.SetMemberBinder binder, object? value) { }
+    }
+}
+namespace NekoLib.Data.Gateway
+{
+    public interface IDatabaseGateway : NekoLib.Data.Gateway.IDmlGateway, NekoLib.Data.Gateway.IDqlGateway, NekoLib.Data.Gateway.IDqlStreamingGateway, NekoLib.Data.Gateway.IDtoQueryGateway, NekoLib.Data.Gateway.IDynamicQueryGateway, NekoLib.Data.Gateway.IRawQueryGateway, NekoLib.Data.Gateway.ITclGateway, NekoLib.Data.Gateway.IUniversalQueryGateway { }
+    public interface IDmlGateway
+    {
+        System.Threading.Tasks.Task<int> Delete(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default, NekoLib.Data.DbSession? session = null);
+        System.Threading.Tasks.Task<int> Insert(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<int> Insert(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<int> Insert(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default, NekoLib.Data.DbSession? session = null);
+        System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<int> Update(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default, NekoLib.Data.DbSession? session = null);
+    }
+    public interface IDqlGateway : NekoLib.Data.Gateway.IDtoQueryGateway, NekoLib.Data.Gateway.IDynamicQueryGateway, NekoLib.Data.Gateway.IRawQueryGateway, NekoLib.Data.Gateway.IUniversalQueryGateway { }
+    public interface IDqlStreamingGateway
+    {
+        System.Collections.Generic.IAsyncEnumerable<dynamic> StreamData(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<dynamic> StreamData(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<T> StreamData<T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<T> StreamData<T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<T> StreamDto<T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Collections.Generic.IAsyncEnumerable<T> StreamDto<T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Collections.Generic.IAsyncEnumerable<NekoLib.Data.Dynamic.DynamicRow> StreamDynamic(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<NekoLib.Data.Dynamic.DynamicRow> StreamDynamic(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> StreamRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default);
+        System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> StreamRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+    }
+    public interface IDtoQueryGateway
+    {
+        System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<T>(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Threading.Tasks.Task ReadDto<T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, System.Threading.CancellationToken ct = default)
+            where T : new();
+        System.Threading.Tasks.Task ReadDto<T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default)
+            where T : new();
+    }
+    public interface IDynamicQueryGateway
+    {
+        System.Threading.Tasks.Task<System.Collections.Generic.List<NekoLib.Data.Dynamic.DynamicRow>> GetDynamic(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<NekoLib.Data.Dynamic.DynamicRow>> GetDynamic(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadDynamic(NekoLib.Data.Query.QueryBuilder builder, System.Action<NekoLib.Data.Dynamic.DynamicRow> callback, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadDynamic(NekoLib.Data.Query.QueryBuilder builder, System.Action<NekoLib.Data.Dynamic.DynamicRow> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+    }
+    public interface IRawQueryGateway
+    {
+        System.Threading.Tasks.Task<bool> ContainsData(string sql, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<bool> ContainsData(string sql, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadRaw(NekoLib.Data.Query.QueryBuilder builder, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> callback, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadRaw(string sql, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> callback, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadRaw(NekoLib.Data.Query.QueryBuilder builder, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task ReadRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+    }
+    public interface ITclGateway
+    {
+        System.Threading.Tasks.Task<NekoLib.Data.DbSession> OpenSessionAsync(System.Threading.CancellationToken ct = default);
+    }
+    public interface IUniversalQueryGateway
+    {
+        System.Threading.Tasks.Task<System.Collections.Generic.List<T>> Get<TTranslator, T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default)
+            where TTranslator : NekoLib.Data.Query.IDbQueryTranslator, new ()
+            where T : new();
+        System.Threading.Tasks.Task<System.Collections.Generic.List<T>> Get<TTranslator, T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default)
+            where TTranslator : NekoLib.Data.Query.IDbQueryTranslator, new ()
+            where T : new();
+        System.Threading.Tasks.Task Read(NekoLib.Data.Query.QueryBuilder builder, System.Delegate handler, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task Read(NekoLib.Data.Query.QueryBuilder builder, System.Delegate handler, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task Read<T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task Read<T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
+    }
+}
+namespace NekoLib.Data.Internal.Gateway
+{
+    public class DatabaseGateway : NekoLib.Data.Gateway.IDatabaseGateway, NekoLib.Data.Gateway.IDmlGateway, NekoLib.Data.Gateway.IDqlGateway, NekoLib.Data.Gateway.IDqlStreamingGateway, NekoLib.Data.Gateway.IDtoQueryGateway, NekoLib.Data.Gateway.IDynamicQueryGateway, NekoLib.Data.Gateway.IRawQueryGateway, NekoLib.Data.Gateway.ITclGateway, NekoLib.Data.Gateway.IUniversalQueryGateway
+    {
+        public DatabaseGateway(NekoLib.Data.Query.QueryExecutionContext _ctx) { }
+        public System.Threading.Tasks.Task<bool> ContainsData(string Sql, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<bool> ContainsData(string Sql, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> Get<TTranslator, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default)
+            where TTranslator : NekoLib.Data.Query.IDbQueryTranslator, new ()
+            where T : new() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> Get<TTranslator, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default)
+            where TTranslator : NekoLib.Data.Query.IDbQueryTranslator, new ()
+            where T : new() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default)
+            where T : new() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default)
+            where T : new() { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<NekoLib.Data.Dynamic.DynamicRow>> GetDynamic(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<NekoLib.Data.Dynamic.DynamicRow>> GetDynamic(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(string Sql, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>>> GetRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Insert(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Insert(string Sql, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Insert(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Insert(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<NekoLib.Data.DbSession> OpenSessionAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Read(NekoLib.Data.Query.QueryBuilder builder, System.Delegate handler, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Read(NekoLib.Data.Query.QueryBuilder builder, System.Delegate handler, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Read<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Read<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, System.Action<T> callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task ReadDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, System.Action<T> Callback, System.Threading.CancellationToken Ct = default)
+            where T : new() { }
+        public System.Threading.Tasks.Task ReadDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder Builder, System.Action<T> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default)
+            where T : new() { }
+        public System.Threading.Tasks.Task ReadDynamic(NekoLib.Data.Query.QueryBuilder Builder, System.Action<NekoLib.Data.Dynamic.DynamicRow> Callback, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadDynamic(NekoLib.Data.Query.QueryBuilder Builder, System.Action<NekoLib.Data.Dynamic.DynamicRow> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadRaw(NekoLib.Data.Query.QueryBuilder Builder, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadRaw(string Sql, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadRaw(NekoLib.Data.Query.QueryBuilder Builder, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task ReadRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<dynamic> StreamData(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<dynamic> StreamData(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamData<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamData<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default)
+            where T : new() { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamDto<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default)
+            where T : new() { }
+        public System.Collections.Generic.IAsyncEnumerable<NekoLib.Data.Dynamic.DynamicRow> StreamDynamic(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<NekoLib.Data.Dynamic.DynamicRow> StreamDynamic(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> StreamRaw(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Update(string Sql, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Update(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default) { }
+        protected System.Threading.Tasks.Task<int> Upsert(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default, NekoLib.Data.DbCommandPolicy? commandPolicy = null) { }
+        public static NekoLib.Data.Dynamic.DynamicIlMetrics GetDynamicIlMetrics() { }
+    }
+    public static class DbDataReaderExtensions
+    {
+        public static bool HasColumn(this System.Data.IDataRecord Reader, string ColumnName) { }
+    }
+}
+namespace NekoLib.Data.Mapping
+{
+    public static class DataMapper
+    {
+        public static object Map(System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem> row, System.Type targetType) { }
+        public static object Map(System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem> row, System.Type targetType, NekoLib.Data.Mapping.DataMappingFailureMode failureMode) { }
+        public static T Map<T>(System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem> row)
+            where T : new() { }
+        public static T Map<T>(System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem> row, NekoLib.Data.Mapping.DataMappingFailureMode failureMode)
+            where T : new() { }
+    }
+    public sealed class DataMappingException : System.InvalidOperationException
+    {
+        public DataMappingException(string columnName, string propertyName, System.Type sourceType, System.Type targetType, System.Exception innerException) { }
+        public string ColumnName { get; }
+        public string PropertyName { get; }
+        public System.Type SourceType { get; }
+        public System.Type TargetType { get; }
+    }
+    public enum DataMappingFailureMode
+    {
+        Strict = 0,
+        Lenient = 1,
+    }
+}
+namespace NekoLib.Data.Query
+{
+    public sealed class AccessQueryTranslator : NekoLib.Data.Query.IDbQueryTranslator
+    {
+        public AccessQueryTranslator() { }
+        public NekoLib.Data.Query.DatabaseQuery Translate(NekoLib.Data.Query.QueryModel Model) { }
+    }
+    public sealed class DatabaseQuery
+    {
+        public DatabaseQuery(string sql, System.Collections.Generic.Dictionary<string, object?> parameters, NekoLib.Data.DbCommandPolicy? commandPolicy = null) { }
+        public NekoLib.Data.DbCommandPolicy CommandPolicy { get; }
+        public System.Collections.Generic.Dictionary<string, object?> Parameters { get; }
+        public string Sql { get; }
+    }
+    public class DbQueryEventArgs : System.EventArgs
+    {
+        public DbQueryEventArgs(string sql, NekoLib.Data.Query.DbQueryEventType type = 1) { }
+        public NekoLib.Data.Query.DbQueryEventType EventType { get; }
+        public string RawSqlQuery { get; }
+    }
+    [System.Flags]
+    public enum DbQueryEventType
+    {
+        SqlGenerated = 1,
+        SqlDispatched = 2,
+        Success = 4,
+        Error = 8,
+        StreamTerminal = 16,
+    }
+    public class DbQueryFailureEventArgs : NekoLib.Data.Query.DbQueryEventArgs
+    {
+        public DbQueryFailureEventArgs(string sql, System.Exception ex) { }
+        public System.Exception Ex { get; }
+    }
+    public sealed class DbQueryObserverFailure
+    {
+        public DbQueryObserverFailure(long sequence, NekoLib.Data.Query.DbQueryEventType eventType, System.Exception exception) { }
+        public NekoLib.Data.Query.DbQueryEventType EventType { get; }
+        public System.Exception Exception { get; }
+        public long Sequence { get; }
+    }
+    public enum DbQueryStreamOutcome
+    {
+        Completed = 0,
+        Failed = 1,
+        Cancelled = 2,
+        DisposedBeforeCompletion = 3,
+    }
+    public sealed class DbQueryStreamTerminalEventArgs : NekoLib.Data.Query.DbQueryEventArgs
+    {
+        public DbQueryStreamTerminalEventArgs(string sql, NekoLib.Data.Query.DbQueryStreamOutcome outcome, System.Exception? exception) { }
+        public System.Exception? Exception { get; }
+        public NekoLib.Data.Query.DbQueryStreamOutcome Outcome { get; }
+    }
+    public class DbQuerySuccessEventArgs : NekoLib.Data.Query.DbQueryEventArgs
+    {
+        public DbQuerySuccessEventArgs(string sql) { }
+        public DbQuerySuccessEventArgs(string sql, object? result) { }
+        public object? Result { get; }
+    }
+    public interface IDbQueryTranslator
+    {
+        NekoLib.Data.Query.DatabaseQuery Translate(NekoLib.Data.Query.QueryModel Model);
+    }
+    public class QueryBuilder
+    {
+        public QueryBuilder() { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object?> Parameters { get; }
+        public NekoLib.Data.Query.QueryBuilder AllowAllRowsUpdate() { }
+        public NekoLib.Data.Query.QueryModel Build() { }
+        public NekoLib.Data.Query.QueryBuilder CommandTimeout(int seconds) { }
+        public NekoLib.Data.Query.QueryBuilder Count() { }
+        public NekoLib.Data.Query.QueryBuilder Count(string Column) { }
+        public NekoLib.Data.Query.QueryBuilder Distinct() { }
+        public NekoLib.Data.Query.QueryBuilder DistinctCount(string Column) { }
+        public NekoLib.Data.Query.QueryBuilder From(string Table) { }
+        public NekoLib.Data.Query.QueryBuilder GroupBy(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder InsertInto(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
+        public NekoLib.Data.Query.QueryBuilder Join(string Table, string OnExpression, string Type = "INNER") { }
+        public NekoLib.Data.Query.QueryBuilder OrderBy(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder Select(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder SelectDistinct(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder Top(int N) { }
+        public NekoLib.Data.Query.QueryBuilder Update(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
+        public NekoLib.Data.Query.QueryBuilder Where(string Condition, params object[] Values) { }
+        public NekoLib.Data.Query.QueryBuilder WhereBetween(string Column, object Start, object End) { }
+        public NekoLib.Data.Query.QueryBuilder WhereExists(NekoLib.Data.Query.QueryBuilder SubQuery) { }
+        public NekoLib.Data.Query.QueryBuilder WhereIn(string Column, System.Collections.Generic.IEnumerable<object> Values) { }
+        public NekoLib.Data.Query.QueryBuilder WhereLike(string Column, string Pattern) { }
+        public NekoLib.Data.Query.QueryBuilder WhereNotExists(NekoLib.Data.Query.QueryBuilder SubQuery) { }
+        public NekoLib.Data.Query.QueryBuilder WhereNotIn(string Column, System.Collections.Generic.IEnumerable<object> Values) { }
+    }
+    public class QueryExecutionContext : System.IDisposable
+    {
+        public QueryExecutionContext(NekoLib.Data.Connection.IDbConnectionFactory connectionFactory, NekoLib.Data.Query.IDbQueryTranslator queryTranslator, NekoLib.Data.DatabaseGatewayOptions? options = null, NekoLib.Data.Connection.DbConnectionFactoryOwnership connectionFactoryOwnership = 0) { }
+        public NekoLib.Data.Connection.IDbConnectionFactory ConnectionFactory { get; }
+        public NekoLib.Data.Connection.DbConnectionFactoryOwnership ConnectionFactoryOwnership { get; }
+        public NekoLib.Data.DatabaseGatewayOptions Options { get; }
+        public NekoLib.Data.Query.IDbQueryTranslator Translator { get; }
+        public event System.Action<NekoLib.Data.Query.DbQueryFailureEventArgs>? OnError;
+        public event System.Action<NekoLib.Data.Query.DbQueryEventArgs>? OnSqlDispatch;
+        public event System.Action<NekoLib.Data.Query.DbQueryEventArgs>? OnSqlGenerated;
+        public event System.Action<NekoLib.Data.Query.DbQueryStreamTerminalEventArgs>? OnStreamTerminal;
+        public event System.Action<NekoLib.Data.Query.DbQuerySuccessEventArgs>? OnSuccess;
+        public void Dispose() { }
+        protected virtual void Dispose(bool disposing) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.Query.DbQueryObserverFailure> GetObserverFailures() { }
+    }
+    public sealed class QueryModel
+    {
+        public QueryModel(string Sql, System.Collections.Generic.Dictionary<string, object?> Parameters, int? Top = default, NekoLib.Data.DbCommandPolicy? CommandPolicy = null) { }
+        public NekoLib.Data.DbCommandPolicy CommandPolicy { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, object?> Parameters { get; }
+        public string Sql { get; }
+        public int? Top { get; }
+    }
+    public sealed class SqlServerQueryTranslator : NekoLib.Data.Query.IDbQueryTranslator
+    {
+        public SqlServerQueryTranslator() { }
+        public NekoLib.Data.Query.DatabaseQuery Translate(NekoLib.Data.Query.QueryModel Model) { }
+    }
+    public sealed class SqliteQueryTranslator : NekoLib.Data.Query.IDbQueryTranslator
+    {
+        public SqliteQueryTranslator() { }
+        public NekoLib.Data.Query.DatabaseQuery Translate(NekoLib.Data.Query.QueryModel Model) { }
+    }
+}

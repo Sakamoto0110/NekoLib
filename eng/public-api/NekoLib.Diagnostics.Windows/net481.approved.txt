@@ -1,0 +1,13 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+namespace NekoLib.Diagnostics.Windows
+{
+    public static class CrashSuppressor
+    {
+        public static void Enable() { }
+    }
+    public static class WindowsCrash
+    {
+        public static void HookWinForms() { }
+        public static NekoLib.Diagnostics.CrashHandlerOptions UseMiniDump(this NekoLib.Diagnostics.CrashHandlerOptions options) { }
+    }
+}

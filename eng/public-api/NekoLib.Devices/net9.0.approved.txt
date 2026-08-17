@@ -1,0 +1,187 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+namespace NekoLib.Devices.Core.Abstractions
+{
+    public static class Checksum
+    {
+        public static byte Sum(params byte[] bytes) { }
+        public static byte Xor(params byte[] bytes) { }
+    }
+    public enum ControllerModel
+    {
+        ControllerRaw = 0,
+        Controller2018 = 1,
+        Controller2023 = 2,
+        ControllerLocker = 3,
+        ControllerLockerKer = 4,
+        ControllerBalanca = 5,
+        ControllerUpus = 6,
+    }
+    public delegate void HardwareLogHandler(NekoLib.Devices.Core.Abstractions.LogLevel level, string message);
+    public class HardwareOperation
+    {
+        public System.Collections.Generic.Dictionary<string, object> Args;
+        public string Operation;
+        public HardwareOperation() { }
+    }
+    public class HardwareResponse
+    {
+        public System.TimeSpan Elapsed;
+        public string PrettyText;
+        public byte[] RawBytes;
+        public string RawText;
+        public NekoLib.Devices.Core.Abstractions.HardwareOperation Request;
+        public string Status;
+        public bool Success;
+        public HardwareResponse() { }
+    }
+    public interface IHardwareProtocol
+    {
+        NekoLib.Devices.Core.Abstractions.ControllerModel Model { get; }
+        NekoLib.Devices.Core.Abstractions.SerialConfig PortConfig { get; }
+        byte[] BuildCommand(NekoLib.Devices.Core.Abstractions.HardwareOperation op);
+        NekoLib.Devices.Core.Abstractions.HardwareResponse ParseResponse(byte[] reply, NekoLib.Devices.Core.Abstractions.HardwareOperation op);
+    }
+    public interface IProtocolWithLogging
+    {
+        NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+    }
+    public enum LogLevel
+    {
+        Info = 0,
+        Debug = 1,
+        Error = 2,
+        Raw = 3,
+    }
+    public static class LogUtil
+    {
+        public static string Clean(string s) { }
+        public static string Hex(byte[] data) { }
+    }
+    public class SerialConfig
+    {
+        public int BaudRate;
+        public int DataBits;
+        public bool DtrEnable;
+        public System.IO.Ports.Handshake Handshake;
+        public string NewLine;
+        public System.IO.Ports.Parity Parity;
+        public string PortName;
+        public int ReadTimeout;
+        public bool RtsEnable;
+        public System.IO.Ports.StopBits StopBits;
+        public int WriteTimeout;
+        public SerialConfig() { }
+    }
+}
+namespace NekoLib.Devices.Core.Engine
+{
+    public sealed class HardwareEngine
+    {
+        public HardwareEngine(NekoLib.Devices.Core.Transport.ICommTransport transport, NekoLib.Devices.Core.Abstractions.IHardwareProtocol protocol) { }
+        public NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Abstractions.HardwareResponse> SendAsync(NekoLib.Devices.Core.Abstractions.HardwareOperation op, int timeout, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Abstractions.HardwareResponse> SendAsync(string port, NekoLib.Devices.Core.Abstractions.HardwareOperation op, int timeout, System.Threading.CancellationToken ct = default) { }
+    }
+}
+namespace NekoLib.Devices.Core.Protocols
+{
+    public abstract class HardwareProtocol
+    {
+        protected HardwareProtocol() { }
+        public virtual string Template { get; protected set; }
+    }
+    public sealed class ProtocolRaw : NekoLib.Devices.Core.Abstractions.IHardwareProtocol, NekoLib.Devices.Core.Abstractions.IProtocolWithLogging
+    {
+        public ProtocolRaw() { }
+        public ProtocolRaw(NekoLib.Devices.Core.Abstractions.SerialConfig portConfig) { }
+        public ProtocolRaw(NekoLib.Devices.Core.Abstractions.SerialConfig? portConfig, System.Text.Encoding? textEncoding) { }
+        public NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+        public NekoLib.Devices.Core.Abstractions.ControllerModel Model { get; }
+        public NekoLib.Devices.Core.Abstractions.SerialConfig PortConfig { get; }
+        public System.Text.Encoding TextEncoding { get; }
+        public byte[] BuildCommand(NekoLib.Devices.Core.Abstractions.HardwareOperation op) { }
+        public NekoLib.Devices.Core.Abstractions.HardwareResponse ParseResponse(byte[] reply, NekoLib.Devices.Core.Abstractions.HardwareOperation op) { }
+    }
+}
+namespace NekoLib.Devices.Core.Transport
+{
+    public interface ICommTransport
+    {
+        bool IsOpen { get; }
+        NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+        NekoLib.Devices.Core.Abstractions.SerialConfig PortInfo { get; }
+        string PortName { get; }
+        System.Threading.Tasks.Task Close();
+        void Configure(NekoLib.Devices.Core.Abstractions.SerialConfig cfg);
+        System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(string portName, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<byte[]> ReadExact(int length, int timeoutMs = 2000, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<string> ReadLine(int timeoutMs = 2000, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task Write(string text, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task Write(byte[] data, int offset = 0, int count = -1, System.Threading.CancellationToken ct = default);
+    }
+    public sealed class NamedPipeCommTransport : NekoLib.Devices.Core.Transport.StreamCommTransport
+    {
+        public NamedPipeCommTransport() { }
+        public NamedPipeCommTransport(string pipeNameOrEndpoint) { }
+        public NamedPipeCommTransport(string serverName, string pipeName) { }
+        public int ConnectTimeout { get; set; }
+        protected override string TransportName { get; }
+        protected override System.Threading.Tasks.Task<System.IO.Stream> ConnectStream(string normalizedEndpoint, System.Threading.CancellationToken ct) { }
+        protected override string NormalizeEndpoint(string endpoint) { }
+    }
+    public sealed class SerialCommTransport : NekoLib.Devices.Core.Transport.ICommTransport, System.IAsyncDisposable, System.IDisposable
+    {
+        public SerialCommTransport(string portName = null) { }
+        public bool IsOpen { get; }
+        public NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+        public NekoLib.Devices.Core.Abstractions.SerialConfig PortInfo { get; }
+        public string PortName { get; set; }
+        public System.Threading.Tasks.Task Close() { }
+        public void Configure(NekoLib.Devices.Core.Abstractions.SerialConfig cfg) { }
+        public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(string portName, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<byte[]> ReadExact(int length, int timeoutMs = 2000, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<string> ReadLine(int timeoutMs = 2000, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Write(string text, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Write(byte[] data, int offset = 0, int count = -1, System.Threading.CancellationToken ct = default) { }
+    }
+    public abstract class StreamCommTransport : NekoLib.Devices.Core.Transport.ICommTransport, System.IAsyncDisposable, System.IDisposable
+    {
+        protected StreamCommTransport() { }
+        protected StreamCommTransport(string endpoint) { }
+        public bool IsOpen { get; }
+        public NekoLib.Devices.Core.Abstractions.HardwareLogHandler Log { get; set; }
+        public NekoLib.Devices.Core.Abstractions.SerialConfig PortInfo { get; }
+        public string PortName { get; }
+        protected abstract string TransportName { get; }
+        public System.Threading.Tasks.Task Close() { }
+        public void Configure(NekoLib.Devices.Core.Abstractions.SerialConfig cfg) { }
+        protected abstract System.Threading.Tasks.Task<System.IO.Stream> ConnectStream(string normalizedEndpoint, System.Threading.CancellationToken ct);
+        public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        protected abstract string NormalizeEndpoint(string endpoint);
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<NekoLib.Devices.Core.Transport.ICommTransport> Open(string portName, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<byte[]> ReadExact(int length, int timeoutMs = 2000, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<string> ReadLine(int timeoutMs = 2000, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Write(string text, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task Write(byte[] data, int offset = 0, int count = -1, System.Threading.CancellationToken ct = default) { }
+    }
+    public sealed class TcpCommTransport : NekoLib.Devices.Core.Transport.StreamCommTransport
+    {
+        public TcpCommTransport() { }
+        public TcpCommTransport(string endpoint) { }
+        public TcpCommTransport(string host, int port) { }
+        public int ConnectTimeout { get; set; }
+        protected override string TransportName { get; }
+        protected override System.Threading.Tasks.Task<System.IO.Stream> ConnectStream(string normalizedEndpoint, System.Threading.CancellationToken ct) { }
+        protected override string NormalizeEndpoint(string endpoint) { }
+    }
+}

@@ -255,17 +255,27 @@ instrumentation, or Navigation runtime changes in frozen components.
 
 #### F1.1 — Automated candidate and stable API baselines
 
-- [ ] Select and implement an assembly-derived public API manifest and
+- [x] Select and implement an assembly-derived public API manifest and
   compatibility check for every library package and target framework. Keep the
   existing package validation; do not mistake it for comparison against a
   historical accepted surface.
-- [ ] Produce a reviewable candidate snapshot before the first module change.
+- [x] Produce a reviewable candidate snapshot before the first module change.
   Baseline updates must accompany an accepted API decision, implementation,
   tests, changelog, and migration record; an unexplained public/protected diff
   fails validation.
-- [ ] Define the cross-target marker and documentation rule for experimental
+- [x] Define the cross-target marker and documentation rule for experimental
   APIs before any API is classified that way. A namespace or naming convention
   alone is not a marker.
+
+**Completion record — 2026-08-17:** `eng/verify-public-api.ps1` builds and
+reflects the 15 library assemblies through the versioned dual-target
+`NekoLib.PublicApiTool`, then compares 30 package/TFM outputs with the accepted
+snapshots under `eng/public-api/`. The initial candidate snapshot was taken
+before any F1 module implementation; product sources match `df654b1`. A full
+Release solution build completed with 515 existing warning occurrences and no
+errors. Experimental APIs now require the cross-target `Obsolete` marker and
+the module-documentation record defined by the release policy; no current API
+was classified experimental by this infrastructure block.
 
 #### F1.2 — Module-by-module public API finalization
 

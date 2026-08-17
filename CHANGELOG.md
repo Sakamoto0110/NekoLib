@@ -23,6 +23,10 @@ No consumer-visible public API change has been accepted under F1 yet.
 - Activated F1 public API and release stability work. Added the coordinated
   SemVer, stability classification, deprecation, compatibility baseline, and
   migration policy. This changes no product assembly or package API.
+- Added assembly-derived candidate API snapshots for all 15 library packages
+  and both supported targets, plus a deterministic comparison command and the
+  cross-target experimental marker rule. This changes no product assembly or
+  package API.
 
 ## Entry format
 

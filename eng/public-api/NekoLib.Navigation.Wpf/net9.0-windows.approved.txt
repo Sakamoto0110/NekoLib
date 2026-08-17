@@ -1,0 +1,168 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("Windows7.0")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+[assembly: System.Runtime.Versioning.TargetPlatform("Windows7.0")]
+namespace NekoLib.Navigation.Wpf.Adapters
+{
+    public sealed class WpfEventDispatcherAdapter : NekoLib.Navigation.Contracts.Platform.IEventDispatcherAdapter
+    {
+        public WpfEventDispatcherAdapter(System.Windows.Threading.Dispatcher dispatcher) { }
+        public void BeginInvoke(System.Action action) { }
+        public void Invoke(System.Action action) { }
+    }
+    public sealed class WpfEventSubscriptionAdapter : NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter
+    {
+        public WpfEventSubscriptionAdapter() { }
+        public void Attach<THandler>(object receiver, string eventName, THandler handler)
+            where THandler : System.Delegate { }
+        public void Detach<THandler>(object receiver, string eventName, THandler handler)
+            where THandler : System.Delegate { }
+    }
+    public sealed class WpfFocusObserverAdapter : NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter
+    {
+        public WpfFocusObserverAdapter() { }
+        public System.IDisposable Track(object nativeView, System.Action onUnfocus) { }
+    }
+    public sealed class WpfInteractionBlocker : NekoLib.Navigation.Contracts.Platform.IInteractionBlocker, NekoLib.Navigation.Contracts.Platform.IPageAwareInteractionBlocker
+    {
+        public WpfInteractionBlocker(System.Windows.UIElement root) { }
+        public void Block() { }
+        public void OnViewAdded(object view, bool isModalSurface) { }
+        public void OnViewRemoved(object view) { }
+        public void Unblock() { }
+    }
+    public sealed class WpfInteractionObserver : NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService, System.IDisposable
+    {
+        public WpfInteractionObserver(System.Windows.UIElement root) { }
+        public event System.Action InteractionDetected;
+        public void Dispose() { }
+    }
+    public sealed class WpfPlatformAdapter : NekoLib.Navigation.Contracts.Platform.IPlatformAdapter
+    {
+        public WpfPlatformAdapter() { }
+        public bool CanHandle(object host) { }
+        public NekoLib.Navigation.Contracts.Platform.IEventDispatcherAdapter CreateEventDispatcher(object host) { }
+        public NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter CreateEventSubscriber(object host) { }
+        public NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter CreateFocusObserver(object host) { }
+        public NekoLib.Navigation.Contracts.Pages.IPageHost CreateHost(object host) { }
+        public NekoLib.Navigation.Contracts.Platform.IInteractionBlocker CreateInteractionBlocker(object host) { }
+        public NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService CreateInteractionObserverAdapter(object host) { }
+        public NekoLib.Navigation.Contracts.Platform.ITimerAdapter CreateTimerAdapter() { }
+        public System.Type GetDefaultLoadingMaskType() { }
+    }
+    public sealed class WpfTimerAdapter : NekoLib.Navigation.Contracts.Platform.ITimerAdapter, System.IDisposable
+    {
+        public WpfTimerAdapter(int intervalMillis = 15000) { }
+        public int IntervalMilliseconds { get; set; }
+        public event System.Action Tick;
+        public void Dispose() { }
+        public void Start() { }
+        public void Stop() { }
+    }
+}
+namespace NekoLib.Navigation.Wpf.Defaults
+{
+    [NekoLib.Navigation.Metadata.Attributes.PageMetadata(Name="DefaultLoadingMask")]
+    public class DefaultLoadingMask : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IGlobalLoadingMask, NekoLib.Navigation.Contracts.Pages.IPageOverlay, NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
+    {
+        public DefaultLoadingMask() { }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task OnOverlayClosingAsync() { }
+        public System.Threading.Tasks.Task OnOverlayOpenedAsync(object payload) { }
+    }
+}
+namespace NekoLib.Navigation.Wpf.Hosting
+{
+    public class AutoDismissPopoverBase : NekoLib.Navigation.Wpf.Hosting.PopoverViewBase, NekoLib.Navigation.Contracts.Pages.IUnfocusAware
+    {
+        public AutoDismissPopoverBase() { }
+        public virtual System.Threading.Tasks.Task OnUnfocusAsync() { }
+    }
+    public class DialogViewBase : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IDialogView, NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
+    {
+        protected DialogViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void Cancel() { }
+        protected void Confirm() { }
+        public virtual void Dispose() { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class PageView : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageLifecycle, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPageVisibility, System.IDisposable
+    {
+        protected PageView() { }
+        public virtual bool AllowBackNavigation { get; }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        public virtual void Dispose() { }
+        public virtual void HidePage() { }
+        public virtual System.Threading.Tasks.Task OnNavigatedFromAsync() { }
+        public virtual System.Threading.Tasks.Task OnNavigatedToAsync(NekoLib.Navigation.Metadata.NavigationArgs args) { }
+        public virtual void ShowPage() { }
+    }
+    public class PopoverViewBase : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPopoverView, System.IDisposable
+    {
+        protected PopoverViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void Complete(bool result) { }
+        public virtual void Dispose() { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class PromptViewBase<TResult> : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPromptView, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult>, System.IDisposable
+    {
+        protected PromptViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void CompletePrompt(TResult result) { }
+        public virtual void Dispose() { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class ToastViewBase : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IToastView, System.IDisposable
+    {
+        protected ToastViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void Dismiss() { }
+        public virtual void Dispose() { }
+        protected virtual void OnShown(object payload) { }
+    }
+    public class WpfLayeredPageHostBase : NekoLib.Navigation.Contracts.Pages.IPageHost, NekoLib.Navigation.Contracts.Pages.IViewHost, NekoLib.Navigation.Toolkit.Abstractions.INavigationToolkit
+    {
+        public WpfLayeredPageHostBase(System.Windows.Controls.Panel root) { }
+        protected System.Windows.Controls.Panel Root { get; }
+        public NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface Surface { get; }
+        public virtual void AddView(object view) { }
+        public virtual void Attach(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void BringToFront(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void BringToFront(object view) { }
+        public virtual void Detach(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void Focus(object view) { }
+        public void FocusSurface() { }
+        public virtual void RemoveView(object view) { }
+    }
+}
+namespace NekoLib.Navigation.Wpf.Toolkit
+{
+    public sealed class WpfNavigationSurface : NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface
+    {
+        public WpfNavigationSurface(System.Windows.FrameworkElement host) { }
+        public System.Drawing.Rectangle ClientBounds { get; }
+        public bool IsActive { get; }
+        public float Scale { get; }
+        public System.Drawing.Point ResolveAnchor(NekoLib.Navigation.Toolkit.Models.SurfaceAnchor anchor) { }
+    }
+    public sealed class WpfNavigationToolkit : NekoLib.Navigation.Toolkit.Abstractions.INavigationToolkit
+    {
+        public WpfNavigationToolkit(System.Windows.FrameworkElement host) { }
+        public NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface Surface { get; }
+        public void FocusSurface() { }
+    }
+}

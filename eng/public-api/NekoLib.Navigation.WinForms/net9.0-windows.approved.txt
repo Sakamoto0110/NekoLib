@@ -1,0 +1,174 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("Windows7.0")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+[assembly: System.Runtime.Versioning.TargetPlatform("Windows7.0")]
+namespace NekoLib.Navigation.WinForms.Adapters
+{
+    public sealed class WinFormsEventDispatcherAdapter : NekoLib.Navigation.Contracts.Platform.IEventDispatcherAdapter
+    {
+        public WinFormsEventDispatcherAdapter(System.Windows.Forms.Control root) { }
+        public void BeginInvoke(System.Action action) { }
+        public void Invoke(System.Action action) { }
+    }
+    public sealed class WinFormsEventSubscriptionAdapter : NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter
+    {
+        public WinFormsEventSubscriptionAdapter() { }
+        public void Attach<THandler>(object receiver, string eventName, THandler handler)
+            where THandler : System.Delegate { }
+        public void Detach<THandler>(object receiver, string eventName, THandler handler)
+            where THandler : System.Delegate { }
+    }
+    public sealed class WinFormsFocusObserverAdapter : NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter
+    {
+        public WinFormsFocusObserverAdapter() { }
+        public System.IDisposable Track(object nativeView, System.Action onUnfocus) { }
+    }
+    public sealed class WinFormsInteractionBlocker : NekoLib.Navigation.Contracts.Platform.IInteractionBlocker, NekoLib.Navigation.Contracts.Platform.IPageAwareInteractionBlocker
+    {
+        public WinFormsInteractionBlocker(System.Windows.Forms.Control root) { }
+        public void Block() { }
+        public void OnViewAdded(object view, bool isModalSurface) { }
+        public void OnViewRemoved(object view) { }
+        public void Unblock() { }
+        public static System.Windows.Forms.Control op_Explicit(NekoLib.Navigation.WinForms.Adapters.WinFormsInteractionBlocker host) { }
+    }
+    public sealed class WinFormsInteractionObserver : NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService, System.IDisposable
+    {
+        public WinFormsInteractionObserver(System.Windows.Forms.Control root) { }
+        public event System.Action InteractionDetected;
+        public void Dispose() { }
+    }
+    public sealed class WinFormsPlatformAdapter : NekoLib.Navigation.Contracts.Platform.IPlatformAdapter
+    {
+        public WinFormsPlatformAdapter() { }
+        public bool CanHandle(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Platform.IEventDispatcherAdapter CreateEventDispatcher(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter CreateEventSubscriber(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter CreateFocusObserver(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Pages.IPageHost CreateHost(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Platform.IInteractionBlocker CreateInteractionBlocker(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService CreateInteractionObserverAdapter(object nativeHost) { }
+        public NekoLib.Navigation.Contracts.Platform.ITimerAdapter CreateTimerAdapter() { }
+        public System.Type GetDefaultLoadingMaskType() { }
+    }
+    public sealed class WinFormsTimerAdapter : NekoLib.Navigation.Contracts.Platform.ITimerAdapter, System.IDisposable
+    {
+        public WinFormsTimerAdapter(int intervalMilis = 15000) { }
+        public int IntervalMilliseconds { get; set; }
+        public event System.Action Tick;
+        public void Dispose() { }
+        public void Start() { }
+        public void Stop() { }
+    }
+}
+namespace NekoLib.Navigation.WinForms.Defaults
+{
+    [NekoLib.Navigation.Metadata.Attributes.PageMetadata(Name="DefaultLoadingMask")]
+    public class DefaultLoadingMask : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IGlobalLoadingMask, NekoLib.Navigation.Contracts.Pages.IPageOverlay, NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
+    {
+        public DefaultLoadingMask() { }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        public System.Threading.Tasks.Task OnOverlayClosingAsync() { }
+        public System.Threading.Tasks.Task OnOverlayOpenedAsync(object payload) { }
+    }
+}
+namespace NekoLib.Navigation.WinForms.Hosting
+{
+    public class AutoDismissPopoverBase : NekoLib.Navigation.WinForms.Hosting.PopoverViewBase, NekoLib.Navigation.Contracts.Pages.IUnfocusAware
+    {
+        public AutoDismissPopoverBase() { }
+        public virtual System.Threading.Tasks.Task OnUnfocusAsync() { }
+    }
+    public class DialogViewBase : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IDialogView, NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
+    {
+        protected DialogViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void Cancel() { }
+        protected void Confirm() { }
+        protected override void Dispose(bool disposing) { }
+        protected override void OnHandleCreated(System.EventArgs e) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class PageView : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IPageLifecycle, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPageVisibility, System.IDisposable
+    {
+        protected PageView() { }
+        public virtual bool AllowBackNavigation { get; }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected override void Dispose(bool disposing) { }
+        public virtual void HidePage() { }
+        public virtual System.Threading.Tasks.Task OnNavigatedFromAsync() { }
+        public virtual System.Threading.Tasks.Task OnNavigatedToAsync(NekoLib.Navigation.Metadata.NavigationArgs args) { }
+        public virtual void ShowPage() { }
+    }
+    public class PopoverViewBase : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPopoverView, System.IDisposable
+    {
+        protected PopoverViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void Complete(bool result) { }
+        protected override void Dispose(bool disposing) { }
+        protected override void OnHandleCreated(System.EventArgs e) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class PromptViewBase<TResult> : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPromptView, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult>, System.IDisposable
+    {
+        protected PromptViewBase() { }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected void CompletePrompt(TResult result) { }
+        protected override void Dispose(bool disposing) { }
+        protected override void OnHandleCreated(System.EventArgs e) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+    }
+    public class ToastViewBase : System.Windows.Forms.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IToastView, System.IDisposable
+    {
+        protected ToastViewBase() { }
+        protected virtual int AnchorInset { get; }
+        public bool DesignMode { get; }
+        public bool IsDisposed { get; }
+        public object NativeView { get; }
+        protected virtual void ApplyDefaultAnchor() { }
+        protected void Dismiss() { }
+        protected override void Dispose(bool disposing) { }
+        protected override void OnParentChanged(System.EventArgs e) { }
+        protected virtual void OnShown(object payload) { }
+    }
+    public class WinFormsLayeredPageHostBase : NekoLib.Navigation.Contracts.Pages.IPageHost, NekoLib.Navigation.Contracts.Pages.IViewHost, NekoLib.Navigation.Toolkit.Abstractions.INavigationToolkit
+    {
+        public WinFormsLayeredPageHostBase(System.Windows.Forms.Control root) { }
+        protected System.Windows.Forms.Control Root { get; }
+        public NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface Surface { get; }
+        public virtual void AddView(object view) { }
+        public virtual void Attach(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void BringToFront(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void BringToFront(object view) { }
+        public virtual void Detach(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+        public virtual void Focus(object view) { }
+        public void FocusSurface() { }
+        public virtual void RemoveView(object view) { }
+    }
+}
+namespace NekoLib.Navigation.WinForms.Toolkit
+{
+    public sealed class WinFormsNavigationSurface : NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface
+    {
+        public WinFormsNavigationSurface(System.Windows.Forms.Control host) { }
+        public System.Drawing.Rectangle ClientBounds { get; }
+        public bool IsActive { get; }
+        public float Scale { get; }
+        public System.Drawing.Point ResolveAnchor(NekoLib.Navigation.Toolkit.Models.SurfaceAnchor anchor) { }
+    }
+    public sealed class WinFormsNavigationToolkit : NekoLib.Navigation.Toolkit.Abstractions.INavigationToolkit
+    {
+        public WinFormsNavigationToolkit(System.Windows.Forms.Control host) { }
+        public NekoLib.Navigation.Toolkit.Abstractions.INavigationSurface Surface { get; }
+        public void FocusSurface() { }
+    }
+}

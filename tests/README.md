@@ -61,7 +61,12 @@ Whole solution:
 ```powershell
 dotnet build NekoLib.sln
 dotnet test NekoLib.sln
+.\eng\verify-public-api.ps1
 ```
+
+The public API command is an automated assembly-contract check, not a test
+suite. It builds the library family and fails when a package/target surface
+differs from its accepted snapshot.
 
 One test project and one target framework:
 

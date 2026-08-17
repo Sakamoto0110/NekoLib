@@ -1,0 +1,107 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+namespace NekoLib.Http
+{
+    public sealed class HttpApiCatalog
+    {
+        public System.Collections.Generic.IReadOnlyCollection<NekoLib.Http.HttpEndpoint> Endpoints { get; }
+        public NekoLib.Http.HttpEndpoint Get(string name) { }
+        public static NekoLib.Http.HttpApiCatalog Create(System.Action<NekoLib.Http.HttpApiCatalogBuilder> configure) { }
+    }
+    public sealed class HttpApiCatalogBuilder
+    {
+        public NekoLib.Http.HttpApiCatalogBuilder Register(NekoLib.Http.HttpEndpoint endpoint) { }
+    }
+    public sealed class HttpApiClient
+    {
+        public HttpApiClient(System.Net.Http.HttpClient httpClient, NekoLib.Http.HttpApiCatalog catalog, NekoLib.Http.HttpApiClientOptions? options = null) { }
+        public System.Threading.Tasks.Task<NekoLib.Http.HttpApiResponse<TResponse>> SendAsync<TResponse>(NekoLib.Http.HttpEndpoint<TResponse> endpoint, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task<NekoLib.Http.HttpApiResponse<TResponse>> SendAsync<TRequest, TResponse>(NekoLib.Http.HttpEndpoint<TRequest, TResponse> endpoint, TRequest request, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class HttpApiClientOptions
+    {
+        public const int DefaultMaxResponseContentBytes = 1048576;
+        public HttpApiClientOptions() { }
+        public NekoLib.Http.Serialization.IHttpBodySerializer BodySerializer { get; set; }
+        public int MaxResponseContentBytes { get; set; }
+    }
+    public sealed class HttpApiResponse<TResponse>
+    {
+        public string Body { get; }
+        public bool HasValue { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IReadOnlyList<string>> Headers { get; }
+        public System.Version HttpVersion { get; }
+        public bool IsSuccessStatusCode { get; }
+        public string? ReasonPhrase { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+        public TResponse Value { get; }
+        public TResponse RequireValue() { }
+    }
+    public abstract class HttpEndpoint
+    {
+        protected HttpEndpoint(string name, System.Net.Http.HttpMethod method, System.Type requestType, System.Type responseType) { }
+        public System.Net.Http.HttpMethod Method { get; }
+        public string Name { get; }
+        public System.Type RequestType { get; }
+        public System.Type ResponseType { get; }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Create<TRequest, TResponse>(string name, System.Net.Http.HttpMethod method, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Func<TRequest, object?>? selectBody = null, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, NekoLib.Http.HttpNoContent> Delete<TRequest>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Delete<TRequest, TResponse>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TResponse> Get<TResponse>(string name, NekoLib.Http.RelativeUri uri, System.Action<System.Net.Http.HttpRequestMessage>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Get<TRequest, TResponse>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Patch<TRequest, TResponse>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Func<TRequest, object?>? selectBody = null, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Post<TRequest, TResponse>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Func<TRequest, object?>? selectBody = null, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+        public static NekoLib.Http.HttpEndpoint<TRequest, TResponse> Put<TRequest, TResponse>(string name, System.Func<TRequest, NekoLib.Http.RelativeUri> createUri, System.Func<TRequest, object?>? selectBody = null, System.Action<System.Net.Http.HttpRequestMessage, TRequest>? configureRequest = null) { }
+    }
+    public sealed class HttpEndpoint<TResponse> : NekoLib.Http.HttpEndpoint { }
+    public sealed class HttpEndpoint<TRequest, TResponse> : NekoLib.Http.HttpEndpoint { }
+    public sealed class HttpNoContent
+    {
+        public static NekoLib.Http.HttpNoContent Value { get; }
+    }
+    public sealed class HttpNoRequest { }
+    public sealed class HttpResponseContentTooLargeException : System.Exception
+    {
+        public string EndpointName { get; }
+        public int MaximumBytes { get; }
+    }
+    public sealed class HttpResponseDeserializationException : System.Exception
+    {
+        public string EndpointName { get; }
+        public System.Type ResponseType { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+    }
+    public sealed class RelativeUri
+    {
+        public string Value { get; }
+        public override string ToString() { }
+        public static NekoLib.Http.RelativeUri FromPathSegments(params string[] pathSegments) { }
+    }
+    public sealed class RelativeUriBuilder
+    {
+        public NekoLib.Http.RelativeUriBuilder AddQuery(string name, bool value) { }
+        public NekoLib.Http.RelativeUriBuilder AddQuery(string name, int value) { }
+        public NekoLib.Http.RelativeUriBuilder AddQuery(string name, long value) { }
+        public NekoLib.Http.RelativeUriBuilder AddQuery(string name, string? value) { }
+        public NekoLib.Http.RelativeUriBuilder AppendPathSegment(string segment) { }
+        public NekoLib.Http.RelativeUri Build() { }
+        public static NekoLib.Http.RelativeUriBuilder Create(params string[] pathSegments) { }
+    }
+}
+namespace NekoLib.Http.Serialization
+{
+    public interface IHttpBodySerializer
+    {
+        string MediaType { get; }
+        object Deserialize(string content, System.Type declaredType);
+        string Serialize(object value, System.Type declaredType);
+    }
+    public sealed class JsonHttpBodySerializer : NekoLib.Http.Serialization.IHttpBodySerializer
+    {
+        public JsonHttpBodySerializer() { }
+        public JsonHttpBodySerializer(Newtonsoft.Json.JsonSerializerSettings settings) { }
+        public string MediaType { get; }
+        public object Deserialize(string content, System.Type declaredType) { }
+        public string Serialize(object value, System.Type declaredType) { }
+    }
+}

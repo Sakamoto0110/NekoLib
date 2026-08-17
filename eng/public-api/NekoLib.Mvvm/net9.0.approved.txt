@@ -1,0 +1,29 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+namespace NekoLib.Mvvm
+{
+    public sealed class RelayCommand : System.Windows.Input.ICommand
+    {
+        public RelayCommand(System.Action execute, System.Func<bool> canExecute = null) { }
+        public RelayCommand(System.Action<object> execute, System.Predicate<object> canExecute = null) { }
+        public event System.EventHandler CanExecuteChanged;
+        public bool CanExecute(object parameter) { }
+        public void Execute(object parameter) { }
+        public void RaiseCanExecuteChanged() { }
+    }
+    public sealed class RelayCommand<T> : System.Windows.Input.ICommand
+    {
+        public RelayCommand(System.Action<T> execute, System.Predicate<T> canExecute = null) { }
+        public event System.EventHandler CanExecuteChanged;
+        public bool CanExecute(object parameter) { }
+        public void Execute(object parameter) { }
+        public void RaiseCanExecuteChanged() { }
+    }
+    public abstract class ViewModelBase : System.ComponentModel.INotifyPropertyChanged
+    {
+        protected ViewModelBase() { }
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string propertyName = null) { }
+        protected bool SetProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null) { }
+    }
+}

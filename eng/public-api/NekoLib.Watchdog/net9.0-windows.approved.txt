@@ -1,0 +1,145 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NekoLib.Watchdog.Tests.Unit")]
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("Windows7.0")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
+[assembly: System.Runtime.Versioning.TargetPlatform("Windows7.0")]
+namespace NekoLib.Watchdog
+{
+    public static class CrashBundler
+    {
+        public static void TryFinalizeLatestCrashBundle(NekoLib.Watchdog.CrashBundlerOptions o, string restartReason, long restartCount, System.Action<string> log = null) { }
+    }
+    public sealed class CrashBundlerOptions
+    {
+        public CrashBundlerOptions() { }
+        public string BundleRoot { get; set; }
+        public bool CopyWatchdogLogTail { get; set; }
+        public bool EnableChecksums { get; set; }
+        public bool EnableManifests { get; set; }
+        public System.Func<string> GetAppVersion { get; set; }
+        public System.Func<string> GetWatchdogStatus { get; set; }
+        public System.Func<string> GetWatchdogVersion { get; set; }
+        public int MaxBundles { get; set; }
+        public string PendingCrashRoot { get; set; }
+        public int TailLines { get; set; }
+        public string WatchdogLogPath { get; set; }
+    }
+    public static class WatchdogBootstrap
+    {
+        public const string HostDirectoryName = "NekoLib.Watchdog.Host";
+        public const string HostExecutableName = "NekoLib.Watchdog.Host.exe";
+        public const string UnderWatchdogEnvironmentVariable = "NEKO_UNDER_WATCHDOG";
+        public static void EnsureStarted() { }
+        public static void EnsureStarted(string[] arguments) { }
+        public static void EnsureStarted(string[] arguments, int handshakeTimeoutMs) { }
+    }
+    public static class WatchdogCommands
+    {
+        public const string AttachStatus = "attach_status";
+        public const string ExceptionNotify = "exception_notify";
+        public const string LogHistory = "log_history";
+        public const string Pause = "pause";
+        public const string Ping = "ping";
+        public const string Restart = "restart";
+        public const string Resume = "resume";
+        public const string Status = "status";
+        public const string Stop = "stop";
+    }
+    public static class WatchdogController
+    {
+        public static void NotifyException(string type, string message, string source) { }
+        public static void NotifyExceptionForTarget(string targetPath, string type, string message, string source) { }
+        public static void NotifyLog(NekoLib.Core.Logging.LogEntry entry) { }
+        public static void NotifyLogBatch(System.Collections.Generic.IReadOnlyList<NekoLib.Core.Logging.LogEntry> entries) { }
+        public static void Pause() { }
+        public static bool Ping() { }
+        public static string ResolvePipeNameForTarget(string targetPath) { }
+        public static void Restart() { }
+        public static void Resume() { }
+        public static string Status() { }
+        public static void Stop() { }
+        public static System.IDisposable SubscribeLogLines(System.Action<string> onLine) { }
+        public static System.IDisposable SubscribeLogs(System.Action<NekoLib.Watchdog.WatchdogController.LogEvent> onLog) { }
+        public sealed class LogEvent
+        {
+            public LogEvent() { }
+            public string Level { get; set; }
+            public string Line { get; set; }
+            public object Meta { get; set; }
+            public string Msg { get; set; }
+            public long TsUnixMs { get; set; }
+        }
+    }
+    public static class WatchdogHotkeys
+    {
+        public const uint MOD_ALT = 1u;
+        public const uint MOD_CONTROL = 2u;
+        public const uint MOD_SHIFT = 4u;
+        public const uint MOD_WIN = 8u;
+        public const uint VK_F1 = 112u;
+        public const uint VK_F24 = 135u;
+        public static System.Collections.Generic.IEnumerable<uint> EnumerateAllVirtualKeys() { }
+        public static uint Mods(bool ctrl, bool shift, bool alt, bool win) { }
+    }
+    public static class WatchdogLogFile
+    {
+        public static bool Append(string path, string line, long maxBytes) { }
+    }
+    [System.Obsolete("Use WatchdogRuntime\'s PipeServer event stream and WatchdogController.SubscribeLog" +
+        "s instead.")]
+    public sealed class WatchdogLogPipeServer : System.IDisposable
+    {
+        public WatchdogLogPipeServer(string pipeName) { }
+        public void Dispose() { }
+        public void Enqueue(string line) { }
+        public void Start() { }
+    }
+    public sealed class WatchdogOptions
+    {
+        public WatchdogOptions() { }
+        public string AttachToken { get; set; }
+        public string BackupFolderName { get; set; }
+        public bool BringToFrontOnStartIfRunning { get; set; }
+        public string BundleRoot { get; set; }
+        public bool EnableBundleChecksums { get; set; }
+        public bool EnableBundleManifests { get; set; }
+        public bool EnableCrashBundling { get; set; }
+        public bool EnableFileLogging { get; set; }
+        public bool EnableUpdates { get; set; }
+        public int ForceKillTimeoutMs { get; set; }
+        public int GracefulKillTimeoutMs { get; set; }
+        public int HeartbeatIntervalMs { get; set; }
+        public int? InitialProcessId { get; set; }
+        public string LogPath { get; set; }
+        public NekoLib.Core.Logging.ILogSink[] LogSinks { get; set; }
+        public int MaxBundles { get; set; }
+        public long MaxLogBytes { get; set; }
+        public int MonitorPollMs { get; set; }
+        public string PendingCrashRoot { get; set; }
+        public string PipeName { get; set; }
+        public int RestartDelayMs { get; set; }
+        public string TargetArguments { get; set; }
+        public string TargetPath { get; set; }
+        public NekoLib.Core.Telemetry.ITelemetry? Telemetry { get; set; }
+        public string UpdateStagingRoot { get; set; }
+        public bool UseAtomicDirectorySwap { get; set; }
+        public string WorkingDirectory { get; set; }
+        public void Normalize() { }
+    }
+    public sealed class WatchdogPipeLogSink : NekoLib.Core.Logging.ILogSink, System.IDisposable
+    {
+        public WatchdogPipeLogSink() { }
+        public WatchdogPipeLogSink(int maxQueued = 1000, int flushIntervalMs = 250, int maxBatch = 64) { }
+        public long DroppedCount { get; }
+        public void Dispose() { }
+        public void Write(NekoLib.Core.Logging.LogEntry entry) { }
+    }
+    public sealed class WatchdogRuntime : System.IDisposable
+    {
+        public WatchdogRuntime(NekoLib.Watchdog.WatchdogOptions options) { }
+        public void Dispose() { }
+        public void Start() { }
+        public void Stop(bool exitHost = true) { }
+        public void WaitForExit() { }
+    }
+}

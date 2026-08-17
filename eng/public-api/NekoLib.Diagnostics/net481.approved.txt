@@ -1,0 +1,63 @@
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
+namespace NekoLib.Diagnostics
+{
+    public sealed class CrashBundleWrittenEventArgs : System.EventArgs
+    {
+        public CrashBundleWrittenEventArgs(string dir, string crashTxt, string dump, bool dumpWritten) { }
+        public string BundleDirectory { get; }
+        public string CrashTextPath { get; }
+        public string DumpPath { get; }
+        public bool DumpWritten { get; }
+    }
+    public sealed class CrashDetectedEventArgs : System.EventArgs
+    {
+        public CrashDetectedEventArgs(string source, System.Exception? ex, bool terminating) { }
+        public System.Exception? Exception { get; }
+        public bool IsTerminating { get; }
+        public string Source { get; }
+    }
+    public enum CrashDumpLevel
+    {
+        None = 0,
+        MiniDumpNormal = 1,
+        WithDataSegs = 2,
+        WithHandleData = 3,
+        WithThreadInfo = 4,
+        WithFullMemory = 5,
+    }
+    public delegate bool CrashDumpWriter(string filePath, NekoLib.Diagnostics.CrashDumpLevel level);
+    public sealed class CrashHandler : System.IDisposable
+    {
+        public CrashHandler(NekoLib.Diagnostics.CrashHandlerOptions options) { }
+        public event System.EventHandler<NekoLib.Diagnostics.CrashBundleWrittenEventArgs>? CrashBundleWritten;
+        public event System.EventHandler<NekoLib.Diagnostics.CrashDetectedEventArgs>? CrashDetected;
+        public void Dispose() { }
+        public void Install() { }
+        public static void ReportExternalCrash(string source, System.Exception ex, bool terminating) { }
+    }
+    public sealed class CrashHandlerOptions
+    {
+        public CrashHandlerOptions() { }
+        public string? CrashRootDirectory { get; set; }
+        public NekoLib.Diagnostics.CrashDumpLevel DumpLevel { get; set; }
+        public NekoLib.Diagnostics.CrashDumpWriter? DumpWriter { get; set; }
+        public System.TimeSpan EvidenceCollectionTimeout { get; set; }
+        public System.Action<NekoLib.Diagnostics.CrashDetectedEventArgs>? ExternalNotifier { get; set; }
+        public System.Func<System.Collections.Generic.IEnumerable<string>>? ExtraLines { get; set; }
+        public NekoLib.Core.Inspection.IInspectionSnapshotSource? InspectionSnapshotSource { get; set; }
+        public NekoLib.Core.Logging.ILogFlusher? LogFlusher { get; set; }
+        public NekoLib.Core.Logging.ILogSnapshotSource? LogSnapshotSource { get; set; }
+        public NekoLib.Core.Logging.ILogger? Logger { get; set; }
+        public int MaxEvidenceLineLength { get; set; }
+        public int MaxInspectionOperations { get; set; }
+        public int MaxRecentLogEntries { get; set; }
+        public int MaxRecentTelemetryOperations { get; set; }
+        [System.Obsolete("Set ExternalNotifier to null when external notification is not required.")]
+        public bool NotifyWatchdog { get; set; }
+        public System.Func<string, string>? Redact { get; set; }
+        public System.Collections.Generic.List<string> TailFiles { get; set; }
+        public int TailLines { get; set; }
+        public NekoLib.Core.Telemetry.ITelemetrySnapshotSource? TelemetrySnapshotSource { get; set; }
+        public bool WriteCrashFolder { get; set; }
+    }
+}

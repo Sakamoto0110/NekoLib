@@ -128,6 +128,17 @@ Run the repository documentation and topology checks from the root:
 .\eng\verify-docs.ps1
 ```
 
+Build the library family and compare every assembly-derived package/target API
+against the accepted candidate snapshots:
+
+```powershell
+.\eng\verify-public-api.ps1
+```
+
+Baseline updates are accepted API decisions, not normal verification. The
+scoped `-PackageId` and `-UpdateBaseline` workflow is defined by the
+[`public API and release policy`](public-api-release-policy.md).
+
 To compare a full rebuild against the normalized warning-identity baseline,
 capture its output and pass the log explicitly:
 

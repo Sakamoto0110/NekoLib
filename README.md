@@ -205,9 +205,10 @@ and migration follow the current
 [`public API and release policy`](docs/public-api-release-policy.md).
 Consumer-visible changes are recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
-```bash
+```powershell
 dotnet build NekoLib.sln
 dotnet test NekoLib.sln
+.\eng\verify-public-api.ps1
 ```
 
 ## Local NuGet packages

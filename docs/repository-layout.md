@@ -44,6 +44,24 @@ The packaging workflow remains separate:
 [`eng/pack-local.ps1`](../eng/pack-local.ps1) owns library and Watchdog Host
 packages under `artifacts/`.
 
+## Public API tool
+
+[`src/Tools/NekoLib.PublicApiTool/`](../src/Tools/NekoLib.PublicApiTool/) is the
+source authority for the small dual-target assembly reflector used by F1. It is
+deliberately outside `NekoLib.sln` and is built and invoked through:
+
+```powershell
+.\eng\verify-public-api.ps1
+```
+
+The script discovers the 15 packable library projects, builds the source tree,
+runs the tool on each target-specific DLL, and compares the received manifests
+under `artifacts/public-api/` with the versioned snapshots under
+`eng/public-api/`. `-UpdateBaseline` changes those snapshots and therefore
+requires an accepted API decision under the public API release policy. The
+Watchdog Host deployment package is reviewed as a payload/protocol contract and
+is intentionally not treated as a library assembly.
+
 ## Generated catalogs
 
 An LLM-oriented code catalog is not part of Phase C. If separately authorized,
