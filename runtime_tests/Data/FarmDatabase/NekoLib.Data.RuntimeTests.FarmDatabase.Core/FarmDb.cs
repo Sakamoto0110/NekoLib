@@ -621,12 +621,10 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 session.BeginTransaction();
                 try
                 {
-                    // Delete has no QueryBuilder overload - only the raw-SQL one - so
-                    // this half of the operation is hand-written while the log insert
-                    // beside it is built. Same transaction either way.
                     await Gateway.Delete(
-                        "DELETE FROM [Animals] WHERE [Id] = @p1",
-                        new Dictionary<string, object?> { ["@p1"] = animal.Id },
+                        new QueryBuilder()
+                            .DeleteFrom("[Animals]")
+                            .Where("[Id] = @p1", animal.Id),
                         session,
                         ct).ConfigureAwait(false);
 

@@ -10,6 +10,32 @@ namespace NekoLib.Data.Tests.Unit.Gateway
     public class QueryObserverIsolationTests
     {
         [Fact]
+        public async Task Delete_QueryBuilder_RaisesGeneratedBeforeDispatchAndSuccess()
+        {
+            FakeNonQueryConnectionFactory factory = new FakeNonQueryConnectionFactory(
+                () => new FakeNonQueryCommand { Result = 1 });
+            using (QueryExecutionContext context = new QueryExecutionContext(
+                factory,
+                new SqliteQueryTranslator()))
+            {
+                DatabaseGateway gateway = new DatabaseGateway(context);
+                List<string> notifications = new List<string>();
+
+                context.OnSqlGenerated += _ => notifications.Add("generated");
+                context.OnSqlDispatch += _ => notifications.Add("dispatch");
+                context.OnSuccess += _ => notifications.Add("success");
+
+                int result = await gateway.Delete(
+                    new QueryBuilder()
+                        .DeleteFrom("Customers")
+                        .Where("Id = @p1", 7));
+
+                Assert.Equal(1, result);
+                Assert.Equal(new[] { "generated", "dispatch", "success" }, notifications);
+            }
+        }
+
+        [Fact]
         public async Task Insert_ThrowingObservers_PreservesResultAndSubscriberOrder()
         {
             FakeNonQueryConnectionFactory factory = new FakeNonQueryConnectionFactory(

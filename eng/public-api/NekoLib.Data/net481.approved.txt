@@ -129,6 +129,8 @@ namespace NekoLib.Data.Gateway
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Delete(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task<int> Delete(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<int> Delete(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<int> Delete(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetDto<T>(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default)
@@ -171,6 +173,8 @@ namespace NekoLib.Data.Gateway
     public interface IDatabaseGateway : NekoLib.Data.Gateway.IDmlGateway, NekoLib.Data.Gateway.IDqlGateway, NekoLib.Data.Gateway.IDtoQueryGateway, NekoLib.Data.Gateway.IDynamicQueryGateway, NekoLib.Data.Gateway.IRawQueryGateway, NekoLib.Data.Gateway.ITclGateway { }
     public interface IDmlGateway
     {
+        System.Threading.Tasks.Task<int> Delete(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
+        System.Threading.Tasks.Task<int> Delete(NekoLib.Data.Query.QueryBuilder builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
         System.Threading.Tasks.Task<int> Delete(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default);
         System.Threading.Tasks.Task<int> Delete(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default);
         System.Threading.Tasks.Task<int> Insert(NekoLib.Data.Query.QueryBuilder builder, System.Threading.CancellationToken ct = default);
@@ -318,11 +322,13 @@ namespace NekoLib.Data.Query
     {
         public QueryBuilder() { }
         public System.Collections.Generic.IReadOnlyDictionary<string, object?> Parameters { get; }
+        public NekoLib.Data.Query.QueryBuilder AllowAllRowsDelete() { }
         public NekoLib.Data.Query.QueryBuilder AllowAllRowsUpdate() { }
         public NekoLib.Data.Query.QueryModel Build() { }
         public NekoLib.Data.Query.QueryBuilder CommandTimeout(int seconds) { }
         public NekoLib.Data.Query.QueryBuilder Count() { }
         public NekoLib.Data.Query.QueryBuilder Count(string Column) { }
+        public NekoLib.Data.Query.QueryBuilder DeleteFrom(string Table) { }
         public NekoLib.Data.Query.QueryBuilder Distinct() { }
         public NekoLib.Data.Query.QueryBuilder DistinctCount(string Column) { }
         public NekoLib.Data.Query.QueryBuilder From(string Table) { }

@@ -91,7 +91,9 @@ The builder parameterizes values. Table names, column names, join expressions,
 ordering, grouping, and raw condition templates remain trusted SQL fragments;
 the module does not quote or validate caller-controlled identifiers. Empty
 `IN` and `NOT IN`, statement reuse, subquery parameter isolation, and
-unconstrained updates follow the fail-closed rules enforced by the builder.
+unconstrained updates and deletes follow the fail-closed rules enforced by the
+builder. `AllowAllRowsUpdate()` and `AllowAllRowsDelete()` both default to
+disabled, apply only to the current statement, and are cleared on builder reuse.
 
 OleDb binds by occurrence order, not parameter name. Automatic binding selects
 the positional binder for OleDb and named binding elsewhere. Do not reorder
@@ -123,7 +125,24 @@ passive snapshot of that cache; it does not reset or reconfigure it.
 String `Insert`, `Update`, and `Delete` methods all execute one ADO.NET
 non-query and return the provider's affected-row count; the method name does not
 parse or validate the SQL verb. Builder overloads accept statements produced by
-`InsertInto` or `Update`.
+`InsertInto`, `Update`, or `DeleteFrom`.
+
+Prefer the builder overload for ordinary deletes so values are parameterized,
+the generated SQL passes through the context translator, and
+`OnSqlGenerated` is raised before dispatch:
+
+```csharp
+await database.Delete(
+    new QueryBuilder()
+        .DeleteFrom("Orders")
+        .Where("Id = @p1", orderId),
+    cancellationToken);
+```
+
+An unconstrained delete fails during `Build()` unless the caller opts in at the
+statement site with `AllowAllRowsDelete()`. The raw string overloads remain for
+provider-specific SQL and compatibility; because their SQL is supplied rather
+than generated, their event lifecycle begins at `OnSqlDispatch`.
 
 Every string command has separate non-session and session overloads. The
 session parameter precedes the cancellation token:
@@ -168,10 +187,12 @@ stream disposal. Session-bound operations dispose commands/readers but leave
 the session connection open.
 
 Context events are synchronous, ordered, and subscriber-isolated. SQL is
-redacted by default. A stream raises exactly one terminal outcome after cleanup:
-`Completed`, `Failed`, `Cancelled`, or `DisposedBeforeCompletion`. Observer
-failures are retained in a bounded snapshot and never replace the authoritative
-database outcome.
+redacted by default. Builder operations raise `OnSqlGenerated` after translation
+and before `OnSqlDispatch`; raw string operations begin at `OnSqlDispatch`.
+A stream raises exactly one terminal outcome after cleanup: `Completed`,
+`Failed`, `Cancelled`, or `DisposedBeforeCompletion`. Observer failures are
+retained in a bounded snapshot and never replace the authoritative database
+outcome.
 
 ## Extension boundary
 

@@ -27,6 +27,13 @@ remain under `docs/history/`.
   extension seams are interfaces/composition; and propagated net9 DTO
   reflection metadata through the public interface and mapping paths. See the
   [F1-DATA migration guide](docs/migrations/f1-data.md).
+- **NekoLib.Data — additive fluent DELETE surface with a fail-closed behavioral
+  guard.** Added `QueryBuilder.DeleteFrom`, `AllowAllRowsDelete`, and matching
+  `IDmlGateway`/`DatabaseGateway` builder overloads. Deletes without predicates
+  fail by default unless the current statement explicitly opts into all rows;
+  builder deletes participate in translation and raise `OnSqlGenerated` before
+  dispatch. Raw string overloads remain supported. See the
+  [F1-DATA migration guide](docs/migrations/f1-data.md).
 
 ### Release governance
 

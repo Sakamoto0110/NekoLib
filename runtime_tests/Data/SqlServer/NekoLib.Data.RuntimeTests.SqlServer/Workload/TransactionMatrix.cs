@@ -98,14 +98,15 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     context.Counters.Success();
 
                     int deleted = await gateway.Delete(
-                        "DELETE FROM Movement WHERE Note = @p1",
-                        new Dictionary<string, object?> { ["@p1"] = Marker },
+                        new QueryBuilder()
+                            .DeleteFrom("Movement")
+                            .Where("Note = @p1", Marker),
                         context.Ct).ConfigureAwait(false);
 
                     check.Equal(1, deleted, "rows reported by DELETE");
                     context.Counters.Success();
 
-                    check.Note("Delete has no QueryBuilder overload, so it is raw SQL by design");
+                    check.Note("Delete uses QueryBuilder and emits the generated-SQL lifecycle event");
                 });
         }
 
@@ -328,8 +329,9 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
         private static async Task CleanupAsync(PhaseContext context, string note)
         {
             await context.Workspace.Gateway.Delete(
-                "DELETE FROM Movement WHERE Note = @p1",
-                new Dictionary<string, object?> { ["@p1"] = note },
+                new QueryBuilder()
+                    .DeleteFrom("Movement")
+                    .Where("Note = @p1", note),
                 context.Ct).ConfigureAwait(false);
         }
 

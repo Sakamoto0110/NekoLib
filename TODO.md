@@ -305,6 +305,12 @@ consumers does not prove that a public member is unused.
    PackageReference-only consumers on both targets with zero consumer warnings,
    and has SHA-256
    `B5B03AD0CA92C8F7EB5BF413EB2242945E1222011FC1667684821E106173ECDC`.
+   **Accepted follow-up 2026-08-17:** add fluent `DeleteFrom` and symmetric
+   builder `Delete` overloads so ordinary deletes participate in translation
+   and `OnSqlGenerated`; keep the raw overloads for provider-specific SQL and
+   compatibility. Unconstrained deletes are fail-closed by default and require
+   the statement-local `AllowAllRowsDelete()` opt-in. Tracked Data scenarios
+   must use the builder, including explicit opt-in at intentional table wipes.
 2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,

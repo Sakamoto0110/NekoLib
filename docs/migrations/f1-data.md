@@ -90,6 +90,36 @@ bool found = await gateway.ContainsData(
 
 The original non-parameter and session overloads remain available.
 
+## Fluent delete support
+
+`Delete` now has the same builder overloads as `Insert` and `Update`. Prefer the
+builder for ordinary predicates so deletion participates in translation and
+raises `OnSqlGenerated` before command dispatch:
+
+```csharp
+await gateway.Delete(
+    new QueryBuilder()
+        .DeleteFrom("Rows")
+        .Where("Id = @p1", id),
+    cancellationToken);
+```
+
+`DeleteFrom` is fail-closed. A statement without a predicate throws by default;
+an intentional whole-table operation must opt in explicitly, and the opt-in is
+cleared when another statement is started:
+
+```csharp
+await gateway.Delete(
+    new QueryBuilder()
+        .DeleteFrom("TemporaryRows")
+        .AllowAllRowsDelete(),
+    cancellationToken);
+```
+
+Raw string `Delete` overloads remain available for provider-specific SQL and
+compatibility. Since that SQL is supplied directly rather than generated, the
+raw lifecycle begins at `OnSqlDispatch` rather than `OnSqlGenerated`.
+
 ## net481 streaming surface
 
 `IDqlStreamingGateway` no longer exists in the `net481` assembly. Keep streaming

@@ -214,6 +214,19 @@ namespace NekoLib.Data.Gateway
             return ExecuteBuilderDmlAsync(Builder, session, Ct);
         }
 
+        public Task<int> Delete(QueryBuilder Builder, CancellationToken Ct = default)
+        {
+            return ExecuteBuilderDmlAsync(Builder, null, Ct);
+        }
+
+        public Task<int> Delete(
+            QueryBuilder Builder,
+            DbSession session,
+            CancellationToken Ct = default)
+        {
+            return ExecuteBuilderDmlAsync(Builder, session, Ct);
+        }
+
         private async Task<int> ExecuteBuilderDmlAsync(
             QueryBuilder builder,
             DbSession? session,

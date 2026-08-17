@@ -57,5 +57,14 @@ namespace NekoLib.Data.Gateway
             QueryBuilder builder,
             DbSession session,
             CancellationToken ct = default);
+
+        Task<int> Delete(
+            QueryBuilder builder,
+            CancellationToken ct = default);
+
+        Task<int> Delete(
+            QueryBuilder builder,
+            DbSession session,
+            CancellationToken ct = default);
     }
 }

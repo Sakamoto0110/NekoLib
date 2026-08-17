@@ -6,7 +6,7 @@ using System.Text;
 namespace NekoLib.Data.Query 
 {
     /// <summary>
-    /// Builds provider-neutral SELECT, INSERT, and UPDATE statements and
+    /// Builds provider-neutral SELECT, INSERT, UPDATE, and DELETE statements and
     /// produces a <see cref="QueryModel"/> for an <see cref="IDbQueryTranslator"/>.
     /// </summary>
     /// <remarks>
@@ -22,7 +22,8 @@ namespace NekoLib.Data.Query
             Undefined,
             Select,
             Insert,
-            Update
+            Update,
+            Delete
         }
 
         private QueryType _queryType;
@@ -61,6 +62,7 @@ namespace NekoLib.Data.Query
         private string? _countColumn;
         private bool _isDistinctCount;
         private bool _allowAllRowsUpdate;
+        private bool _allowAllRowsDelete;
 
         private void StartStatement(QueryType queryType)
         {
@@ -82,6 +84,7 @@ namespace NekoLib.Data.Query
             _countColumn = null;
             _isDistinctCount = false;
             _allowAllRowsUpdate = false;
+            _allowAllRowsDelete = false;
         }
 
         private void RequireQueryType(QueryType queryType, string operation)
@@ -95,10 +98,12 @@ namespace NekoLib.Data.Query
 
         private void RequirePredicateQuery(string operation)
         {
-            if (_queryType != QueryType.Select && _queryType != QueryType.Update)
+            if (_queryType != QueryType.Select &&
+                _queryType != QueryType.Update &&
+                _queryType != QueryType.Delete)
             {
                 throw new InvalidOperationException(
-                    operation + " requires an active SELECT or UPDATE statement.");
+                    operation + " requires an active SELECT, UPDATE, or DELETE statement.");
             }
         }
 
@@ -541,7 +546,7 @@ namespace NekoLib.Data.Query
 
         #endregion
 
-        #region INSERT / UPDATE
+        #region INSERT / UPDATE / DELETE
 
         /// <summary>
         /// Starts an INSERT statement with trusted table and column names and
@@ -580,6 +585,20 @@ namespace NekoLib.Data.Query
         }
 
         /// <summary>
+        /// Starts a DELETE statement for a trusted table name.
+        /// </summary>
+        /// <remarks>
+        /// DELETE is fail-closed: <see cref="Build"/> requires at least one
+        /// predicate unless <see cref="AllowAllRowsDelete"/> is called explicitly.
+        /// </remarks>
+        public QueryBuilder DeleteFrom(string Table)
+        {
+            StartStatement(QueryType.Delete);
+            _table = Table;
+            return this;
+        }
+
+        /// <summary>
         /// Explicitly allows the current UPDATE statement to affect every row.
         /// </summary>
         /// <remarks>
@@ -593,6 +612,23 @@ namespace NekoLib.Data.Query
                 throw new InvalidOperationException("AllowAllRowsUpdate can be used only after Update.");
 
             _allowAllRowsUpdate = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Explicitly allows the current DELETE statement to affect every row.
+        /// </summary>
+        /// <remarks>
+        /// The default is <see langword="false"/>. This opt-in applies only to
+        /// the current DELETE state and is cleared whenever another statement
+        /// is started, including another <see cref="DeleteFrom(string)"/> call.
+        /// </remarks>
+        public QueryBuilder AllowAllRowsDelete()
+        {
+            if (_queryType != QueryType.Delete)
+                throw new InvalidOperationException("AllowAllRowsDelete can be used only after DeleteFrom.");
+
+            _allowAllRowsDelete = true;
             return this;
         }
 
@@ -620,8 +656,12 @@ namespace NekoLib.Data.Query
                     sql = BuildUpdate(parameters, ref buildParamIndex);
                     break;
 
+                case QueryType.Delete:
+                    sql = BuildDelete();
+                    break;
+
                 default:
-                    throw new InvalidOperationException("Query type was not defined. Call Select/Insert/Update first.");
+                    throw new InvalidOperationException("Query type was not defined. Call Select/Insert/Update/DeleteFrom first.");
             }
 
             return new QueryModel(
@@ -730,6 +770,26 @@ namespace NekoLib.Data.Query
 
             StringBuilder sb = new StringBuilder();
             sb.Append("UPDATE ").Append(_table).Append(" SET ").Append(string.Join(", ", sets));
+
+            if (_conditions.Count > 0)
+                sb.Append(" WHERE ").Append(string.Join(" AND ", OrderedConditions()));
+
+            return sb.ToString();
+        }
+
+        private string BuildDelete()
+        {
+            if (string.IsNullOrEmpty(_table))
+                throw new InvalidOperationException("DELETE table not specified.");
+
+            if (_conditions.Count == 0 && !_allowAllRowsDelete)
+            {
+                throw new InvalidOperationException(
+                    "DELETE requires a predicate. Call AllowAllRowsDelete to explicitly affect every row.");
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("DELETE FROM ").Append(_table);
 
             if (_conditions.Count > 0)
                 sb.Append(" WHERE ").Append(string.Join(" AND ", OrderedConditions()));

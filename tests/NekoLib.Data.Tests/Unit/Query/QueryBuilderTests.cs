@@ -369,6 +369,59 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Single(model.Parameters);
         }
 
+        [Fact]
+        public void Build_DeleteWithPredicate_EmitsParameterizedDelete()
+        {
+            QueryModel model = new QueryBuilder()
+                .DeleteFrom("Customers")
+                .Where("Id = @p1", 7)
+                .Build();
+
+            Assert.Equal("DELETE FROM Customers WHERE Id = @p1", model.Sql);
+            Assert.Equal(7, model.Parameters["@p1"]);
+        }
+
+        [Fact]
+        public void Build_DeleteWithoutPredicate_DefaultsToFailClosed()
+        {
+            QueryBuilder builder = new QueryBuilder().DeleteFrom("Customers");
+
+            InvalidOperationException exception =
+                Assert.Throws<InvalidOperationException>(() => builder.Build());
+
+            Assert.Contains("AllowAllRowsDelete", exception.Message);
+        }
+
+        [Fact]
+        public void Build_DeleteWithAllRowsOptIn_EmitsDeleteWithoutWhereClause()
+        {
+            QueryModel model = new QueryBuilder()
+                .DeleteFrom("Customers")
+                .AllowAllRowsDelete()
+                .Build();
+
+            Assert.Equal("DELETE FROM Customers", model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void AllowAllRowsDelete_WithoutDelete_ThrowsInvalidOperationException()
+        {
+            Assert.Throws<InvalidOperationException>(() =>
+                new QueryBuilder().AllowAllRowsDelete());
+        }
+
+        [Fact]
+        public void DeleteFrom_AfterAllRowsOptIn_ClearsAuthorization()
+        {
+            QueryBuilder builder = new QueryBuilder()
+                .DeleteFrom("Customers")
+                .AllowAllRowsDelete()
+                .DeleteFrom("Archive");
+
+            Assert.Throws<InvalidOperationException>(() => builder.Build());
+        }
+
         // ---------------------------------------------------------------------
         // Finding #5 - WhereExists / WhereNotExists must rename subquery params
         // so they cannot collide with parent params that share the same name.
@@ -528,6 +581,21 @@ namespace NekoLib.Data.Tests.Unit.Query
                 Assert.True(second.Parameters.ContainsKey(kv.Key));
                 Assert.Equal(kv.Value, second.Parameters[kv.Key]);
             }
+        }
+
+        [Fact]
+        public void Build_Delete_IsIdempotent_AcrossMultipleCalls()
+        {
+            QueryBuilder builder = new QueryBuilder()
+                .DeleteFrom("Customers")
+                .Where("Id = @p1", 7);
+
+            QueryModel first = builder.Build();
+            QueryModel second = builder.Build();
+
+            Assert.Equal(first.Sql, second.Sql);
+            Assert.Equal(first.Parameters.Count, second.Parameters.Count);
+            Assert.Equal(first.Parameters["@p1"], second.Parameters["@p1"]);
         }
 
         [Fact]

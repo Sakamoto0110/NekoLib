@@ -150,11 +150,10 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 {
                     foreach (string table in new[] { "SimState", "SimTiles", "SimMarket", "SimInventory" })
                     {
-                        // Delete has no QueryBuilder overload, only the raw-SQL one, so
-                        // the wipe is hand-written while everything beside it is built.
                         await Gateway.Delete(
-                            "DELETE FROM [" + table + "]",
-                            null,
+                            new QueryBuilder()
+                                .DeleteFrom("[" + table + "]")
+                                .AllowAllRowsDelete(),
                             session,
                             ct).ConfigureAwait(false);
                     }

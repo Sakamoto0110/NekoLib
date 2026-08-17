@@ -499,8 +499,9 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
         private static Task DeleteNoteAsync(PhaseContext context, string note)
         {
             return context.Workspace.Gateway.Delete(
-                "DELETE FROM Movement WHERE Note = @p1",
-                new Dictionary<string, object?> { ["@p1"] = note },
+                new QueryBuilder()
+                    .DeleteFrom("Movement")
+                    .Where("Note = @p1", note),
                 context.Ct);
         }
     }

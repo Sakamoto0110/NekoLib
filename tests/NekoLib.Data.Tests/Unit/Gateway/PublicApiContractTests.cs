@@ -52,6 +52,24 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         }
 
         [Fact]
+        public void IDmlGateway_Delete_HasRawAndBuilderSessionSymmetry()
+        {
+            MethodInfo[] overloads = typeof(IDmlGateway)
+                .GetMethods()
+                .Where(method => method.Name == nameof(IDmlGateway.Delete))
+                .ToArray();
+
+            Assert.Equal(4, overloads.Length);
+            Assert.Equal(2, overloads.Count(method =>
+                method.GetParameters()[0].ParameterType == typeof(string)));
+            Assert.Equal(2, overloads.Count(method =>
+                method.GetParameters()[0].ParameterType == typeof(QueryBuilder)));
+            Assert.Equal(2, overloads.Count(method =>
+                method.GetParameters().Any(parameter =>
+                    parameter.ParameterType == typeof(DbSession))));
+        }
+
+        [Fact]
         public void ConcreteExtensionBoundaries_NonExtensibleTypes_AreSealed()
         {
             Assert.True(typeof(DatabaseGateway).IsSealed);

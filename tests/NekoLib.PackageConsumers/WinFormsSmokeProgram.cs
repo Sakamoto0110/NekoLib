@@ -54,6 +54,12 @@ namespace NekoLib.PackageConsumers
                 parameters,
                 session,
                 cancellationToken);
+            _ = gateway.Delete(
+                new NekoLib.Data.Query.QueryBuilder()
+                    .DeleteFrom("Rows")
+                    .Where("Id = @p1", 1),
+                session,
+                cancellationToken);
 
 #if NET9_0_OR_GREATER
             _ = gateway.StreamDto<PackageDataRow>(query, session, cancellationToken);

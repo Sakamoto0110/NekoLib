@@ -11,7 +11,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
     public class DmlTransactionSymmetryTests
     {
         [Fact]
-        public async Task Delete_StringSession_UsesSessionTransactionThroughConcreteGateway()
+        public async Task Delete_InterfaceQueryBuilderSession_UsesSessionTransaction()
         {
             FakeNonQueryConnectionFactory factory = CreateFactory();
             using (QueryExecutionContext context = new QueryExecutionContext(
@@ -19,14 +19,16 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 new SqliteQueryTranslator()))
             {
                 DatabaseGateway gateway = new DatabaseGateway(context);
+                IDmlGateway dml = gateway;
                 using (DbSession session = await gateway.OpenSessionAsync())
                 {
                     session.BeginTransaction();
                     DbTransaction transaction = session.Transaction;
 
-                    int result = await gateway.Delete(
-                        "DELETE FROM Ledger WHERE Id = @p1",
-                        new Dictionary<string, object> { { "@p1", 7 } },
+                    int result = await dml.Delete(
+                        new QueryBuilder()
+                            .DeleteFrom("Ledger")
+                            .Where("Id = @p1", 7),
                         session);
 
                     Assert.Equal(1, result);
