@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-17
 
-**Reference commit:** working tree after `0ad3840`
+**Reference commit:** working tree after `7ae62a2`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -18,7 +18,7 @@ and active freezes belong in [`TODO.md`](../../TODO.md).
 
 | Artifact | Subject | Lifecycle / status | Reference date | Reference commit | Last reconciliation | Current state |
 |---|---|---|---|---|---|---|
-| [`core-public-api-review-2026-08-17.md`](core-public-api-review-2026-08-17.md) | Core F1 public API finalization | historical; dispositions implemented, package evidence pending | 2026-08-17 | `0ad3840b29d749c25e157ae15db450bf82d17011` | 2026-08-17 | [`TODO.md`](../../TODO.md) F1-CORE |
+| [`core-public-api-review-2026-08-17.md`](core-public-api-review-2026-08-17.md) | Core F1 public API finalization | historical; all dispositions implemented | 2026-08-17 | `0ad3840b29d749c25e157ae15db450bf82d17011` | 2026-08-17 | [Core reference](../../src/Core/NekoLib.Core/README.md), [`TODO.md`](../../TODO.md) F1-CORE |
 | [`data-first-pass.md`](data-first-pass.md) | Data first-pass review | historical | 2026-05-29, with pass 1.5 on 2026-05-31 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
 | [`data-public-api-review-2026-08-17.md`](data-public-api-review-2026-08-17.md) | Data F1 public API finalization | historical; all seven dispositions implemented | 2026-08-17 | `87b34b061f5db6cf50a28d3187070940b851e1be` | 2026-08-17 | [Data reference](../../src/Data/NekoLib.Data/README.md), [`TODO.md`](../../TODO.md) F1-DATA |
 | [`data-stabilization-review-2026-08-01.md`](data-stabilization-review-2026-08-01.md) | Data deep stabilization review | historical; E1 implemented | 2026-08-01 | `628442a58cdf2e2374cc7e48fa10d394d3fc3b87` | 2026-08-02 | [`TODO.md`](../../TODO.md) Phase E4 |

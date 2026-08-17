@@ -320,7 +320,7 @@ consumers does not prove that a public member is unused.
    PackageReference-only consumers passed on both targets with zero consumer
    warnings. Its SHA-256 is
    `977D8F3DAABB63ECF3855F1F43ED60CCD8DE40E5981591B6E5F9DC7F266B8E70`.
-2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
+2. [x] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
    **Accepted 2026-08-17:** retain the existing ownership, lifecycle,
    extension, null-object, snapshot, bounded-read, payload, and global-provider
@@ -335,6 +335,18 @@ consumers does not prove that a public member is unused.
    or authorize changes to dependent-module action behavior. The accepted
    rationale and rejected alternatives are recorded in
    [`docs/audit/core-public-api-review-2026-08-17.md`](docs/audit/core-public-api-review-2026-08-17.md).
+   **Completed 2026-08-17:** implementation landed in `7ae62a2`. Core passed
+   13/13 tests on `net481` and 13/13 on `net9.0`; the full solution passed
+   1310/1310 tests; the post-test incremental Release solution build completed
+   with 0 warnings and 0 errors; and both Core API manifests, documentation
+   verification, and diff hygiene passed. No runtime scenario was required or
+   run. Immutable package
+   `NekoLib.Core.1.0.0-local.16.nupkg` was built from
+   `7ae62a23db4c8933f7db2cf783b227df21a59abe`, exposes both supported target
+   assemblies, and was exercised through PackageReference-only WinForms and
+   WPF consumers on both target families with zero consumer warnings. Its
+   SHA-256 is
+   `0C26641F8D28779665F13DB407EC07C49AF75105D3A302496F1A5C95F568167E`.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
    sink, snapshot, and disposal contracts without adding global state.
 4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,

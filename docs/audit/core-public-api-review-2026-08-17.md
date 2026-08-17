@@ -7,7 +7,7 @@
 **Subject:** F1-CORE compiled public surface, ownership, lifecycle, extension,
 null-object, snapshot, payload, and compatibility boundaries
 
-**Status:** dispositions implemented; package evidence pending
+**Status:** all dispositions implemented
 
 **Reference date:** 2026-08-17
 
@@ -427,10 +427,27 @@ deferred to each dependent module's future F1 review; this acceptance does not
 unfreeze broad Inspection instrumentation.
 
 The accepted implementation passed 13/13 focused Core tests on each target,
-the full Release solution build with 0 warnings and 0 errors, and 1,310/1,310
-solution tests (651 `net481`, 659 modern-target) with no failures or skips. Both
-updated Core manifests then matched the compiled assemblies; documentation and
-diff hygiene also passed. No runtime scenario was run because the accepted
-change does not alter runtime time-budget, threading, persistence, provider, or
-global-lifecycle behavior. Immutable package provenance and PackageReference-
-consumer evidence remain pending and are not claimed by these source gates.
+the post-test incremental Release solution build with 0 warnings and 0 errors,
+and 1,310/1,310 solution tests (651 `net481`, 659 modern-target) with no failures
+or skips. Both updated Core manifests then matched the compiled assemblies;
+documentation and diff hygiene also passed. No runtime scenario was run; the
+accepted change does not alter runtime time-budget, threading, persistence,
+provider, or global-lifecycle behavior.
+
+The canonical clean-tree package gate then created coordinated family version
+`1.0.0-local.16` from implementation commit
+`7ae62a23db4c8933f7db2cf783b227df21a59abe`. The published
+`NekoLib.Core.1.0.0-local.16.nupkg` contains both `net481` and `net9.0`
+assemblies, records that source commit in its NuGet metadata, and has SHA-256
+`0C26641F8D28779665F13DB407EC07C49AF75105D3A302496F1A5C95F568167E`.
+Inspection of the packaged `net481` assembly confirmed the exact
+`NEKOEXP0001` warning marker with `IsError=false`.
+
+PackageReference-only WinForms and WPF consumers restored, built, and ran on
+both target families; the WinForms program compiled representative direct Core
+contracts, and all consumer builds reported zero warnings and zero errors. The
+multitarget consumer, package structure, target assemblies, Watchdog Host
+payloads, deployment opt-out, stale-payload replacement, publish, and clean
+probes also passed. This is package and package-consumer evidence, not a real
+application runtime scenario; none was run or required for the accepted Core
+change.
