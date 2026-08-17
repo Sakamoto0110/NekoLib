@@ -2,13 +2,13 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-INSP compiled public surface, passive recording, provider and
 snapshot behavior, owner diagnostics, opt-in lifecycle, experimental action
 boundary, and compatibility impact
 
-**Status:** dispositions accepted and implemented; immutable package gate pending
+**Status:** all dispositions accepted, implemented, and package-validated
 
 **Reference date:** 2026-08-17
 
@@ -633,3 +633,32 @@ Assembly bits changed, so `1.0.0-local.18` remains prior evidence only. F1-INSP
 is deliberately open and this audit remains current until Codex commits the
 implementation and completes the clean canonical package gate with a new
 immutable coordinated family version.
+
+## Package reconciliation - 2026-08-17
+
+The implementation commit is
+`9f878dfd78d997732a010c2d4996396cb0d567fa`. The canonical package gate began
+from that clean tracked worktree after confirming that `1.0.0-local.19` did not
+already exist. It used only `eng\pack-local.ps1 -PackageVersion
+1.0.0-local.19`, without `-SkipTests` or `-AllowDirty`.
+
+The package flow rebuilt the solution with the existing 515-warning baseline
+and zero errors, then passed all 1,438/1,438 tests with zero failures or skips.
+It produced and published 16 coordinated packages. PackageReference-only
+WinForms and WPF consumers restored, built, and ran on both target families
+with zero consumer warnings; WinForms loaded 19 package surfaces and WPF loaded
+4. The multitarget consumer, package structure, Watchdog Host payload,
+deployment opt-out, stale-payload replacement, publish, and clean probes also
+passed. The tracked worktree remained clean.
+
+`NekoLib.Inspection.1.0.0-local.19.nupkg` records package ID
+`NekoLib.Inspection`, version `1.0.0-local.19`, repository commit
+`9f878dfd78d997732a010c2d4996396cb0d567fa`, and the expected repository URL.
+It contains `lib/net481/NekoLib.Inspection.dll` and
+`lib/net9.0/NekoLib.Inspection.dll`. Both dependency groups declare
+`NekoLib.Core` at the aligned `1.0.0-local.19` version. Its SHA-256 is
+`8B553A3B7DCC605CB6470E495EAF21E15BD646927C2EB9F5B8BE15E45750E7AF`.
+
+This is build, package, and PackageReference-consumer evidence, not a
+long-running application claim. The Observability scenario was built but never
+launched. F1-INSP is complete, and this review is historical.

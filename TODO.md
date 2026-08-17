@@ -423,7 +423,7 @@ consumers does not prove that a public member is unused.
    both target families with zero consumer warnings; the multitarget, package,
    deployment, publish, and clean probes also passed. The package SHA-256 is
    `8B3DDABA5B16A91D0518258B8246022688E3E8E042BF03BC079A7D4AFE9BA185`.
-5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
+5. [x] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
    snapshot-source, provider, and opt-in lifecycle surface without unfreezing
    broad module instrumentation or privileged actions.
    - **Accepted 2026-08-17:** keep the three concrete public types and their
@@ -436,9 +436,24 @@ consumers does not prove that a public member is unused.
      expose provider and key order by registration, share one outstanding
      budgeted capture task per provider registration, make post-disposal clear
      inert, correct the capacity exception parameter, and retain the internal
-     post-install hook solely for deterministic lifecycle testing. Completion
-     remains pending implementation, dual-target/API/docs gates, and canonical
-     immutable package validation.
+     post-install hook solely for deterministic lifecycle testing.
+   - **Completed 2026-08-17:** implementation landed in `9f878df`. Inspection
+     passed 40/40 tests on `net481` and 40/40 on `net9.0`; the full solution
+     passed 1,438/1,438 tests with no failures or skips. The canonical clean
+     package build emitted the existing 515-warning baseline and no errors.
+     Both API manifests changed only by the four accepted experimental
+     attributes; scoped API verification, documentation verification, warning
+     identity comparison, and diff hygiene passed. The Observability scenario
+     removed passive action probes, then compiled with zero warnings on both
+     targets without being launched. Immutable package
+     `NekoLib.Inspection.1.0.0-local.19.nupkg` was built from
+     `9f878dfd78d997732a010c2d4996396cb0d567fa`, contains both supported target
+     assemblies, and declares the aligned `NekoLib.Core` dependency. The
+     canonical PackageReference-only WinForms and WPF consumers restored,
+     built, and ran on both target families with zero consumer warnings; the
+     multitarget, package, deployment, publish, and clean probes also passed.
+     The package SHA-256 is
+     `8B553A3B7DCC605CB6470E495EAF21E15BD646927C2EB9F5B8BE15E45750E7AF`.
 6. [ ] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
    dump-writer, external notification, ownership, and partial-evidence
    contracts.
