@@ -10,6 +10,7 @@ the handoff state and the rules that are easy to get wrong.
 |---|---|
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Typed HTTP catalogs, ownership, and response boundaries | [`src/Http/NekoLib.Http/README.md`](src/Http/NekoLib.Http/README.md) |
+| Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |

@@ -6,9 +6,9 @@
 
 **Subject:** repository documentation governance
 
-**Reference date:** 2026-08-16
+**Reference date:** 2026-08-17
 
-**Reference commit:** working tree after `5586d92`
+**Reference commit:** working tree after `e7caf7a`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -47,6 +47,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Solution membership | `NekoLib.sln` | `dotnet sln NekoLib.sln list` and solution build |
 | Public API and runtime behavior | Current source code | Executable tests and runtime scenarios |
 | Product purpose and concise module map | [`README.md`](../README.md) | Project files and source |
+| Data gateway technical contract | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | Data source, tests, and provider scenarios |
 | Navigation technical contract | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | Navigation source and tests |
 | Open work, accepted decisions, active freezes, and completion criteria | [`TODO.md`](../TODO.md) | Current implementation and validation |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
@@ -65,10 +66,12 @@ reference commit.
 | [`README.md`](../README.md) | reference | current | Product overview, compatibility, module map, and package entry points |
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Open work, accepted decisions, freezes, and completion criteria |
 | [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
+| [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
 | [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
+| [`docs/migrations/f1-data.md`](migrations/f1-data.md) | guide | current | Migration from the initial Data candidate surface to the accepted F1-DATA gateway contract |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | current | F1-DATA compiled-surface review and proposed gateway-contract decisions; implementation decision remains pending |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |

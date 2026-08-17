@@ -16,7 +16,17 @@ remain under `docs/history/`.
 
 ### Public API
 
-No consumer-visible public API change has been accepted under F1 yet.
+- **NekoLib.Data — breaking pre-stable candidate correction for the first
+  `1.0.0` stable family release.** Moved `DatabaseGateway` from
+  `NekoLib.Data.Internal.Gateway` to `NekoLib.Data.Gateway` without a shim;
+  removed `IUniversalQueryGateway` and the redundant `Get<TTranslator,T>`,
+  `Read`, and `StreamData` families; normalized concrete/interface and session
+  overloads; exposed parameterized `ContainsData`; removed the unusable
+  `IDqlStreamingGateway` and `Microsoft.Bcl.AsyncInterfaces` dependency from
+  `net481`; internalized `DbDataReaderExtensions`; sealed concrete types whose
+  extension seams are interfaces/composition; and propagated net9 DTO
+  reflection metadata through the public interface and mapping paths. See the
+  [F1-DATA migration guide](docs/migrations/f1-data.md).
 
 ### Release governance
 

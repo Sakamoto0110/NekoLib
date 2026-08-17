@@ -1,47 +1,97 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Dynamic;
-using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
+#if NET6_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
+#endif
 
-namespace NekoLib.Data.Internal.Gateway
+namespace NekoLib.Data.Gateway
 {
     public partial class DatabaseGateway
     {
-        Task<List<T>> IDtoQueryGateway.GetDto<T>(
+        public Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             string sql,
-            Dictionary<string, object?>? parameters,
-            CancellationToken ct)
+            Dictionary<string, object?>? parameters = null,
+            CancellationToken ct = default)
+            where T : new()
         {
             return GetDtoFromSql<T>(sql, parameters, ct);
         }
 
-        Task<int> IDmlGateway.Insert(
+        public Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             string sql,
             Dictionary<string, object?>? parameters,
-            CancellationToken ct,
-            DbSession? session)
+            DbSession session,
+            CancellationToken ct = default)
+            where T : new()
         {
+            if (session == null) throw new ArgumentNullException(nameof(session));
+            return GetDtoFromSql<T>(sql, parameters, ct, session);
+        }
+
+        public Task<int> Insert(
+            string sql,
+            Dictionary<string, object?>? parameters = null,
+            CancellationToken ct = default)
+        {
+            return ExecuteDmlAsync(sql, parameters, ct, null);
+        }
+
+        public Task<int> Insert(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default)
+        {
+            if (session == null) throw new ArgumentNullException(nameof(session));
             return ExecuteDmlAsync(sql, parameters, ct, session);
         }
 
-        Task<int> IDmlGateway.Update(
+        public Task<int> Update(
+            string sql,
+            Dictionary<string, object?>? parameters = null,
+            CancellationToken ct = default)
+        {
+            return ExecuteDmlAsync(sql, parameters, ct, null);
+        }
+
+        public Task<int> Update(
             string sql,
             Dictionary<string, object?>? parameters,
-            CancellationToken ct,
-            DbSession? session)
+            DbSession session,
+            CancellationToken ct = default)
         {
+            if (session == null) throw new ArgumentNullException(nameof(session));
             return ExecuteDmlAsync(sql, parameters, ct, session);
         }
 
-        Task<int> IDmlGateway.Delete(
+        public Task<int> Delete(
+            string sql,
+            Dictionary<string, object?>? parameters = null,
+            CancellationToken ct = default)
+        {
+            return ExecuteDmlAsync(sql, parameters, ct, null);
+        }
+
+        public Task<int> Delete(
             string sql,
             Dictionary<string, object?>? parameters,
-            CancellationToken ct,
-            DbSession? session)
+            DbSession session,
+            CancellationToken ct = default)
         {
+            if (session == null) throw new ArgumentNullException(nameof(session));
             return ExecuteDmlAsync(sql, parameters, ct, session);
         }
 
@@ -62,10 +112,10 @@ namespace NekoLib.Data.Internal.Gateway
         }
 
 #if NET6_0_OR_GREATER
-        IAsyncEnumerable<Dictionary<string, RecordItem>> IDqlStreamingGateway.StreamRaw(
+        public IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
             string sql,
-            Dictionary<string, object?>? parameters,
-            CancellationToken ct)
+            Dictionary<string, object?>? parameters = null,
+            CancellationToken ct = default)
         {
             return StreamRawCore(new DatabaseQuery(sql, parameters ?? new Dictionary<string, object?>()), null, ct);
         }

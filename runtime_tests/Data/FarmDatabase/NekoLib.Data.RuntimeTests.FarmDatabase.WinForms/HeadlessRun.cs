@@ -271,8 +271,8 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
         /// Reads the operation log by streaming and checks it agrees with the count.
         /// <para/>
         /// This is the only part of the module that differs by target framework, and
-        /// the difference is deliberate: the streaming gateway exists on net6 and later
-        /// and is marked <c>[Obsolete(error: true)]</c> below it. So the two builds are
+        /// the difference is deliberate: the streaming gateway exists only on net6 and
+        /// later and is absent from the net481 assembly. So the two builds are
         /// expected to disagree here, and the net481 branch reporting its own absence
         /// is the correct result rather than a gap.
         /// </summary>

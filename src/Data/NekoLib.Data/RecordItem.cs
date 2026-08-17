@@ -12,7 +12,7 @@ namespace NekoLib.Data
     /// preserve every original detail, including nulls, binary data, or
     /// provider-specific precision.
     /// </summary>
-    public class RecordItem
+    public sealed class RecordItem
     {
         public string Type = string.Empty;
         public string Name = string.Empty;

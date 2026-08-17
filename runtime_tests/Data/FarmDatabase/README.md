@@ -209,9 +209,9 @@ wrong question.
 
 Reads the operation log a row at a time and checks the total against `COUNT(*)`. This is
 the one place the two targets genuinely differ, and the difference is deliberate:
-`IDatabaseGateway` composes `IDqlStreamingGateway` only on net6 and later, and the
-interface carries `[Obsolete(error: true)]` below that. On `net481` the run reports the
-capability as absent, which is the correct result rather than a gap.
+`IDatabaseGateway` composes `IDqlStreamingGateway` only on net6 and later; the
+streaming interface is absent from the `net481` assembly. On `net481` the run reports
+the capability as absent, which is the correct result rather than a gap.
 
 ### What the renderer is not
 
@@ -258,24 +258,20 @@ either provider here, not silently active.
 .\...exe --headless access 1 0 --reads
 ```
 
-The scenario's own code used three of the gateway's read shapes and ignored the rest:
-the callback overloads, the dynamic path, the universal path and `ContainsData` had no
+The scenario's original application code used three of the gateway's read shapes and
+ignored the rest: the callback overloads, the dynamic path and `ContainsData` had no
 coverage at all. Testing each in isolation would prove little, so they are all pointed
 at one query and **required to agree on the number of rows**. A shape that disagrees is
 either mapping differently or losing rows.
 
-Covered: `ContainsData` in both a populated and an empty case, `GetRaw` from raw SQL and
-from a builder, `ReadRaw`, `GetDto` both ways, `ReadDto`, `GetDynamic`, `ReadDynamic`,
-`Get<TTranslator, T>`, `Read<T>`, the same shapes bound to one shared `DbSession`, and
-on net6+ `StreamRaw`, `StreamDto` and `StreamDynamic`.
+Covered: parameterized `ContainsData` in a populated case plus an empty case,
+`GetRaw` from raw SQL and from a builder, `ReadRaw`, `GetDto` both ways, `ReadDto`,
+`GetDynamic`, `ReadDynamic`, the same shapes bound to one shared `DbSession`, and on
+net6+ `StreamRaw`, `StreamDto` and `StreamDynamic`.
 
-Nineteen shapes on `net9.0-windows`, sixteen on `net481` — the difference is streaming,
+Seventeen shapes on `net9.0-windows`, fourteen on `net481` — the difference is streaming,
 as expected. All agree, on both engines, and the typed callback's summed quantity is
 identical across all three runs, so they match on values and not only on counts.
-
-One API observation worth recording: `Get<TTranslator, T>` makes the caller name the
-translator type at compile time even though the `QueryExecutionContext` it runs on
-already owns one, so provider-agnostic code has to branch on the profile to reach it.
 
 ## QueryBuilder against both dialects
 

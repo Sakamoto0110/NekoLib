@@ -1,13 +1,12 @@
+#if NET6_0_OR_GREATER
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using NekoLib.Data.Dynamic;
 using NekoLib.Data.Query;
 
 namespace NekoLib.Data.Gateway
 {
-#if !NET6_0_OR_GREATER
-    [System.Obsolete("Streaming gateway members are implemented only on net6.0 or greater targets.", true)]
-#endif
     public interface IDqlStreamingGateway
     {
         IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
@@ -21,12 +20,16 @@ namespace NekoLib.Data.Gateway
             DbSession session,
             CancellationToken ct = default);
 
-        IAsyncEnumerable<T> StreamDto<T>(
+        IAsyncEnumerable<T> StreamDto<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+            T>(
             QueryBuilder builder,
             CancellationToken ct = default)
             where T : new();
 
-        IAsyncEnumerable<T> StreamDto<T>(
+        IAsyncEnumerable<T> StreamDto<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+            T>(
             QueryBuilder builder,
             DbSession session,
             CancellationToken ct = default)
@@ -41,22 +44,6 @@ namespace NekoLib.Data.Gateway
             DbSession session,
             CancellationToken ct = default);
 
-        IAsyncEnumerable<dynamic> StreamData(
-            QueryBuilder builder,
-            CancellationToken ct = default);
-
-        IAsyncEnumerable<dynamic> StreamData(
-            QueryBuilder builder,
-            DbSession session,
-            CancellationToken ct = default);
-
-        IAsyncEnumerable<T> StreamData<T>(
-            QueryBuilder builder,
-            CancellationToken ct = default);
-
-        IAsyncEnumerable<T> StreamData<T>(
-            QueryBuilder builder,
-            DbSession session,
-            CancellationToken ct = default);
     }
 }
+#endif

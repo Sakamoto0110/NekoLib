@@ -81,7 +81,7 @@ optional unless one of their documented dependents brings them transitively.
 | `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
 | `NekoLib.Http` | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
-| `NekoLib.Data` | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, streaming, and transactions. |
+| [`NekoLib.Data`](src/Data/NekoLib.Data/README.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
 | `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
 | `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |

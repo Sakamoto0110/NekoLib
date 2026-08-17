@@ -30,7 +30,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
     /// Runs one query through every way the gateway offers of reading it.
     /// <para/>
     /// The scenario had used three of these and ignored the rest: the callback
-    /// overloads, the dynamic path, the universal path and <c>ContainsData</c> had no
+    /// overloads, the dynamic path and <c>ContainsData</c> had no
     /// coverage at all. Rather than testing each in isolation, they are all pointed at
     /// the same query — <b>every shape must agree on the number of rows</b>. A shape
     /// that disagrees is either mapping differently or losing rows, and both matter.
@@ -61,7 +61,10 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             var results = new List<ReadShapeResult>();
 
             // --- existence ------------------------------------------------
-            bool any = await Gateway.ContainsData(ShapeSqlWithLiteral(), ct).ConfigureAwait(false);
+            bool any = await Gateway.ContainsData(
+                "SELECT [Id] FROM [Products] WHERE [Quantity] > @p1",
+                ShapeParameters(),
+                ct).ConfigureAwait(false);
             results.Add(new ReadShapeResult("ContainsData", any ? 1 : 0, any ? "true" : "false"));
 
             bool none = await Gateway.ContainsData(
@@ -105,20 +108,6 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             int dynamicCallback = 0;
             await Gateway.ReadDynamic(ShapeBuilder(), _ => dynamicCallback++, ct).ConfigureAwait(false);
             results.Add(new ReadShapeResult("ReadDynamic", dynamicCallback));
-
-            // --- universal ------------------------------------------------
-            // The universal path makes the caller name the translator type at compile
-            // time, even though the context it runs on already owns one. Branching on
-            // the profile is the only way to reach it from provider-agnostic code.
-            List<Product> universal = Profile.Provider == FarmProvider.Sqlite
-                ? await Gateway.Get<SqliteQueryTranslator, Product>(ShapeBuilder(), ct).ConfigureAwait(false)
-                : await Gateway.Get<AccessQueryTranslator, Product>(ShapeBuilder(), ct).ConfigureAwait(false);
-
-            results.Add(new ReadShapeResult("Get<TTranslator,T>", universal.Count));
-
-            int readTyped = 0;
-            await Gateway.Read<Product>(ShapeBuilder(), _ => readTyped++, ct).ConfigureAwait(false);
-            results.Add(new ReadShapeResult("Read<T>", readTyped));
 
             // --- the same shapes bound to one session ---------------------
             using (DbSession session = await Gateway.OpenSessionAsync(ct).ConfigureAwait(false))
@@ -164,12 +153,5 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
 
             return results;
         }
-
-        /// <summary>
-        /// <c>ContainsData</c> takes no parameters, so the threshold has to be inlined.
-        /// The value is a constant in this file, not caller input.
-        /// </summary>
-        private static string ShapeSqlWithLiteral() =>
-            "SELECT [Id] FROM [Products] WHERE [Quantity] > " + ShapeThreshold;
     }
 }

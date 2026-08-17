@@ -15,7 +15,7 @@ namespace NekoLib.Data.Query
     /// joins, grouping, ordering, and raw condition text are trusted SQL
     /// fragments. Applications must not pass untrusted input to those fragments.
     /// </remarks>
-    public class QueryBuilder
+    public sealed class QueryBuilder
     {
         internal enum QueryType
         {

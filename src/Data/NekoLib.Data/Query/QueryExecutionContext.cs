@@ -15,7 +15,7 @@ namespace NekoLib.Data.Query
     /// isolated from database outcomes and retained only in the bounded
     /// observer-failure snapshot.
     /// </remarks>
-    public class QueryExecutionContext : IDisposable
+    public sealed class QueryExecutionContext : IDisposable
     {
         private const string RedactedSql = "[SQL redacted]";
         private readonly object _observerFailureSync = new object();
@@ -160,7 +160,7 @@ namespace NekoLib.Data.Query
             return Options.EmitRawSqlInEvents ? sql : RedactedSql;
         }
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if(!disposedValue)
             {
@@ -189,7 +189,6 @@ namespace NekoLib.Data.Query
 
         public void Dispose()
         {
-            // Keep cleanup in Dispose(bool) so derived contexts preserve the pattern.
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }

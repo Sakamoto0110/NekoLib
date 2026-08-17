@@ -4,7 +4,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Connection;
-using NekoLib.Data.Internal.Gateway;
+using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
 using Xunit;
 

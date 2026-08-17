@@ -104,22 +104,6 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     await gateway.ReadDynamic(Builder(), _ => dynamicCallbackRows++, context.Ct).ConfigureAwait(false);
                     shapes.Add(Pair("ReadDynamic", dynamicCallbackRows));
 
-                    List<PartRow> universal = await gateway
-                        .Get<SqlServerQueryTranslator, PartRow>(Builder(), context.Ct).ConfigureAwait(false);
-                    shapes.Add(Pair("Get<TTranslator,T>", universal.Count));
-                    typedSums.Add(SumQuantity(universal));
-
-                    List<PartRow> universalTyped = new List<PartRow>();
-                    await gateway.Read<PartRow>(Builder(), universalTyped.Add, context.Ct).ConfigureAwait(false);
-                    shapes.Add(Pair("Read<T>", universalTyped.Count));
-                    typedSums.Add(SumQuantity(universalTyped));
-
-                    List<PartRow> universalDelegate = new List<PartRow>();
-                    await gateway.Read(Builder(), (Action<PartRow>)universalDelegate.Add, context.Ct)
-                        .ConfigureAwait(false);
-                    shapes.Add(Pair("Read(delegate)", universalDelegate.Count));
-                    typedSums.Add(SumQuantity(universalDelegate));
-
                     using (DbSession session = await gateway.OpenSessionAsync(context.Ct).ConfigureAwait(false))
                     {
                         shapes.Add(Pair("GetRaw(session)", (await gateway
@@ -152,8 +136,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         streamedDynamic++;
                     shapes.Add(Pair("StreamDynamic", streamedDynamic));
 #else
-                    check.Note("streaming shapes are absent on net481 by design: IDqlStreamingGateway carries " +
-                               "[Obsolete(error: true)] below net6, so referencing them would not compile");
+                    check.Note("streaming shapes are absent on net481 by design: IDqlStreamingGateway is " +
+                               "not compiled for that target, so referencing it would not compile");
 #endif
 
                     bool populated = await gateway.ContainsData(

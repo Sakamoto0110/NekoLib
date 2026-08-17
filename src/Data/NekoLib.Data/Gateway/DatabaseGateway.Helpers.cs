@@ -7,13 +7,13 @@ using System.Globalization;
 using System.Reflection;
 using NekoLib.Data.Query;
 
-namespace NekoLib.Data.Internal.Gateway
+namespace NekoLib.Data.Gateway
 {
     /// <summary>
     /// Utility extensions for <see cref="IDataRecord"/> and
     /// <see cref="DbDataReader"/>.
     /// </summary>
-    public static class DbDataReaderExtensions
+    internal static class DbDataReaderExtensions
     {
         /// <summary>
         /// Returns whether the reader contains the specified column, ignoring case.

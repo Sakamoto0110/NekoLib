@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
 using NekoLib.Data.Gateway;
-using NekoLib.Data.Internal.Gateway;
 using NekoLib.Data.Query;
 using Xunit;
 
@@ -11,6 +10,33 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 {
     public class DmlTransactionSymmetryTests
     {
+        [Fact]
+        public async Task Delete_StringSession_UsesSessionTransactionThroughConcreteGateway()
+        {
+            FakeNonQueryConnectionFactory factory = CreateFactory();
+            using (QueryExecutionContext context = new QueryExecutionContext(
+                factory,
+                new SqliteQueryTranslator()))
+            {
+                DatabaseGateway gateway = new DatabaseGateway(context);
+                using (DbSession session = await gateway.OpenSessionAsync())
+                {
+                    session.BeginTransaction();
+                    DbTransaction transaction = session.Transaction;
+
+                    int result = await gateway.Delete(
+                        "DELETE FROM Ledger WHERE Id = @p1",
+                        new Dictionary<string, object> { { "@p1", 7 } },
+                        session);
+
+                    Assert.Equal(1, result);
+                    Assert.Same(transaction, factory.LastConnection.LastCommand.Transaction);
+                    Assert.Equal(1, factory.CreateCalls);
+                    session.Commit();
+                }
+            }
+        }
+
         [Fact]
         public async Task Insert_QueryBuilderSession_UsesSessionTransaction()
         {

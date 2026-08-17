@@ -10,20 +10,35 @@ namespace NekoLib.Data.Gateway
         Task<int> Insert(
             string sql,
             Dictionary<string, object?>? parameters = null,
-            CancellationToken ct = default,
-            DbSession? session = null);
+            CancellationToken ct = default);
+
+        Task<int> Insert(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default);
 
         Task<int> Update(
             string sql,
             Dictionary<string, object?>? parameters = null,
-            CancellationToken ct = default,
-            DbSession? session = null);
+            CancellationToken ct = default);
+
+        Task<int> Update(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default);
 
         Task<int> Delete(
             string sql,
             Dictionary<string, object?>? parameters = null,
-            CancellationToken ct = default,
-            DbSession? session = null);
+            CancellationToken ct = default);
+
+        Task<int> Delete(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default);
 
         Task<int> Insert(
             QueryBuilder builder,

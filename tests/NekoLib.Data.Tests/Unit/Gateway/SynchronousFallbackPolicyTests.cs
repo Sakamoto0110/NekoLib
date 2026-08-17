@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NekoLib.Data.Internal.Gateway;
+using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
 using Xunit;
 
@@ -116,7 +116,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                     DatabaseGateway gateway = new DatabaseGateway(context);
 
                     await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                        gateway.Insert("UPDATE T SET A = 1", cancellation.Token));
+                        gateway.Insert("UPDATE T SET A = 1", null, cancellation.Token));
 
                     Assert.Equal(0, factory.LastConnection.LastCommand.ExecuteNonQueryCalls);
                 }

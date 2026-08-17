@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using NekoLib.Data.Internal.Gateway;
+using NekoLib.Data.Gateway;
 using NekoLib.Data.Mapping;
 using NekoLib.Data.Query;
 using Xunit;
@@ -38,20 +38,6 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             }
         }
 
-        [Fact]
-        public async Task UniversalRead_DtoTarget_UsesSameMappingContractAsDtoApi()
-        {
-            using (QueryExecutionContext context = CreateContext(SuccessReader))
-            {
-                DatabaseGateway gateway = new DatabaseGateway(context);
-                MappingDto observed = null;
-
-                await gateway.Read<MappingDto>(SelectAll(), row => observed = row);
-
-                AssertMapped(observed);
-            }
-        }
-
 #if NET9_0_OR_GREATER
         [Fact]
         public async Task StreamDto_ReaderValues_UsesSameMappingContractAsBufferedRead()
@@ -62,22 +48,6 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 List<MappingDto> rows = new List<MappingDto>();
 
                 await foreach (MappingDto row in gateway.StreamDto<MappingDto>(SelectAll()))
-                    rows.Add(row);
-
-                AssertMapped(Assert.Single(rows));
-            }
-        }
-
-
-        [Fact]
-        public async Task UniversalStream_DtoTarget_UsesSameMappingContractAsDtoApi()
-        {
-            using (QueryExecutionContext context = CreateContext(SuccessReader))
-            {
-                DatabaseGateway gateway = new DatabaseGateway(context);
-                List<MappingDto> rows = new List<MappingDto>();
-
-                await foreach (MappingDto row in gateway.StreamData<MappingDto>(SelectAll()))
                     rows.Add(row);
 
                 AssertMapped(Assert.Single(rows));

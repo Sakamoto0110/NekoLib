@@ -6,9 +6,6 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Gateway;
-// The concrete gateway lives under an "Internal" namespace even though the type is
-// public, so constructing the module's primary entry point requires importing it.
-using NekoLib.Data.Internal.Gateway;
 using NekoLib.Data.Query;
 using NekoLib.Data.RuntimeTests.FarmDatabase.Core.Model;
 using NekoLib.Data.RuntimeTests.FarmDatabase.Core.Providers;
@@ -363,8 +360,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
         /// <para/>
         /// The guard is the point as much as the method is. <c>IDatabaseGateway</c>
         /// composes <c>IDqlStreamingGateway</c> only on net6 and later — on net481 the
-        /// streaming members are not on the interface at all, and the interface itself
-        /// carries <c>[Obsolete(error: true)]</c>. So this is the one place in the
+        /// streaming interface and its members are absent. So this is the one place in the
         /// scenario where the two targets genuinely differ, and the net481 build
         /// passing is what proves the guard holds.
         /// <para/>
@@ -631,8 +627,8 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     await Gateway.Delete(
                         "DELETE FROM [Animals] WHERE [Id] = @p1",
                         new Dictionary<string, object?> { ["@p1"] = animal.Id },
-                        ct,
-                        session).ConfigureAwait(false);
+                        session,
+                        ct).ConfigureAwait(false);
 
                     await WriteLogAsync(
                         session,

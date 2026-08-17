@@ -31,7 +31,4 @@
 		<DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
 	</PropertyGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == 'net481'">
-	  <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.1" />
-	</ItemGroup>
 </Project>

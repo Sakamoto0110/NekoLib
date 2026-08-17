@@ -40,7 +40,7 @@ namespace NekoLib.Data.Connection
     /// This factory is deliberately stateless. It does not retain, close, or
     /// dispose created connections; the caller owns each returned connection.
     /// </summary>
-    public class DbConnectionAbstractFactory<T> : IDbConnectionFactory where T : DbConnection
+    public sealed class DbConnectionAbstractFactory<T> : IDbConnectionFactory where T : DbConnection
     {
         private readonly string _connectionString;
 

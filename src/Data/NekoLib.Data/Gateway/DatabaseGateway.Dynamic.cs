@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using NekoLib.Data.Query;
 using NekoLib.Data.Gateway;
 using NekoLib.Data.Dynamic;
-namespace NekoLib.Data.Internal.Gateway
+namespace NekoLib.Data.Gateway
 {
     public partial class DatabaseGateway
     {
@@ -337,13 +337,6 @@ namespace NekoLib.Data.Internal.Gateway
             await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
         }
 
-        private async Task<List<DynamicRow>> GetDynamicFromSql(string sql, Dictionary<string, object?>? parameters, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null)
-        {
-            List<DynamicRow> list = new List<DynamicRow>();
-            await ReadDynamicFromSql(sql, parameters, row => list.Add(row), ct, session, commandPolicy).ConfigureAwait(false);
-            return list;
-        }
-
         private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null)
         {
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
@@ -499,14 +492,6 @@ namespace NekoLib.Data.Internal.Gateway
             }
         }
 
-        internal async IAsyncEnumerable<dynamic> StreamDynamicAsDynamic(DatabaseQuery dbq, DbSession? session, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-        {
-            await foreach(DynamicRow row in StreamDynamicInternal(dbq, session, ct))
-            {
-                yield return row;
-            }
-        }
-        
         #endregion DataStreaming
 #endif
 

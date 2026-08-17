@@ -1,7 +1,7 @@
 #nullable enable
 
- using NekoLib.Data.Query;
-using NekoLib.Data.Gateway;
+using NekoLib.Data.Query;
+using NekoLib.Data.Internal.Gateway;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -9,33 +9,32 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NekoLib.Data.Internal.Gateway
+namespace NekoLib.Data.Gateway
 {
     /// <summary>
     /// Provider-neutral database gateway for raw SQL and
     /// <see cref="Query.QueryBuilder"/> statements.
     /// 
-    /// The public result APIs have four layers:
+    /// The public result APIs have three layers:
     /// <list type="bullet">
     ///   <item><b>Raw</b>: <see cref="RecordItem"/> through GetRaw/ReadRaw.</item>
     ///   <item><b>DTO</b>: strongly typed GetDto/ReadDto mapping.</item>
     ///   <item><b>Dynamic</b>: <see cref="Dynamic.DynamicRow"/> storage.</item>
-    ///   <item><b>Universal</b>: explicit DTO or dynamic target selection.</item>
     /// </list>
     /// </summary>
-    public partial class DatabaseGateway : IDatabaseGateway
+    public sealed partial class DatabaseGateway : IDatabaseGateway
     {
 
-        QueryExecutionContext ctx;
+        private readonly QueryExecutionContext ctx;
 
         #region ctor
 
         /// <summary>
         /// Creates a gateway for the supplied execution context.
         /// </summary>
-        public DatabaseGateway(QueryExecutionContext _ctx)
+        public DatabaseGateway(QueryExecutionContext context)
         {
-            ctx = _ctx;
+            ctx = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         #endregion

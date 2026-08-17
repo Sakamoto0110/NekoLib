@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Dynamic;
 using NekoLib.Data.Gateway;
-using NekoLib.Data.Internal.Gateway;
 using NekoLib.Data.Mapping;
 using NekoLib.Data.Query;
 using Xunit;
@@ -84,7 +83,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         }
 
         [Fact]
-        public async Task StreamData_CancelledBeforeOpen_ReportsCancelledExactlyOnce()
+        public async Task StreamDto_CancelledBeforeOpen_ReportsCancelledExactlyOnce()
         {
             FakeNonQueryConnectionFactory factory = new FakeNonQueryConnectionFactory(
                 () => new FakeNonQueryCommand { Reader = Reader(Array.Empty<string>(), Array.Empty<Type>()) });
@@ -99,7 +98,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
                 {
-                    await foreach (SimpleDto _ in gateway.StreamData<SimpleDto>(
+                    await foreach (SimpleDto _ in gateway.StreamDto<SimpleDto>(
                         SelectAll(),
                         cancellation.Token))
                     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
-using NekoLib.Data.Internal.Gateway;
+using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
 using Xunit;
 

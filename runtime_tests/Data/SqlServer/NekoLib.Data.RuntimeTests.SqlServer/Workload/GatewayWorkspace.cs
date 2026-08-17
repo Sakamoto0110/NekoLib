@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading;
 using NekoLib.Data.Connection;
 using NekoLib.Data.Gateway;
-using NekoLib.Data.Internal.Gateway;
 using NekoLib.Data.Query;
 using NekoLib.Data.RuntimeTests.SqlServer.Server;
 

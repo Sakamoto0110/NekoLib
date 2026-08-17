@@ -4,14 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Data.Dynamic;
 using NekoLib.Data.Query;
+#if NET6_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
+#endif
 
 namespace NekoLib.Data.Gateway
 {
     public interface IDqlGateway :
         IRawQueryGateway,
         IDtoQueryGateway,
-        IDynamicQueryGateway,
-        IUniversalQueryGateway
+        IDynamicQueryGateway
     {
     }
 
@@ -23,6 +25,17 @@ namespace NekoLib.Data.Gateway
 
         Task<bool> ContainsData(
             string sql,
+            Dictionary<string, object?>? parameters,
+            CancellationToken ct = default);
+
+        Task<bool> ContainsData(
+            string sql,
+            DbSession session,
+            CancellationToken ct = default);
+
+        Task<bool> ContainsData(
+            string sql,
+            Dictionary<string, object?>? parameters,
             DbSession session,
             CancellationToken ct = default);
 
@@ -72,30 +85,61 @@ namespace NekoLib.Data.Gateway
 
     public interface IDtoQueryGateway
     {
-        Task<List<T>> GetDto<T>(
+        Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             string sql,
             Dictionary<string, object?>? parameters = null,
             CancellationToken ct = default)
             where T : new();
 
-        Task<List<T>> GetDto<T>(
+        Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            DbSession session,
+            CancellationToken ct = default)
+            where T : new();
+
+        Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             QueryBuilder builder,
             CancellationToken ct = default)
             where T : new();
 
-        Task<List<T>> GetDto<T>(
+        Task<List<T>> GetDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             QueryBuilder builder,
             DbSession session,
             CancellationToken ct = default)
             where T : new();
 
-        Task ReadDto<T>(
+        Task ReadDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             QueryBuilder builder,
             Action<T> callback,
             CancellationToken ct = default)
             where T : new();
 
-        Task ReadDto<T>(
+        Task ReadDto<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             QueryBuilder builder,
             Action<T> callback,
             DbSession session,
@@ -126,41 +170,4 @@ namespace NekoLib.Data.Gateway
             CancellationToken ct = default);
     }
 
-    public interface IUniversalQueryGateway
-    {
-        Task<List<T>> Get<TTranslator, T>(
-            QueryBuilder builder,
-            CancellationToken ct = default)
-            where TTranslator : IDbQueryTranslator, new()
-            where T : new();
-
-        Task<List<T>> Get<TTranslator, T>(
-            QueryBuilder builder,
-            DbSession session,
-            CancellationToken ct = default)
-            where TTranslator : IDbQueryTranslator, new()
-            where T : new();
-
-        Task Read(
-            QueryBuilder builder,
-            Delegate handler,
-            CancellationToken ct = default);
-
-        Task Read(
-            QueryBuilder builder,
-            Delegate handler,
-            DbSession session,
-            CancellationToken ct = default);
-
-        Task Read<T>(
-            QueryBuilder builder,
-            Action<T> callback,
-            CancellationToken ct = default);
-
-        Task Read<T>(
-            QueryBuilder builder,
-            Action<T> callback,
-            DbSession session,
-            CancellationToken ct = default);
-    }
 }

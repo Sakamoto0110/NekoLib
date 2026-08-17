@@ -17,7 +17,7 @@ using NekoLib.Data.Mapping;
 using System.Diagnostics.CodeAnalysis;
 #endif
 
-namespace NekoLib.Data.Internal.Gateway
+namespace NekoLib.Data.Gateway
 {
     public partial class DatabaseGateway
     {
@@ -25,17 +25,38 @@ namespace NekoLib.Data.Internal.Gateway
 
         public Task<bool> ContainsData(string Sql, CancellationToken Ct = default)
         {
-            return ContainsDataCore(Sql, null, Ct);
+            return ContainsDataCore(Sql, null, null, Ct);
+        }
+
+        public Task<bool> ContainsData(
+            string Sql,
+            Dictionary<string, object?>? Parameters,
+            CancellationToken Ct = default)
+        {
+            return ContainsDataCore(Sql, Parameters, null, Ct);
         }
 
         public Task<bool> ContainsData(string Sql, DbSession session, CancellationToken Ct = default)
         {
-            return ContainsDataCore(Sql, session, Ct);
+            return ContainsDataCore(Sql, null, session, Ct);
         }
 
-        private async Task<bool> ContainsDataCore(string Sql, DbSession? session, CancellationToken Ct)
+        public Task<bool> ContainsData(
+            string Sql,
+            Dictionary<string, object?>? Parameters,
+            DbSession session,
+            CancellationToken Ct = default)
         {
-            bool has = await WithCommandAsync(Sql, async delegate (DbCommand cmd)
+            return ContainsDataCore(Sql, Parameters, session, Ct);
+        }
+
+        private async Task<bool> ContainsDataCore(
+            string Sql,
+            Dictionary<string, object?>? Parameters,
+            DbSession? session,
+            CancellationToken Ct)
+        {
+            bool has = await WithCommandAsync(Sql, Parameters, async delegate (DbCommand cmd)
             {
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, Ct).ConfigureAwait(false))
                 {
@@ -120,46 +141,6 @@ namespace NekoLib.Data.Internal.Gateway
 
                 return 0;
             }, Ct, session, commandPolicy).ConfigureAwait(false);
-        }
-
-        protected async Task<int> Upsert(
-            string Sql,
-            Dictionary<string, object?>? Parameters,
-            CancellationToken Ct = default,
-            DbCommandPolicy? commandPolicy = null)
-        {
-            if(string.IsNullOrWhiteSpace(Sql))
-                throw new ArgumentNullException(nameof(Sql));
-            if(ctx == null) throw new ArgumentNullException(nameof(ctx));
-
-            int affected = await ExecuteDmlAsync(
-                Sql,
-                Parameters,
-                Ct,
-                null,
-                commandPolicy).ConfigureAwait(false);
-
-            return affected;
-        }
-
-        public Task<int> Insert(string Sql,CancellationToken Ct = default)
-        {
-            return Upsert(Sql,null, Ct);
-        }
-
-        public Task<int> Insert(string Sql,Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
-        {
-            return Upsert(Sql,Parameters, Ct);
-        }
-
-        public Task<int> Update(string Sql,CancellationToken Ct = default)
-        {
-            return Upsert(Sql, null, Ct);
-        }
-
-        public Task<int> Update(string Sql,Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
-        {
-            return Upsert(Sql,Parameters, Ct);
         }
 
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)

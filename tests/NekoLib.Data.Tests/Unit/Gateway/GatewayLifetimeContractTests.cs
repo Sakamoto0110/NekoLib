@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
-using NekoLib.Data.Internal.Gateway;
+using NekoLib.Data.Gateway;
 using NekoLib.Data.Query;
 using Xunit;
 
@@ -11,6 +11,28 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 {
     public class GatewayLifetimeContractTests
     {
+        [Fact]
+        public async Task ContainsData_Parameters_BindsBeforeReading()
+        {
+            FakeDataReader reader = Reader(new object[] { 1 });
+            FakeNonQueryCommand command = new FakeNonQueryCommand { Reader = reader };
+            FakeNonQueryConnectionFactory factory = new FakeNonQueryConnectionFactory(
+                () => command);
+            using (QueryExecutionContext context = CreateContext(factory))
+            {
+                DatabaseGateway gateway = new DatabaseGateway(context);
+
+                bool containsData = await gateway.ContainsData(
+                    "SELECT Value FROM T WHERE Value = @p1",
+                    new Dictionary<string, object> { { "@p1", 1 } });
+
+                Assert.True(containsData);
+                Assert.Single(command.Parameters);
+                Assert.Equal("@p1", command.Parameters[0].ParameterName);
+                Assert.Equal(1, command.Parameters[0].Value);
+            }
+        }
+
         [Fact]
         public async Task Insert_Success_DisposesOwnedCommandAndConnection()
         {

@@ -155,8 +155,8 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                         await Gateway.Delete(
                             "DELETE FROM [" + table + "]",
                             null,
-                            ct,
-                            session).ConfigureAwait(false);
+                            session,
+                            ct).ConfigureAwait(false);
                     }
 
                     await InsertRowAsync("SimState", new Dictionary<string, object?>

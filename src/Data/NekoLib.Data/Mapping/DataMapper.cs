@@ -4,6 +4,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+#if NET6_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
+#endif
 
 namespace NekoLib.Data.Mapping
 {
@@ -21,12 +24,20 @@ namespace NekoLib.Data.Mapping
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache =
             new ConcurrentDictionary<Type, PropertyInfo[]>();
 
-        public static T Map<T>(Dictionary<string, RecordItem> row) where T : new()
+        public static T Map<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(Dictionary<string, RecordItem> row) where T : new()
         {
             return Map<T>(row, DataMappingFailureMode.Strict);
         }
 
-        public static T Map<T>(
+        public static T Map<
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            T>(
             Dictionary<string, RecordItem> row,
             DataMappingFailureMode failureMode) where T : new()
         {
@@ -38,13 +49,21 @@ namespace NekoLib.Data.Mapping
             return instance;
         }
 
-        public static object Map(Dictionary<string, RecordItem> row, Type targetType)
+        public static object Map(
+            Dictionary<string, RecordItem> row,
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
+            Type targetType)
         {
             return Map(row, targetType, DataMappingFailureMode.Strict);
         }
 
         public static object Map(
             Dictionary<string, RecordItem> row,
+#if NET6_0_OR_GREATER
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
             Type targetType,
             DataMappingFailureMode failureMode)
         {

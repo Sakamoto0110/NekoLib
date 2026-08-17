@@ -287,6 +287,15 @@ consumers does not prove that a public member is unused.
    surface and supported gateway use cases. Decide one coherent public gateway
    contract before any namespace move, overload removal, internal executor, or
    compatibility shim is implemented.
+   **Accepted 2026-08-17:** move the concrete gateway to the public Gateway
+   namespace without a shim; retain the explicit capability interfaces and
+   remove the redundant universal family; align concrete/interface overloads;
+   expose streaming only where it is implemented; propagate the net9 DTO
+   reflection contract through interfaces and mapping entry points; internalize
+   the leaked reader helper; and close accidental concrete inheritance while
+   preserving factory/translator/interface extension seams. The accepted
+   rationale and rejected alternatives are recorded in
+   [`docs/audit/data-public-api-review-2026-08-17.md`](docs/audit/data-public-api-review-2026-08-17.md).
 2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
