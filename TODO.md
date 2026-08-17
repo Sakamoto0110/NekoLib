@@ -367,9 +367,13 @@ consumers does not prove that a public member is unused.
    all rejected. The accepted rationale, evidence, and rejected alternatives are
    recorded in
    [`docs/audit/logging-public-api-review-2026-08-17.md`](docs/audit/logging-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17** in `<pending>`. Logging passed 28/28
-   tests on `net481` and 28/28 on `net9.0`; both Logging API manifests verified
-   **unchanged**, as the accepted corrections are confined to method bodies.
+   **Implementation landed 2026-08-17** in `3ae27fe`. Logging passed 28/28
+   tests on `net481` and 28/28 on `net9.0`; the full solution passed
+   1,348/1,348 tests with 0 failures, 0 skips, and 0 warnings; both Logging API
+   manifests verified **unchanged**, as the accepted corrections are confined to
+   method bodies; documentation verification and diff hygiene passed; and the
+   Observability runtime scenario compiles unchanged on both target families
+   (built, not launched).
    The package gate is **pending for Codex**: assembly bits changed, so
    `1.0.0-local.16` is not evidence for this work and a new immutable
    coordinated family version, PackageReference consumer probes, and
