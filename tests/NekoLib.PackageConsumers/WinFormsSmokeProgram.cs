@@ -35,7 +35,7 @@ namespace NekoLib.PackageConsumers
             NekoLib.Data.DbSession session,
             System.Threading.CancellationToken cancellationToken)
         {
-            var parameters = new System.Collections.Generic.Dictionary<string, object>
+            var parameters = new System.Collections.Generic.Dictionary<string, object?>
             {
                 { "@p1", 1 }
             };
