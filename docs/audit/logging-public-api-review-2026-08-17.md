@@ -730,18 +730,21 @@ implementation is confined to method bodies and documentation:
 - **LOG-11** — `DebugLogSink.Write(null)` throws `ArgumentNullException`.
 - **LOG-02** — `Logger.Flush` observes the fault of a sink that outlived the
   budget through a faulted continuation.
-- **LOG-03** — `Flush` attempts every flushable sink and returns `false` when
-  any one was not confirmed.
+- **LOG-03** — `Flush` isolates a thrown sink failure and continues to later
+  sinks while budget remains; budget exhaustion still stops the loop and the
+  result is `false` whenever completion was not confirmed.
 - **LOG-04** — the constructor copies the sink array and drops null elements
   once instead of re-checking on every write.
-- **LOG-05** — `Flush` returns `true` immediately once disposed.
+- **LOG-05** — `Flush` returns `true` after disposal completes; a concurrent
+  bounded request waits on the same gate or returns `false` when its budget
+  expires first.
 - **LOG-06 to LOG-10 and LOG-12 to LOG-17** — retained and documented, with
   XML summaries on the contract-significant members.
 - **LOG-18** — [`src/Logging/NekoLib.Logging/README.md`](../../src/Logging/NekoLib.Logging/README.md)
   is the module's current technical reference, registered in the documentation
   index and the `AGENTS.md` routing table.
-- **LOG-19** — nineteen focused regressions were added, taking the suite from 9
-  to 28 per target. The `DebugLogSink` regression asserts observable trace
+- **LOG-19** — twenty-one focused regressions were added, taking the suite from
+  9 to 30 per target. The `DebugLogSink` regression asserts observable trace
   output, which is meaningful only because the canonical command runs in
   Release.
 

@@ -26,13 +26,15 @@ remain under `docs/history/`.
   from every Release-built, packaged assembly, so the shipped sink silently
   discarded everything. `DebugLogSink.Write(null)` now throws
   `ArgumentNullException`, matching `RollingFileLogSink` and the non-null
-  `ILogSink.Write` annotation. `Logger.Flush` now attempts every flushable sink
-  instead of stopping at the first failure, restoring the documented contract
-  that one failing sink never suppresses later sinks; observes the failure of a
-  sink that outlived the budget, so a slow sink is no longer reported through
+  `ILogSink.Write` annotation. `Logger.Flush` now isolates a thrown sink failure
+  and continues to later sinks while budget remains, while budget exhaustion
+  still stops further flush admission; observes the failure of a sink that
+  outlived the budget, so a slow sink is no longer reported through
   `TaskScheduler.UnobservedTaskException` and recorded as a crash by
-  `NekoLib.Diagnostics`; and is inert after disposal instead of flushing already
-  disposed sinks. `Logger` now copies the supplied sink array, so a caller
+  `NekoLib.Diagnostics`; and is inert after completed disposal instead of
+  flushing already disposed sinks. A concurrent bounded flush now waits for the
+  final disposal flush or returns `false` when its budget expires. `Logger` now
+  copies the supplied sink array, so a caller
   mutating its own array can no longer re-target a live pipeline. See the
   [F1-LOG migration guide](docs/migrations/f1-logging.md).
 - **NekoLib.Core — behavioral and experimental pre-stable candidate correction

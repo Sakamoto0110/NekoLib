@@ -235,6 +235,24 @@ namespace NekoLib.Logging.Tests.Unit
         }
 
         [Fact]
+        public void Flush_FirstSinkExhaustsBudget_DoesNotAdmitLaterSink()
+        {
+            using var blocking = new BlockingFlushSink();
+            var later = new FlushSink();
+            using var logger = new Logger(
+                new LoggerOptions { MinimumLevel = LogLevel.Trace, DisposeSinks = false },
+                blocking,
+                later);
+
+            bool confirmed = logger.Flush(TimeSpan.FromMilliseconds(20));
+            blocking.Release();
+
+            Assert.False(confirmed);
+            Assert.True(blocking.WaitForFlush(TimeSpan.FromSeconds(5)));
+            Assert.Equal(0, later.FlushCount);
+        }
+
+        [Fact]
         public void Flush_NegativeTimeout_Throws()
         {
             using var logger = new Logger(LogLevel.Trace);
@@ -256,6 +274,34 @@ namespace NekoLib.Logging.Tests.Unit
 
             Assert.True(logger.Flush(TimeSpan.FromSeconds(1)));
             Assert.Equal(flushesDuringDispose, sink.FlushCount);
+        }
+
+        [Fact]
+        public async Task Flush_DisposeInProgress_RespectsBudgetThenConfirmsCompletion()
+        {
+            using var sink = new CoordinatedDisposeSink();
+            var logger = new Logger(
+                new LoggerOptions { MinimumLevel = LogLevel.Trace, DisposeSinks = false },
+                sink);
+            var disposeTask = Task.Run((Action)logger.Dispose);
+
+            try
+            {
+                Assert.True(sink.WaitForFlushStart(TimeSpan.FromSeconds(5)));
+                Assert.False(logger.Flush(TimeSpan.FromMilliseconds(20)));
+            }
+            finally
+            {
+                sink.Release();
+            }
+
+            var completed = await Task.WhenAny(
+                disposeTask,
+                Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.Same(disposeTask, completed);
+            await disposeTask;
+            Assert.True(logger.Flush(TimeSpan.FromSeconds(1)));
+            Assert.Equal(1, sink.FlushCount);
         }
 
         [Fact]
@@ -609,6 +655,34 @@ namespace NekoLib.Logging.Tests.Unit
             public override void Write(string message) => Lines.Add(message);
 
             public override void WriteLine(string message) => Lines.Add(message);
+        }
+
+        private sealed class CoordinatedDisposeSink : IFlushableLogSink, IDisposable
+        {
+            private readonly ManualResetEventSlim _flushStarted = new ManualResetEventSlim(false);
+            private readonly ManualResetEventSlim _release = new ManualResetEventSlim(false);
+            private int _flushCount;
+
+            public int FlushCount => Volatile.Read(ref _flushCount);
+
+            public void Write(LogEntry entry) { }
+
+            public void Flush()
+            {
+                Interlocked.Increment(ref _flushCount);
+                _flushStarted.Set();
+                _release.Wait();
+            }
+
+            public bool WaitForFlushStart(TimeSpan timeout) => _flushStarted.Wait(timeout);
+
+            public void Release() => _release.Set();
+
+            public void Dispose()
+            {
+                _flushStarted.Dispose();
+                _release.Dispose();
+            }
         }
 
         private sealed class BlockingFlushSink : IFlushableLogSink, IDisposable

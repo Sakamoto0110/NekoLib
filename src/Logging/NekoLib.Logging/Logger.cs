@@ -127,13 +127,14 @@ namespace NekoLib.Logging
 
         /// <summary>
         /// Requests completion of pending sink work within
-        /// <paramref name="timeout"/>. Every flushable sink is attempted, and a
-        /// sink that fails does not stop the remaining ones. <c>false</c> means
-        /// completion was not confirmed for at least one sink inside the budget;
-        /// it does not cancel that sink, which may still be running - and may
-        /// therefore observe a later <c>Write</c> concurrently with its own
-        /// <c>Flush</c>. Returns <c>true</c> once disposed, because disposal
-        /// performs the final flush.
+        /// <paramref name="timeout"/>. A sink that fails does not stop later
+        /// sinks while budget remains; budget exhaustion stops further flush
+        /// admission. <c>false</c> means completion was not confirmed for at
+        /// least one sink inside the budget; it does not cancel that sink, which
+        /// may still be running - and may therefore observe a later
+        /// <c>Write</c> concurrently with its own <c>Flush</c>. Returns
+        /// <c>true</c> after disposal completes, because disposal performs the
+        /// final flush. A concurrent disposal still observes this timeout.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
         /// <paramref name="timeout"/> is negative, which includes
@@ -145,11 +146,6 @@ namespace NekoLib.Logging
             if (timeout < TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(timeout));
 
-            // Disposal already performed the final flush and may have disposed the
-            // sinks, so there is nothing left for a later request to confirm.
-            if (Volatile.Read(ref _disposed) != 0)
-                return true;
-
             var watch = Stopwatch.StartNew();
             var timeoutMilliseconds = timeout.TotalMilliseconds > int.MaxValue
                 ? int.MaxValue
@@ -160,6 +156,12 @@ namespace NekoLib.Logging
 
             try
             {
+                // Disposal owns the same gate and publishes its terminal state
+                // before releasing it. Reaching this branch therefore proves the
+                // final flush completed rather than merely started.
+                if (_disposed != 0)
+                    return true;
+
                 var confirmed = true;
 
                 for (int i = 0; i < _sinks.Length; i++)
@@ -223,11 +225,16 @@ namespace NekoLib.Logging
         /// </summary>
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0)
-                return;
-
             lock (_gate)
             {
+                if (_disposed != 0)
+                    return;
+
+                // Publish disposal only after owning the pipeline gate. A
+                // concurrent bounded Flush then either completes first, waits for
+                // this final flush, or returns false when its budget expires.
+                Volatile.Write(ref _disposed, 1);
+
                 for (int i = 0; i < _sinks.Length; i++)
                 {
                     try { (_sinks[i] as IFlushableLogSink)?.Flush(); }

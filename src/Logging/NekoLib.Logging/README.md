@@ -92,9 +92,11 @@ take a post-shutdown window.
 `Flush(timeout)` implements `ILogFlusher`. It is a bounded completion request,
 not a cancellation:
 
-- every flushable sink is attempted; a sink that fails does not stop the
-  remaining ones, so an unrelated broken sink cannot prevent the file sink from
-  being flushed;
+- a sink that throws does not stop later sinks while budget remains, so an
+  unrelated broken sink does not by itself prevent the file sink from being
+  flushed;
+- budget exhaustion stops admission of later sink flushes, preserving the one
+  pipeline-wide bound;
 - `false` means completion was not confirmed for at least one sink inside the
   budget;
 - a sink that outlives the budget **keeps running**. It may therefore observe a
@@ -105,8 +107,10 @@ not a cancellation:
   `NekoLib.Diagnostics` would otherwise record as a process crash;
 - a negative timeout throws `ArgumentOutOfRangeException`. That includes
   `Timeout.InfiniteTimeSpan`: a bounded request has no unbounded form;
-- once the logger is disposed, `Flush` returns `true` immediately without
-  touching the sinks, because disposal already performed the final flush.
+- once disposal completes, `Flush` returns `true` without touching the sinks,
+  because disposal already performed the final flush. A `Flush` racing an
+  in-progress disposal waits on the same gate and returns `false` if its budget
+  expires first.
 
 ## Disposal
 

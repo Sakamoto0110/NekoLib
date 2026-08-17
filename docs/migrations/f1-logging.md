@@ -52,9 +52,11 @@ custom pipeline or a direct call can reach this path.
 ## `Flush` no longer lets one sink decide the outcome for the others
 
 `Flush(timeout)` stopped at the first sink that threw, so later sinks — commonly
-the rolling file sink — were never flushed. Every flushable sink is now
-attempted. `false` still means completion was not confirmed for at least one
-sink inside the budget.
+the rolling file sink — were never flushed. A thrown sink failure is now
+isolated and later sinks are attempted while budget remains. Budget exhaustion
+still stops admission of later flushes, preserving the one pipeline-wide bound.
+`false` still means completion was not confirmed for at least one sink inside
+the budget.
 
 If code inferred "the first sink failed" from `false`, that inference was never
 sound; `false` has always been a whole-pipeline result.
@@ -77,8 +79,10 @@ sink may still be executing `Flush` concurrently with a later `Write`. A custom
 ## `Flush` after `Dispose` is inert
 
 It previously invoked `Flush()` on sinks the logger had already disposed. It now
-returns `true` immediately, matching the inertness of `Log` and the behavior of
-`NullLogger`. Disposal already performs the final flush.
+returns `true` after disposal completes, matching the inertness of `Log` and the
+behavior of `NullLogger`. A concurrent bounded `Flush` waits on the same gate as
+disposal and returns `false` if its budget expires before the final flush
+completes.
 
 `GetRecentEntries` still works after disposal, deliberately, so an incident
 collector can take a post-shutdown snapshot.
