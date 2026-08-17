@@ -283,7 +283,7 @@ Use one narrow review/decision/implementation/validation block per entry. An
 inventory does not authorize a breaking change, and the absence of repository
 consumers does not prove that a public member is unused.
 
-1. [ ] **F1-DATA — Data.** Reverify DATA-016 against the compiled dual-target
+1. [x] **F1-DATA — Data.** Reverify DATA-016 against the compiled dual-target
    surface and supported gateway use cases. Decide one coherent public gateway
    contract before any namespace move, overload removal, internal executor, or
    compatibility shim is implemented.
@@ -296,6 +296,15 @@ consumers does not prove that a public member is unused.
    preserving factory/translator/interface extension seams. The accepted
    rationale and rejected alternatives are recorded in
    [`docs/audit/data-public-api-review-2026-08-17.md`](docs/audit/data-public-api-review-2026-08-17.md).
+   **Completed 2026-08-17:** implementation landed in `59d1faf`, with package
+   consumer and manifest refinements in `bced326` and `3e58df2`. Data passed
+   111/111 tests on `net481` and 119/119 on `net9.0`; the full solution passed
+   1280/1280 tests; both Data API manifests, documentation verification, and
+   the affected Farm and SQL Server scenario builds passed. Immutable package
+   `NekoLib.Data.1.0.0-local.14.nupkg` was built from `3e58df2`, exercised by
+   PackageReference-only consumers on both targets with zero consumer warnings,
+   and has SHA-256
+   `B5B03AD0CA92C8F7EB5BF413EB2242945E1222011FC1667684821E106173ECDC`.
 2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,

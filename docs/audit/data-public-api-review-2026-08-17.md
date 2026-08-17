@@ -2,21 +2,22 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-DATA compiled public surface, gateway contract, target-specific
 streaming, ownership, extensibility, mapping, and migration boundary
 
-**Status:** review complete; implementation decision pending
+**Status:** all seven dispositions accepted and implemented
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `87b34b061f5db6cf50a28d3187070940b851e1be`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-DATA is the sole authority for
-acceptance, implementation, and completion status
+**Current state:** the [Data technical reference](../../src/Data/NekoLib.Data/README.md),
+the [F1-DATA migration guide](../migrations/f1-data.md), and
+[`TODO.md`](../../TODO.md) F1-DATA
 
 ## Baseline and authority
 
@@ -305,8 +306,35 @@ The review baseline was revalidated without changing product code:
 These results establish the current candidate baseline. They do not validate a
 future accepted API change or constitute external provider runtime evidence.
 
-## Decision gate
+## Decision gate at review time
 
 Nothing in this review authorizes product edits. F1-DATA can proceed only after
 the user explicitly accepts, modifies, or rejects the recommended dispositions
 for F1-DATA-01 through F1-DATA-07.
+
+## Reconciliation — 2026-08-17
+
+The user accepted all seven recommended dispositions. The implementation landed
+in `59d1faf`, followed by package-consumer and package-manifest refinements in
+`bced326` and `3e58df2`. The resulting current contract is maintained in the
+Data technical reference and its exact candidate migration is maintained in the
+migration guide; this review now remains historical decision evidence.
+
+Validation of the accepted implementation established:
+
+- 111/111 Data tests passed on `net481` and 119/119 on `net9.0`;
+- 1280/1280 solution tests passed in the final full run;
+- both compiled Data API manifests matched, with the intended reviewed changes
+  only;
+- Data, Farm WinForms, and the SQL Server scenario built on both target
+  families with zero warnings and zero errors;
+- documentation verification passed;
+- `eng/pack-local.ps1 -PackageVersion 1.0.0-local.14` built from `3e58df2`, ran
+  the serial solution suite, and passed all PackageReference-only consumers on
+  both targets with zero consumer warnings;
+- `NekoLib.Data.1.0.0-local.14.nupkg` has SHA-256
+  `B5B03AD0CA92C8F7EB5BF413EB2242945E1222011FC1667684821E106173ECDC`.
+
+No external provider scenario was executed for this API-shape block. The Farm
+and SQL Server scenarios were compile-validated after migration; their earlier
+runtime evidence remains separately attributed to its recorded package/source.
