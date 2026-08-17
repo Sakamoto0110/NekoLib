@@ -12,6 +12,7 @@ namespace NekoLib.Core.Inspection
     {
         bool IsEnabled { get; }
         void Record(string module, string operation, System.Func<object>? payload = null);
+        [System.Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", false)]
         System.IDisposable RegisterAction(string module, string name, System.Func<object?, object?> action);
         System.IDisposable RegisterStateProvider(string module, string key, System.Func<object> snapshot);
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace NekoLib.Core.Telemetry
 {
@@ -25,9 +26,9 @@ namespace NekoLib.Core.Telemetry
             ParentOperationId = parentOperationId;
             Outcome = outcome;
             Duration = duration;
-            Checkpoints = checkpoints ?? EmptyCheckpoints;
-            Dimensions = dimensions ?? EmptyDimensions;
-            Measurements = measurements ?? EmptyMeasurements;
+            Checkpoints = CopyCheckpoints(checkpoints);
+            Dimensions = CopyDimensions(dimensions);
+            Measurements = CopyMeasurements(measurements);
         }
 
         public DateTime StartedUtc { get; }
@@ -42,10 +43,56 @@ namespace NekoLib.Core.Telemetry
         public IReadOnlyDictionary<string, double> Measurements { get; }
 
         private static readonly IReadOnlyList<TelemetryCheckpoint> EmptyCheckpoints =
-            new TelemetryCheckpoint[0];
+            new ReadOnlyCollection<TelemetryCheckpoint>(
+                new List<TelemetryCheckpoint>());
         private static readonly IReadOnlyDictionary<string, object> EmptyDimensions =
-            new Dictionary<string, object>();
+            new ReadOnlyDictionary<string, object>(
+                new Dictionary<string, object>(StringComparer.Ordinal));
         private static readonly IReadOnlyDictionary<string, double> EmptyMeasurements =
-            new Dictionary<string, double>();
+            new ReadOnlyDictionary<string, double>(
+                new Dictionary<string, double>(StringComparer.Ordinal));
+
+        private static IReadOnlyList<TelemetryCheckpoint> CopyCheckpoints(
+            IReadOnlyList<TelemetryCheckpoint>? checkpoints)
+        {
+            if (checkpoints == null || checkpoints.Count == 0)
+                return EmptyCheckpoints;
+
+            var copy = new List<TelemetryCheckpoint>(checkpoints.Count);
+            for (int i = 0; i < checkpoints.Count; i++)
+                copy.Add(checkpoints[i]);
+
+            return new ReadOnlyCollection<TelemetryCheckpoint>(copy);
+        }
+
+        private static IReadOnlyDictionary<string, object> CopyDimensions(
+            IReadOnlyDictionary<string, object>? dimensions)
+        {
+            if (dimensions == null || dimensions.Count == 0)
+                return EmptyDimensions;
+
+            var copy = new Dictionary<string, object>(
+                dimensions.Count,
+                StringComparer.Ordinal);
+            foreach (var pair in dimensions)
+                copy[pair.Key] = pair.Value;
+
+            return new ReadOnlyDictionary<string, object>(copy);
+        }
+
+        private static IReadOnlyDictionary<string, double> CopyMeasurements(
+            IReadOnlyDictionary<string, double>? measurements)
+        {
+            if (measurements == null || measurements.Count == 0)
+                return EmptyMeasurements;
+
+            var copy = new Dictionary<string, double>(
+                measurements.Count,
+                StringComparer.Ordinal);
+            foreach (var pair in measurements)
+                copy[pair.Key] = pair.Value;
+
+            return new ReadOnlyDictionary<string, double>(copy);
+        }
     }
 }

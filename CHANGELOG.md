@@ -16,6 +16,15 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Core — behavioral and experimental pre-stable candidate correction
+  for the first `1.0.0` stable family release.** `TelemetryCheckpoint`,
+  `TelemetryOperation`, and `InspectionSnapshot` now defensively copy and wrap
+  their outer collections while preserving shallow contained values;
+  `IInspectionRecorder.RegisterAction` is explicitly experimental as
+  `NEKOEXP0001`, with concrete action behavior and module adoption deferred to
+  each module's future F1 review. No Core type, member, target, dependency, or
+  null-object behavior was removed. See the
+  [F1-CORE migration guide](docs/migrations/f1-core.md).
 - **NekoLib.Data — breaking pre-stable candidate correction for the first
   `1.0.0` stable family release.** Moved `DatabaseGateway` from
   `NekoLib.Data.Internal.Gateway` to `NekoLib.Data.Gateway` without a shim;

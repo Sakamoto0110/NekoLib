@@ -9,7 +9,10 @@ namespace NekoLib.PackageConsumers
         {
             var packageTypes = new[]
             {
+                typeof(NekoLib.Core.Disposable),
+                typeof(NekoLib.Core.Inspection.IInspectionRecorder),
                 typeof(NekoLib.Core.Logging.ILogger),
+                typeof(NekoLib.Core.Telemetry.ITelemetry),
                 typeof(NekoLib.Data.Query.DatabaseQuery),
                 typeof(NekoLib.Data.Gateway.DatabaseGateway),
                 typeof(NekoLib.Data.Gateway.IDatabaseGateway),
@@ -28,6 +31,33 @@ namespace NekoLib.PackageConsumers
             };
 
             Console.WriteLine("Loaded {0} NekoLib package surfaces.", packageTypes.Length);
+        }
+
+        private static void CompileCoreSurface(
+            NekoLib.Core.Logging.ILogSink logSink,
+            NekoLib.Core.Telemetry.ITelemetrySink telemetrySink,
+            NekoLib.Core.Inspection.IInspectionSnapshotSource inspectionSource)
+        {
+            var logEntry = new NekoLib.Core.Logging.LogEntry(
+                DateTime.UtcNow,
+                NekoLib.Core.Logging.LogLevel.Info,
+                "package-consumer");
+            logSink.Write(logEntry);
+
+            var operation = new NekoLib.Core.Telemetry.TelemetryOperation(
+                DateTime.UtcNow,
+                "PackageConsumer",
+                "compile",
+                "operation",
+                null,
+                NekoLib.Core.Telemetry.TelemetryOutcome.Succeeded,
+                TimeSpan.Zero);
+            telemetrySink.Write(operation);
+
+            _ = inspectionSource.CaptureSnapshot(0, TimeSpan.Zero);
+            _ = NekoLib.Core.Logging.NullLogger.Instance;
+            _ = NekoLib.Core.Telemetry.NullTelemetry.Instance;
+            _ = NekoLib.Core.Inspection.NullInspection.Instance;
         }
 
         private static void CompileDataSurface(

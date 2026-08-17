@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-17
 
-**Reference commit:** working tree after `3e58df2`
+**Reference commit:** working tree after `0ad3840`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -66,13 +66,16 @@ reference commit.
 | [`README.md`](../README.md) | reference | current | Product overview, compatibility, module map, and package entry points |
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Open work, accepted decisions, freezes, and completion criteria |
 | [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
+| [`src/Core/NekoLib.Core/README.md`](../src/Core/NekoLib.Core/README.md) | reference | current | Core capability contracts, ownership, snapshots, null objects, and experimental action marker |
 | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
 | [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
+| [`docs/migrations/f1-core.md`](migrations/f1-core.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
 | [`docs/migrations/f1-data.md`](migrations/f1-data.md) | guide | current | Migration from the initial Data candidate surface to the accepted F1-DATA gateway contract |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
+| [`docs/audit/core-public-api-review-2026-08-17.md`](audit/core-public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review; dispositions implemented, package evidence pending |
 | [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | historical | F1-DATA compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |

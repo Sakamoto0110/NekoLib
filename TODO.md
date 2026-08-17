@@ -322,6 +322,19 @@ consumers does not prove that a public member is unused.
    `977D8F3DAABB63ECF3855F1F43ED60CCD8DE40E5981591B6E5F9DC7F266B8E70`.
 2. [ ] **F1-CORE — Core.** Finalize the shared contracts and null-object
    surface before the dependent capability packages.
+   **Accepted 2026-08-17:** retain the existing ownership, lifecycle,
+   extension, null-object, snapshot, bounded-read, payload, and global-provider
+   contracts as stable candidates; make `TelemetryCheckpoint`,
+   `TelemetryOperation`, and `InspectionSnapshot` structurally read-only by
+   defensively copying and wrapping their outer collections while preserving
+   shallow contained values; and mark only
+   `IInspectionRecorder.RegisterAction` as experimental `NEKOEXP0001`.
+   Action registration, invocation, authorization, async/cancellation/timeout,
+   UI-marshalling, and module adoption remain subject to each module's future
+   F1 review. This decision does not unfreeze broad Inspection instrumentation
+   or authorize changes to dependent-module action behavior. The accepted
+   rationale and rejected alternatives are recorded in
+   [`docs/audit/core-public-api-review-2026-08-17.md`](docs/audit/core-public-api-review-2026-08-17.md).
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
    sink, snapshot, and disposal contracts without adding global state.
 4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
