@@ -152,10 +152,17 @@ crashes.Install();
 `ExternalNotifier` is a generic composition callback: when supplied, Diagnostics
 invokes it after crash artifacts are written and isolates callback failures. The
 application decides whether that callback notifies Watchdog or another local
-integration; Diagnostics does not inspect Watchdog environment state.
-`NotifyWatchdog` remains only as an obsolete compatibility gate. WinForms
-applications call `WindowsCrash.HookWinForms()` explicitly; repeated calls are
-safe and retain one process-lifetime hook.
+integration; Diagnostics does not inspect Watchdog environment state. Leave it
+null when no notification is required. Subscribe to `CrashBundleFailed` to learn
+that incident evidence was lost, because `CrashDetected` and the notifier fire
+either way. Option values are captured when the handler is constructed. WinForms
+applications call `WindowsCrash.HookWinForms()` explicitly before creating any
+window; repeated calls are safe and retain one process-lifetime hook.
+
+**→ Full technical reference:
+[`src/Diagnostics/NekoLib.Diagnostics/README.md`](src/Diagnostics/NekoLib.Diagnostics/README.md)**
+— handler lifecycle, evidence budgets and bounds, redaction boundary, bundle
+layout, and the Windows crash adapter.
 
 ## Module entry points and limits
 
@@ -169,8 +176,8 @@ technical manual.
 | [Logging](src/Logging/NekoLib.Logging/README.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
 | [Telemetry](src/Telemetry/NekoLib.Telemetry/README.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
 | [Inspection](src/Inspection/NekoLib.Inspection/README.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
-| Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production and external notification are composition-owned, and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |
-| Diagnostics.Windows | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
+| [Diagnostics](src/Diagnostics/NekoLib.Diagnostics/README.md) | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; options are captured at construction, disposal is terminal and releases the process hooks, bundles may be partial, and a failed bundle raises `CrashBundleFailed` | `NekoLib.Diagnostics.Tests.Unit` |
+| [Diagnostics.Windows](src/Diagnostics/NekoLib.Diagnostics/README.md) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |

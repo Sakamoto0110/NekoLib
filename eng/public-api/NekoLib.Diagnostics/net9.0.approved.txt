@@ -1,6 +1,12 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
 namespace NekoLib.Diagnostics
 {
+    public sealed class CrashBundleFailedEventArgs : System.EventArgs
+    {
+        public CrashBundleFailedEventArgs(string bundleDirectory, string reason) { }
+        public string BundleDirectory { get; }
+        public string Reason { get; }
+    }
     public sealed class CrashBundleWrittenEventArgs : System.EventArgs
     {
         public CrashBundleWrittenEventArgs(string dir, string crashTxt, string dump, bool dumpWritten) { }
@@ -29,6 +35,7 @@ namespace NekoLib.Diagnostics
     public sealed class CrashHandler : System.IDisposable
     {
         public CrashHandler(NekoLib.Diagnostics.CrashHandlerOptions options) { }
+        public event System.EventHandler<NekoLib.Diagnostics.CrashBundleFailedEventArgs>? CrashBundleFailed;
         public event System.EventHandler<NekoLib.Diagnostics.CrashBundleWrittenEventArgs>? CrashBundleWritten;
         public event System.EventHandler<NekoLib.Diagnostics.CrashDetectedEventArgs>? CrashDetected;
         public void Dispose() { }
@@ -52,8 +59,6 @@ namespace NekoLib.Diagnostics
         public int MaxInspectionOperations { get; set; }
         public int MaxRecentLogEntries { get; set; }
         public int MaxRecentTelemetryOperations { get; set; }
-        [System.Obsolete("Set ExternalNotifier to null when external notification is not required.")]
-        public bool NotifyWatchdog { get; set; }
         public System.Func<string, string>? Redact { get; set; }
         public System.Collections.Generic.List<string> TailFiles { get; set; }
         public int TailLines { get; set; }

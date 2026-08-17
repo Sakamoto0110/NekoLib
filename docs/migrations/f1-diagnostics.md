@@ -1,0 +1,142 @@
+# F1-DIAG Migration — Diagnostics
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Diagnostics candidate surface to the
+accepted F1-DIAG incident-collection, bundle, lifecycle, and ownership contracts
+
+**Reference date:** 2026-08-17
+
+This guide covers `NekoLib.Diagnostics` and the one consumer-visible instruction
+it creates for `NekoLib.Diagnostics.Windows`. The contracts themselves are owned
+by the
+[Diagnostics reference](../../src/Diagnostics/NekoLib.Diagnostics/README.md).
+
+Most applications need **no source change**. Read the first two sections; the
+rest is behavioural detail.
+
+## Breaking: `CrashHandlerOptions.NotifyWatchdog` was removed
+
+The obsolete gate is gone. It had not carried Watchdog-specific policy since
+Phase E6, and it duplicated leaving `ExternalNotifier` unset.
+
+```csharp
+// before
+var options = new CrashHandlerOptions { ExternalNotifier = Notify };
+options.NotifyWatchdog = false;      // suppress notification
+
+// after
+var options = new CrashHandlerOptions { ExternalNotifier = null };
+```
+
+Setting it to `true` was already the default and can simply be deleted. An
+assembly compiled against `1.0.0-local.19` or earlier that reads or writes the
+property throws `MissingMethodException` until it is recompiled.
+
+## Behavioural: options are captured at construction
+
+`CrashHandler` now reads every option value once, in its constructor, and copies
+`TailFiles`. Mutating the options object afterwards no longer affects that
+handler.
+
+```csharp
+// before — worked, because options were re-read during the crash
+var options = new CrashHandlerOptions { CrashRootDirectory = root };
+var crashes = new CrashHandler(options);
+options.UseMiniDump();               // applied
+options.TailFiles.Add(logPath);      // applied
+
+// after — configure fully, then construct
+var options = new CrashHandlerOptions { CrashRootDirectory = root };
+options.TailFiles.Add(logPath);
+options.UseMiniDump();
+var crashes = new CrashHandler(options);
+```
+
+**`WindowsCrash.UseMiniDump()` must now be applied before constructing the
+handler**, not merely before installing it. Its documentation previously said
+"before installing"; that wording is corrected.
+
+If you need to read back the endpoint or values the handler resolved, use the
+handler's events rather than inspecting the options object.
+
+## Behavioural: `Dispose()` is terminal
+
+`Dispose()` was effectively an uninstall — a disposed handler could be revived by
+calling `Install()` again. It is now terminal and idempotent:
+
+- `Install()` after `Dispose()` throws `ObjectDisposedException`;
+- a crash report reaching a disposed handler is ignored.
+
+If you were deliberately uninstalling and reinstalling, construct a new handler
+instead. Handlers are cheap.
+
+## Behavioural: process-wide hooks are released
+
+When the **last** installed handler is disposed, `AppDomain.UnhandledException`
+and `TaskScheduler.UnobservedTaskException` are unsubscribed, and unobserved task
+exceptions are no longer marked observed. Previously both subscriptions and the
+`SetObserved()` behaviour persisted for the process lifetime once any handler had
+ever been installed.
+
+If your application relied on unobserved-task suppression continuing after it
+disposed its crash handling — most likely without knowing — keep a handler
+installed for as long as you want that behaviour.
+
+## Additive: `CrashBundleFailed`
+
+A bundle that could not be written was previously invisible: `CrashDetected` and
+`ExternalNotifier` still fired, so an application was told a crash was captured
+while the evidence was silently discarded.
+
+```csharp
+crashes.CrashBundleWritten += (s, e) => Telemetry.BundleWritten(e.BundleDirectory);
+crashes.CrashBundleFailed  += (s, e) => Alert("crash evidence lost: " + e.Reason);
+```
+
+Exactly one of the two fires per processed crash when `WriteCrashFolder` is true.
+Subscribing is optional and nothing else changed for existing subscribers.
+
+## Behavioural: contributor budgets and evidence bounds
+
+- **Budgets.** `EvidenceCollectionTimeout` remains the cooperative budget handed
+  to each contributor; the outer abandonment join is now
+  `EvidenceCollectionTimeout + 50 ms`. A flusher or snapshot source that
+  correctly consumes its whole budget and returns a partial answer is now
+  reported as such — previously the identical budget on both sides made it lose
+  the race and be recorded as `timed out`. Notes such as
+  `Logging flush: did not complete within its budget.` will start appearing where
+  `Logging flush: timed out` used to.
+- **Bounds are enforced.** `MaxRecentLogEntries`,
+  `MaxRecentTelemetryOperations`, and `MaxInspectionOperations` are now applied
+  locally as well as passed to the source. A source that ignored its argument
+  used to produce an unbounded `crash.txt`; it is now truncated with a
+  `<truncated at N …>` marker. `ExtraLines` remains caller-owned and unbounded by
+  design.
+- **Poisoned records.** A record whose `ToString()` throws now yields one
+  `<ToString threw: X>` line instead of replacing its whole section with
+  `<contributor failed: …>`.
+- **Redaction.** The crash-text block is redacted as one bounded batch rather
+  than one dedicated thread per line. Fail-closed behaviour is unchanged.
+
+## Artifact format changes
+
+Parsers of `crash.txt` should note:
+
+- `ThreadId:` is now `ManagedThreadId:`, making explicit that the value is a
+  managed identifier and does not correlate with the native thread ids a minidump
+  indexes. To locate the faulting thread in a dump, match the exception stack
+  trace in `crash.txt` against the dump's thread stacks.
+- Colliding tail file names are disambiguated — `app.log`, `app-2.log` — and the
+  collision is recorded under `---- Platform artifact notes ----`. Previously the
+  second silently overwrote the first.
+- New `<truncated at N …>` markers may appear at the end of an evidence section.
+
+## Unchanged
+
+Public types, the crash sequence, subscriber exception isolation, the
+non-throwing crash path, `CrashDumpLevel`, the `crash.dmp` convention, the bundle
+directory layout, the redaction boundary, target parity, and the `NekoLib.Core`
+dependency are all unchanged.

@@ -457,6 +457,39 @@ consumers does not prove that a public member is unused.
 6. [ ] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
    dump-writer, external notification, ownership, and partial-evidence
    contracts.
+   **Accepted 2026-08-17:** retain all six public types as stable candidates with
+   one removal and one addition. Remove the obsolete `NotifyWatchdog` gate, whose
+   Watchdog policy moved to composition in E6 and whose stated preservation window
+   closed with Phase E; add `CrashBundleFailed`/`CrashBundleFailedEventArgs` so a
+   lost bundle is observable. Capture option values at construction and copy
+   `TailFiles`; make `Dispose` terminal with `ObjectDisposedException` on a later
+   `Install`; release the `AppDomain`/`TaskScheduler` subscriptions when the last
+   handler is disposed and call `SetObserved` only when a handler recorded the
+   report; abandon a contributor after its budget plus a 50 ms settle margin;
+   enforce the three evidence limits locally; guard per-record `ToString`;
+   disambiguate colliding tail names; and redact the crash-text block as one
+   bounded batch. Subscriber budgeting, the redaction boundary, concurrent-report
+   de-duplication, the reserved `DumpPath`, and CRASH-01's retained Windows
+   vocabulary are documented rather than changed. WIN-03b was resolved as
+   documentation: a native thread id is not obtainable portably, so `crash.txt`
+   labels its value `ManagedThreadId` and the reference explains stack-trace
+   correlation instead. A platform-neutral artifact contract, a total incident
+   budget, budgeted subscribers, `MaxExtraLines`, a nullable `DumpPath`, and a
+   reversible `Dispose` were all rejected. The accepted rationale, evidence, and
+   rejected alternatives are recorded in
+   [`docs/audit/diagnostics-public-api-review-2026-08-17.md`](docs/audit/diagnostics-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17, package gate pending.** Diagnostics passed
+   16/16 tests on `net481` and 16/16 on `net9.0-windows`, up from 7 per target;
+   the module rebuilt with 0 warnings and 0 errors on both targets. Both
+   `NekoLib.Diagnostics` API manifests changed by exactly the accepted delta — the
+   new event and event args added, `NotifyWatchdog` and its `[Obsolete]` removed —
+   and scoped API verification, documentation verification, and diff hygiene
+   passed. A dedicated Diagnostics reference now owns the ownership, lifecycle,
+   budget, bounds, redaction, and bundle-layout contracts for both this package
+   and `NekoLib.Diagnostics.Windows`. Evidence is focused: no full-solution run,
+   no runtime scenario, and no package was produced. **The package gate remains
+   open for Codex**, which owns the coordinated family build, PackageReference
+   consumer probes, warning-identity comparison, and the SHA-256 record.
 7. [ ] **F1-WIN — Diagnostics.Windows.** Finalize Windows crash hooks,
    minidump composition, platform behavior, and the Diagnostics package
    boundary.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -21,10 +21,13 @@ namespace NekoLib.Diagnostics
     /// </summary>
     public delegate bool CrashDumpWriter(string filePath, CrashDumpLevel level);
 
+    /// <summary>
+    /// Composition-root configuration for <see cref="CrashHandler"/>. Every value
+    /// is captured when the handler is constructed; mutating this object
+    /// afterwards does not affect that handler.
+    /// </summary>
     public sealed class CrashHandlerOptions
     {
-        private bool _externalNotificationEnabled = true;
-
         public string? CrashRootDirectory { get; set; }
         public CrashDumpLevel DumpLevel { get; set; } = CrashDumpLevel.MiniDumpNormal;
 
@@ -33,6 +36,10 @@ namespace NekoLib.Diagnostics
 
         public bool WriteCrashFolder { get; set; } = true;
 
+        /// <summary>
+        /// Optional caller-owned evidence. The application owns its size; unlike the
+        /// snapshot sources below, this contributor is not bounded by Diagnostics.
+        /// </summary>
         public Func<IEnumerable<string>>? ExtraLines { get; set; }
 
         /// <summary>
@@ -59,7 +66,11 @@ namespace NekoLib.Diagnostics
         public ITelemetrySnapshotSource? TelemetrySnapshotSource { get; set; }
         public IInspectionSnapshotSource? InspectionSnapshotSource { get; set; }
 
-        /// <summary>Maximum wait for each optional crash-evidence contributor.</summary>
+        /// <summary>
+        /// Cooperative budget handed to each optional crash-evidence contributor.
+        /// A contributor that ignores it is abandoned shortly afterwards; see the
+        /// module reference for the exact settle margin.
+        /// </summary>
         public TimeSpan EvidenceCollectionTimeout { get; set; } = TimeSpan.FromMilliseconds(250);
 
         public int MaxRecentLogEntries { get; set; } = 200;
@@ -69,28 +80,18 @@ namespace NekoLib.Diagnostics
 
         /// <summary>
         /// Optional line-oriented redactor applied to dynamic crash evidence and
-        /// configured file tails before it is persisted.
+        /// configured file tails before it is persisted. It governs persisted
+        /// artifacts only; subscribers and <see cref="ExternalNotifier"/> still
+        /// receive the raw exception.
         /// </summary>
         public Func<string, string>? Redact { get; set; }
 
         /// <summary>
-        /// Compatibility gate for external notification. New code should leave
-        /// <see cref="ExternalNotifier"/> unset when no notification is required.
-        /// </summary>
-        [Obsolete("Set ExternalNotifier to null when external notification is not required.")]
-        public bool NotifyWatchdog
-        {
-            get { return _externalNotificationEnabled; }
-            set { _externalNotificationEnabled = value; }
-        }
-
-        /// <summary>
         /// Optional notification callback supplied by the application composition
-        /// root. Diagnostics invokes it after crash artifacts are written.
+        /// root. Diagnostics invokes it after crash artifacts are written. Leave it
+        /// null when no external notification is required.
         /// </summary>
         public Action<CrashDetectedEventArgs>? ExternalNotifier { get; set; }
-
-        internal bool ExternalNotificationEnabled => _externalNotificationEnabled;
     }
 
     public sealed class CrashDetectedEventArgs : EventArgs
@@ -111,6 +112,11 @@ namespace NekoLib.Diagnostics
     {
         public string BundleDirectory { get; }
         public string CrashTextPath { get; }
+
+        /// <summary>
+        /// Reserved dump path inside the bundle. The file exists only when
+        /// <see cref="DumpWritten"/> is true.
+        /// </summary>
         public string DumpPath { get; }
         public bool DumpWritten { get; }
 
@@ -123,35 +129,112 @@ namespace NekoLib.Diagnostics
         }
     }
 
+    /// <summary>
+    /// Raised when crash-bundle creation failed, so an unattended application can
+    /// observe that incident evidence was lost instead of assuming it was written.
+    /// </summary>
+    public sealed class CrashBundleFailedEventArgs : EventArgs
+    {
+        /// <summary>
+        /// Directory the handler was writing to, or the configured crash root when
+        /// the bundle directory itself could not be created.
+        /// </summary>
+        public string BundleDirectory { get; }
+
+        /// <summary>Failure type and message, for logging or notification.</summary>
+        public string Reason { get; }
+
+        public CrashBundleFailedEventArgs(string bundleDirectory, string reason)
+        {
+            BundleDirectory = bundleDirectory;
+            Reason = reason;
+        }
+    }
+
     public sealed class CrashHandler : IDisposable
     {
+        /// <summary>
+        /// Extra wall-clock time a contributor is given, beyond its own cooperative
+        /// budget, purely so it can return an answer it has already computed.
+        /// </summary>
+        private static readonly TimeSpan ContributorSettleMargin = TimeSpan.FromMilliseconds(50);
+
         private static readonly object RegistryLock = new object();
         private static readonly List<CrashHandler> InstalledHandlers = new List<CrashHandler>();
         private static bool _globalHandlersInstalled;
 
-        private readonly CrashHandlerOptions _o;
         private readonly Stopwatch _uptime = Stopwatch.StartNew();
 
+        // Captured once, so constructor validation actually holds and a caller
+        // mutating its own options object cannot re-target a live handler.
+        private readonly string? _crashRootDirectory;
+        private readonly CrashDumpLevel _dumpLevel;
+        private readonly string[] _tailFiles;
+        private readonly int _tailLines;
+        private readonly bool _writeCrashFolder;
+        private readonly Func<IEnumerable<string>>? _extraLines;
+        private readonly CrashDumpWriter? _dumpWriter;
+        private readonly ILogger? _logger;
+        private readonly ILogFlusher? _logFlusher;
+        private readonly ILogSnapshotSource? _logSnapshotSource;
+        private readonly ITelemetrySnapshotSource? _telemetrySnapshotSource;
+        private readonly IInspectionSnapshotSource? _inspectionSnapshotSource;
+        private readonly TimeSpan _evidenceCollectionTimeout;
+        private readonly TimeSpan _contributorAbandonAfter;
+        private readonly int _maxRecentLogEntries;
+        private readonly int _maxRecentTelemetryOperations;
+        private readonly int _maxInspectionOperations;
+        private readonly int _maxEvidenceLineLength;
+        private readonly Func<string, string>? _redact;
+        private readonly Action<CrashDetectedEventArgs>? _externalNotifier;
+
         private int _installed;
+        private int _disposed;
         private int _crashing;
         private int _redactorUnavailable;
 
         public event EventHandler<CrashDetectedEventArgs>? CrashDetected;
         public event EventHandler<CrashBundleWrittenEventArgs>? CrashBundleWritten;
+        public event EventHandler<CrashBundleFailedEventArgs>? CrashBundleFailed;
+
         public CrashHandler(CrashHandlerOptions options)
         {
-            _o = options ?? throw new ArgumentNullException(nameof(options));
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
 
-            if (_o.WriteCrashFolder && string.IsNullOrWhiteSpace(_o.CrashRootDirectory))
+            if (options.WriteCrashFolder && string.IsNullOrWhiteSpace(options.CrashRootDirectory))
                 throw new ArgumentException("CrashRootDirectory is required.", nameof(options));
-            if (_o.EvidenceCollectionTimeout <= TimeSpan.Zero)
+            if (options.EvidenceCollectionTimeout <= TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(options), "EvidenceCollectionTimeout must be positive.");
-            if (_o.MaxRecentLogEntries < 0 ||
-                _o.MaxRecentTelemetryOperations < 0 ||
-                _o.MaxInspectionOperations < 0)
+            if (options.MaxRecentLogEntries < 0 ||
+                options.MaxRecentTelemetryOperations < 0 ||
+                options.MaxInspectionOperations < 0)
                 throw new ArgumentOutOfRangeException(nameof(options), "Evidence limits cannot be negative.");
-            if (_o.MaxEvidenceLineLength < 64)
+            if (options.MaxEvidenceLineLength < 64)
                 throw new ArgumentOutOfRangeException(nameof(options), "MaxEvidenceLineLength must be at least 64.");
+
+            _crashRootDirectory = options.CrashRootDirectory;
+            _dumpLevel = options.DumpLevel;
+            _tailFiles = options.TailFiles == null
+                ? new string[0]
+                : options.TailFiles.ToArray();
+            _tailLines = options.TailLines;
+            _writeCrashFolder = options.WriteCrashFolder;
+            _extraLines = options.ExtraLines;
+            _dumpWriter = options.DumpWriter;
+            _logger = options.Logger;
+            _logFlusher = options.LogFlusher ?? options.Logger as ILogFlusher;
+            _logSnapshotSource = options.LogSnapshotSource ?? options.Logger as ILogSnapshotSource;
+            _telemetrySnapshotSource = options.TelemetrySnapshotSource;
+            _inspectionSnapshotSource = options.InspectionSnapshotSource;
+            _evidenceCollectionTimeout = options.EvidenceCollectionTimeout;
+            _contributorAbandonAfter = options.EvidenceCollectionTimeout + ContributorSettleMargin;
+            _maxRecentLogEntries = options.MaxRecentLogEntries;
+            _maxRecentTelemetryOperations = options.MaxRecentTelemetryOperations;
+            _maxInspectionOperations = options.MaxInspectionOperations;
+            _maxEvidenceLineLength = options.MaxEvidenceLineLength;
+            _redact = options.Redact;
+            _externalNotifier = options.ExternalNotifier;
         }
 
         // ============================================================
@@ -160,6 +243,8 @@ namespace NekoLib.Diagnostics
 
         public void Install()
         {
+            ThrowIfDisposed();
+
             if (Interlocked.Exchange(ref _installed, 1) == 1)
                 return;
 
@@ -182,6 +267,22 @@ namespace NekoLib.Diagnostics
         }
 
         /// <summary>
+        /// Restores the process to its prior exception semantics once no handler is
+        /// installed. A library must not keep observing process-wide events after
+        /// the application has disposed the last handler that asked for them.
+        /// </summary>
+        private static void RemoveGlobalHandlersIfUnused()
+        {
+            if (!_globalHandlersInstalled || InstalledHandlers.Count > 0)
+                return;
+
+            _globalHandlersInstalled = false;
+
+            AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+            TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+        }
+
+        /// <summary>
         /// Feeds a crash from an external, OS-specific source (e.g. the WinForms
         /// <c>Application.ThreadException</c> hook installed by
         /// NekoLib.Diagnostics.Windows) into the installed handlers. Never throws.
@@ -200,32 +301,51 @@ namespace NekoLib.Diagnostics
 
         private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
-            DispatchCrash("TaskScheduler.UnobservedTaskException", e.Exception, false);
-
-            try { e.SetObserved(); } catch { }
+            // Suppress escalation only when a handler actually recorded the fault.
+            // Marking an exception observed that nobody captured would silently
+            // change process behaviour for code that never asked for it.
+            if (DispatchCrash("TaskScheduler.UnobservedTaskException", e.Exception, false) > 0)
+            {
+                try { e.SetObserved(); } catch { }
+            }
         }
 
-        private static void DispatchCrash(string source, Exception? ex, bool terminating)
+        private static int DispatchCrash(string source, Exception? ex, bool terminating)
         {
             CrashHandler[] snapshot;
             lock (RegistryLock)
                 snapshot = InstalledHandlers.ToArray();
 
+            int handled = 0;
             for (int i = 0; i < snapshot.Length; i++)
             {
-                try { snapshot[i].HandleCrash(source, ex, terminating); }
+                try
+                {
+                    if (snapshot[i].HandleCrash(source, ex, terminating))
+                        handled++;
+                }
                 catch { }
             }
+
+            return handled;
         }
 
         // ============================================================
         // CRASH CORE
         // ============================================================
 
-        private void HandleCrash(string source, Exception? ex, bool terminating)
+        /// <summary>
+        /// Returns true when this handler actually processed the report, and false
+        /// when it was dropped because the handler is disposed or already handling
+        /// another crash.
+        /// </summary>
+        private bool HandleCrash(string source, Exception? ex, bool terminating)
         {
+            if (Volatile.Read(ref _disposed) != 0)
+                return false;
+
             if (Interlocked.Exchange(ref _crashing, 1) == 1)
-                return;
+                return false;
 
             var args = new CrashDetectedEventArgs(source, ex, terminating);
 
@@ -237,7 +357,7 @@ namespace NekoLib.Diagnostics
                 var evidence = CaptureEvidence();
                 WriteCrashArtifacts(args, incidentNotes, evidence);
 
-                if (_o.ExternalNotificationEnabled && _o.ExternalNotifier != null)
+                if (_externalNotifier != null)
                     NotifyExternal(args);
             }
             catch
@@ -250,6 +370,8 @@ namespace NekoLib.Diagnostics
                 if (!terminating)
                     Interlocked.Exchange(ref _crashing, 0);
             }
+
+            return true;
         }
 
         private void RaiseCrashDetected(CrashDetectedEventArgs args)
@@ -267,18 +389,18 @@ namespace NekoLib.Diagnostics
 
         private void NotifyExternal(CrashDetectedEventArgs args)
         {
-            try { _o.ExternalNotifier?.Invoke(args); }
+            try { _externalNotifier?.Invoke(args); }
             catch { }
         }
 
         private List<string> RecordIncident(CrashDetectedEventArgs args)
         {
             var notes = new List<string>();
-            if (_o.Logger != null)
+            if (_logger != null)
             {
                 string? failure;
                 if (!RunContributor(
-                    () => _o.Logger.Log(
+                    () => _logger.Log(
                         LogLevel.Fatal,
                         "Unhandled incident captured from " + args.Source + ".",
                         args.Exception,
@@ -287,13 +409,13 @@ namespace NekoLib.Diagnostics
                     notes.Add("Fatal log: " + failure);
             }
 
-            var flusher = _o.LogFlusher ?? _o.Logger as ILogFlusher;
-            if (flusher != null)
+            if (_logFlusher != null)
             {
+                var flusher = _logFlusher;
                 string? failure;
                 bool flushed = false;
                 if (!RunContributor(
-                    () => flushed = flusher.Flush(_o.EvidenceCollectionTimeout),
+                    () => flushed = flusher.Flush(_evidenceCollectionTimeout),
                     out failure))
                     notes.Add("Logging flush: " + failure);
                 else if (!flushed)
@@ -306,20 +428,27 @@ namespace NekoLib.Diagnostics
         private List<EvidenceSection> CaptureEvidence()
         {
             var sections = new List<EvidenceSection>();
-            var logs = _o.LogSnapshotSource ?? _o.Logger as ILogSnapshotSource;
 
-            if (logs != null)
+            if (_logSnapshotSource != null)
+            {
+                var logs = _logSnapshotSource;
                 sections.Add(CaptureSection("Recent logs", () => FormatLogs(logs)));
-            if (_o.TelemetrySnapshotSource != null)
-                sections.Add(CaptureSection(
-                    "Recent telemetry",
-                    () => FormatTelemetry(_o.TelemetrySnapshotSource)));
-            if (_o.InspectionSnapshotSource != null)
-                sections.Add(CaptureSection(
-                    "Inspection snapshot",
-                    () => FormatInspection(_o.InspectionSnapshotSource)));
-            if (_o.ExtraLines != null)
-                sections.Add(CaptureSection("Extra", () => _o.ExtraLines()));
+            }
+            if (_telemetrySnapshotSource != null)
+            {
+                var telemetry = _telemetrySnapshotSource;
+                sections.Add(CaptureSection("Recent telemetry", () => FormatTelemetry(telemetry)));
+            }
+            if (_inspectionSnapshotSource != null)
+            {
+                var inspection = _inspectionSnapshotSource;
+                sections.Add(CaptureSection("Inspection snapshot", () => FormatInspection(inspection)));
+            }
+            if (_extraLines != null)
+            {
+                var extra = _extraLines;
+                sections.Add(CaptureSection("Extra", () => extra()));
+            }
 
             return sections;
         }
@@ -354,29 +483,59 @@ namespace NekoLib.Diagnostics
 
         private IEnumerable<string> FormatLogs(ILogSnapshotSource source)
         {
-            var entries = source.GetRecentEntries(_o.MaxRecentLogEntries);
+            var entries = source.GetRecentEntries(_maxRecentLogEntries);
             if (entries == null)
                 yield break;
 
+            int emitted = 0;
             foreach (var entry in entries)
-                yield return entry == null ? "<null log entry>" : entry.ToString();
+            {
+                // The configured limit is enforced here as well: a supplied source
+                // may ignore the argument, and an unbounded crash.txt is worse than
+                // a truncated one.
+                if (emitted >= _maxRecentLogEntries)
+                {
+                    yield return "<truncated at " + _maxRecentLogEntries + " log entries>";
+                    yield break;
+                }
+
+                emitted++;
+                yield return entry == null ? "<null log entry>" : SafeObjectText(entry);
+            }
         }
 
         private IEnumerable<string> FormatTelemetry(ITelemetrySnapshotSource source)
         {
-            var operations = source.GetRecentOperations(_o.MaxRecentTelemetryOperations);
+            var operations = source.GetRecentOperations(_maxRecentTelemetryOperations);
             if (operations == null)
                 yield break;
 
+            int emitted = 0;
             foreach (var operation in operations)
             {
+                if (emitted >= _maxRecentTelemetryOperations)
+                {
+                    yield return "<truncated at " + _maxRecentTelemetryOperations + " telemetry operations>";
+                    yield break;
+                }
+
+                emitted++;
+
                 if (operation == null)
                 {
                     yield return "<null telemetry operation>";
                     continue;
                 }
 
-                yield return string.Format(
+                yield return FormatTelemetryOperation(operation);
+            }
+        }
+
+        private static string FormatTelemetryOperation(TelemetryOperation operation)
+        {
+            try
+            {
+                return string.Format(
                     "[{0:O}] {1}/{2} id={3} parent={4} outcome={5} duration_ms={6:0.###} checkpoints={7} dimensions={8} measurements={9}",
                     operation.StartedUtc,
                     operation.Module,
@@ -389,13 +548,17 @@ namespace NekoLib.Diagnostics
                     FormatValues(operation.Dimensions),
                     FormatValues(operation.Measurements));
             }
+            catch (Exception ex)
+            {
+                return "<telemetry operation threw: " + ex.GetType().Name + ">";
+            }
         }
 
         private IEnumerable<string> FormatInspection(IInspectionSnapshotSource source)
         {
             var snapshot = source.CaptureSnapshot(
-                _o.MaxInspectionOperations,
-                _o.EvidenceCollectionTimeout);
+                _maxInspectionOperations,
+                _evidenceCollectionTimeout);
 
             yield return string.Format(
                 "captured_utc={0:O} capacity={1} total_recorded={2} evicted={3}",
@@ -404,8 +567,19 @@ namespace NekoLib.Diagnostics
                 snapshot.TotalRecorded,
                 snapshot.EvictedCount);
 
+            int emitted = 0;
             foreach (var operation in snapshot.Operations)
-                yield return operation == null ? "<null inspection operation>" : operation.ToString();
+            {
+                if (emitted >= _maxInspectionOperations)
+                {
+                    yield return "<truncated at " + _maxInspectionOperations + " inspection operations>";
+                    break;
+                }
+
+                emitted++;
+                yield return operation == null ? "<null inspection operation>" : SafeObjectText(operation);
+            }
+
             foreach (var pair in snapshot.State)
                 yield return "state " + pair.Key + "=" + SafeObjectText(pair.Value);
         }
@@ -458,7 +632,12 @@ namespace NekoLib.Diagnostics
                 };
 
                 thread.Start();
-                if (!thread.Join(_o.EvidenceCollectionTimeout))
+
+                // The contributor already received EvidenceCollectionTimeout as its
+                // own cooperative budget. Joining on exactly that value would race a
+                // well-behaved contributor and report its correct partial answer as
+                // a hang, so abandonment waits for the budget plus a settle margin.
+                if (!thread.Join(_contributorAbandonAfter))
                 {
                     failure = "timed out";
                     return false;
@@ -485,30 +664,32 @@ namespace NekoLib.Diagnostics
             IReadOnlyList<string> incidentNotes,
             IReadOnlyList<EvidenceSection> evidence)
         {
-            if (!_o.WriteCrashFolder)
+            if (!_writeCrashFolder)
                 return;
+
+            var attemptedDirectory = _crashRootDirectory ?? string.Empty;
+            var crashTxt = string.Empty;
+            var dumpPath = string.Empty;
+            var dumpOk = false;
 
             try
             {
                 var bundleDir = CreateCrashFolder();
-                var crashTxt = Path.Combine(bundleDir, "crash.txt");
-                var dumpPath = Path.Combine(bundleDir, "crash.dmp");
+                attemptedDirectory = bundleDir;
+                crashTxt = Path.Combine(bundleDir, "crash.txt");
+                dumpPath = Path.Combine(bundleDir, "crash.dmp");
 
-                WriteCrashText(
-                    crashTxt,
-                    args.Source,
-                    args.Exception,
-                    args.IsTerminating,
-                    incidentNotes,
-                    evidence);
+                WriteCrashText(crashTxt, args, incidentNotes, evidence);
 
-                bool dumpOk = false;
                 var artifactNotes = new List<string>();
-                if (_o.DumpWriter != null)
+                if (_dumpWriter != null)
                 {
+                    var writer = _dumpWriter;
+                    var level = _dumpLevel;
+                    var path = dumpPath;
                     string? failure;
                     if (!RunContributor(
-                        () => dumpOk = _o.DumpWriter(dumpPath, _o.DumpLevel),
+                        () => dumpOk = writer(path, level),
                         out failure))
                         artifactNotes.Add("Dump writer: " + failure);
                     else if (!dumpOk)
@@ -517,14 +698,20 @@ namespace NekoLib.Diagnostics
 
                 CaptureConfiguredFileTails(bundleDir, artifactNotes);
                 FinishCrashText(crashTxt, artifactNotes);
-
-                RaiseCrashBundleWritten(new CrashBundleWrittenEventArgs(
-                    bundleDir,
-                    crashTxt,
-                    dumpPath,
-                    dumpOk));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                RaiseCrashBundleFailed(new CrashBundleFailedEventArgs(
+                    attemptedDirectory,
+                    ex.GetType().Name + ": " + ex.Message));
+                return;
+            }
+
+            RaiseCrashBundleWritten(new CrashBundleWrittenEventArgs(
+                attemptedDirectory,
+                crashTxt,
+                dumpPath,
+                dumpOk));
         }
 
         private void RaiseCrashBundleWritten(CrashBundleWrittenEventArgs args)
@@ -540,6 +727,19 @@ namespace NekoLib.Diagnostics
             }
         }
 
+        private void RaiseCrashBundleFailed(CrashBundleFailedEventArgs args)
+        {
+            var handler = CrashBundleFailed;
+            if (handler == null)
+                return;
+
+            foreach (var d in handler.GetInvocationList())
+            {
+                try { ((EventHandler<CrashBundleFailedEventArgs>)d)(this, args); }
+                catch { }
+            }
+        }
+
         // ============================================================
         // FILE / DUMP
         // ============================================================
@@ -547,86 +747,132 @@ namespace NekoLib.Diagnostics
         private string CreateCrashFolder()
         {
             var ts = DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss-fffZ");
-            var dir = Path.Combine(_o.CrashRootDirectory!, "crash-" + ts);
+            var dir = Path.Combine(_crashRootDirectory!, "crash-" + ts);
             Directory.CreateDirectory(dir);
             return dir;
         }
 
         private void WriteCrashText(
             string path,
-            string source,
-            Exception? ex,
-            bool terminating,
+            CrashDetectedEventArgs args,
             IReadOnlyList<string> incidentNotes,
             IReadOnlyList<EvidenceSection> evidence)
         {
-            try
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            // Every value that may carry sensitive data is collected first and
+            // redacted as one bounded batch. Structural lines are literal and never
+            // reach the redactor.
+            var redactable = new List<string>
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                "TimestampUtc: " + DateTime.UtcNow.ToString("O"),
+                "Source: " + args.Source,
+                "Process: " + SafeGet(() => Process.GetCurrentProcess().ProcessName),
+                "PID: " + SafeGet(() => Process.GetCurrentProcess().Id.ToString()),
+                "BaseDir: " + AppDomain.CurrentDomain.BaseDirectory,
+                "OS: " + Environment.OSVersion
+            };
 
-                var sb = new StringBuilder(32 * 1024);
+            const int headerCount = 6;
+            var exceptionLines = SplitLines(args.Exception != null
+                ? args.Exception.ToString()
+                : "(null exception)");
 
-                sb.AppendLine("==== CRASH REPORT ====");
-                sb.AppendLine("TimestampUtc: " + Sanitize(DateTime.UtcNow.ToString("O")));
-                sb.AppendLine("Source: " + Sanitize(source));
-                sb.AppendLine("IsTerminating: " + terminating);
-                sb.AppendLine("UptimeMs: " + _uptime.ElapsedMilliseconds);
-                sb.AppendLine("ThreadId: " + Thread.CurrentThread.ManagedThreadId);
-                sb.AppendLine("Process: " + Sanitize(SafeGet(() => Process.GetCurrentProcess().ProcessName)));
-                sb.AppendLine("PID: " + Sanitize(SafeGet(() => Process.GetCurrentProcess().Id.ToString())));
-                sb.AppendLine("BaseDir: " + Sanitize(AppDomain.CurrentDomain.BaseDirectory));
-                sb.AppendLine("OS: " + Sanitize(Environment.OSVersion.ToString()));
-                sb.AppendLine("64bitProc: " + Environment.Is64BitProcess);
-                sb.AppendLine("CLR: " + Environment.Version);
+            redactable.AddRange(exceptionLines);
+            if (incidentNotes != null)
+                redactable.AddRange(incidentNotes);
+
+            var redacted = RedactLines(redactable);
+
+            var sb = new StringBuilder(32 * 1024);
+
+            sb.AppendLine("==== CRASH REPORT ====");
+            sb.AppendLine(redacted[0]);
+            sb.AppendLine(redacted[1]);
+            sb.AppendLine("IsTerminating: " + args.IsTerminating);
+            sb.AppendLine("UptimeMs: " + _uptime.ElapsedMilliseconds);
+
+            // Managed, not the OS thread id a minidump indexes. See the module
+            // reference for how to locate the faulting thread inside a dump.
+            sb.AppendLine("ManagedThreadId: " + Thread.CurrentThread.ManagedThreadId);
+
+            sb.AppendLine(redacted[2]);
+            sb.AppendLine(redacted[3]);
+            sb.AppendLine(redacted[4]);
+            sb.AppendLine(redacted[5]);
+            sb.AppendLine("64bitProc: " + Environment.Is64BitProcess);
+            sb.AppendLine("CLR: " + Environment.Version);
+            sb.AppendLine();
+
+            sb.AppendLine("---- Exception ----");
+            for (int i = 0; i < exceptionLines.Count; i++)
+                sb.AppendLine(redacted[headerCount + i]);
+            sb.AppendLine();
+
+            if (incidentNotes != null && incidentNotes.Count > 0)
+            {
+                sb.AppendLine("---- Incident collection notes ----");
+                for (int i = 0; i < incidentNotes.Count; i++)
+                    sb.AppendLine(redacted[headerCount + exceptionLines.Count + i]);
                 sb.AppendLine();
+            }
 
-                sb.AppendLine("---- Exception ----");
-                AppendSanitizedBlock(sb, ex != null ? ex.ToString() : "(null exception)");
-                sb.AppendLine();
-
-                if (incidentNotes != null && incidentNotes.Count > 0)
+            if (evidence != null)
+            {
+                foreach (var section in evidence)
                 {
-                    sb.AppendLine("---- Incident collection notes ----");
-                    foreach (var note in incidentNotes)
-                        sb.AppendLine(Sanitize(note));
+                    sb.AppendLine("---- " + section.Title + " ----");
+                    foreach (var line in section.Lines)
+                        sb.AppendLine(line);
                     sb.AppendLine();
                 }
-
-                if (evidence != null)
-                {
-                    foreach (var section in evidence)
-                    {
-                        sb.AppendLine("---- " + section.Title + " ----");
-                        foreach (var line in section.Lines)
-                            sb.AppendLine(line);
-                        sb.AppendLine();
-                    }
-                }
-
-                File.WriteAllText(path, sb.ToString());
             }
-            catch { }
+
+            File.WriteAllText(path, sb.ToString());
         }
 
         private void CaptureConfiguredFileTails(
             string bundleDir,
             ICollection<string> artifactNotes)
         {
-            if (_o.TailFiles == null || _o.TailFiles.Count == 0)
+            if (_tailFiles.Length == 0)
                 return;
 
-            foreach (var f in _o.TailFiles)
+            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var f in _tailFiles)
             {
                 if (string.IsNullOrWhiteSpace(f) || !File.Exists(f))
                     continue;
 
+                var sourceName = Path.GetFileName(f);
+                var destinationName = sourceName;
+                int suffix = 2;
+
+                // Two configured tails may share a file name. Overwriting one with
+                // the other silently loses evidence, so later collisions are
+                // disambiguated and recorded.
+                while (!usedNames.Add(destinationName))
+                {
+                    destinationName = Path.GetFileNameWithoutExtension(sourceName) +
+                        "-" + suffix + Path.GetExtension(sourceName);
+                    suffix++;
+                }
+
+                if (!string.Equals(destinationName, sourceName, StringComparison.Ordinal))
+                {
+                    artifactNotes.Add(
+                        "File tail " + sourceName + ": name collision, written as " +
+                        destinationName + ".");
+                }
+
                 var source = f;
-                var destination = Path.Combine(bundleDir, Path.GetFileName(f));
+                var destination = Path.Combine(bundleDir, destinationName);
                 string? failure;
                 if (!RunContributor(
-                    () => TailFileLines(source, destination, _o.TailLines),
+                    () => TailFileLines(source, destination, _tailLines),
                     out failure))
-                    artifactNotes.Add("File tail " + Path.GetFileName(f) + ": " + failure);
+                    artifactNotes.Add("File tail " + sourceName + ": " + failure);
             }
         }
 
@@ -650,51 +896,78 @@ namespace NekoLib.Diagnostics
             try { return f(); } catch { return "(unavailable)"; }
         }
 
-        private string Sanitize(string value)
+        private static List<string> SplitLines(string value)
         {
-            var result = value ?? string.Empty;
-            var redactor = _o.Redact;
-            if (redactor != null)
+            var result = new List<string>();
+            using (var reader = new StringReader(value ?? string.Empty))
             {
-                if (Volatile.Read(ref _redactorUnavailable) != 0)
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                    result.Add(line);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Applies the configured redactor to a whole block under one bounded
+        /// contributor. A failing or hanging redactor fails closed: nothing from
+        /// the block is persisted unredacted, and the redactor is not retried.
+        /// </summary>
+        private string[] RedactLines(IReadOnlyList<string> lines)
+        {
+            var source = new string[lines.Count];
+            for (int i = 0; i < source.Length; i++)
+                source[i] = lines[i] ?? string.Empty;
+
+            var redactor = _redact;
+            if (redactor == null)
+                return TruncateAll(source);
+
+            if (Volatile.Read(ref _redactorUnavailable) != 0)
+                return FillAll(source.Length, "<redaction unavailable>");
+
+            // The contributor writes into its own buffer. On timeout the abandoned
+            // thread keeps running, and it must not be able to touch what is
+            // persisted.
+            var buffer = new string[source.Length];
+            string? failure;
+            if (!RunContributor(
+                () =>
                 {
-                    result = "<redaction unavailable>";
-                }
-                else
-                {
-                    try
-                    {
-                        string? redacted = null;
-                        string? failure;
-                        if (!RunContributor(
-                            () => redacted = redactor(result),
-                            out failure))
-                        {
-                            Interlocked.Exchange(ref _redactorUnavailable, 1);
-                            result = failure == "timed out"
-                                ? "<redaction timed out>"
-                                : "<redaction failed>";
-                        }
-                        else
-                        {
-                            result = redacted ?? string.Empty;
-                        }
-                    }
-                    catch
-                    {
-                        Interlocked.Exchange(ref _redactorUnavailable, 1);
-                        result = "<redaction failed>";
-                    }
-                }
+                    for (int i = 0; i < buffer.Length; i++)
+                        buffer[i] = redactor(source[i]) ?? string.Empty;
+                },
+                out failure))
+            {
+                Interlocked.Exchange(ref _redactorUnavailable, 1);
+                return FillAll(
+                    source.Length,
+                    failure == "timed out" ? "<redaction timed out>" : "<redaction failed>");
             }
 
-            return TruncateEvidenceLine(result);
+            return TruncateAll(buffer);
+        }
+
+        private string[] FillAll(int count, string value)
+        {
+            var truncated = TruncateEvidenceLine(value);
+            var result = new string[count];
+            for (int i = 0; i < count; i++)
+                result[i] = truncated;
+            return result;
+        }
+
+        private string[] TruncateAll(string[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+                values[i] = TruncateEvidenceLine(values[i] ?? string.Empty);
+            return values;
         }
 
         private string SanitizeInline(string value)
         {
             var result = value ?? string.Empty;
-            var redactor = _o.Redact;
+            var redactor = _redact;
             if (redactor != null)
             {
                 if (Volatile.Read(ref _redactorUnavailable) != 0)
@@ -720,48 +993,53 @@ namespace NekoLib.Diagnostics
 
         private string TruncateEvidenceLine(string value)
         {
-            if (value.Length > _o.MaxEvidenceLineLength)
-                return value.Substring(0, _o.MaxEvidenceLineLength) + "...<truncated>";
+            if (value.Length > _maxEvidenceLineLength)
+                return value.Substring(0, _maxEvidenceLineLength) + "...<truncated>";
             return value;
-        }
-
-        private void AppendSanitizedBlock(StringBuilder builder, string value)
-        {
-            using (var reader = new StringReader(value ?? string.Empty))
-            {
-                string? line;
-                while ((line = reader.ReadLine()) != null)
-                    builder.AppendLine(Sanitize(line));
-            }
         }
 
         private void FinishCrashText(string crashTextPath, IReadOnlyList<string> notes)
         {
-            try
-            {
-                using (var writer = File.AppendText(crashTextPath))
-                {
-                    if (notes != null && notes.Count > 0)
-                    {
-                        writer.WriteLine("---- Platform artifact notes ----");
-                        foreach (var note in notes)
-                            writer.WriteLine(Sanitize(note));
-                        writer.WriteLine();
-                    }
+            var redacted = notes != null && notes.Count > 0
+                ? RedactLines(notes)
+                : new string[0];
 
-                    writer.WriteLine("==== END ====");
+            using (var writer = File.AppendText(crashTextPath))
+            {
+                if (redacted.Length > 0)
+                {
+                    writer.WriteLine("---- Platform artifact notes ----");
+                    foreach (var note in redacted)
+                        writer.WriteLine(note);
+                    writer.WriteLine();
                 }
+
+                writer.WriteLine("==== END ====");
             }
-            catch { }
         }
 
+        /// <summary>
+        /// Terminal and idempotent. The handler stops receiving reports, and the
+        /// process-wide hooks are removed when no handler remains installed.
+        /// </summary>
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _installed, 0) == 0)
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
+            Interlocked.Exchange(ref _installed, 0);
+
             lock (RegistryLock)
+            {
                 InstalledHandlers.Remove(this);
+                RemoveGlobalHandlersIfUnused();
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+                throw new ObjectDisposedException(nameof(CrashHandler));
         }
 
         private sealed class EvidenceSection

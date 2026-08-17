@@ -9,14 +9,13 @@ ownership, process-wide hook lifetime, incident collection budgets, crash-bundle
 composition, partial-evidence contracts, redaction boundary, external
 notification, and compatibility boundaries
 
-**Status:** review complete; dispositions proposed and awaiting the consolidated
-F1 decision gate
+**Status:** all dispositions accepted and implemented; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `89f05b667be10104e8ef966ac9bebba7b7f13a23`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-DIAG
 
@@ -686,3 +685,83 @@ DIAG-01 through DIAG-09 and DIAG-15 are recommended as accepted work.
 DIAG-10 through DIAG-14 are recommended as documentation-only. CRASH-01 is
 recommended for closure with no product change. Nothing here may be implemented
 until the consolidated F1 decision gate accepts or modifies these dispositions.
+
+## Reconciliation — 2026-08-17: dispositions accepted and implemented
+
+The observed facts, probe output, and original recommendations above are the
+snapshot and are unchanged. This section records the decision-gate outcome and
+the implementation.
+
+### Accepted
+
+All fifteen dispositions were accepted as recommended, with one substitution.
+DIAG-01 through DIAG-09 and DIAG-15 landed as code; DIAG-10 through DIAG-14
+landed as documentation in the new module reference.
+
+**WIN-03b was resolved as documentation rather than a `crash.txt` field.** The
+companion raised by the Windows review required a native thread id, and
+measurement showed there is no portable way to obtain one:
+
+```text
+net481:  kernel32 GetCurrentThreadId=35820  managed=1  AppDomain.GetCurrentThreadId=35820  -> matches
+net9.0:  kernel32 GetCurrentThreadId=49080  managed=2  AppDomain.GetCurrentThreadId=2      -> does not match
+```
+
+On `net9.0`, `AppDomain.GetCurrentThreadId()` returns the managed identifier, so
+persisting it under a native label would make `crash.txt` untrue on one of the
+two supported targets. Obtaining the real value needs a `kernel32` P/Invoke,
+which the campaign forbids inside the cross-platform assembly, and adding a
+second platform hook to `CrashHandlerOptions` was judged too expensive for an
+informative field. The accepted resolution renames the existing field to
+`ManagedThreadId` and documents stack-trace correlation as the way to locate the
+faulting thread inside a dump.
+
+### Implementation
+
+`src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs` carries every code change.
+`CrashHandlerOptions` values are captured by the constructor with `TailFiles`
+copied; `Dispose` is terminal and releases the process-wide subscriptions when
+the last handler goes; `SetObserved` runs only when a handler recorded the
+report; contributors are abandoned after their budget plus a 50 ms settle margin;
+the three evidence limits are enforced locally; per-record `ToString` is guarded;
+colliding tail names are disambiguated and noted; the crash-text block is
+redacted as one bounded batch into a private buffer so an abandoned redactor
+cannot touch what is persisted; and `CrashBundleFailed` fires when the bundle
+could not be written.
+
+`WriteCrashText` and `FinishCrashText` no longer swallow their own failures, so
+exactly one of `CrashBundleWritten` or `CrashBundleFailed` follows a processed
+crash when `WriteCrashFolder` is true.
+
+### Validation
+
+```text
+dotnet build src/Diagnostics/NekoLib.Diagnostics/NekoLib.Diagnostics.csproj
+  net481 and net9.0: 0 warnings, 0 errors
+
+dotnet test tests/NekoLib.Diagnostics.Tests/Unit/NekoLib.Diagnostics.Tests.Unit.csproj
+  net481:          16 passed, 0 failed, 0 skipped
+  net9.0-windows:  16 passed, 0 failed, 0 skipped
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Diagnostics
+  both baselines updated by exactly the accepted delta, then re-verified
+
+eng/verify-docs.ps1        passed
+git diff --check           clean
+```
+
+Nine focused regressions were added, one per changed behaviour: bundle-failure
+notification, budget-honouring flusher reporting its own result, single-batch
+redaction, locally enforced limits, poisoned-record survival, tail-name
+collision, option capture, terminal disposal, and process-hook release.
+
+### Residual limits carried forward
+
+Every limit recorded in the original snapshot still applies. In addition:
+
+- no full-solution build or test run was performed for this module block;
+- no package was produced and no PackageReference consumer probe was run — the
+  package gate belongs to Codex;
+- no crash, dump, WER, or runtime scenario was executed;
+- the `net481` behaviour of the new regressions is measured, but the underlying
+  probe evidence in the snapshot above remains `net9.0`-only.

@@ -16,6 +16,31 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Diagnostics — breaking, additive, and behavioral pre-stable candidate
+  correction for the first `1.0.0` stable family release.** Removed the obsolete
+  `CrashHandlerOptions.NotifyWatchdog` gate, whose Watchdog-specific policy was
+  already moved to composition in Phase E6 and whose stated preservation window
+  closed with that phase; leave `ExternalNotifier` null instead. Added
+  `CrashHandler.CrashBundleFailed` and `CrashBundleFailedEventArgs`, so an
+  unattended application can observe that incident evidence was lost — previously
+  a failed bundle was indistinguishable from a successful one because
+  `CrashDetected` and the notifier still fired. `CrashHandlerOptions` values are
+  now captured by the constructor and `TailFiles` is copied, so validation holds
+  and a caller mutating its own options object cannot re-target a live handler;
+  `WindowsCrash.UseMiniDump()` must therefore be applied before **constructing**
+  the handler. `Dispose()` is now terminal and idempotent, `Install()` after
+  disposal throws `ObjectDisposedException`, and disposing the last installed
+  handler releases the `AppDomain` and `TaskScheduler` subscriptions instead of
+  keeping them — and their `SetObserved()` behaviour — for the process lifetime.
+  Contributors are abandoned after their budget plus a 50 ms settle margin, so a
+  flusher or snapshot source that correctly consumes its whole budget reports its
+  own result instead of being recorded as a hang. The three evidence limits are
+  now enforced locally as well as passed to the source, a record whose
+  `ToString()` throws no longer destroys its section, colliding tail file names
+  are disambiguated and recorded rather than overwriting each other, and the
+  crash-text block is redacted as one bounded batch instead of one thread per
+  line. In `crash.txt`, `ThreadId` is now `ManagedThreadId`. See the
+  [F1-DIAG migration guide](docs/migrations/f1-diagnostics.md).
 - **NekoLib.Inspection - behavioral and experimental pre-stable candidate
   correction for the first `1.0.0` stable family release.** No public type,
   member, signature, nullability annotation, default value, namespace, target,
