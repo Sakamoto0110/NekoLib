@@ -408,6 +408,18 @@ consumers does not prove that a public member is unused.
    all rejected. No Core-contract conflict was found. The accepted rationale,
    evidence, and rejected alternatives are recorded in
    [`docs/audit/telemetry-public-api-review-2026-08-17.md`](docs/audit/telemetry-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17** in `4934859`. Telemetry passed 22/22
+   tests on `net481` and 22/22 on `net9.0`; the full solution passed
+   1,384/1,384 tests with 0 failures, 0 skips, and 0 warnings; both Telemetry
+   API manifests verified **unchanged**, as the accepted corrections are
+   confined to method bodies; the full Release rebuild emitted 515 existing
+   warning occurrences with no new normalized identity; documentation
+   verification and diff hygiene passed; and the Observability runtime scenario
+   compiles unchanged on both target families (built, not launched).
+   The package gate is **pending for Codex**: assembly bits changed, so
+   `1.0.0-local.17` is not evidence for this work and a new immutable
+   coordinated family version, PackageReference consumer probes, and
+   provenance/hash recording are still required before F1-TEL can be closed.
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,
    snapshot-source, provider, and opt-in lifecycle surface without unfreezing
    broad module instrumentation or privileged actions.
