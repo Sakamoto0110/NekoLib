@@ -76,7 +76,7 @@ optional unless one of their documented dependents brings them transitively.
 | Module | What it gives you |
 |---|---|
 | [`NekoLib.Core`](src/Core/NekoLib.Core/README.md) | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
-| `NekoLib.Logging` | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
+| [`NekoLib.Logging`](src/Logging/NekoLib.Logging/README.md) | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
 | `NekoLib.Telemetry` | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
 | `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
@@ -163,7 +163,7 @@ technical manual.
 | Module | Main public entry points | Important boundary | Focused validation |
 |---|---|---|---|
 | [Core](src/Core/NekoLib.Core/README.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
-| Logging | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition and disposal | `NekoLib.Logging.Tests.Unit` |
+| [Logging](src/Logging/NekoLib.Logging/README.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
 | Telemetry | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1 | `NekoLib.Telemetry.Tests.Unit` |
 | Inspection | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; at most one global runtime; broad module rollout is frozen | `NekoLib.Inspection.Tests.Unit` |
 | Diagnostics | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; dump production and external notification are composition-owned, and bundles may be partial | `NekoLib.Diagnostics.Tests.Unit` |

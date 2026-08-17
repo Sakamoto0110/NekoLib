@@ -23,6 +23,11 @@
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 
 		<DefineConstants>$(DefineConstants);NEKOLIB</DefineConstants>
+
+		<!-- DebugLogSink writes through Trace.WriteLine, which is
+		     [Conditional("TRACE")]. Stating this explicitly keeps the shipped
+		     Release sink from silently becoming a no-op again. -->
+		<DefineTrace>true</DefineTrace>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0'">

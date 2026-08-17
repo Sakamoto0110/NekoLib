@@ -1,0 +1,116 @@
+# F1-LOG Candidate Migration
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Logging candidate surface to the
+accepted F1-LOG contract
+
+This guide covers the pre-stable `NekoLib.Logging` correction accepted on
+2026-08-17. The rationale, evidence, and rejected alternatives are preserved in
+the [Logging public API review](../audit/logging-public-api-review-2026-08-17.md).
+
+**No public type, member, signature, nullability annotation, default value,
+namespace, target, or project reference changed.** Both accepted API manifests
+are unchanged. Every correction below is behavioral, and no source change is
+required to keep compiling.
+
+## `DebugLogSink` now actually writes
+
+`DebugLogSink.Write` called `Debug.WriteLine`, which is
+`[Conditional("DEBUG")]`. Every shipped package is built in Release, so the call
+was removed from the assembly and the sink discarded every entry. Verified
+against the packaged `1.0.0-local.16` assemblies, whose `Write` body was an
+11-byte no-op.
+
+It now writes through `Trace.WriteLine`, which the default listener forwards to
+the attached debugger and the Windows debug output stream.
+
+No source change is needed. Two consequences are worth knowing:
+
+- an application that composed `DebugLogSink` and saw nothing now sees output;
+- an application that relied on the silence — unknowingly, since the sink was
+  documented to write — should remove the sink or raise `MinimumLevel`.
+
+To capture that output in a test or tool, add a `TraceListener`:
+
+```csharp
+var listener = new MyTraceListener();
+Trace.Listeners.Add(listener);
+try { /* ... */ }
+finally { Trace.Listeners.Remove(listener); }
+```
+
+## `DebugLogSink.Write(null)` now throws
+
+It previously returned silently while `RollingFileLogSink.Write(null)` threw
+`ArgumentNullException`. Both now throw. `ILogSink.Write(LogEntry entry)` already
+annotates the parameter non-null, and `Logger` never passes null, so only a
+custom pipeline or a direct call can reach this path.
+
+## `Flush` no longer lets one sink decide the outcome for the others
+
+`Flush(timeout)` stopped at the first sink that threw, so later sinks — commonly
+the rolling file sink — were never flushed. Every flushable sink is now
+attempted. `false` still means completion was not confirmed for at least one
+sink inside the budget.
+
+If code inferred "the first sink failed" from `false`, that inference was never
+sound; `false` has always been a whole-pipeline result.
+
+## `Flush` no longer manufactures a crash
+
+A sink that outlives the flush budget keeps running. When it later failed,
+nothing observed the resulting task, so `TaskScheduler.UnobservedTaskException`
+fired — and `NekoLib.Diagnostics.CrashHandler` subscribes to that event and
+records it as a process crash. A slow sink could therefore produce a crash
+bundle.
+
+The pipeline now observes that failure itself. Applications composing Logging
+with Diagnostics may see fewer spurious incidents; nothing else changes.
+
+The overlap itself is unchanged and is now stated explicitly: after `false`, a
+sink may still be executing `Flush` concurrently with a later `Write`. A custom
+`IFlushableLogSink` that buffers must guard its own state.
+
+## `Flush` after `Dispose` is inert
+
+It previously invoked `Flush()` on sinks the logger had already disposed. It now
+returns `true` immediately, matching the inertness of `Log` and the behavior of
+`NullLogger`. Disposal already performs the final flush.
+
+`GetRecentEntries` still works after disposal, deliberately, so an incident
+collector can take a post-shutdown snapshot.
+
+## The sink array is copied
+
+`Logger` stored the supplied `ILogSink[]` directly. A caller that passed an
+explicitly constructed array could swap an element afterwards and re-target the
+live pipeline, and disposal would then flush and dispose whatever the array
+currently held.
+
+The constructor now takes its own copy, and null elements are dropped once
+rather than being re-checked on every write. Ordinary `params` call syntax was
+never affected, because the compiler already synthesized a fresh array.
+
+Code that deliberately mutated a shared array to re-target a running pipeline
+must construct a new `Logger` instead.
+
+## Unchanged contracts
+
+- package ID, namespaces, targets, type names, member signatures, nullability,
+  and the `NekoLib.Core`-only project reference;
+- `LoggerOptions` defaults `Info`, `1024`, and `DisposeSinks = true`, and the
+  `RollingFileLogSinkOptions` defaults — now frozen and covered by regressions;
+- synchronous inline dispatch, registration ordering, identical delivery order
+  across sinks, and write-path sink isolation;
+- `TimestampUtc` is not a delivery-order key under concurrent writers;
+- `Dispose` remains idempotent, flushes borrowed sinks without disposing them,
+  and carries no time budget;
+- `Timeout.InfiniteTimeSpan` remains rejected by `Flush`;
+- all rolling-file semantics: rotation threshold, `.1`…`.N` archive naming,
+  archive-only retention counting, level-dependent durability, single-process
+  path ownership, and same-process serialization;
+- no global logger, provider, registry, facade, async pipeline, or new
+  dependency was added.

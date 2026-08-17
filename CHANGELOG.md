@@ -16,6 +16,25 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Logging — behavioral pre-stable candidate correction for the first
+  `1.0.0` stable family release.** No public type, member, signature,
+  nullability annotation, default value, namespace, target, or dependency
+  changed, and both accepted API manifests are unchanged; consumers need no
+  source change. `DebugLogSink` now writes through `Trace.WriteLine` instead of
+  the `[Conditional("DEBUG")]` `Debug.WriteLine`, restoring the documented
+  contract that it writes entries to the debug channel — the call was removed
+  from every Release-built, packaged assembly, so the shipped sink silently
+  discarded everything. `DebugLogSink.Write(null)` now throws
+  `ArgumentNullException`, matching `RollingFileLogSink` and the non-null
+  `ILogSink.Write` annotation. `Logger.Flush` now attempts every flushable sink
+  instead of stopping at the first failure, restoring the documented contract
+  that one failing sink never suppresses later sinks; observes the failure of a
+  sink that outlived the budget, so a slow sink is no longer reported through
+  `TaskScheduler.UnobservedTaskException` and recorded as a crash by
+  `NekoLib.Diagnostics`; and is inert after disposal instead of flushing already
+  disposed sinks. `Logger` now copies the supplied sink array, so a caller
+  mutating its own array can no longer re-target a live pipeline. See the
+  [F1-LOG migration guide](docs/migrations/f1-logging.md).
 - **NekoLib.Core — behavioral and experimental pre-stable candidate correction
   for the first `1.0.0` stable family release.** `TelemetryCheckpoint`,
   `TelemetryOperation`, and `InspectionSnapshot` now defensively copy and wrap

@@ -349,6 +349,31 @@ consumers does not prove that a public member is unused.
    `0C26641F8D28779665F13DB407EC07C49AF75105D3A302496F1A5C95F568167E`.
 3. [ ] **F1-LOG — Logging.** Finalize the consumer-owned pipeline, options,
    sink, snapshot, and disposal contracts without adding global state.
+   **Accepted 2026-08-17:** retain the entire compiled surface — all 5 public
+   sealed types and 21 members, on both targets — as stable candidates with no
+   removal, rename, namespace move, internalization, deprecation, or
+   experimental marker, and correct behavior only. `DebugLogSink` writes through
+   a non-conditional trace channel instead of the `[Conditional("DEBUG")]`
+   `Debug.WriteLine` that was removed from every shipped Release assembly, and
+   rejects a null entry like the file sink does. `Logger.Flush` isolates
+   per-sink failures instead of stopping at the first one, observes the failure
+   of a sink that outlived its budget so it is not reported as a process crash,
+   and is inert after disposal. `Logger` copies the supplied sink array.
+   `LoggerOptions` and `RollingFileLogSinkOptions` defaults are frozen. A
+   dedicated Logging technical reference now owns the ownership, ordering,
+   flush, disposal, rotation, retention, durability, and failure contracts that
+   previously had no owner. A facade, provider, registry, asynchronous pipeline,
+   new global state, and any Diagnostics/Telemetry/Inspection dependency were
+   all rejected. The accepted rationale, evidence, and rejected alternatives are
+   recorded in
+   [`docs/audit/logging-public-api-review-2026-08-17.md`](docs/audit/logging-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17** in `<pending>`. Logging passed 28/28
+   tests on `net481` and 28/28 on `net9.0`; both Logging API manifests verified
+   **unchanged**, as the accepted corrections are confined to method bodies.
+   The package gate is **pending for Codex**: assembly bits changed, so
+   `1.0.0-local.16` is not evidence for this work and a new immutable
+   coordinated family version, PackageReference consumer probes, and
+   provenance/hash recording are still required before F1-LOG can be closed.
 4. [ ] **F1-TEL — Telemetry.** Finalize operation, checkpoint, outcome,
    dimensions, bounded-retention, and snapshot contracts.
 5. [ ] **F1-INSP — Inspection.** Finalize the passive runtime, recorder,

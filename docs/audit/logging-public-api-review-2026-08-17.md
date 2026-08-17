@@ -8,13 +8,13 @@
 flush and disposal contracts, rolling-file persistence, and compatibility
 boundaries
 
-**Status:** review complete; decision pending
+**Status:** all dispositions accepted and implemented; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `c7967e784914b56863a1b2da97cfafecb32ea494`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-LOG
 
@@ -717,3 +717,53 @@ migration, roadmap, or package changes. F1-LOG must stop here until the user
 explicitly accepts, modifies, or rejects the recommended dispositions —
 especially LOG-01, the behavioral corrections LOG-02 through LOG-05 and LOG-11,
 and the new module reference in LOG-18.
+
+## Reconciliation — 2026-08-17
+
+The user accepted the recommended dispositions without modification. The
+implementation is confined to method bodies and documentation:
+
+- **LOG-01** — `DebugLogSink` writes through `Trace.WriteLine`, and the project
+  states `DefineTrace` explicitly so the shipped sink cannot silently become a
+  no-op again. The Release `net481` body went from the 11-byte no-op to 32
+  bytes containing the `ToString` and trace calls.
+- **LOG-11** — `DebugLogSink.Write(null)` throws `ArgumentNullException`.
+- **LOG-02** — `Logger.Flush` observes the fault of a sink that outlived the
+  budget through a faulted continuation.
+- **LOG-03** — `Flush` attempts every flushable sink and returns `false` when
+  any one was not confirmed.
+- **LOG-04** — the constructor copies the sink array and drops null elements
+  once instead of re-checking on every write.
+- **LOG-05** — `Flush` returns `true` immediately once disposed.
+- **LOG-06 to LOG-10 and LOG-12 to LOG-17** — retained and documented, with
+  XML summaries on the contract-significant members.
+- **LOG-18** — [`src/Logging/NekoLib.Logging/README.md`](../../src/Logging/NekoLib.Logging/README.md)
+  is the module's current technical reference, registered in the documentation
+  index and the `AGENTS.md` routing table.
+- **LOG-19** — nineteen focused regressions were added, taking the suite from 9
+  to 28 per target. The `DebugLogSink` regression asserts observable trace
+  output, which is meaningful only because the canonical command runs in
+  Release.
+
+As the review predicted, **both accepted API manifests verified unchanged**; no
+baseline was updated. The accepted work therefore carries no source or binary
+compatibility break, only the behavioral corrections recorded in
+[`CHANGELOG.md`](../../CHANGELOG.md) and
+[`docs/migrations/f1-logging.md`](../migrations/f1-logging.md).
+
+No repository consumer or runtime scenario source required migration. The
+Observability `LongRunningRecovery` scenario compiles unchanged against the
+corrected pipeline on both target families; it was built, not launched, and no
+runtime scenario was executed.
+
+The package gate remains **explicitly pending for Codex**. Assembly bits
+changed, so `1.0.0-local.16` is prior evidence only and cannot be reused: a new
+immutable coordinated family version from the implementation commit,
+PackageReference consumer probes, and provenance/hash recording are still
+required. No package was created, modified, or consumed by this work, and
+F1-LOG is deliberately not marked complete.
+
+The residual validation limits recorded above still stand, with one narrowing:
+the corrected behaviors now have executable dual-target regressions, so the
+`net9.0`-only probe limitation no longer applies to LOG-01 through LOG-05 or
+LOG-11.

@@ -11,6 +11,11 @@ namespace NekoLib.Logging
     /// Synchronous ordered logging pipeline. Accepted entries are dispatched to
     /// sinks inline and in registration order; one failing sink never suppresses
     /// later sinks.
+    /// <para/>
+    /// Every sink observes the same delivery order, and each writer's own entries
+    /// keep that writer's order. Entries are stamped before the dispatch lock is
+    /// taken, so under concurrent writers <c>TimestampUtc</c> is not a
+    /// delivery-order key.
     /// </summary>
     public sealed class Logger : ILogger, ILogSnapshotSource, ILogFlusher, IDisposable
     {
@@ -36,8 +41,33 @@ namespace NekoLib.Logging
             _minLevel = options.MinimumLevel;
             _recentEntryCapacity = options.RecentEntryCapacity;
             _disposeSinks = options.DisposeSinks;
-            _sinks = sinks ?? Array.Empty<ILogSink>();
+            _sinks = CopySinks(sinks);
             _recentEntries = new Queue<LogEntry>(_recentEntryCapacity);
+        }
+
+        /// <summary>
+        /// Takes the pipeline's own copy of the sink set. A caller that passes an
+        /// explicitly constructed array keeps a reference to it, and swapping an
+        /// element afterwards must not re-target dispatch or change what disposal
+        /// flushes and disposes. Null elements are dropped once here rather than
+        /// being re-checked on every write.
+        /// </summary>
+        private static ILogSink[] CopySinks(ILogSink[]? sinks)
+        {
+            if (sinks == null || sinks.Length == 0)
+                return Array.Empty<ILogSink>();
+
+            var accepted = new List<ILogSink>(sinks.Length);
+            for (int i = 0; i < sinks.Length; i++)
+            {
+                var sink = sinks[i];
+                if (sink != null)
+                    accepted.Add(sink);
+            }
+
+            return accepted.Count == 0
+                ? Array.Empty<ILogSink>()
+                : accepted.ToArray();
         }
 
         public void Log(
@@ -67,12 +97,19 @@ namespace NekoLib.Logging
 
                 for (int i = 0; i < _sinks.Length; i++)
                 {
-                    try { _sinks[i]?.Write(entry); }
+                    try { _sinks[i].Write(entry); }
                     catch { /* logging must never break feature behavior */ }
                 }
             }
         }
 
+        /// <summary>
+        /// Returns the newest retained entries in chronological order, bounded by
+        /// <paramref name="maxEntries"/> and by the configured capacity. The
+        /// result is a fresh collection that never aliases pipeline state, and it
+        /// stays readable after disposal so an incident collector can still take a
+        /// post-shutdown snapshot.
+        /// </summary>
         public IReadOnlyList<LogEntry> GetRecentEntries(int maxEntries)
         {
             if (maxEntries <= 0)
@@ -88,10 +125,30 @@ namespace NekoLib.Logging
             }
         }
 
+        /// <summary>
+        /// Requests completion of pending sink work within
+        /// <paramref name="timeout"/>. Every flushable sink is attempted, and a
+        /// sink that fails does not stop the remaining ones. <c>false</c> means
+        /// completion was not confirmed for at least one sink inside the budget;
+        /// it does not cancel that sink, which may still be running - and may
+        /// therefore observe a later <c>Write</c> concurrently with its own
+        /// <c>Flush</c>. Returns <c>true</c> once disposed, because disposal
+        /// performs the final flush.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="timeout"/> is negative, which includes
+        /// <see cref="Timeout.InfiniteTimeSpan"/>. A bounded completion request
+        /// has no unbounded form; use <see cref="Dispose"/> for that.
+        /// </exception>
         public bool Flush(TimeSpan timeout)
         {
             if (timeout < TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(timeout));
+
+            // Disposal already performed the final flush and may have disposed the
+            // sinks, so there is nothing left for a later request to confirm.
+            if (Volatile.Read(ref _disposed) != 0)
+                return true;
 
             var watch = Stopwatch.StartNew();
             var timeoutMilliseconds = timeout.TotalMilliseconds > int.MaxValue
@@ -103,6 +160,8 @@ namespace NekoLib.Logging
 
             try
             {
+                var confirmed = true;
+
                 for (int i = 0; i < _sinks.Length; i++)
                 {
                     var flushable = _sinks[i] as IFlushableLogSink;
@@ -113,19 +172,13 @@ namespace NekoLib.Logging
                     if (remaining <= TimeSpan.Zero)
                         return false;
 
-                    try
-                    {
-                        var task = Task.Run((Action)flushable.Flush);
-                        if (!task.Wait(remaining))
-                            return false;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
+                    // One sink never decides the outcome for the others: the file
+                    // sink must still be flushed when an unrelated sink fails.
+                    if (!FlushSink(flushable, remaining))
+                        confirmed = false;
                 }
 
-                return true;
+                return confirmed;
             }
             finally
             {
@@ -133,6 +186,41 @@ namespace NekoLib.Logging
             }
         }
 
+        /// <summary>
+        /// Requests one sink flush within the remaining budget. A sink that
+        /// outlives the budget keeps running on its own thread; the caller only
+        /// learns that completion was not confirmed.
+        /// </summary>
+        private static bool FlushSink(IFlushableLogSink sink, TimeSpan remaining)
+        {
+            Task task;
+            try { task = Task.Run((Action)sink.Flush); }
+            catch { return false; }
+
+            // Reading the fault of an abandoned flush keeps
+            // TaskScheduler.UnobservedTaskException - which NekoLib.Diagnostics
+            // reports as a process crash - from turning a slow sink into an
+            // incident long after the flush returned.
+            task.ContinueWith(
+                completed => { _ = completed.Exception; },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            try { return task.Wait(remaining); }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Stops accepting entries, then performs one final best-effort flush of
+        /// every flushable sink and disposes them when
+        /// <see cref="LoggerOptions.DisposeSinks"/> is set. Borrowed sinks are
+        /// flushed but never disposed, which is what lets two loggers share one
+        /// sink. Idempotent, and never throws: sink failures are isolated.
+        /// <para/>
+        /// This final flush carries no time budget. Call
+        /// <see cref="Flush(TimeSpan)"/> first when shutdown must be bounded.
+        /// </summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
