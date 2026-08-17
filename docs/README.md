@@ -70,6 +70,7 @@ reference commit.
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
+| [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | current | F1-DATA compiled-surface review and proposed gateway-contract decisions; implementation decision remains pending |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
