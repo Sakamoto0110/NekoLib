@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Windows.Input;
 using System;
 using NekoLib.Mvvm;
 using Xunit;
@@ -59,6 +61,52 @@ namespace NekoLib.Mvvm.Tests.Unit
             cmd.RaiseCanExecuteChanged();
 
             Assert.Equal(2, handled);
+        }
+
+        [Fact]
+        public void RaiseCanExecuteChanged_ThrowingSubscriber_PropagatesAndSkipsLaterSubscribers()
+        {
+            var command = new RelayCommand(() => { });
+            var reached = new List<string>();
+
+            command.CanExecuteChanged += (s, e) =>
+            {
+                reached.Add("first");
+                throw new InvalidOperationException("subscriber");
+            };
+            command.CanExecuteChanged += (s, e) => reached.Add("second");
+
+            // Deliberately unlike Logging, Telemetry, Inspection and Diagnostics,
+            // which isolate subscriber failures: a binding helper surfaces view
+            // errors instead of swallowing them.
+            Assert.Throws<InvalidOperationException>(() => command.RaiseCanExecuteChanged());
+            Assert.Equal(new[] { "first" }, reached.ToArray());
+        }
+
+        [Fact]
+        public void Execute_DelegateException_PropagatesToTheCaller()
+        {
+            var command = new RelayCommand(() => throw new NotSupportedException("boom"));
+
+            Assert.Throws<NotSupportedException>(() => ((ICommand)command).Execute(null));
+        }
+
+        [Fact]
+        public void RaiseCanExecuteChanged_IsReentrant()
+        {
+            RelayCommand command = null;
+            var depth = 0;
+            command = new RelayCommand(() => { });
+            command.CanExecuteChanged += (s, e) =>
+            {
+                depth++;
+                if (depth < 3) command.RaiseCanExecuteChanged();
+            };
+
+            command.RaiseCanExecuteChanged();
+
+            // Cascading notifications are normal in view-models and are not guarded.
+            Assert.Equal(3, depth);
         }
 
         [Fact]

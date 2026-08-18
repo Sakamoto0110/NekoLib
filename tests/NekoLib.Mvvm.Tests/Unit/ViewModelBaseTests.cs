@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NekoLib.Mvvm;
 using Xunit;
@@ -74,6 +75,100 @@ namespace NekoLib.Mvvm.Tests.Unit
             vm.Raise("custom");
 
             Assert.Equal(new[] { "custom" }, fired);
+        }
+
+        [Fact]
+        public void SetProperty_NaNToNaN_IsSuppressedByDefaultEquality()
+        {
+            var vm = new Probe();
+            var raised = 0;
+            vm.PropertyChanged += (s, e) => raised++;
+
+            vm.Rate = double.NaN;
+            Assert.Equal(1, raised);
+
+            // EqualityComparer<double>.Default follows Equals, not ==, so NaN
+            // equals NaN and the second assignment raises nothing.
+            vm.Rate = double.NaN;
+            Assert.Equal(1, raised);
+        }
+
+        [Fact]
+        public void SetProperty_SameReferenceAfterInPlaceMutation_DoesNotRaise()
+        {
+            var vm = new Probe();
+            var raised = 0;
+            vm.PropertyChanged += (s, e) => raised++;
+
+            var items = new List<int>();
+            vm.Items = items;
+            Assert.Equal(1, raised);
+
+            items.Add(1);
+            vm.Items = items;
+
+            // Reference equality: the classic "my grid did not refresh" case.
+            Assert.Equal(1, raised);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_NullName_MeansEveryProperty()
+        {
+            var vm = new Probe();
+            string captured = "unset";
+            vm.PropertyChanged += (s, e) => captured = e.PropertyName;
+
+            vm.Raise(null);
+
+            Assert.Null(captured);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_ThrowingSubscriber_PropagatesOutOfTheSetter()
+        {
+            var vm = new Probe();
+            vm.PropertyChanged += (s, e) => throw new InvalidOperationException("subscriber");
+
+            Assert.Throws<InvalidOperationException>(() => vm.Rate = 1);
+        }
+
+        [Fact]
+        public void OnPropertyChanged_IsVirtual_SoOneOverrideInterceptsEveryNotification()
+        {
+            var vm = new InterceptingProbe();
+            var raised = 0;
+            vm.PropertyChanged += (s, e) => raised++;
+
+            vm.Rate = 1;
+            vm.Raise("explicit");
+
+            // SetProperty routes through OnPropertyChanged, so a single override
+            // sees both the property setter and the direct call. This is the seam a
+            // WinForms consumer uses to marshal notifications to the UI thread.
+            Assert.Equal(new[] { "Rate", "explicit" }, vm.Intercepted.ToArray());
+            Assert.Equal(2, raised);
+        }
+
+        private class Probe : ViewModelBase
+        {
+            private double _rate;
+            private List<int> _items;
+
+            public double Rate { get => _rate; set => SetProperty(ref _rate, value); }
+            public List<int> Items { get => _items; set => SetProperty(ref _items, value); }
+
+            public void Raise(string propertyName) => OnPropertyChanged(propertyName);
+        }
+
+        private sealed class InterceptingProbe : Probe
+        {
+            public List<string> Intercepted { get; } = new List<string>();
+
+            protected override void OnPropertyChanged(string propertyName)
+            {
+                Intercepted.Add(propertyName);
+                base.OnPropertyChanged(propertyName);
+            }
         }
 
         [Fact]

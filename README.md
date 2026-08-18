@@ -82,7 +82,7 @@ optional unless one of their documented dependents brings them transitively.
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
 | `NekoLib.Http` | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
 | [`NekoLib.Data`](src/Data/NekoLib.Data/README.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
-| `NekoLib.Mvvm` | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
+| [`NekoLib.Mvvm`](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | `NekoLib.Pipes` | Named-pipe IPC: request/response RPC plus pub/sub events over framed JSON. |
 | `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | `NekoLib.Devices` | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
@@ -180,7 +180,7 @@ technical manual.
 | [Diagnostics.Windows](src/Diagnostics/NekoLib.Diagnostics/README.md) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
-| Mvvm | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency | `NekoLib.Mvvm.Tests.Unit` |
+| [Mvvm](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency; coercion needs an exact runtime type match and `Execute` does not consult `CanExecute` | `NekoLib.Mvvm.Tests.Unit` |
 | Pipes | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; shutdown closes and tracks admitted work | `NekoLib.Pipes.Tests.Unit` |
 | Watchdog | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Windows process supervision plus an out-of-process Host; RPC/events are restricted to the current user, not protected from hostile same-user processes; update orchestration is not implemented | `NekoLib.Watchdog.Tests.Unit` |
 | Devices | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |

@@ -1,0 +1,116 @@
+# F1-MVVM Migration — Mvvm
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Mvvm candidate surface to the accepted
+F1-MVVM nullability contract and virtual notification funnel
+
+**Reference date:** 2026-08-17
+
+The contracts themselves are owned by the
+[Mvvm reference](../../src/Mvvm/NekoLib.Mvvm/README.md).
+
+No type, member, signature, default value, namespace, target, or dependency was
+added or removed. Both manifests changed, but only in nullability annotations and
+one `virtual` keyword.
+
+## Behavioural: `OnPropertyChanged` is now virtual
+
+```csharp
+protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+```
+
+`SetProperty` routes every notification through it, so a single override now
+intercepts all of them — the seam a WinForms view-model needs to marshal
+notifications to the UI thread:
+
+```csharp
+protected override void OnPropertyChanged(string? propertyName)
+{
+    if (_target.InvokeRequired)
+        _target.Invoke(new Action(() => base.OnPropertyChanged(propertyName)), null);
+    else
+        base.OnPropertyChanged(propertyName);
+}
+```
+
+**This is classified as binary-breaking** by the repository's own rule, the same
+one applied to NAV-009(b): an external assembly compiled against the non-virtual
+signature must be recompiled. Source compatibility is unaffected — adding
+`virtual` never breaks a compile.
+
+In practice the change was measured on both targets and an un-recompiled
+consumer loads and runs unchanged: a `call` to a now-virtual method is legal IL.
+One narrow divergence is possible and is silent, so it is worth naming:
+
+1. assembly `A`, compiled against the old signature and **not** recompiled,
+   derives from `ViewModelBase` and calls `OnPropertyChanged` **directly**;
+2. assembly `B`, compiled fresh, derives from `A`'s type and overrides
+   `OnPropertyChanged`;
+3. the direct call in `A` was compiled as `call`, so it uses non-virtual dispatch
+   and **skips `B`'s override**.
+
+`SetProperty` is unaffected — it lives in the library, which is the new build, so
+it dispatches virtually and honours the override. Recompiling `A` resolves the
+divergence.
+
+## Behavioural: the nullability contract now matches reality
+
+The surface previously declared non-nullable parameters and events in positions
+where `null` is the documented, default, and correct value. It now matches
+`ICommand`, `INotifyPropertyChanged`, and its own behaviour:
+
+| Before | After |
+|---|---|
+| `bool CanExecute(object parameter)` | `bool CanExecute(object? parameter)` |
+| `void Execute(object parameter)` | `void Execute(object? parameter)` |
+| `event EventHandler CanExecuteChanged` | `event EventHandler? CanExecuteChanged` |
+| `event PropertyChangedEventHandler PropertyChanged` | `event PropertyChangedEventHandler? PropertyChanged` |
+| `RelayCommand(Action<object>, Predicate<object> = null)` | `RelayCommand(Action<object?>, Predicate<object?>? = null)` |
+| `RelayCommand(Action, Func<bool> = null)` | `RelayCommand(Action, Func<bool>? = null)` |
+| `RelayCommand<T>(Action<T>, Predicate<T> = null)` | `RelayCommand<T>(Action<T>, Predicate<T>? = null)` |
+| `OnPropertyChanged(string propertyName = null)` | `OnPropertyChanged(string? propertyName = null)` |
+| `SetProperty<T>(ref T, T, string propertyName = null)` | `SetProperty<T>(ref T, T, string? propertyName = null)` |
+
+The change is **binary-compatible**: nullable attributes do not alter runtime
+signatures.
+
+### What this removes
+
+A nullable-enabled consumer stops getting `CS8625` from the module's own
+defaults. All of these were warnings and are now clean:
+
+```csharp
+OnPropertyChanged(null);                     // "notify every property"
+command.Execute(null);                       // no command parameter
+command.CanExecute(null);
+new RelayCommand(() => { }, null);           // explicit null predicate
+```
+
+### What this adds
+
+One case, and it is a true positive. `RelayCommand` now takes
+`Action<object?>`, because a binding with no command parameter really does supply
+null. A lambda that dereferences the parameter without checking begins to warn:
+
+```csharp
+new RelayCommand(p => Console.WriteLine(p.ToString()));   // CS8602 (new)
+new RelayCommand(p => Console.WriteLine(p?.ToString()));  // fix
+```
+
+Measured against a nullable-enabled consumer on both `net481` and `net9.0`: nine
+ordinary usage patterns produce zero warnings, and only the dereference-without-
+check pattern produces this one. If you want a parameter whose absence is handled
+for you, use `RelayCommand<T>`.
+
+The module itself went from 20 nullable warnings to 0.
+
+## Unchanged
+
+Parameter coercion, `Execute` not consulting `CanExecute`, subscriber exception
+propagation, `SetProperty` equality semantics, `CanExecuteChanged` ownership,
+reentrancy, thread affinity, and the absence of any project or package
+dependency are all unchanged. The three types and their fifteen members are
+otherwise exactly as they were.

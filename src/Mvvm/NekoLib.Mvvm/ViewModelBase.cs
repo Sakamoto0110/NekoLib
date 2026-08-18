@@ -12,9 +12,19 @@ namespace NekoLib.Mvvm
     /// </summary>
     public abstract class ViewModelBase : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        /// <summary>
+        /// Raises <see cref="PropertyChanged"/> on the calling thread. A
+        /// <c>null</c> or empty name means "every property changed" to both
+        /// WinForms and WPF binding.
+        ///
+        /// Override this to intercept every notification in one place — it is the
+        /// single funnel <see cref="SetProperty{T}"/> routes through, so a
+        /// view-model updated from a background thread can marshal here instead of
+        /// at each subscriber.
+        /// </summary>
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             var handler = PropertyChanged;
             if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
@@ -24,8 +34,12 @@ namespace NekoLib.Mvvm
         /// Sets <paramref name="field"/> to <paramref name="value"/> and raises
         /// <see cref="PropertyChanged"/> when the value actually changed. Returns
         /// <c>true</c> if a change was applied.
+        ///
+        /// Equality uses <see cref="EqualityComparer{T}.Default"/>, so a reference
+        /// type without a value equality implementation compares by reference: an
+        /// object mutated in place and reassigned raises nothing.
         /// </summary>
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;
             field = value;

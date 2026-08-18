@@ -563,6 +563,37 @@ consumers does not prove that a public member is unused.
    the module reference from the pre-F1 `1.0.0-local.11` artifact.
 9. [ ] **F1-MVVM — Mvvm.** Finalize the deliberately small binding helper and
    command surface.
+   **Accepted 2026-08-17:** the entire surface — 3 public types and 15 public or
+   protected member declarations — is intentionally stable, with no removal,
+   addition, rename, namespace move, internalization, deprecation, or
+   experimental marker. Correct the public nullability contract so it matches
+   `ICommand`, `INotifyPropertyChanged`, and the module's own behavior, and make
+   `OnPropertyChanged` virtual so one override intercepts every notification.
+   Parameter coercion, `Execute` not consulting `CanExecute`, propagating
+   subscriber exceptions, `SetProperty` equality semantics,
+   `OnPropertyChanged(null)` meaning every property, caller-driven
+   `CanExecuteChanged`, and unguarded reentrancy are documented rather than
+   changed. A framework-wide MVVM architecture, DI, service location, async
+   commands, Navigation coupling, WPF/WinForms adapters, a forwarding facade,
+   `CommandManager` integration, `Convert.ChangeType` coercion, gating `Execute`,
+   isolating subscriber exceptions, and a reentrancy guard were all rejected. The
+   accepted rationale and rejected alternatives are recorded in
+   [`docs/audit/mvvm-public-api-review-2026-08-17.md`](docs/audit/mvvm-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17, package gate pending.** Mvvm passed 34/34
+   tests on `net481` and 34/34 on `net9.0-windows`, up from 22 per target, and the
+   module rebuilt with **0 warnings**, down from 20 nullable warnings. Both
+   `NekoLib.Mvvm` API manifests changed by exactly the accepted delta —
+   annotations across all three types plus `virtual` — and scoped API
+   verification, documentation verification, and diff hygiene passed. A dedicated
+   Mvvm reference now owns the coercion table, notification, threading, exception,
+   and nullability contracts. A measured correction to the review is recorded in
+   its reconciliation: the annotation change is not warning-free for consumers,
+   because `Action<object?>` surfaces a true-positive `CS8602` in a lambda that
+   dereferences the command parameter. MVVM-10's test-target observation was
+   deliberately **not** acted on; the F1 validation contract names
+   `net9.0-windows`. Evidence is focused: no WinForms or WPF binding pipeline was
+   driven, no full-solution run, and no package was produced. **The package gate
+   remains open for Codex.**
 10. [ ] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol
     extension contracts, configurations, timeouts, cancellation, and public
     models without adding a general forwarding facade.

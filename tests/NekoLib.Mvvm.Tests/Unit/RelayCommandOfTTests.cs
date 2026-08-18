@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using System;
 using NekoLib.Mvvm;
 using Xunit;
@@ -141,6 +142,56 @@ namespace NekoLib.Mvvm.Tests.Unit
             cmd.RaiseCanExecuteChanged();
 
             Assert.Equal(1, handled);
+        }
+
+        [Fact]
+        public void Coerce_BoxedIntForEnumParameter_IsRejected()
+        {
+            var executed = false;
+            var command = new RelayCommand<DayOfWeek>(_ => executed = true);
+
+            Assert.False(((ICommand)command).CanExecute(1));
+            ((ICommand)command).Execute(1);
+            Assert.False(executed);
+
+            Assert.True(((ICommand)command).CanExecute(DayOfWeek.Monday));
+        }
+
+        [Fact]
+        public void Coerce_BoxedIntForWiderNumericParameter_IsRejected()
+        {
+            var executed = false;
+            var command = new RelayCommand<long>(_ => executed = true);
+
+            // Coercion requires an exact runtime type match: no numeric widening.
+            Assert.False(((ICommand)command).CanExecute(5));
+            ((ICommand)command).Execute(5);
+            Assert.False(executed);
+        }
+
+        [Fact]
+        public void Coerce_StringForIntParameter_IsRejectedWithoutParsing()
+        {
+            var executed = false;
+            var command = new RelayCommand<int>(_ => executed = true);
+
+            // The shape a XAML CommandParameter="1" supplies.
+            Assert.False(((ICommand)command).CanExecute("1"));
+            ((ICommand)command).Execute("1");
+            Assert.False(executed);
+        }
+
+        [Fact]
+        public void Execute_DoesNotConsultCanExecute()
+        {
+            var executed = false;
+            var command = new RelayCommand<string>(_ => executed = true, _ => false);
+
+            Assert.False(((ICommand)command).CanExecute("value"));
+            ((ICommand)command).Execute("value");
+
+            // ICommand semantics: WPF gates through the control, WinForms does not.
+            Assert.True(executed);
         }
 
         [Fact]

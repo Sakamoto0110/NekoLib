@@ -16,6 +16,25 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Mvvm — behavioral and binary-breaking pre-stable candidate correction
+  for the first `1.0.0` stable family release.** No type, member, signature,
+  default value, namespace, target, or dependency was added or removed. The
+  public nullability contract now matches `ICommand`,
+  `INotifyPropertyChanged`, and the module's own behaviour: `CanExecute` and
+  `Execute` take `object?`, both events and every optional delegate and
+  `propertyName` parameter are nullable, and `RelayCommand` takes
+  `Action<object?>`. The surface previously declared non-nullable exactly where
+  `null` is the documented, default and correct value, so a nullable-enabled
+  consumer was warned for `OnPropertyChanged(null)`, `Execute(null)` and an
+  explicit null predicate; those are now clean, while a lambda dereferencing the
+  command parameter without a null check gains a true-positive `CS8602`. The
+  module itself went from 20 nullable warnings to 0. `OnPropertyChanged` is now
+  `virtual`, giving the single funnel `SetProperty` routes through — the seam a
+  WinForms view-model needs to marshal notifications to the UI thread. Adding
+  `virtual` is classified binary-breaking by the repository's NAV-009(b) rule and
+  requires recompiling an external assembly that derives from `ViewModelBase`;
+  measured on both targets, an un-recompiled consumer still loads and runs. See
+  the [F1-MVVM migration guide](docs/migrations/f1-mvvm.md).
 - **NekoLib.Http — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Reduced the
   `HttpEndpoint` constructor from `protected` to `private protected`, removing it

@@ -9,14 +9,15 @@ coercion, `CanExecuteChanged` ownership, `ViewModelBase` equality and
 notification semantics, nullability contract, target parity, and documentation
 ownership
 
-**Status:** review complete; dispositions proposed and awaiting the consolidated
-F1 decision gate
+**Status:** all dispositions accepted and implemented, including the optional
+MVVM-06, with one measured correction to MVVM-01's compatibility claim; package
+gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `c9c4321e9fe67c0aeadcb7afda36347368fce457`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-MVVM
 
@@ -533,3 +534,98 @@ documentation-only, with a new module reference. MVVM-12 is recommended as
 test-only. The entire compiled surface is otherwise recommended as intentionally
 stable. Nothing here may be implemented until the consolidated F1 decision gate
 accepts or modifies these dispositions.
+
+## Reconciliation — 2026-08-17: dispositions accepted and implemented
+
+The observed facts, probe output, and original recommendations above are the
+snapshot and are unchanged. This section records the decision-gate outcome, the
+implementation, and one measured correction to a claim made above.
+
+### Accepted
+
+All twelve dispositions were accepted as recommended, **including the optional
+MVVM-06**. MVVM-01 and MVVM-06 landed as code; MVVM-02 through MVVM-05 and
+MVVM-07 through MVVM-11 landed in the new module reference; MVVM-12 landed as
+twelve focused regressions.
+
+MVVM-10's test-target observation was deliberately **not** acted on, as the
+review recommended: the F1 validation contract for this module names
+`net9.0-windows`, and retargeting the test project remains a later hygiene
+decision.
+
+### Correction to MVVM-01's compatibility claim
+
+The review stated that the annotation fix means "an existing consumer gains no
+new error and loses warnings". **That was too strong**, and measurement against a
+nullable-enabled consumer on both `net481` and `net9.0` shows why.
+
+Nine ordinary usage patterns produce zero warnings after the change, including
+every `CS8625` the review predicted would disappear:
+`OnPropertyChanged(null)`, `Execute(null)`, `CanExecute(null)`, and an explicit
+null predicate.
+
+But `RelayCommand` now takes `Action<object?>` rather than `Action<object>`,
+because a binding with no command parameter genuinely supplies null. Delegate
+parameters are contravariant in nullability, so a consumer lambda that
+dereferences the parameter without checking gains a new warning:
+
+```text
+net481 and net9.0:
+  warning CS8602: Dereference of a possibly null reference.
+    from  new RelayCommand(p => Console.WriteLine(p.ToString()))
+```
+
+That warning is a **true positive** — the framework really can pass null there,
+and the previous annotation denied it. Keeping `Action<object>` to avoid the
+warning would have preserved exactly the defect MVVM-01 exists to fix, so the
+truthful annotation was chosen and the consequence is recorded in the migration
+guide instead of being discovered.
+
+The module's own warning count went from 20 to 0.
+
+### Implementation
+
+`RelayCommand`, `RelayCommand<T>`, and `ViewModelBase` carry the corrected
+annotations. `TryCoerce` uses `default!` rather than a `MaybeNullWhen` attribute,
+which is unavailable on `net481` without a polyfill, and it stays private so no
+public contract is involved. `OnPropertyChanged` became `protected virtual`.
+
+### Validation
+
+```text
+dotnet build src/Mvvm/NekoLib.Mvvm/NekoLib.Mvvm.csproj -t:Rebuild
+  net481 and net9.0: 0 warnings, 0 errors   (previously 20 nullable warnings)
+
+dotnet test tests/NekoLib.Mvvm.Tests/Unit/NekoLib.Mvvm.Tests.Unit.csproj
+  net481:          34 passed, 0 failed, 0 skipped
+  net9.0-windows:  34 passed, 0 failed, 0 skipped
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Mvvm
+  diff was exactly the accepted delta - nullability annotations across all three
+  types plus 'virtual' on OnPropertyChanged - then updated and re-verified
+
+eng/verify-docs.ps1        passed
+git diff --check           clean
+```
+
+Twelve regressions were added: enum, numeric-widening and string coercion
+rejection, `Execute` ignoring `CanExecute` on both command types, propagating
+subscriber exceptions for both events, delegate exception propagation,
+`RaiseCanExecuteChanged` reentrancy, `NaN` equality, in-place mutation with an
+unchanged reference, `OnPropertyChanged(null)`, and an override proving the
+virtual funnel sees both `SetProperty` and a direct call.
+
+### Residual limits carried forward
+
+Every limit recorded in the original snapshot still applies:
+
+- **no WinForms or WPF binding pipeline was driven.** The threading guidance in
+  MVVM-06 and MVVM-07 rests on documented framework behaviour and on source, not
+  on an interactive run;
+- concurrent `Execute` from multiple threads was not measured;
+- the FarmDatabase runtime scenario, which exercises Mvvm binding, was neither
+  built nor run;
+- no full-solution build or test run was performed for this module block, so the
+  effect of removing 20 warnings on the 515-warning solution baseline is an
+  expectation rather than a measurement;
+- no package was produced and no PackageReference consumer probe was run.
