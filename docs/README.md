@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-18
 
-**Reference commit:** working tree after `e608dc8`
+**Reference commit:** working tree after `075bb75`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -107,6 +107,7 @@ reference commit.
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
+| [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | current | F1-WDOG compiled public surface, application/advanced-runtime boundary, configuration, lifecycle, process, IPC, evidence, target, security, and package review; decision pending |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
 | [`docs/history/phase-c-repository-hygiene-2026-08-01.md`](history/phase-c-repository-hygiene-2026-08-01.md) | roadmap/status | historical | Phase C completion, commit-bound validation, and residual gaps |
