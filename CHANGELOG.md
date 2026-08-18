@@ -114,6 +114,8 @@ remain under `docs/history/`.
   disposal throws `ObjectDisposedException`, and disposing the last installed
   handler releases the `AppDomain` and `TaskScheduler` subscriptions instead of
   keeping them — and their `SetObserved()` behaviour — for the process lifetime.
+  `Install()` and `Dispose()` now serialize their registry transition, so a race
+  cannot register an already-disposed handler after disposal removed it.
   Contributors are abandoned after their budget plus a 50 ms settle margin, so a
   flusher or snapshot source that correctly consumes its whole budget reports its
   own result instead of being recorded as a hang. The three evidence limits are

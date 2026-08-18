@@ -2,21 +2,21 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-WIN compiled public surface, WinForms exception-hook ownership
 and installation contract, minidump composition and native failure handling,
 WER-suppression scope, process-wide state ownership, target parity, and the
 Diagnostics package boundary
 
-**Status:** all dispositions accepted and implemented, with one recorded
-deviation; package gate pending
+**Status:** all dispositions implemented, with one recorded deviation, and
+package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `ef533e2bca9ae8f86a8ecec7ae4d7bcf778077bf`
 
-**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
+**Last reconciliation:** 2026-08-18 — package gate completed
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-WIN
 
@@ -678,3 +678,24 @@ important one is unchanged:
   behaviour is asserted; no WER dialog was suppressed or observed.
 - No full-solution build or test run was performed for this module block, no
   package was produced, and no PackageReference consumer probe was run.
+
+## Package reconciliation — 2026-08-18
+
+The implementation landed in
+`291f5010a16914fe13a6167271569bb8fc59df18`. The final Diagnostics lifecycle
+correction in `63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b` did not change the
+Diagnostics.Windows surface. The coordinated clean `1.0.0-local.20` campaign
+passed 1,538/1,538 tests, rebuilt with 464 warnings and zero errors, introduced
+no warning identity, and passed all PackageReference consumer and package
+probes described in the Diagnostics reconciliation above.
+
+`NekoLib.Diagnostics.Windows.1.0.0-local.20.nupkg` records repository commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains
+`lib/net481/NekoLib.Diagnostics.Windows.dll` and
+`lib/net9.0-windows7.0/NekoLib.Diagnostics.Windows.dll`, and declares
+`NekoLib.Diagnostics 1.0.0-local.20` in both dependency groups. Its SHA-256 is
+`3D2AFE1F3178E5A9212C93BDF0EA1FBFECAE22E4C79C731A94B27D96B9B7CA64`.
+
+No minidump was generated, no native dump failure was induced, no WER dialog
+was observed, and no live WinForms crash message loop was exercised. F1-WIN is
+complete on build/package evidence, and this review is historical.

@@ -454,7 +454,7 @@ consumers does not prove that a public member is unused.
      multitarget, package, deployment, publish, and clean probes also passed.
      The package SHA-256 is
      `8B553A3B7DCC605CB6470E495EAF21E15BD646927C2EB9F5B8BE15E45750E7AF`.
-6. [ ] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
+6. [x] **F1-DIAG — Diagnostics.** Finalize incident collection, crash bundle,
    dump-writer, external notification, ownership, and partial-evidence
    contracts.
    **Accepted 2026-08-17:** retain all six public types as stable candidates with
@@ -478,7 +478,7 @@ consumers does not prove that a public member is unused.
    reversible `Dispose` were all rejected. The accepted rationale, evidence, and
    rejected alternatives are recorded in
    [`docs/audit/diagnostics-public-api-review-2026-08-17.md`](docs/audit/diagnostics-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17, package gate pending.** Diagnostics passed
+   **Implementation landed 2026-08-17.** Diagnostics passed
    16/16 tests on `net481` and 16/16 on `net9.0-windows`, up from 7 per target;
    the module rebuilt with 0 warnings and 0 errors on both targets. Both
    `NekoLib.Diagnostics` API manifests changed by exactly the accepted delta — the
@@ -486,11 +486,20 @@ consumers does not prove that a public member is unused.
    and scoped API verification, documentation verification, and diff hygiene
    passed. A dedicated Diagnostics reference now owns the ownership, lifecycle,
    budget, bounds, redaction, and bundle-layout contracts for both this package
-   and `NekoLib.Diagnostics.Windows`. Evidence is focused: no full-solution run,
-   no runtime scenario, and no package was produced. **The package gate remains
-   open for Codex**, which owns the coordinated family build, PackageReference
-   consumer probes, warning-identity comparison, and the SHA-256 record.
-7. [ ] **F1-WIN — Diagnostics.Windows.** Finalize Windows crash hooks,
+   and `NekoLib.Diagnostics.Windows`.
+   - **Completed 2026-08-18:** independent final review found and fixed the
+     `Install()`/`Dispose()` registry race in `63785cc`; Diagnostics then passed
+     22/22 tests on each target and its API remained unchanged. The coordinated
+     clean package flow passed 1,538/1,538 tests, rebuilt with 464 warnings and
+     zero errors, introduced no warning identity, and stopped emitting 25
+     baseline identities. PackageReference-only WinForms and WPF consumers
+     restored, built, and ran on both target families with zero warnings; all
+     multitarget, package, deployment, publish, and clean probes passed.
+     `NekoLib.Diagnostics.1.0.0-local.20.nupkg`, built from
+     `63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains `net481` and
+     `net9.0` assemblies with aligned `NekoLib.Core` dependencies. SHA-256:
+     `D97024B5E7D486D71F4F00A9244C482028997535088EA03E5795789363B7C2D7`.
+7. [x] **F1-WIN — Diagnostics.Windows.** Finalize Windows crash hooks,
    minidump composition, platform behavior, and the Diagnostics package
    boundary.
    **Accepted 2026-08-17:** retain both public types and all three members as
@@ -512,7 +521,7 @@ consumers does not prove that a public member is unused.
    documented rather than changed. WIN-01 was reverified and is closed. The
    accepted rationale, evidence, and rejected alternatives are recorded in
    [`docs/audit/diagnostics-windows-public-api-review-2026-08-17.md`](docs/audit/diagnostics-windows-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17, package gate pending.** The three
+   **Implementation landed 2026-08-17.** The three
    Diagnostics assumptions the review depended on were reverified against the
    landed F1-DIAG implementation before any code was written: the dump writer
    still runs on a `CrashHandler` contributor thread, and option values are
@@ -522,10 +531,16 @@ consumers does not prove that a public member is unused.
    API manifests verified **unchanged**, as did both `NekoLib.Diagnostics`
    manifests; documentation verification and diff hygiene passed. The package's
    contracts are owned by the Diagnostics reference, following the Navigation
-   adapter precedent. Evidence is focused: no minidump was generated, no crash or
-   WER behavior was exercised, no full-solution run, and no package was produced.
-   **The package gate remains open for Codex.**
-8. [ ] **F1-HTTP — HTTP.** Finalize the typed catalog, relative URI, request,
+   adapter precedent.
+   - **Completed 2026-08-18:** the coordinated `local.20` gate above validated
+     the unchanged Windows API and produced
+     `NekoLib.Diagnostics.Windows.1.0.0-local.20.nupkg` from `63785cc`. It
+     contains `net481` and `net9.0-windows7.0` assemblies with aligned
+     `NekoLib.Diagnostics` dependencies. SHA-256:
+     `3D2AFE1F3178E5A9212C93BDF0EA1FBFECAE22E4C79C731A94B27D96B9B7CA64`.
+     This is build/package evidence only: no minidump, crash, WER dialog, or
+     live WinForms message-loop crash was exercised.
+8. [x] **F1-HTTP — HTTP.** Finalize the typed catalog, relative URI, request,
    response-evidence, ownership, and bounded-buffer contracts without adding
    policy or credentials.
    **Accepted 2026-08-17:** retain all 16 public types as stable candidates with
@@ -549,19 +564,22 @@ consumers does not prove that a public member is unused.
    `byte[]` body, and `System.Text.Json` on `net9.0` were all rejected. The
    accepted rationale and rejected alternatives are recorded in
    [`docs/audit/http-public-api-review-2026-08-17.md`](docs/audit/http-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17, package gate pending.** HTTP passed 29/29
+   **Implementation landed 2026-08-17.** HTTP passed 29/29
    tests on `net481` and 29/29 on `net9.0`, up from 16 per target, and the module
    rebuilt with 0 warnings and 0 errors. Both `NekoLib.Http` API manifests changed
    by exactly the accepted delta — the protected constructor removed, the three
    evidence properties added — and scoped API verification, documentation
    verification, and diff hygiene passed. The existing module reference gained the
    identity, relative-URI, ownership, encoding, header, timeout, and dependency
-   sections it lacked. Evidence is focused: no external request was sent, no
-   credential was configured, the TheCatAPI scenario was neither built nor run, no
-   full-solution run, and no package was produced. **The package gate remains open
-   for Codex**, which also owns refreshing the package evidence still recorded in
-   the module reference from the pre-F1 `1.0.0-local.11` artifact.
-9. [ ] **F1-MVVM — Mvvm.** Finalize the deliberately small binding helper and
+   sections it lacked. No external request was sent, no credential was
+   configured, and the TheCatAPI scenario was neither built nor run.
+   - **Completed 2026-08-18:** the coordinated `local.20` gate above produced
+     `NekoLib.Http.1.0.0-local.20.nupkg` from `63785cc`, containing `net481` and
+     `net9.0` assemblies and `Newtonsoft.Json 13.0.3` in both dependency groups.
+     SHA-256:
+     `545833DC1303B32ABF6C4A25FE753B9D8B19CA7555896C426D28F3133A1423D5`.
+     No external request was sent and no credential was configured.
+9. [x] **F1-MVVM — Mvvm.** Finalize the deliberately small binding helper and
    command surface.
    **Accepted 2026-08-17:** the entire surface — 3 public types and 15 public or
    protected member declarations — is intentionally stable, with no removal,
@@ -579,7 +597,7 @@ consumers does not prove that a public member is unused.
    isolating subscriber exceptions, and a reentrancy guard were all rejected. The
    accepted rationale and rejected alternatives are recorded in
    [`docs/audit/mvvm-public-api-review-2026-08-17.md`](docs/audit/mvvm-public-api-review-2026-08-17.md).
-   **Implementation landed 2026-08-17, package gate pending.** Mvvm passed 34/34
+   **Implementation landed 2026-08-17.** Mvvm passed 34/34
    tests on `net481` and 34/34 on `net9.0-windows`, up from 22 per target, and the
    module rebuilt with **0 warnings**, down from 20 nullable warnings. Both
    `NekoLib.Mvvm` API manifests changed by exactly the accepted delta —
@@ -591,10 +609,12 @@ consumers does not prove that a public member is unused.
    because `Action<object?>` surfaces a true-positive `CS8602` in a lambda that
    dereferences the command parameter. MVVM-10's test-target observation was
    deliberately **not** acted on; the F1 validation contract names
-   `net9.0-windows`. Evidence is focused: no WinForms or WPF binding pipeline was
-   driven, no full-solution run, and no package was produced. **The package gate
-   remains open for Codex.**
-10. [ ] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol
+   `net9.0-windows`. No WinForms or WPF binding pipeline was driven.
+   - **Completed 2026-08-18:** the coordinated `local.20` gate above produced
+     `NekoLib.Mvvm.1.0.0-local.20.nupkg` from `63785cc`, containing dependency-free
+     `net481` and `net9.0` assemblies. SHA-256:
+     `4A44B2EC7D519EB658619A37F82EB8463112D360C4BF21F2AFAD86BAB56CBBBE`.
+10. [x] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol
     extension contracts, configurations, timeouts, cancellation, and public
     models without adding a general forwarding facade.
     **Accepted 2026-08-17, DEV-01 remedy revised at the gate:** retain 17 of 18
@@ -617,7 +637,7 @@ consumers does not prove that a public member is unused.
     Inspection freeze is untouched. The accepted rationale, the withdrawn drain,
     and rejected alternatives are recorded in
     [`docs/audit/devices-public-api-review-2026-08-17.md`](docs/audit/devices-public-api-review-2026-08-17.md).
-    **Implementation landed 2026-08-18, package gate pending.** Devices passed
+    **Implementation landed 2026-08-18.** Devices passed
     50/50 tests on `net481` and 50/50 on `net9.0`, up from 40 per target,
     including both operation-boundary regressions over a real loopback TCP peer —
     one pinning the unchanged default, one proving the opt-in keeps a late reply
@@ -628,7 +648,15 @@ consumers does not prove that a public member is unused.
     warnings** against the new nullable contract — build-only evidence; it was
     not launched, and no serial port was opened at any point. A dedicated Devices
     reference now owns the ownership, boundary, failure, encoding, and disposal
-    contracts. **The package gate remains open for Codex.**
+    contracts.
+    - **Completed 2026-08-18:** the coordinated `local.20` gate above produced
+      `NekoLib.Devices.1.0.0-local.20.nupkg` from `63785cc`, containing `net481`
+      and `net9.0` assemblies. Its dependency groups declare
+      `Microsoft.Bcl.AsyncInterfaces 10.0.1` and `System.IO.Ports 9.0.0`,
+      respectively. SHA-256:
+      `659A076F85B11038A9C988E9ECE863BC814422166A9E4CD84768763DE0011CC6`.
+      The gate adds package evidence, not serial evidence: com0com was not
+      launched and no serial port was opened.
 11. [ ] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
     boundary, shutdown, security-policy, and error contracts.
 12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported

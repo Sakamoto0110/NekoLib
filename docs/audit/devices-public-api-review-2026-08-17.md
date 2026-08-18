@@ -2,21 +2,21 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-DEV compiled public surface, `HardwareEngine` orchestration and
 operation boundaries, transport and protocol extension contracts, configuration
 ownership, timeout and cancellation semantics, raw-byte and encoding
 boundaries, disposal, target parity, and documentation ownership
 
-**Status:** all dispositions accepted and implemented, with the DEV-01 remedy
-revised at the gate; package gate pending
+**Status:** all dispositions implemented, with the DEV-01 remedy revised at the
+gate, and package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `a6af985245180bf1d5aa4581dbeb3352fee3e885`
 
-**Last reconciliation:** 2026-08-18 — dispositions accepted and implemented
+**Last reconciliation:** 2026-08-18 — package gate completed
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-DEV
 
@@ -927,3 +927,23 @@ is unchanged:
 - No full-solution build or test run was performed for this module block, no
   package was produced, and no PackageReference consumer probe was run.
 - The `PcbEmulator` was not inspected, run, or modified.
+
+## Package reconciliation — 2026-08-18
+
+The implementation landed in
+`63bb26976bc9253a744eb37d93ef4e9a5382aa3b`. The coordinated clean
+`1.0.0-local.20` campaign passed 1,538/1,538 tests, rebuilt with 464 warnings
+and zero errors, introduced no warning identity, and passed all
+PackageReference-only consumer, multitarget, package, deployment, publish, and
+clean probes.
+
+`NekoLib.Devices.1.0.0-local.20.nupkg` records repository commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains
+`lib/net481/NekoLib.Devices.dll` and `lib/net9.0/NekoLib.Devices.dll`, and
+declares `Microsoft.Bcl.AsyncInterfaces 10.0.1` for .NET Framework 4.8.1 and
+`System.IO.Ports 9.0.0` for .NET 9. Its SHA-256 is
+`659A076F85B11038A9C988E9ECE863BC814422166A9E4CD84768763DE0011CC6`.
+
+This adds build/package evidence only. No serial port was opened, com0com was
+not launched, and the unverified serial-specific limits above remain exactly as
+recorded. F1-DEV is complete, and this review is historical.

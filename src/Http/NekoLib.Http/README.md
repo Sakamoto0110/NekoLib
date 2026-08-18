@@ -8,10 +8,9 @@
 
 **Reference date:** 2026-08-17
 
-**Implementation/package reference commit:** F1-HTTP implementation landed
-2026-08-17; the package gate is pending, so the package evidence recorded below
-still describes the pre-F1 `1.0.0-local.11` artifact built from
-`ae711fb51d27af29701d332a453912ad1f87a029`.
+**Implementation/package reference commits:** F1-HTTP implementation
+`ea7c47623daa97a28e31e5c0e2825ef385305f2e`; coordinated package source
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`.
 
 `NekoLib.Http` centralizes HTTP methods, relative routes and request/response
 types without hiding the HTTP protocol. It is an opt-in `net481`/`net9.0`
@@ -251,12 +250,16 @@ The optional external provider scenario is documented in
 [`runtime_tests/Http/TheCatApi/README.md`](../../../runtime_tests/Http/TheCatApi/README.md).
 Its build and real-provider evidence are deliberately recorded separately.
 
-The 2026-08-16 closure gate passed 16/16 deterministic tests on each target and
-1,281/1,281 serial full-solution executions. Clean package flow
-`1.0.0-local.11` published all 16 packages and passed the external package
-consumers. The HTTP package contains `net481` and `net9.0` assets, records the
-implementation commit above, and has SHA-256
-`30464eca19e909a993d6e02e84d20b2cf3cb44b909cde3980ffc03cc44b81c1e`.
+The F1 closure passed 29/29 deterministic tests on each target. The coordinated
+clean package flow passed 1,538/1,538 full-solution tests and published all 16
+packages. PackageReference-only WinForms and WPF consumers restored, built, and
+ran on both target families with zero warnings; the multitarget, package,
+deployment, publish, and clean probes also passed.
+
+`NekoLib.Http.1.0.0-local.20.nupkg` contains `net481` and `net9.0` assets,
+records package source commit `63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`,
+declares `Newtonsoft.Json 13.0.3` in both dependency groups, and has SHA-256
+`545833DC1303B32ABF6C4A25FE753B9D8B19CA7555896C426D28F3133A1423D5`.
 
 The scenario's missing-key path was executed on both targets and exited `3`
 without sending a provider request. Real TheCatAPI runs then passed 10/10 with

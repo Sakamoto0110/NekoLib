@@ -2,22 +2,21 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-MVVM compiled public surface, command construction and parameter
 coercion, `CanExecuteChanged` ownership, `ViewModelBase` equality and
 notification semantics, nullability contract, target parity, and documentation
 ownership
 
-**Status:** all dispositions accepted and implemented, including the optional
-MVVM-06, with one measured correction to MVVM-01's compatibility claim; package
-gate pending
+**Status:** all dispositions implemented, including the optional MVVM-06, with
+one measured correction to MVVM-01's compatibility claim, and package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `c9c4321e9fe67c0aeadcb7afda36347368fce457`
 
-**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
+**Last reconciliation:** 2026-08-18 — package gate completed
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-MVVM
 
@@ -629,3 +628,21 @@ Every limit recorded in the original snapshot still applies:
   effect of removing 20 warnings on the 515-warning solution baseline is an
   expectation rather than a measurement;
 - no package was produced and no PackageReference consumer probe was run.
+
+## Package reconciliation — 2026-08-18
+
+The implementation landed in
+`00b0f11b4d5980c03d2c32af2df7760ed749bd9b`. The coordinated clean
+`1.0.0-local.20` campaign passed 1,538/1,538 tests, rebuilt with 464 warnings
+and zero errors, introduced no warning identity, and passed all
+PackageReference-only consumer, multitarget, package, deployment, publish, and
+clean probes.
+
+`NekoLib.Mvvm.1.0.0-local.20.nupkg` records repository commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains
+`lib/net481/NekoLib.Mvvm.dll` and `lib/net9.0/NekoLib.Mvvm.dll`, and has empty
+dependency groups for both targets. Its SHA-256 is
+`4A44B2EC7D519EB658619A37F82EB8463112D360C4BF21F2AFAD86BAB56CBBBE`.
+
+No WinForms or WPF binding pipeline and no interactive runtime scenario was
+driven. F1-MVVM is complete, and this review is historical.

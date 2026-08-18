@@ -2,20 +2,22 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-DIAG compiled public surface, crash-handler installation and
 ownership, process-wide hook lifetime, incident collection budgets, crash-bundle
 composition, partial-evidence contracts, redaction boundary, external
 notification, and compatibility boundaries
 
-**Status:** all dispositions accepted and implemented; package gate pending
+**Status:** all dispositions implemented, independently reviewed, and
+package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `89f05b667be10104e8ef966ac9bebba7b7f13a23`
 
-**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
+**Last reconciliation:** 2026-08-18 — lifecycle correction and package gate
+completed
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-DIAG
 
@@ -765,3 +767,34 @@ Every limit recorded in the original snapshot still applies. In addition:
 - no crash, dump, WER, or runtime scenario was executed;
 - the `net481` behaviour of the new regressions is measured, but the underlying
   probe evidence in the snapshot above remains `net9.0`-only.
+
+## Package reconciliation — 2026-08-18
+
+The implementation landed in
+`efd0a88aad3afa5925a42f7222fec0529db93471`. Independent final review then
+found a lifecycle race between `Install()` and `Dispose()`: disposal could win
+before the installer entered the registry lock, after which the disposed
+handler could still be registered. Commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b` serialized that transition and
+added a deterministic regression. Diagnostics passed 22/22 tests on `net481`
+and 22/22 on `net9.0-windows`; both Diagnostics and Diagnostics.Windows API
+baselines remained unchanged by the correction.
+
+The canonical clean package command was `eng\pack-local.ps1 -PackageVersion
+1.0.0-local.20`, without `-SkipTests` or `-AllowDirty`. It rebuilt with 464
+warnings and zero errors, passed 1,538/1,538 tests, and published 16 coordinated
+packages. Normalized comparison found no new warning identity and 25 baseline
+identities no longer emitted. PackageReference-only WinForms and WPF consumers
+restored, built, and ran on both target families with zero warnings; all
+multitarget, package, Watchdog deployment, publish, and clean probes passed.
+
+`NekoLib.Diagnostics.1.0.0-local.20.nupkg` records repository commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains
+`lib/net481/NekoLib.Diagnostics.dll` and
+`lib/net9.0/NekoLib.Diagnostics.dll`, and declares `NekoLib.Core
+1.0.0-local.20` in both dependency groups. Its SHA-256 is
+`D97024B5E7D486D71F4F00A9244C482028997535088EA03E5795789363B7C2D7`.
+
+This reconciliation adds build, package, and external-consumer evidence. It
+does not add crash, dump, WER, or long-running runtime evidence. F1-DIAG is
+complete, and this review is historical.

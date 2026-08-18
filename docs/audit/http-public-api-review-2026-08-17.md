@@ -2,21 +2,21 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-HTTP compiled public surface, typed catalog and endpoint
 identity, relative URI construction, request and response ownership,
 serialization contracts, bounded response buffering, protocol-evidence
 preservation, target parity, and compatibility boundaries
 
-**Status:** all dispositions accepted and implemented, including both optional
-items; package gate pending
+**Status:** all dispositions implemented, including both optional items, and
+package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `e845165252c60c9ecff2e90221eac739a1631c68`
 
-**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
+**Last reconciliation:** 2026-08-18 — package gate completed
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-HTTP
 
@@ -744,3 +744,23 @@ Every limit recorded in the original snapshot still applies:
 The module reference still carries package and scenario evidence from the pre-F1
 `1.0.0-local.11` artifact, now labelled as such. Refreshing it belongs to the
 coordinated package campaign.
+
+## Package reconciliation — 2026-08-18
+
+The implementation landed in
+`ea7c47623daa97a28e31e5c0e2825ef385305f2e`. The coordinated clean
+`1.0.0-local.20` campaign passed 1,538/1,538 tests, rebuilt with 464 warnings
+and zero errors, introduced no warning identity, and passed all
+PackageReference-only consumer, multitarget, package, deployment, publish, and
+clean probes.
+
+`NekoLib.Http.1.0.0-local.20.nupkg` records repository commit
+`63785cc8bb801f1d4a90ade6cffb7f0b42c6bc1b`, contains
+`lib/net481/NekoLib.Http.dll` and `lib/net9.0/NekoLib.Http.dll`, and declares
+`Newtonsoft.Json 13.0.3` in both dependency groups. Its SHA-256 is
+`545833DC1303B32ABF6C4A25FE753B9D8B19CA7555896C426D28F3133A1423D5`.
+The module reference now carries this F1 evidence instead of the stale
+`local.11` package record.
+
+No external request was sent, no credential was configured, and the TheCatAPI
+scenario was not run. F1-HTTP is complete, and this review is historical.
