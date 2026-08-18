@@ -6,9 +6,9 @@
 
 **Subject:** audit artifact registry
 
-**Reference date:** 2026-08-17
+**Reference date:** 2026-08-18
 
-**Reference commit:** working tree after `06afd0f`
+**Reference commit:** working tree after `2db588a`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -37,6 +37,7 @@ and active freezes belong in [`TODO.md`](../../TODO.md).
 | [`payments-pix-design-review-2026-08-16.md`](payments-pix-design-review-2026-08-16.md) | Payments/Pix product boundary and first provider model | current; review complete, implementation decision pending | 2026-08-16 | `f73ba4a2fd01b66f5df6c172ba15d6d39d01a072` | none | [`TODO.md`](../../TODO.md) Phase G2 |
 | [`pipes-first-pass.md`](pipes-first-pass.md) | Pipes first-pass review | historical | 2026-06-04 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
 | [`pipes-ipc-hardening-review-2026-08-08.md`](pipes-ipc-hardening-review-2026-08-08.md) | Pipes and Watchdog IPC hardening | historical; accepted dispositions promoted to E5 | 2026-08-08 | `941e17e8224dff3b34b7495d7bd0f7cf12c8f4ed` | 2026-08-08 | [`TODO.md`](../../TODO.md) Phase E5 |
+| [`pipes-public-api-review-2026-08-18.md`](pipes-public-api-review-2026-08-18.md) | Pipes F1 public API, RPC/event, lifecycle, framing, metrics, security-policy, error, target, and package review | current; review complete, decision pending | 2026-08-18 | `2db588ac6fef271851e70c04f7b8b82cd8e004a7` | none | [`TODO.md`](../../TODO.md) F1-PIPE |
 | [`repository-hygiene-phase-c-readiness-2026-08-01.md`](repository-hygiene-phase-c-readiness-2026-08-01.md) | Phase C readiness | historical; complete | 2026-08-01 | `88b07d83f037db6bf13eab34ac3f5abafba787b1` | 2026-08-01 | [`TODO.md`](../../TODO.md) |
 | [`telemetry-public-api-review-2026-08-17.md`](telemetry-public-api-review-2026-08-17.md) | Telemetry F1 public API finalization | historical; all dispositions implemented and package-validated | 2026-08-17 | `6480c9e57a42af3490eeda55b0f66400e75782cd` | 2026-08-17 | [Telemetry reference](../../src/Telemetry/NekoLib.Telemetry/README.md), [`TODO.md`](../../TODO.md) F1-TEL |
 | [`watchdog-first-pass.md`](watchdog-first-pass.md) | Watchdog first-pass review | historical | 2026-06-04 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
