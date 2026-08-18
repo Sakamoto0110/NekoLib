@@ -659,6 +659,27 @@ consumers does not prove that a public member is unused.
       launched and no serial port was opened.
 11. [ ] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
     boundary, shutdown, security-policy, and error contracts.
+    **Accepted 2026-08-18:** capture and validate client/server configuration;
+    make server, event-hub, and event-client shutdown terminal, race-safe, and
+    awaitable across both targets; remove the stateless `PipeClient` disposal
+    surface; isolate all transport-owned metrics callbacks and seal
+    `SimplePipeMetrics`; preserve bounded best-effort event queues while
+    rejecting oversized events before enqueue; add isolated event-client error
+    observation and ordered connection notifications; publish constants for the
+    four framework wire-error codes; and make in-flight `net481` connects honor
+    cancellation. Retain the target-specific `PipeMessage.Data` types and the
+    `net481` Newtonsoft dependency, subject to a mixed-target separate-process
+    wire probe before the first stable release. Retain opt-in
+    `CurrentUserOnly`, compatibility-default `PlatformDefault`, and
+    application-owned authorization; do not add authentication, replay, remote,
+    privileged-control, Core, or Inspection infrastructure. Classify the
+    remaining surface as stable, with no experimental API or deprecation window.
+    The accepted rationale, compatibility impact, migration, and rejected
+    alternatives are recorded in
+    [`docs/audit/pipes-public-api-review-2026-08-18.md`](docs/audit/pipes-public-api-review-2026-08-18.md).
+    Keep this item open until the implementation, dual-target regressions,
+    reviewed API manifests, current technical reference, changelog, migration
+    guidance, and focused validation are complete.
 12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
     advanced consumer surface or Host infrastructure, then finalize bootstrap,
     controller, options, IPC, process, and ownership contracts.
