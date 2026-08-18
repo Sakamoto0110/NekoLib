@@ -9,14 +9,14 @@ and installation contract, minidump composition and native failure handling,
 WER-suppression scope, process-wide state ownership, target parity, and the
 Diagnostics package boundary
 
-**Status:** review complete; dispositions proposed and awaiting the consolidated
-F1 decision gate
+**Status:** all dispositions accepted and implemented, with one recorded
+deviation; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `ef533e2bca9ae8f86a8ecec7ae4d7bcf778077bf`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-WIN
 
@@ -592,3 +592,89 @@ closed with no further work. The WIN-03 Diagnostics-side companion explicitly
 extends the F1-DIAG accepted set and must be approved separately. Nothing here
 may be implemented until the consolidated F1 decision gate accepts or modifies
 these dispositions, and the Diagnostics assumptions must be reverified first.
+
+## Reconciliation — 2026-08-17: dispositions accepted and implemented
+
+The observed facts, probe output, and original recommendations above are the
+snapshot and are unchanged. This section records the decision-gate outcome and
+the implementation.
+
+### Diagnostics assumptions reverified before implementation
+
+The three dependencies this review declared on the proposed F1-DIAG decisions
+were reverified against the landed implementation, as the review required:
+
+- **DIAG-02/DIAG-03 hold.** `WriteCrashArtifacts` still invokes the dump writer
+  through `RunContributor`, so it runs on a `CrashHandler`-owned background
+  thread. WIN-03 stands exactly as written.
+- **DIAG-09 was accepted and landed.** `_dumpWriter = options.DumpWriter` is
+  captured by the constructor, so `UseMiniDump()` must be applied before
+  constructing the handler. The XML documentation and the F1-DIAG migration guide
+  say so.
+
+No proposed Windows disposition needed to change shape.
+
+### Accepted and implemented
+
+WIN-02, WIN-03, WIN-05, and WIN-08 landed as code. WIN-04, WIN-06, WIN-07,
+WIN-09, WIN-10, and WIN-12 landed as the Diagnostics.Windows section inside
+`src/Diagnostics/NekoLib.Diagnostics/README.md`, following the Navigation adapter
+precedent rather than adding a second README. WIN-11 landed as five focused
+regressions. WIN-01 remains closed.
+
+### One deliberate deviation
+
+WIN-05 recommended capturing `Marshal.GetLastWin32Error()` after a failed native
+call "so the reason is available to a future diagnostic path". **That half was
+not implemented.** `NekoLib.Diagnostics.Windows` declares no `InternalsVisibleTo`,
+the `CrashDumpWriter` delegate returns `bool` and cannot carry a reason, and no
+other consumer exists — so the captured value would be unreadable dead state in a
+shipped assembly, which is precisely what an API finalization pass should avoid.
+
+The substantive half of WIN-05 — deleting the file the writer created when the
+dump did not succeed — is implemented. If a diagnostic channel for the native
+error is ever wanted, it needs a real consumer and its own decision.
+
+### Validation
+
+```text
+dotnet build src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj
+  net481 and net9.0-windows: 0 warnings, 0 errors
+
+dotnet test tests/NekoLib.Diagnostics.Tests/Unit/NekoLib.Diagnostics.Tests.Unit.csproj
+  net481:          21 passed, 0 failed, 0 skipped
+  net9.0-windows:  21 passed, 0 failed, 0 skipped
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Diagnostics.Windows
+  both baselines verified UNCHANGED, as this review predicted
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Diagnostics
+  both baselines still verified
+
+eng/verify-docs.ps1        passed
+git diff --check           clean
+```
+
+The five new regressions cover the post-window hook path, `UseMiniDump`
+installation, writer replacement, null-options rejection, and repeatable
+error-mode merging. The post-window test asserts that
+`Application.SetUnhandledExceptionMode` really does throw in that state, re-arms
+the process-wide latch through reflection, and restores both the latch and the
+subscription count afterwards.
+
+### Residual limits carried forward
+
+Every limit recorded in the original snapshot still applies, and the most
+important one is unchanged:
+
+- **No minidump was generated.** Whether `MiniDumpWriteDump` succeeds with a NULL
+  exception parameter — the WIN-03 change — is still **unverified**. The
+  implementation is a correctness argument about not asserting a false exception
+  context, not measured dump evidence. Settling it requires explicit
+  authorization to generate a dump.
+- WIN-05's delete-on-failure path is likewise unexercised, because provoking a
+  real native failure requires the same authorization.
+- `CrashSuppressor.Enable()` is now invoked by a test, but only its merge
+  behaviour is asserted; no WER dialog was suppressed or observed.
+- No full-solution build or test run was performed for this module block, no
+  package was produced, and no PackageReference consumer probe was run.

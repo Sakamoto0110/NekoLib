@@ -20,7 +20,10 @@ namespace NekoLib.Diagnostics.Windows
 
         /// <summary>
         /// Routes crash dumps through the dbghelp.dll minidump writer. Call before
-        /// installing the handler. Returns the same options for chaining.
+        /// <b>constructing</b> the handler: <see cref="CrashHandlerOptions"/> values are
+        /// captured by the <see cref="NekoLib.Diagnostics.CrashHandler"/> constructor, so
+        /// applying this afterwards has no effect on that handler. Replaces any
+        /// previously configured dump writer. Returns the same options for chaining.
         /// </summary>
         public static CrashHandlerOptions UseMiniDump(this CrashHandlerOptions options)
         {
@@ -33,8 +36,12 @@ namespace NekoLib.Diagnostics.Windows
         /// Installs the WinForms <c>Application.ThreadException</c> hook, forwarding to
         /// <see cref="NekoLib.Diagnostics.CrashHandler.ReportExternalCrash"/>. Mirrors the
         /// legacy auto-hook that used to live inside CrashHandler. The hook is installed
-        /// at most once for the process lifetime. Call at startup, after handlers are
-        /// installed. Never throws.
+        /// at most once for the process lifetime. Never throws.
+        ///
+        /// Call it at startup, <b>before creating any window</b>: setting the
+        /// application-wide unhandled-exception mode throws once a window exists on the
+        /// thread. That part is best effort, and the forwarding subscription is installed
+        /// either way, so the hook still works when the mode could not be set.
         /// </summary>
         public static void HookWinForms()
         {
@@ -43,9 +50,18 @@ namespace NekoLib.Diagnostics.Windows
                 if (_winFormsHookInstalled)
                     return;
 
+                // Best effort and deliberately separate: this throws once a window
+                // exists on the thread, and the subscription below does not depend on
+                // it. Sharing one try block silently skipped the subscription and left
+                // a WinForms application with no crash reporting at all.
                 try
                 {
                     Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                }
+                catch { }
+
+                try
+                {
                     Application.ThreadException += OnThreadException;
                     _winFormsHookInstalled = true;
                 }

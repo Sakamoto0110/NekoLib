@@ -16,6 +16,26 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Diagnostics.Windows — behavioral pre-stable candidate correction for
+  the first `1.0.0` stable family release.** No public type, member, signature,
+  target, or dependency changed, and both accepted API manifests are unchanged;
+  consumers need no source change. `WindowsCrash.HookWinForms()` now attempts the
+  `Application.ThreadException` subscription independently of the application-wide
+  unhandled-exception mode change. Setting that mode throws once a window exists
+  on the thread, and both calls previously shared one `try` block, so an
+  application that hooked after creating its shell silently got **no UI-thread
+  crash reporting at all**; the subscription alone is sufficient on both targets.
+  Call it before creating any window for deterministic behavior. The minidump
+  writer now passes a NULL exception parameter when no native exception is in
+  flight on the calling thread — `NekoLib.Diagnostics` runs the dump writer on its
+  own contributor thread, so the previous structure labelled the dump with a
+  bystander thread and a null exception context — and deletes the file it created
+  when the native call does not succeed, instead of leaving an empty `crash.dmp`
+  beside a bundle that reports no dump was written.
+  `CrashSuppressor.Enable()` now merges into the current process error mode
+  instead of replacing it, preserving flags set by the host. `UseMiniDump()` must
+  be applied before **constructing** the handler; see the
+  [F1-DIAG migration guide](docs/migrations/f1-diagnostics.md).
 - **NekoLib.Diagnostics — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed the obsolete
   `CrashHandlerOptions.NotifyWatchdog` gate, whose Watchdog-specific policy was

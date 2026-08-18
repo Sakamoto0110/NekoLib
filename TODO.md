@@ -493,6 +493,38 @@ consumers does not prove that a public member is unused.
 7. [ ] **F1-WIN — Diagnostics.Windows.** Finalize Windows crash hooks,
    minidump composition, platform behavior, and the Diagnostics package
    boundary.
+   **Accepted 2026-08-17:** retain both public types and all three members as
+   stable candidates with no addition, removal, internalization, or experimental
+   marker, and correct behavior only. `HookWinForms` best-efforts the
+   application-wide mode change in its own guard and always attempts the
+   forwarding subscription, because a window created before the call made the
+   mode change throw and silently skipped the subscription, leaving a WinForms
+   application with no UI-thread crash reporting at all. `MiniDumpWriter` passes a
+   NULL exception parameter when no native exception is in flight on the calling
+   thread, instead of labelling the dump with the Diagnostics contributor thread
+   and a null exception context, and deletes the file it created when the native
+   call does not succeed. `CrashSuppressor.Enable` merges into the current process
+   error mode instead of replacing it. `MiniDumpWriter` stays internal behind the
+   `WindowsCrash` facade, `Nullable` stays disabled, and no reversible unhook is
+   added — `CrashHandler`'s registry already controls recipients. The dump-level
+   mapping, its non-cumulative nature, the out-of-range fallback, the
+   non-terminating UI-thread policy, and the missing nullability annotations are
+   documented rather than changed. WIN-01 was reverified and is closed. The
+   accepted rationale, evidence, and rejected alternatives are recorded in
+   [`docs/audit/diagnostics-windows-public-api-review-2026-08-17.md`](docs/audit/diagnostics-windows-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17, package gate pending.** The three
+   Diagnostics assumptions the review depended on were reverified against the
+   landed F1-DIAG implementation before any code was written: the dump writer
+   still runs on a `CrashHandler` contributor thread, and option values are
+   captured by the constructor. The shared Diagnostics suite passed 21/21 on
+   `net481` and 21/21 on `net9.0-windows`, up from 16 per target, and both
+   projects rebuilt with 0 warnings and 0 errors. Both `NekoLib.Diagnostics.Windows`
+   API manifests verified **unchanged**, as did both `NekoLib.Diagnostics`
+   manifests; documentation verification and diff hygiene passed. The package's
+   contracts are owned by the Diagnostics reference, following the Navigation
+   adapter precedent. Evidence is focused: no minidump was generated, no crash or
+   WER behavior was exercised, no full-solution run, and no package was produced.
+   **The package gate remains open for Codex.**
 8. [ ] **F1-HTTP — HTTP.** Finalize the typed catalog, relative URI, request,
    response-evidence, ownership, and bounded-buffer contracts without adding
    policy or credentials.
