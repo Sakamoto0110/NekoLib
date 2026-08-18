@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,8 +47,8 @@ namespace NekoLib.Pipes.Tests.Unit
 
             using (var server = StartServer(name, s =>
                 s.Map("echo", (req, ct) => Task.FromResult(new PipeMessage { Ok = true, Data = req.Data }))))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 var resp = await client.SendAsync("echo", new { value = 42 });
 
                 Assert.True(resp.Ok);
@@ -66,13 +67,13 @@ namespace NekoLib.Pipes.Tests.Unit
             var name = PipeTestUtil.UniqueName();
 
             using (var server = StartServer(name, _ => { /* no handlers */ }))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 var resp = await client.SendAsync("does_not_exist");
 
                 Assert.False(resp.Ok);
                 Assert.NotNull(resp.Error);
-                Assert.Equal("not_found", resp.Error.Code);
+                Assert.Equal(PipeErrorCodes.NotFound, resp.Error.Code);
             }
         }
 
@@ -87,13 +88,13 @@ namespace NekoLib.Pipes.Tests.Unit
                     await Task.Yield();
                     throw new InvalidOperationException("kaboom");
                 })))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 var resp = await client.SendAsync("boom");
 
                 Assert.False(resp.Ok);
                 Assert.NotNull(resp.Error);
-                Assert.Equal("exception", resp.Error.Code);
+                Assert.Equal(PipeErrorCodes.Exception, resp.Error.Code);
                 Assert.Equal("The handler failed.", resp.Error.Message);
                 Assert.DoesNotContain("kaboom", resp.Error.Message);
             }
@@ -157,13 +158,13 @@ namespace NekoLib.Pipes.Tests.Unit
                     Ok = true,
                     Error = new PipeError { Code = "", Message = new string('x', 1_200_000) }
                 }))))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 var resp = await client.SendAsync("big");
 
                 Assert.False(resp.Ok);
                 Assert.NotNull(resp.Error);
-                Assert.Equal("response_too_large", resp.Error.Code);
+                Assert.Equal(PipeErrorCodes.ResponseTooLarge, resp.Error.Code);
             }
         }
 
@@ -181,14 +182,14 @@ namespace NekoLib.Pipes.Tests.Unit
                 EnableEvents = false,
                 MaxMessageBytes = 2048
             }))
-            using (var client = new PipeClient(new PipeClientOptions
             {
-                PipeName = name,
-                ConnectTimeout = TimeSpan.FromSeconds(3),
-                RequestTimeout = TimeSpan.FromSeconds(3),
-                MaxMessageBytes = 2048
-            }))
-            {
+                var client = new PipeClient(new PipeClientOptions
+                {
+                    PipeName = name,
+                    ConnectTimeout = TimeSpan.FromSeconds(3),
+                    RequestTimeout = TimeSpan.FromSeconds(3),
+                    MaxMessageBytes = 2048
+                });
                 server.Map("big", (req, ct) => Task.FromResult(new PipeMessage
                 {
                     Ok = true,
@@ -200,7 +201,7 @@ namespace NekoLib.Pipes.Tests.Unit
 
                 Assert.False(resp.Ok);
                 Assert.NotNull(resp.Error);
-                Assert.Equal("response_too_large", resp.Error.Code);
+                Assert.Equal(PipeErrorCodes.ResponseTooLarge, resp.Error.Code);
             }
         }
 
@@ -220,14 +221,14 @@ namespace NekoLib.Pipes.Tests.Unit
                 EnableEvents = false,
                 MaxMessageBytes = cap
             }))
-            using (var client = new PipeClient(new PipeClientOptions
             {
-                PipeName = name,
-                ConnectTimeout = TimeSpan.FromSeconds(3),
-                RequestTimeout = TimeSpan.FromSeconds(15),
-                MaxMessageBytes = cap
-            }))
-            {
+                var client = new PipeClient(new PipeClientOptions
+                {
+                    PipeName = name,
+                    ConnectTimeout = TimeSpan.FromSeconds(3),
+                    RequestTimeout = TimeSpan.FromSeconds(15),
+                    MaxMessageBytes = cap
+                });
                 server.Map("big", (req, ct) => Task.FromResult(new PipeMessage
                 {
                     Ok = true,
@@ -250,8 +251,8 @@ namespace NekoLib.Pipes.Tests.Unit
 
             using (var server = StartServer(name, s =>
                 s.Map("ping", (req, ct) => Task.FromResult(new PipeMessage { Ok = true }))))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 for (int i = 0; i < 5; i++)
                 {
                     var resp = await client.SendAsync("ping");
@@ -274,13 +275,13 @@ namespace NekoLib.Pipes.Tests.Unit
                     await Task.Delay(5000, ct);   // far longer than the client's RequestTimeout
                     return new PipeMessage { Ok = true };
                 })))
-            using (var client = new PipeClient(new PipeClientOptions
             {
-                PipeName = name,
-                ConnectTimeout = TimeSpan.FromSeconds(3),
-                RequestTimeout = TimeSpan.FromMilliseconds(500)
-            }))
-            {
+                var client = new PipeClient(new PipeClientOptions
+                {
+                    PipeName = name,
+                    ConnectTimeout = TimeSpan.FromSeconds(3),
+                    RequestTimeout = TimeSpan.FromMilliseconds(500)
+                });
                 var sw = Stopwatch.StartNew();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(
                     () => client.SendAsync("slow"));
@@ -306,11 +307,9 @@ namespace NekoLib.Pipes.Tests.Unit
                 {
                     tasks[i] = Task.Run(async () =>
                     {
-                        using (var client = Client(name))
-                        {
-                            var resp = await client.SendAsync("ping");
-                            return resp.Ok;
-                        }
+                        var client = Client(name);
+                        var resp = await client.SendAsync("ping");
+                        return resp.Ok;
                     });
                 }
 
@@ -329,11 +328,84 @@ namespace NekoLib.Pipes.Tests.Unit
 
             using (var server = StartServer(name, s =>
                 s.Map("ok", (req, ct) => Task.FromResult(new PipeMessage { Ok = true }))))
-            using (var client = Client(name))
             {
+                var client = Client(name);
                 var ex = await Record.ExceptionAsync(() => client.SendAsync("ok"));
                 Assert.Null(ex);
             }
+        }
+
+        [Fact]
+        public void FrameworkErrorCodes_AreStableWireStrings()
+        {
+            Assert.Equal("not_found", PipeErrorCodes.NotFound);
+            Assert.Equal("exception", PipeErrorCodes.Exception);
+            Assert.Equal("response_too_large", PipeErrorCodes.ResponseTooLarge);
+            Assert.Equal("connection_closed", PipeErrorCodes.ConnectionClosed);
+        }
+
+        [Fact]
+        public async Task CleanEofBeforeResponse_ReturnsConnectionClosedError()
+        {
+            var name = PipeTestUtil.UniqueName();
+            var client = Client(name);
+            Task<PipeMessage> responseTask;
+
+            using (var server = NewRawServer(name))
+            {
+                var serverTask = Task.Run(async () =>
+                {
+                    await Task.Run(() => server.WaitForConnection());
+                    Assert.NotNull(await PipeFraming.TryReadAsync(server, default));
+                });
+
+                responseTask = client.SendAsync("close");
+                await serverTask;
+            }
+
+            var response = await responseTask;
+
+            Assert.False(response.Ok);
+            Assert.Equal(PipeErrorCodes.ConnectionClosed, response.Error.Code);
+        }
+
+        [Fact]
+        public async Task ResponseWithWrongCorrelation_ThrowsInvalidOperationException()
+        {
+            var name = PipeTestUtil.UniqueName();
+            using (var server = NewRawServer(name))
+            {
+                var serverTask = Task.Run(async () =>
+                {
+                    await Task.Run(() => server.WaitForConnection());
+                    var request = await PipeFraming.TryReadAsync(server, default);
+                    await PipeFraming.WriteAsync(
+                        server,
+                        new PipeMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            Type = "res",
+                            Name = request.Name,
+                            Ok = true
+                        },
+                        default);
+                });
+                var client = Client(name);
+
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => client.SendAsync("mismatch"));
+                await serverTask;
+            }
+        }
+
+        private static NamedPipeServerStream NewRawServer(string name)
+        {
+            return new NamedPipeServerStream(
+                name,
+                PipeDirection.InOut,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous);
         }
     }
 }

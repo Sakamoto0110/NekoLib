@@ -116,7 +116,7 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
         /// The code <c>PipeClient</c> substitutes when the pipe closes before a
         /// response frame arrives.
         /// </summary>
-        public const string ConnectionClosedCode = "connection_closed";
+        public const string ConnectionClosedCode = PipeErrorCodes.ConnectionClosed;
 
         /// <summary>
         /// Whether an exception is the kind a broken transport or a withdrawn

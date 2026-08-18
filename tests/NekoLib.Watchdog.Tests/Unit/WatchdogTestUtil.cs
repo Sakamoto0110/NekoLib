@@ -44,17 +44,15 @@ namespace NekoLib.Watchdog.Tests.Unit
 
         public static PipeMessage Send(string pipeName, string command, object payload = null)
         {
-            using (var client = new PipeClient(new PipeClientOptions
+            var client = new PipeClient(new PipeClientOptions
             {
                 PipeName = pipeName,
                 ConnectTimeout = TimeSpan.FromSeconds(3),
                 RequestTimeout = TimeSpan.FromSeconds(5)
-            }))
-            {
-                return client.SendAsync(command, payload)
-                    .GetAwaiter()
-                    .GetResult();
-            }
+            });
+            return client.SendAsync(command, payload)
+                .GetAwaiter()
+                .GetResult();
         }
 
         public static bool WaitUntil(Func<bool> condition, int timeoutMs = 5000)

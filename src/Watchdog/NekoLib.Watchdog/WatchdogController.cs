@@ -83,19 +83,17 @@ namespace NekoLib.Watchdog
         {
             try
             {
-                using (var client = CreateClient(pipeName))
+                var client = CreateClient(pipeName);
+                var payload = new
                 {
-                    var payload = new
-                    {
-                        type,
-                        message,
-                        source
-                    };
+                    type,
+                    message,
+                    source
+                };
 
-                    client.SendAsync("exception_notify", payload)
-                          .GetAwaiter()
-                          .GetResult();
-                }
+                client.SendAsync("exception_notify", payload)
+                      .GetAwaiter()
+                      .GetResult();
             }
             catch
             {
@@ -106,30 +104,28 @@ namespace NekoLib.Watchdog
         {
             try
             {
-                using (var client = CreateClient())
-                {
-                    var response = client
-                        .SendAsync(cmd)
-                        .GetAwaiter()
-                        .GetResult();
+                var client = CreateClient();
+                var response = client
+                    .SendAsync(cmd)
+                    .GetAwaiter()
+                    .GetResult();
 
-                    if (!response.Ok)
-                        return "error=" + (response.Error != null ? response.Error.Code : "unknown");
+                if (!response.Ok)
+                    return "error=" + (response.Error != null ? response.Error.Code : "unknown");
 
 #if NET9
-                    if (response.Data.HasValue &&
-                        response.Data.Value.ValueKind == JsonValueKind.String)
-                        return response.Data.Value.GetString();
+                if (response.Data.HasValue &&
+                    response.Data.Value.ValueKind == JsonValueKind.String)
+                    return response.Data.Value.GetString();
 
-                    return response.Data.HasValue
-                        ? response.Data.Value.ToString()
-                        : "";
+                return response.Data.HasValue
+                    ? response.Data.Value.ToString()
+                    : "";
 #else
-                    return response.Data != null
-                        ? response.Data.ToString()
-                        : "";
+                return response.Data != null
+                    ? response.Data.ToString()
+                    : "";
 #endif
-                }
             }
             catch (TimeoutException)
             {
@@ -164,20 +160,18 @@ namespace NekoLib.Watchdog
 
             try
             {
-                using (var client = CreateClient())
+                var client = CreateClient();
+                var payload = new
                 {
-                    var payload = new
-                    {
-                        level = entry.Level.ToString(),
-                        category = entry.Category,
-                        message = entry.Message,
-                        exception = entry.Exception?.ToString()
-                    };
+                    level = entry.Level.ToString(),
+                    category = entry.Category,
+                    message = entry.Message,
+                    exception = entry.Exception?.ToString()
+                };
 
-                    client.SendAsync("log_write", payload)
-                          .GetAwaiter()
-                          .GetResult();
-                }
+                client.SendAsync("log_write", payload)
+                      .GetAwaiter()
+                      .GetResult();
             }
             catch
             {
@@ -216,12 +210,10 @@ namespace NekoLib.Watchdog
                 if (items.Count == 0)
                     return;
 
-                using (var client = CreateClient())
-                {
-                    client.SendAsync("log_write_batch", new { entries = items })
-                          .GetAwaiter()
-                          .GetResult();
-                }
+                var client = CreateClient();
+                client.SendAsync("log_write_batch", new { entries = items })
+                      .GetAwaiter()
+                      .GetResult();
             }
             catch
             {
@@ -313,64 +305,62 @@ namespace NekoLib.Watchdog
         {
             try
             {
-                using (var client = CreateClient())
-                {
-                    var response = client
-                        .SendAsync("log_history")
-                        .GetAwaiter()
-                        .GetResult();
+                var client = CreateClient();
+                var response = client
+                    .SendAsync("log_history")
+                    .GetAwaiter()
+                    .GetResult();
 
-                    if (!response.Ok)
-                        return;
+                if (!response.Ok)
+                    return;
 
 #if NET9
-                    if (!response.Data.HasValue ||
-                        response.Data.Value.ValueKind != JsonValueKind.Array)
-                        return;
+                if (!response.Data.HasValue ||
+                    response.Data.Value.ValueKind != JsonValueKind.Array)
+                    return;
 
-                    foreach (var item in response.Data.Value.EnumerateArray())
-                    {
-                        if (item.ValueKind != JsonValueKind.Object)
-                            continue;
+                foreach (var item in response.Data.Value.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.Object)
+                        continue;
 
-                        var e = new LogEvent();
+                    var e = new LogEvent();
 
-                        if (item.TryGetProperty("tsUnixMs", out var ts))
-                            e.TsUnixMs = ts.GetInt64();
+                    if (item.TryGetProperty("tsUnixMs", out var ts))
+                        e.TsUnixMs = ts.GetInt64();
 
-                        if (item.TryGetProperty("level", out var lvl))
-                            e.Level = lvl.GetString();
+                    if (item.TryGetProperty("level", out var lvl))
+                        e.Level = lvl.GetString();
 
-                        if (item.TryGetProperty("msg", out var m))
-                            e.Msg = m.GetString();
+                    if (item.TryGetProperty("msg", out var m))
+                        e.Msg = m.GetString();
 
-                        if (item.TryGetProperty("line", out var l))
-                            e.Line = l.GetString();
+                    if (item.TryGetProperty("line", out var l))
+                        e.Line = l.GetString();
 
-                        if (item.TryGetProperty("meta", out var meta))
-                            e.Meta = meta.ToString();
+                    if (item.TryGetProperty("meta", out var meta))
+                        e.Meta = meta.ToString();
 
-                        onLog(e);
-                    }
-#else
-                    var arr = response.Data as JArray;
-                    if (arr == null) return;
-
-                    foreach (var item in arr)
-                    {
-                        var e = new LogEvent
-                        {
-                            TsUnixMs = item["tsUnixMs"]?.Value<long>() ?? 0,
-                            Level = item["level"]?.ToString(),
-                            Msg = item["msg"]?.ToString(),
-                            Line = item["line"]?.ToString(),
-                            Meta = item["meta"]
-                        };
-
-                        onLog(e);
-                    }
-#endif
+                    onLog(e);
                 }
+#else
+                var arr = response.Data as JArray;
+                if (arr == null) return;
+
+                foreach (var item in arr)
+                {
+                    var e = new LogEvent
+                    {
+                        TsUnixMs = item["tsUnixMs"]?.Value<long>() ?? 0,
+                        Level = item["level"]?.ToString(),
+                        Msg = item["msg"]?.ToString(),
+                        Line = item["line"]?.ToString(),
+                        Meta = item["meta"]
+                    };
+
+                    onLog(e);
+                }
+#endif
             }
             catch
             {

@@ -7,154 +7,292 @@ namespace NekoLib.Pipes
 {
     public sealed class PipeEventClient : IDisposable
 #if NET9
-    , IAsyncDisposable
+        , IAsyncDisposable
 #endif
     {
+        private const int Created = 0;
+        private const int Running = 1;
+        private const int Shutdown = 2;
+
+        private static readonly AsyncLocal<PipeEventClient?> CallbackOwner
+            = new AsyncLocal<PipeEventClient?>();
+
+        private readonly object _lifecycleGate = new object();
         private readonly string _pipeName;
         private CancellationTokenSource? _cts;
         private Task? _loopTask;
-        private volatile bool _running;
-        private volatile NamedPipeClientStream? _pipe;
+        private NamedPipeClientStream? _pipe;
+        private int _lifecycleState;
+        private int _autoReconnect = 1;
+        private long _reconnectDelayTicks = TimeSpan.FromMilliseconds(500).Ticks;
+        private long _connectTimeoutTicks = TimeSpan.FromSeconds(5).Ticks;
+        private Task _shutdownCompletion = Task.CompletedTask;
 
         /// <summary>Raised for each event frame received from the hub.</summary>
         public event Action<PipeMessage>? OnEvent;
 
-        /// <summary>Raised after a (re)connection to the event hub is established.</summary>
+        /// <summary>Raised after a connection to the event hub is established.</summary>
         public event Action? OnConnected;
 
-        /// <summary>Raised when the current connection ends (drop or shutdown).</summary>
+        /// <summary>Raised after an established connection ends.</summary>
         public event Action? OnDisconnected;
 
-        /// <summary>When true (default) the client keeps reconnecting after a drop until disposed.</summary>
-        public bool AutoReconnect { get; set; } = true;
+        /// <summary>
+        /// Raised for connection, framing, parsing, or listen failures. Subscriber
+        /// exceptions are isolated and never terminate the listen loop.
+        /// </summary>
+        public event Action<Exception>? OnError;
 
-        /// <summary>Delay between reconnect attempts.</summary>
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromMilliseconds(500);
+        /// <summary>
+        /// When true (default), the client reconnects after an attempt or connection
+        /// ends until terminal shutdown begins.
+        /// </summary>
+        public bool AutoReconnect
+        {
+            get => Volatile.Read(ref _autoReconnect) != 0;
+            set => Volatile.Write(ref _autoReconnect, value ? 1 : 0);
+        }
 
-        /// <summary>Per-attempt connection timeout (so a missing hub doesn't block forever).</summary>
-        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(5);
+        /// <summary>Validated delay captured separately for each reconnect wait.</summary>
+        public TimeSpan ReconnectDelay
+        {
+            get => TimeSpan.FromTicks(Interlocked.Read(ref _reconnectDelayTicks));
+            set
+            {
+                PipeConfiguration.RequireNonNegativeDelay(value, nameof(value));
+                Interlocked.Exchange(ref _reconnectDelayTicks, value.Ticks);
+            }
+        }
+
+        /// <summary>Validated timeout captured separately for each connection attempt.</summary>
+        public TimeSpan ConnectTimeout
+        {
+            get => TimeSpan.FromTicks(Interlocked.Read(ref _connectTimeoutTicks));
+            set
+            {
+                PipeConfiguration.RequirePositiveTimeout(value, nameof(value));
+                Interlocked.Exchange(ref _connectTimeoutTicks, value.Ticks);
+            }
+        }
 
         public PipeEventClient(string basePipeName)
         {
-            _pipeName = basePipeName + ".events";
+            _pipeName = PipeConfiguration.RequirePipeName(
+                basePipeName,
+                nameof(basePipeName)) + ".events";
         }
 
         public void Start()
         {
-            if (_running)
-                throw new InvalidOperationException("Already started.");
-
-            _running = true;
-            _cts = new CancellationTokenSource();
-
-            _loopTask = Task.Run(() => RunLoop(_cts.Token));
-        }
-
-        private async Task RunLoop(CancellationToken ct)
-        {
-            while (_running && !ct.IsCancellationRequested)
+            lock (_lifecycleGate)
             {
-                try
-                {
-                    await ConnectAndListen(ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break; // disposed / shutting down
-                }
-                catch
-                {
-                    // connection failed or dropped — fall through to the reconnect gate
-                }
+                ThrowIfShutdown();
+                if (_lifecycleState == Running)
+                    throw new InvalidOperationException("PipeEventClient already started.");
 
-                if (!_running || ct.IsCancellationRequested || !AutoReconnect)
-                    break;
-
-                try { await Task.Delay(ReconnectDelay, ct).ConfigureAwait(false); }
-                catch (OperationCanceledException) { break; }
+                var cts = new CancellationTokenSource();
+                _cts = cts;
+                Volatile.Write(ref _lifecycleState, Running);
+                _loopTask = Task.Run(() => RunLoop(cts.Token));
             }
         }
 
-        private async Task ConnectAndListen(CancellationToken ct)
+        private async Task RunLoop(CancellationToken cancellationToken)
+        {
+            while (IsRunning && !cancellationToken.IsCancellationRequested)
+            {
+                await ConnectAndListen(cancellationToken).ConfigureAwait(false);
+
+                if (!IsRunning || cancellationToken.IsCancellationRequested || !AutoReconnect)
+                    break;
+
+                var delay = ReconnectDelay;
+                try
+                {
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+        }
+
+        private async Task ConnectAndListen(CancellationToken cancellationToken)
         {
             var pipe = new NamedPipeClientStream(
                 ".",
                 _pipeName,
                 PipeDirection.In,
                 PipeOptions.Asynchronous);
-
-            _pipe = pipe;
+            Interlocked.Exchange(ref _pipe, pipe);
+            var connected = false;
 
             try
             {
-#if NET9
-                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                var connectTimeout = ConnectTimeout;
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken))
                 {
-                    connectCts.CancelAfter(ConnectTimeout);
+                    connectCts.CancelAfter(connectTimeout);
+#if NET9
                     await pipe.ConnectAsync(connectCts.Token).ConfigureAwait(false);
-                }
 #else
-                await Task.Run(() => pipe.Connect((int)ConnectTimeout.TotalMilliseconds), ct).ConfigureAwait(false);
+                    var connectTask = Task.Run(
+                        () => pipe.Connect(PipeConfiguration.ToTimeoutMilliseconds(connectTimeout)));
+                    await PipeTaskCancellation.WithCancellation(
+                        connectTask,
+                        connectCts.Token).ConfigureAwait(false);
 #endif
+                }
 
+                connected = true;
                 Raise(OnConnected);
 
-                while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
+                while (IsRunning && pipe.IsConnected && !cancellationToken.IsCancellationRequested)
                 {
-                    var msg = await PipeFraming.TryReadAsync(pipe, ct).ConfigureAwait(false);
-                    if (msg == null)
+                    var message = await PipeFraming.TryReadAsync(
+                        pipe,
+                        cancellationToken).ConfigureAwait(false);
+                    if (message == null)
                         break;
 
-                    if (msg.Type == "evt")
-                        Dispatch(msg);
+                    if (message.Type == "evt")
+                        Dispatch(message);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Local shutdown is not reported as a transport error.
+            }
+            catch (Exception ex)
+            {
+                Raise(OnError, ex);
             }
             finally
             {
+                Interlocked.CompareExchange(ref _pipe, null, pipe);
                 try { pipe.Dispose(); } catch { }
-                Raise(OnDisconnected);
+
+                if (connected)
+                    Raise(OnDisconnected);
             }
         }
 
-        // A throwing subscriber must not kill the listen loop or block the others.
-        private void Dispatch(PipeMessage msg)
+        private void Dispatch(PipeMessage message)
         {
             var handler = OnEvent;
             if (handler == null)
                 return;
 
-            foreach (var d in handler.GetInvocationList())
+            foreach (var callback in handler.GetInvocationList())
+                Invoke(() => ((Action<PipeMessage>)callback)(message));
+        }
+
+        private void Raise(Action? handler)
+        {
+            if (handler == null)
+                return;
+
+            foreach (var callback in handler.GetInvocationList())
+                Invoke(() => ((Action)callback)());
+        }
+
+        private void Raise(Action<Exception>? handler, Exception error)
+        {
+            if (handler == null)
+                return;
+
+            foreach (var callback in handler.GetInvocationList())
+                Invoke(() => ((Action<Exception>)callback)(error));
+        }
+
+        private void Invoke(Action callback)
+        {
+            var previous = CallbackOwner.Value;
+            CallbackOwner.Value = this;
+            try
             {
-                try { ((Action<PipeMessage>)d)(msg); }
-                catch { /* isolate handler faults */ }
+                callback();
+            }
+            catch
+            {
+                // Consumer callbacks are isolated and serialized on the listen loop.
+            }
+            finally
+            {
+                CallbackOwner.Value = previous;
             }
         }
 
-        private static void Raise(Action? evt)
-        {
-            try { evt?.Invoke(); } catch { /* notification callbacks must not break the loop */ }
-        }
+        /// <summary>
+        /// Enters terminal shutdown, closes the current transport, and waits for
+        /// the background reconnect/listen loop to finish.
+        /// </summary>
+        public Task ShutdownAsync()
+            => BeginShutdown();
 
         public void Dispose()
         {
-            if (!_running)
+            var completion = BeginShutdown();
+            if (ReferenceEquals(CallbackOwner.Value, this))
                 return;
 
-            _running = false;
-
-            try { _cts?.Cancel(); } catch { }
-            try { _pipe?.Dispose(); } catch { }   // unblock an in-flight connect/read
-            try { _loopTask?.Wait(2000); } catch { }
-
-            _cts?.Dispose();
+            try { completion.Wait(2000); } catch { }
         }
 
 #if NET9
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            Dispose();
-            return ValueTask.CompletedTask;
+            await ShutdownAsync().ConfigureAwait(false);
         }
 #endif
+
+        private Task BeginShutdown()
+        {
+            CancellationTokenSource? cts;
+            NamedPipeClientStream? pipe;
+            Task completion;
+
+            lock (_lifecycleGate)
+            {
+                if (_lifecycleState == Shutdown)
+                    return _shutdownCompletion;
+
+                Volatile.Write(ref _lifecycleState, Shutdown);
+                cts = _cts;
+                pipe = Interlocked.Exchange(ref _pipe, null);
+                _shutdownCompletion = CompleteShutdownAsync(
+                    _loopTask ?? Task.CompletedTask,
+                    cts);
+                completion = _shutdownCompletion;
+            }
+
+            try { cts?.Cancel(); } catch { }
+            try { pipe?.Dispose(); } catch { }
+            return completion;
+        }
+
+        private static async Task CompleteShutdownAsync(
+            Task loopTask,
+            CancellationTokenSource? cts)
+        {
+            try
+            {
+                await loopTask.ConfigureAwait(false);
+            }
+            finally
+            {
+                cts?.Dispose();
+            }
+        }
+
+        private bool IsRunning => Volatile.Read(ref _lifecycleState) == Running;
+
+        private void ThrowIfShutdown()
+        {
+            if (_lifecycleState == Shutdown)
+                throw new ObjectDisposedException(nameof(PipeEventClient));
+        }
     }
 }

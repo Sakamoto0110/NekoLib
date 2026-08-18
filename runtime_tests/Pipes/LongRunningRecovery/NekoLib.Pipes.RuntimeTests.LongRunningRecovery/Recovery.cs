@@ -173,8 +173,8 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     // deadline expires; here the caller withdraws while the
                     // request is demonstrably still running on the server.
                     using (CancellationTokenSource cancellation = new CancellationTokenSource())
-                    using (PipeClient client = context.NewClient(TimeSpan.FromSeconds(30)))
                     {
+                        PipeClient client = context.NewClient(TimeSpan.FromSeconds(30));
                         Task<PipeMessage> pending = client.SendAsync(Ops.Slow, "5000", cancellation.Token);
 
                         await Task.Delay(300, context.Ct).ConfigureAwait(false);
@@ -225,31 +225,29 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                         server.Start();
 
-                        using (PipeClient client = new PipeClient(new PipeClientOptions
+                        PipeClient client = new PipeClient(new PipeClientOptions
                         {
                             PipeName = endpoint,
                             ConnectTimeout = TimeSpan.FromSeconds(5),
                             RequestTimeout = TimeSpan.FromSeconds(5)
-                        }))
-                        {
-                            PipeMessage before = await client.SendAsync(Ops.Echo, "before", context.Ct)
-                                .ConfigureAwait(false);
+                        });
+                        PipeMessage before = await client.SendAsync(Ops.Echo, "before", context.Ct)
+                            .ConfigureAwait(false);
 
-                            check.That(before.Ok, "the private server did not answer before disconnecting");
-                            context.Counters.Success();
+                        check.That(before.Ok, "the private server did not answer before disconnecting");
+                        context.Counters.Success();
 
-                            server.Dispose();
+                        server.Dispose();
 
-                            // The disconnect is the server's decision, and the
-                            // client must learn about it by failing rather than
-                            // by hanging.
-                            Exception? after = await PhaseContext.CaptureAsync(() =>
-                                client.SendAsync(Ops.Echo, "after", context.Ct)).ConfigureAwait(false);
+                        // The disconnect is the server's decision, and the
+                        // client must learn about it by failing rather than
+                        // by hanging.
+                        Exception? after = await PhaseContext.CaptureAsync(() =>
+                            client.SendAsync(Ops.Echo, "after", context.Ct)).ConfigureAwait(false);
 
-                            check.That(after != null, "a request after the server disconnected reported success");
-                            check.Note("server-initiated disconnect surfaced as " + after!.GetType().Name);
-                            context.Counters.ExpectedFailure();
-                        }
+                        check.That(after != null, "a request after the server disconnected reported success");
+                        check.Note("server-initiated disconnect surfaced as " + after!.GetType().Name);
+                        context.Counters.ExpectedFailure();
                     }
 
                     await WaitUnbound(context, endpoint).ConfigureAwait(false);
@@ -380,11 +378,9 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         // killed worker into a stalled campaign.
                         Task<TerminalObservation> inFlight = Task.Run(async () =>
                         {
-                            using (PipeClient client = context.NewClient(TimeSpan.FromSeconds(20)))
-                            {
-                                return await ObserveAsync(() =>
-                                    client.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
-                            }
+                            PipeClient client = context.NewClient(TimeSpan.FromSeconds(20));
+                            return await ObserveAsync(() =>
+                                client.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
                         }, context.Ct);
 
                         long admittedCount = await WaitForAdmissionAsync(context, before).ConfigureAwait(false);
@@ -626,11 +622,9 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
                     Exception? failure;
 
-                    using (PipeClient impatient = context.NewClient(TimeSpan.FromMilliseconds(500)))
-                    {
-                        failure = await PhaseContext.CaptureAsync(() =>
-                            impatient.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
-                    }
+                    PipeClient impatient = context.NewClient(TimeSpan.FromMilliseconds(500));
+                    failure = await PhaseContext.CaptureAsync(() =>
+                        impatient.SendAsync(Ops.Slow, "4000", context.Ct)).ConfigureAwait(false);
 
                     clock.Stop();
 
@@ -719,16 +713,14 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                         Task<Exception?> admitted = Task.Run(async () =>
                         {
-                            using (PipeClient client = new PipeClient(new PipeClientOptions
+                            PipeClient client = new PipeClient(new PipeClientOptions
                             {
                                 PipeName = endpoint,
                                 ConnectTimeout = TimeSpan.FromSeconds(5),
                                 RequestTimeout = TimeSpan.FromSeconds(5)
-                            }))
-                            {
-                                return await PhaseContext.CaptureAsync(() =>
-                                    client.SendAsync(Ops.Slow, "400", context.Ct)).ConfigureAwait(false);
-                            }
+                            });
+                            return await PhaseContext.CaptureAsync(() =>
+                                client.SendAsync(Ops.Slow, "400", context.Ct)).ConfigureAwait(false);
                         }, context.Ct);
 
                         // A subscriber is attached too, so disposal happens with

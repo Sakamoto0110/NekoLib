@@ -136,25 +136,23 @@ namespace NekoLib.Watchdog.RuntimeTests.Supervisor481
 
             try
             {
-                using (var client = new PipeClient(new PipeClientOptions
+                var client = new PipeClient(new PipeClientOptions
                 {
                     PipeName = _pipeName,
                     ConnectTimeout = TimeSpan.FromMilliseconds(1500),
                     RequestTimeout = TimeSpan.FromMilliseconds(3000)
-                }))
-                {
-                    var response = await client.SendAsync(cmd);
+                });
+                var response = await client.SendAsync(cmd);
 
-                    if (response.Ok)
-                    {
-                        var data = response.Data != null ? response.Data.ToString() : "(no data)";
-                        AppendResult(cmd + " -> " + data);
-                    }
-                    else
-                    {
-                        var code = response.Error != null ? response.Error.Code : "unknown";
-                        AppendError(cmd + " -> error=" + code);
-                    }
+                if (response.Ok)
+                {
+                    var data = response.Data != null ? response.Data.ToString() : "(no data)";
+                    AppendResult(cmd + " -> " + data);
+                }
+                else
+                {
+                    var code = response.Error != null ? response.Error.Code : "unknown";
+                    AppendError(cmd + " -> error=" + code);
                 }
             }
             catch (TimeoutException)

@@ -77,21 +77,19 @@ namespace NekoLib.Watchdog.RuntimeTests.CrashRecovery
 
         private static PipeMessage Send(string pipeName, string command)
         {
-            using (PipeClient client = new PipeClient(new PipeClientOptions
+            PipeClient client = new PipeClient(new PipeClientOptions
             {
                 PipeName = pipeName,
                 ConnectTimeout = TimeSpan.FromMilliseconds(750),
                 RequestTimeout = TimeSpan.FromSeconds(3)
-            }))
+            });
+            PipeMessage response = client.SendAsync(command).GetAwaiter().GetResult();
+            if (!response.Ok)
             {
-                PipeMessage response = client.SendAsync(command).GetAwaiter().GetResult();
-                if (!response.Ok)
-                {
-                    string code = response.Error == null ? "unknown" : response.Error.Code;
-                    throw new IOException("Pipe command '" + command + "' failed with " + code + ".");
-                }
-                return response;
+                string code = response.Error == null ? "unknown" : response.Error.Code;
+                throw new IOException("Pipe command '" + command + "' failed with " + code + ".");
             }
+            return response;
         }
 
         private static string DataText(PipeMessage response)

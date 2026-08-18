@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace NekoLib.Pipes
 {
-    public class SimplePipeMetrics : IPipeMetrics
+    public sealed class SimplePipeMetrics : IPipeMetrics
     {
         // ================= SERVER =================
 

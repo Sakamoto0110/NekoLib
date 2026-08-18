@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Concurrent;
+using System.IO.Pipes;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes.Tests.Unit.Fakes;
@@ -101,6 +104,167 @@ namespace NekoLib.Pipes.Tests.Unit
                         "the second handler did not run despite the first throwing");
                 }
             }
+        }
+
+        [Fact]
+        public async Task FailedConnect_RaisesIsolatedErrorWithoutDisconnected_AndStartRemainsOneShot()
+        {
+            var client = new PipeEventClient(PipeTestUtil.UniqueName())
+            {
+                AutoReconnect = false,
+                ConnectTimeout = TimeSpan.FromMilliseconds(150)
+            };
+            var observed = new TaskCompletionSource<Exception>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var disconnected = 0;
+
+            client.OnError += _ => throw new InvalidOperationException("bad error subscriber");
+            client.OnError += error => observed.TrySetResult(error);
+            client.OnDisconnected += () => Interlocked.Increment(ref disconnected);
+            client.Start();
+
+            Assert.NotNull(await AwaitWithin(observed.Task, 5000));
+            Assert.Equal(0, Volatile.Read(ref disconnected));
+            Assert.Throws<InvalidOperationException>(() => client.Start());
+
+            await client.ShutdownAsync();
+
+            Assert.Throws<ObjectDisposedException>(() => client.Start());
+        }
+
+        [Fact]
+        public async Task ConnectionCallbacks_IsolateSubscribersAndShutdownDisconnectsInOrder()
+        {
+            var name = PipeTestUtil.UniqueName();
+            using (var server = NewEventServer(name))
+            using (var client = new PipeEventClient(name))
+            {
+                var connected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var disconnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var errors = 0;
+
+                client.OnConnected += () => throw new InvalidOperationException("first connected");
+                client.OnConnected += () => connected.TrySetResult(true);
+                client.OnDisconnected += () => throw new InvalidOperationException("first disconnected");
+                client.OnDisconnected += () => disconnected.TrySetResult(true);
+                client.OnError += _ => Interlocked.Increment(ref errors);
+
+                server.Start();
+                client.Start();
+
+                await AwaitWithin(connected.Task, 5000);
+                await client.ShutdownAsync();
+                await AwaitWithin(disconnected.Task, 5000);
+
+                Assert.Equal(0, Volatile.Read(ref errors));
+            }
+        }
+
+        [Fact]
+        public async Task MalformedFrame_RaisesErrorBeforeDisconnected()
+        {
+            var name = PipeTestUtil.UniqueName();
+            using (var server = new NamedPipeServerStream(
+                name + ".events",
+                PipeDirection.Out,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous))
+            {
+                var serverTask = Task.Run(async () =>
+                {
+                    await Task.Run(() => server.WaitForConnection());
+                    var payload = Encoding.UTF8.GetBytes("{not-json}");
+                    var length = BitConverter.GetBytes(payload.Length);
+                    await server.WriteAsync(length, 0, length.Length);
+                    await server.WriteAsync(payload, 0, payload.Length);
+                    await server.FlushAsync();
+                });
+                var order = new ConcurrentQueue<string>();
+                var disconnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                using (var client = new PipeEventClient(name)
+                {
+                    AutoReconnect = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(3)
+                })
+                {
+                    client.OnConnected += () => order.Enqueue("connected");
+                    client.OnError += _ => throw new InvalidOperationException("first error");
+                    client.OnError += _ => order.Enqueue("error");
+                    client.OnDisconnected += () =>
+                    {
+                        order.Enqueue("disconnected");
+                        disconnected.TrySetResult(true);
+                    };
+                    client.Start();
+
+                    await AwaitWithin(serverTask, 5000);
+                    await AwaitWithin(disconnected.Task, 5000);
+                    await client.ShutdownAsync();
+                }
+
+                Assert.Equal(
+                    new[] { "connected", "error", "disconnected" },
+                    order.ToArray());
+            }
+        }
+
+        [Fact]
+        public async Task CleanRemoteEof_DisconnectsWithoutError()
+        {
+            var name = PipeTestUtil.UniqueName();
+            using (var server = new NamedPipeServerStream(
+                name + ".events",
+                PipeDirection.Out,
+                1,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous))
+            {
+                var serverTask = Task.Run(() => server.WaitForConnection());
+                var order = new ConcurrentQueue<string>();
+                var disconnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var errors = 0;
+                using (var client = new PipeEventClient(name)
+                {
+                    AutoReconnect = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(3)
+                })
+                {
+                    client.OnConnected += () => order.Enqueue("connected");
+                    client.OnError += _ => Interlocked.Increment(ref errors);
+                    client.OnDisconnected += () =>
+                    {
+                        order.Enqueue("disconnected");
+                        disconnected.TrySetResult(true);
+                    };
+                    client.Start();
+
+                    await AwaitWithin(serverTask, 5000);
+                    server.Disconnect();
+                    await AwaitWithin(disconnected.Task, 5000);
+                    await client.ShutdownAsync();
+                }
+
+                Assert.Equal(0, Volatile.Read(ref errors));
+                Assert.Equal(new[] { "connected", "disconnected" }, order.ToArray());
+            }
+        }
+
+        private static async Task AwaitWithin(Task task, int timeoutMs)
+        {
+            var winner = await Task.WhenAny(task, Task.Delay(timeoutMs));
+            Assert.Same(task, winner);
+            await task;
+        }
+
+        private static async Task<T> AwaitWithin<T>(Task<T> task, int timeoutMs)
+        {
+            await AwaitWithin((Task)task, timeoutMs);
+            return await task;
         }
     }
 }

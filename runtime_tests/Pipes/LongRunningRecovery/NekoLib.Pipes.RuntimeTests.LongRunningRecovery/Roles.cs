@@ -265,29 +265,27 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                 try
                 {
-                    using (PipeClient client = new PipeClient(new PipeClientOptions
+                    PipeClient client = new PipeClient(new PipeClientOptions
                     {
                         PipeName = options.PipeName,
                         ConnectTimeout = TimeSpan.FromSeconds(5),
                         RequestTimeout = TimeSpan.FromSeconds(10),
                         MaxMessageBytes = 64 * 1024
-                    }))
+                    });
+                    sent++;
+                    PipeMessage response = client
+                        .SendAsync(Ops.Echo, payload, ct).GetAwaiter().GetResult();
+
+                    if (!response.Ok) failed++;
+                    else
                     {
-                        sent++;
-                        PipeMessage response = client
-                            .SendAsync(Ops.Echo, payload, ct).GetAwaiter().GetResult();
+                        ok++;
 
-                        if (!response.Ok) failed++;
-                        else
-                        {
-                            ok++;
-
-                            // Correlation: the response must carry back this
-                            // request's own marker, not another client's.
-                            string? text = Payload.Text(response);
-                            if (text == null || !text.StartsWith(marker, StringComparison.Ordinal))
-                                mismatched++;
-                        }
+                        // Correlation: the response must carry back this
+                        // request's own marker, not another client's.
+                        string? text = Payload.Text(response);
+                        if (text == null || !text.StartsWith(marker, StringComparison.Ordinal))
+                            mismatched++;
                     }
                 }
                 catch (OperationCanceledException) { break; }

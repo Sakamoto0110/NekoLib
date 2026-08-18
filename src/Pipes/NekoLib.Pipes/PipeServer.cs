@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,92 +7,136 @@ using System.Threading.Tasks;
 namespace NekoLib.Pipes
 {
     public sealed class PipeServer : IDisposable
+#if NET9
+        , IAsyncDisposable
+#endif
     {
-        private readonly PipeServerOptions _o;
-        private readonly IPipeMetrics _metrics;
+        private const int Created = 0;
+        private const int Running = 1;
+        private const int Shutdown = 2;
 
+        private readonly object _lifecycleGate = new object();
+        private readonly string _pipeName;
+        private readonly int _maxClients;
+        private readonly TimeSpan _clientIdleTimeout;
+        private readonly bool _enableEvents;
+        private readonly int _maxEventSubscribers;
+        private readonly int _eventSubscriberQueueCapacity;
+        private readonly PipeEventQueueOverflowPolicy _eventQueueOverflowPolicy;
+        private readonly PipeAccessPolicy _accessPolicy;
+        private readonly int _maxMessageBytes;
+        private readonly IPipeMetrics _metrics;
         private readonly SemaphoreSlim _clientLimiter;
         private readonly PipeOperationRegistry _clientOperations = new PipeOperationRegistry();
-        // ConcurrentDictionary so Map() (typically before Start, but not enforced) can
-        // never race the concurrent TryGetValue reads in Dispatch (audit M2).
-        private readonly ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
-            = new ConcurrentDictionary<string, Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
+        private readonly ConcurrentDictionary<
+            string,
+            Func<PipeMessage, CancellationToken, Task<PipeMessage>>> _handlers
+            = new ConcurrentDictionary<
+                string,
+                Func<PipeMessage, CancellationToken, Task<PipeMessage>>>();
 
         private CancellationTokenSource? _cts;
         private Task? _acceptTask;
-        private volatile bool _running;
-        private int _disposeStarted;
+        private int _lifecycleState;
         private int _resourcesDisposed;
         private Task _shutdownCompletion = Task.CompletedTask;
 
         public PipeEventHub? Events { get; private set; }
 
-        public PipeAccessPolicy AccessPolicy => _o.AccessPolicy;
+        public PipeAccessPolicy AccessPolicy => _accessPolicy;
 
         internal int ActiveClientOperationCount => _clientOperations.Count;
-        internal Task ShutdownCompletion => _shutdownCompletion;
+
+        internal Task ShutdownCompletion
+        {
+            get
+            {
+                lock (_lifecycleGate)
+                    return _shutdownCompletion;
+            }
+        }
 
         public PipeServer(PipeServerOptions options)
         {
-            _o = options ?? throw new ArgumentNullException(nameof(options));
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
+
+            _pipeName = PipeConfiguration.RequirePipeName(
+                options.PipeName,
+                nameof(PipeServerOptions.PipeName));
+            _maxClients = PipeConfiguration.RequirePositive(
+                options.MaxClients,
+                nameof(PipeServerOptions.MaxClients));
+            _clientIdleTimeout = PipeConfiguration.RequirePositiveTimeout(
+                options.ClientIdleTimeout,
+                nameof(PipeServerOptions.ClientIdleTimeout));
+            _enableEvents = options.EnableEvents;
+            _maxEventSubscribers = PipeConfiguration.RequirePositive(
+                options.MaxEventSubscribers,
+                nameof(PipeServerOptions.MaxEventSubscribers));
+            _eventSubscriberQueueCapacity = PipeConfiguration.RequirePositive(
+                options.EventSubscriberQueueCapacity,
+                nameof(PipeServerOptions.EventSubscriberQueueCapacity));
+            ValidateOverflowPolicy(options.EventQueueOverflowPolicy);
+            _eventQueueOverflowPolicy = options.EventQueueOverflowPolicy;
             PipeServerStreamFactory.Validate(options.AccessPolicy);
-            _metrics = options.Metrics ?? new SimplePipeMetrics();
-            _clientLimiter = new SemaphoreSlim(options.MaxClients);
+            _accessPolicy = options.AccessPolicy;
+            _maxMessageBytes = PipeConfiguration.RequirePositive(
+                options.MaxMessageBytes,
+                nameof(PipeServerOptions.MaxMessageBytes));
+            _metrics = PipeMetricsGuard.Protect(options.Metrics ?? new SimplePipeMetrics());
+            _clientLimiter = new SemaphoreSlim(_maxClients);
         }
 
-        // ============================================================
-        // Map handler
-        // ============================================================
-
-        public void Map(string name, Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler)
+        public void Map(
+            string name,
+            Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Handler name required.", nameof(name));
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
 
-            _handlers[name] = handler ?? throw new ArgumentNullException(nameof(handler));
+            lock (_lifecycleGate)
+            {
+                ThrowIfShutdown();
+                _handlers[name] = handler;
+            }
         }
-
-        // ============================================================
-        // Start
-        // ============================================================
 
         public void Start()
         {
-            if (Volatile.Read(ref _disposeStarted) != 0)
-                throw new ObjectDisposedException(nameof(PipeServer));
-            if (_running)
-                throw new InvalidOperationException("PipeServer already started.");
-
-            _running = true;
-            _cts = new CancellationTokenSource();
-
-            if (_o.EnableEvents)
+            lock (_lifecycleGate)
             {
-                Events = new PipeEventHub(
-                    _o.PipeName,
-                    _o.MaxEventSubscribers,
-                    _o.AccessPolicy,
-                    _o.EventSubscriberQueueCapacity,
-                    _o.EventQueueOverflowPolicy,
-                    _metrics);
+                ThrowIfShutdown();
+                if (_lifecycleState == Running)
+                    throw new InvalidOperationException("PipeServer already started.");
 
-                Events.Start();
+                _cts = new CancellationTokenSource();
+                if (_enableEvents)
+                {
+                    Events = new PipeEventHub(
+                        _pipeName,
+                        _maxEventSubscribers,
+                        _accessPolicy,
+                        _eventSubscriberQueueCapacity,
+                        _eventQueueOverflowPolicy,
+                        _metrics);
+                }
+
+                Volatile.Write(ref _lifecycleState, Running);
+                Events?.Start();
+                _acceptTask = Task.Run(() => AcceptLoop(_cts.Token));
             }
-
-            _acceptTask = Task.Run(() => AcceptLoop(_cts.Token));
         }
 
-        // ============================================================
-        // Accept loop
-        // ============================================================
-
-        private async Task AcceptLoop(CancellationToken ct)
+        private async Task AcceptLoop(CancellationToken cancellationToken)
         {
-            while (_running && !ct.IsCancellationRequested)
+            while (IsRunning && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    await _clientLimiter.WaitAsync(ct).ConfigureAwait(false);
+                    await _clientLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -103,64 +146,60 @@ namespace NekoLib.Pipes
                 if (!_clientOperations.TryStart(async operation =>
                 {
                     NamedPipeServerStream? pipe = null;
-                    bool connected = false;
+                    var connected = false;
 
                     try
                     {
                         pipe = PipeServerStreamFactory.Create(
-                            _o.PipeName,
+                            _pipeName,
                             PipeDirection.InOut,
-                            _o.AccessPolicy);
+                            _accessPolicy);
                         if (!operation.SetPipe(pipe))
                             return;
 
 #if NET9
-                        await pipe.WaitForConnectionAsync(ct).ConfigureAwait(false);
+                        await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
 #else
-                        // net481 WaitForConnection can't observe ct; dispose the pipe on
-                        // cancel so the blocked wait throws and releases its thread on
-                        // shutdown instead of leaking until GC (audit M6). The throw is
-                        // swallowed *inside* the delegate (only while cancelling) so it
-                        // doesn't surface as a user-unhandled first-chance break in the
-                        // debugger; we then bail cleanly via the token below.
-                        using (ct.Register(() => { try { pipe?.Dispose(); } catch { } }))
+                        using (cancellationToken.Register(
+                            () => { try { pipe?.Dispose(); } catch { } }))
                         {
                             await Task.Run(() =>
                             {
                                 try { pipe.WaitForConnection(); }
-                                catch when (ct.IsCancellationRequested) { /* pipe disposed on shutdown */ }
+                                catch when (cancellationToken.IsCancellationRequested) { }
                             }).ConfigureAwait(false);
                         }
 
-                        ct.ThrowIfCancellationRequested();
+                        cancellationToken.ThrowIfCancellationRequested();
 #endif
 
                         connected = true;
-                        _metrics.OnServerClientConnected(_o.PipeName);
+                        _metrics.OnServerClientConnected(_pipeName);
 
-                        using (var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                        using (var idleCts = CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken))
                         {
                             await HandleClient(pipe, idleCts).ConfigureAwait(false);
                         }
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
-                        // normal shutdown
+                        // Normal shutdown.
                     }
-                    catch (Exception) when (ct.IsCancellationRequested)
+                    catch (Exception) when (cancellationToken.IsCancellationRequested)
                     {
-                        // pipe disposed during shutdown — normal
+                        // The transport was closed to unblock shutdown.
                     }
                     catch (Exception ex)
                     {
-                        _metrics.OnError(_o.PipeName, "accept_loop", ex);
+                        _metrics.OnError(_pipeName, "accept_loop", ex);
                     }
                     finally
                     {
                         try { pipe?.Dispose(); } catch { }
 
                         if (connected)
-                            _metrics.OnServerClientDisconnected(_o.PipeName);
+                            _metrics.OnServerClientDisconnected(_pipeName);
 
                         _clientLimiter.Release();
                     }
@@ -172,55 +211,48 @@ namespace NekoLib.Pipes
             }
         }
 
-        // ============================================================
-        // Client handler
-        // ============================================================
-
-        private async Task HandleClient(NamedPipeServerStream pipe, CancellationTokenSource idleCts)
+        private async Task HandleClient(
+            NamedPipeServerStream pipe,
+            CancellationTokenSource idleCts)
         {
-            var ct = idleCts.Token;
+            var cancellationToken = idleCts.Token;
 
-            while (_running && pipe.IsConnected && !ct.IsCancellationRequested)
+            while (IsRunning && pipe.IsConnected && !cancellationToken.IsCancellationRequested)
             {
-                // Arm the idle timer for the wait for the next request. ClientIdleTimeout
-                // now measures inactivity *between* requests (a true idle timeout that
-                // resets on activity) rather than capping the whole session.
-                try { idleCts.CancelAfter(_o.ClientIdleTimeout); } catch { }
+                idleCts.CancelAfter(_clientIdleTimeout);
 
                 PipeMessage? request;
-
                 try
                 {
-                    request = await PipeFraming.TryReadAsync(pipe, ct, _o.MaxMessageBytes).ConfigureAwait(false);
+                    request = await PipeFraming.TryReadAsync(
+                        pipe,
+                        cancellationToken,
+                        _maxMessageBytes).ConfigureAwait(false);
                     if (request == null)
                         break;
                 }
                 catch
                 {
-                    break; // client disconnected or bad frame
+                    break;
                 }
 
-                // Activity received: pause the idle timer while we dispatch + reply so a
-                // slow handler isn't mistaken for an idle client. Shutdown via the linked
-                // outer token still cancels.
-                try { idleCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan); } catch { }
+                idleCts.CancelAfter(Timeout.InfiniteTimeSpan);
 
                 if (request.Type != "req")
                     continue;
 
-                _metrics.OnServerRequestReceived(_o.PipeName, request.Name);
+                _metrics.OnServerRequestReceived(_pipeName, request.Name);
 
-                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 PipeMessage response;
 
                 try
                 {
-                    response = await Dispatch(request, ct).ConfigureAwait(false);
+                    response = await Dispatch(request, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _metrics.OnError(_o.PipeName, "dispatch:" + request.Name, ex);
-
+                    _metrics.OnError(_pipeName, "dispatch:" + request.Name, ex);
                     response = new PipeMessage
                     {
                         Id = request.Id,
@@ -229,27 +261,26 @@ namespace NekoLib.Pipes
                         Ok = false,
                         Error = new PipeError
                         {
-                            Code = "exception",
+                            Code = PipeErrorCodes.Exception,
                             Message = "The handler failed."
                         }
                     };
                 }
 
-                // On net481 a cancelled blocking write continues on its worker thread
-                // until the pipe is disposed. Starting it during shutdown can emit only
-                // part of the frame before disposal, so close cleanly instead.
-                if (ct.IsCancellationRequested)
+                if (cancellationToken.IsCancellationRequested)
                     break;
 
                 var toSend = response;
                 try
                 {
-                    await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false);
+                    await PipeFraming.WriteAsync(
+                        pipe,
+                        toSend,
+                        cancellationToken,
+                        _maxMessageBytes).ConfigureAwait(false);
                 }
                 catch (PipeFrameTooLargeException)
                 {
-                    // Reply with a structured error rather than dropping the connection.
-                    // WriteCore validates size before emitting, so nothing was written.
                     toSend = new PipeMessage
                     {
                         Id = request.Id,
@@ -258,13 +289,23 @@ namespace NekoLib.Pipes
                         Ok = false,
                         Error = new PipeError
                         {
-                            Code = "response_too_large",
+                            Code = PipeErrorCodes.ResponseTooLarge,
                             Message = "Response exceeded the maximum frame size."
                         }
                     };
 
-                    try { await PipeFraming.WriteAsync(pipe, toSend, ct, _o.MaxMessageBytes).ConfigureAwait(false); }
-                    catch { break; }
+                    try
+                    {
+                        await PipeFraming.WriteAsync(
+                            pipe,
+                            toSend,
+                            cancellationToken,
+                            _maxMessageBytes).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        break;
+                    }
                 }
                 catch
                 {
@@ -272,21 +313,19 @@ namespace NekoLib.Pipes
                 }
                 finally
                 {
-                    sw.Stop();
+                    stopwatch.Stop();
                     _metrics.OnServerResponseSent(
-                        _o.PipeName,
+                        _pipeName,
                         request.Name,
                         toSend.Ok,
-                        sw.Elapsed);
+                        stopwatch.Elapsed);
                 }
             }
         }
 
-        // ============================================================
-        // Dispatch
-        // ============================================================
-
-        private async Task<PipeMessage> Dispatch(PipeMessage request, CancellationToken ct)
+        private async Task<PipeMessage> Dispatch(
+            PipeMessage request,
+            CancellationToken cancellationToken)
         {
             if (!_handlers.TryGetValue(request.Name, out var handler))
             {
@@ -298,45 +337,70 @@ namespace NekoLib.Pipes
                     Ok = false,
                     Error = new PipeError
                     {
-                        Code = "not_found",
+                        Code = PipeErrorCodes.NotFound,
                         Message = "Handler '" + request.Name + "' not registered."
                     }
                 };
             }
 
-            var result = await handler(request, ct).ConfigureAwait(false);
-
+            var result = await handler(request, cancellationToken).ConfigureAwait(false);
             result.Id = request.Id;
             result.Type = "res";
             result.Name = request.Name;
-
             return result;
         }
 
-        // ============================================================
-        // Dispose
-        // ============================================================
+        /// <summary>
+        /// Enters terminal shutdown, closes transports, and asynchronously waits
+        /// for all admitted server and event-hub work to finish.
+        /// </summary>
+        public Task ShutdownAsync()
+            => BeginShutdown();
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposeStarted, 1) != 0)
-                return;
+            var completion = BeginShutdown();
+            try { completion.Wait(2000); } catch { }
+        }
 
-            _running = false;
+#if NET9
+        public async ValueTask DisposeAsync()
+        {
+            await ShutdownAsync().ConfigureAwait(false);
+        }
+#endif
 
-            try { _cts?.Cancel(); } catch { }
-            _clientOperations.BeginStop();
-            try { Events?.Dispose(); } catch { }
+        private Task BeginShutdown()
+        {
+            lock (_lifecycleGate)
+            {
+                if (_lifecycleState == Shutdown)
+                    return _shutdownCompletion;
 
-            var acceptTask = _acceptTask ?? Task.CompletedTask;
-            _shutdownCompletion = Task.WhenAll(acceptTask, _clientOperations.Completion)
-                .ContinueWith(
-                    _ => DisposeResources(),
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
+                Volatile.Write(ref _lifecycleState, Shutdown);
+                try { _cts?.Cancel(); } catch { }
+                _clientOperations.BeginStop();
 
-            try { _shutdownCompletion.Wait(2000); } catch { }
+                var acceptTask = _acceptTask ?? Task.CompletedTask;
+                var eventShutdown = Events?.ShutdownAsync() ?? Task.CompletedTask;
+                _shutdownCompletion = CompleteShutdownAsync(
+                    acceptTask,
+                    _clientOperations.Completion,
+                    eventShutdown);
+                return _shutdownCompletion;
+            }
+        }
+
+        private async Task CompleteShutdownAsync(params Task[] tasks)
+        {
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            finally
+            {
+                DisposeResources();
+            }
         }
 
         private void DisposeResources()
@@ -346,6 +410,26 @@ namespace NekoLib.Pipes
 
             _clientLimiter.Dispose();
             _cts?.Dispose();
+        }
+
+        private bool IsRunning => Volatile.Read(ref _lifecycleState) == Running;
+
+        private void ThrowIfShutdown()
+        {
+            if (_lifecycleState == Shutdown)
+                throw new ObjectDisposedException(nameof(PipeServer));
+        }
+
+        private static void ValidateOverflowPolicy(PipeEventQueueOverflowPolicy overflowPolicy)
+        {
+            if (overflowPolicy != PipeEventQueueOverflowPolicy.DropNewest &&
+                overflowPolicy != PipeEventQueueOverflowPolicy.DisconnectSubscriber)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(PipeServerOptions.EventQueueOverflowPolicy),
+                    overflowPolicy,
+                    "Unsupported event queue overflow policy.");
+            }
         }
     }
 }

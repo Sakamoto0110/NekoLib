@@ -16,6 +16,25 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Pipes — breaking, additive, and behavioral pre-stable candidate
+  correction for the first `1.0.0` stable family release.** Removed the no-op
+  `IDisposable`/`IAsyncDisposable` surface from stateless `PipeClient`; each
+  `SendAsync` still owns and closes its stream, so remove `using` around the
+  client. Sealed `SimplePipeMetrics`; custom collectors implement
+  `IPipeMetrics`. Added cross-target `ShutdownAsync` to `PipeServer`,
+  `PipeEventHub`, and `PipeEventClient`, made their lifecycle terminal and
+  race-safe, corrected modern async disposal, and added modern server async
+  disposal. Constructors now capture and validate options instead of retaining
+  live mutable configuration. Metrics callback exceptions are isolated from
+  transport outcomes. Oversized events are rejected before enqueue without
+  disconnecting subscribers or incrementing `Published`. `PipeEventClient`
+  gained isolated `OnError` observation and now raises `OnDisconnected` only
+  for an established connection. Added `PipeErrorCodes` for the four framework
+  wire codes, and made in-flight `net481` connect observe cancellation. The
+  target-specific `JToken?`/`JsonElement?` payload contract, `net481`
+  Newtonsoft.Json dependency, access-policy defaults, bounded event policies,
+  application-defined error codes, and application-owned authorization remain
+  unchanged. See the [F1-PIPE migration guide](docs/migrations/f1-pipes.md).
 - **NekoLib.Devices — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed
   `Protocols.HardwareProtocol`, a public abstract class whose single `Template`

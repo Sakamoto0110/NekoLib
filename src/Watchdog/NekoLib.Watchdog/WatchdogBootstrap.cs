@@ -403,13 +403,13 @@ namespace NekoLib.Watchdog
             try
             {
                 using (var timeoutCts = new CancellationTokenSource())
-                using (var client = new PipeClient(new PipeClientOptions
                 {
-                    PipeName = pipeName,
-                    ConnectTimeout = TimeSpan.FromMilliseconds(timeoutMs),
-                    RequestTimeout = TimeSpan.FromMilliseconds(timeoutMs)
-                }))
-                {
+                    var client = new PipeClient(new PipeClientOptions
+                    {
+                        PipeName = pipeName,
+                        ConnectTimeout = TimeSpan.FromMilliseconds(timeoutMs),
+                        RequestTimeout = TimeSpan.FromMilliseconds(timeoutMs)
+                    });
                     var sendTask = client.SendAsync(
                         command,
                         cancellationToken: timeoutCts.Token);

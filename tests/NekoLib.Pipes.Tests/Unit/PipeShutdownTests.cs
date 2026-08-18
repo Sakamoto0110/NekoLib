@@ -17,8 +17,8 @@ namespace NekoLib.Pipes.Tests.Unit
             var entered = NewSignal();
 
             using (var server = NewServer(name))
-            using (var client = NewClient(name))
             {
+                var client = NewClient(name);
                 server.Map("wait", async (request, cancellationToken) =>
                 {
                     entered.TrySetResult(true);
@@ -46,8 +46,8 @@ namespace NekoLib.Pipes.Tests.Unit
             var release = NewSignal();
 
             using (var server = NewServer(name))
-            using (var client = NewClient(name))
             {
+                var client = NewClient(name);
                 server.Map("wait", async (request, cancellationToken) =>
                 {
                     entered.TrySetResult(true);
@@ -94,7 +94,7 @@ namespace NekoLib.Pipes.Tests.Unit
         }
 
         [Fact]
-        public async Task Dispose_EventSubscriberWithPendingWrite_ClosesAndDrainsOperation()
+        public async Task ShutdownAsync_EventSubscriberWithPendingWrite_ClosesAndDrainsOperation()
         {
             var name = PipeTestUtil.UniqueName();
             var hub = new PipeEventHub(name, maxSubscribers: 2);
@@ -118,13 +118,110 @@ namespace NekoLib.Pipes.Tests.Unit
                     new { text = new string('x', 512 * 1024) });
 
                 var sw = Stopwatch.StartNew();
-                hub.Dispose();
-                await AwaitWithin(hub.ShutdownCompletion, 3000);
+                await AwaitWithin(hub.ShutdownAsync(), 3000);
                 sw.Stop();
 
                 Assert.True(sw.Elapsed < TimeSpan.FromSeconds(3));
                 Assert.Equal(0, hub.SubscriberCount);
                 Assert.Equal(0, hub.ActiveSubscriberOperationCount);
+            }
+        }
+
+        [Fact]
+        public async Task ShutdownAsync_HandlerIgnoringCancellation_WaitsForAdmittedWork()
+        {
+            var name = PipeTestUtil.UniqueName();
+            var entered = NewSignal();
+            var release = NewSignal();
+
+            using (var server = NewServer(name))
+            {
+                var client = NewClient(name);
+                server.Map("wait", async (request, cancellationToken) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task;
+                    return new PipeMessage { Ok = true };
+                });
+                server.Start();
+
+                var requestTask = client.SendAsync("wait");
+                await AwaitWithin(entered.Task, 5000);
+
+                var shutdownTask = server.ShutdownAsync();
+                Assert.False(shutdownTask.IsCompleted);
+                Assert.True(server.ActiveClientOperationCount >= 1);
+
+                release.TrySetResult(true);
+                await AwaitWithin(shutdownTask, 5000);
+
+                Assert.Equal(0, server.ActiveClientOperationCount);
+                Assert.False((await requestTask).Ok);
+            }
+        }
+
+        [Fact]
+        public async Task Handler_CanInitiateShutdownWithoutAwaitingItsOwnOperation()
+        {
+            var name = PipeTestUtil.UniqueName();
+            Task shutdownTask = null;
+
+            using (var server = NewServer(name))
+            {
+                var client = NewClient(name);
+                server.Map("stop", (request, cancellationToken) =>
+                {
+                    shutdownTask = server.ShutdownAsync();
+                    return Task.FromResult(new PipeMessage { Ok = true });
+                });
+                server.Start();
+
+                var response = await client.SendAsync("stop");
+                await AwaitWithin(shutdownTask, 5000);
+
+                Assert.False(response.Ok);
+                Assert.Equal(PipeErrorCodes.ConnectionClosed, response.Error.Code);
+                Assert.Equal(0, server.ActiveClientOperationCount);
+            }
+        }
+
+        [Fact]
+        public async Task ShutdownBeforeStart_IsTerminalForEveryStatefulEndpoint()
+        {
+            var server = NewServer(PipeTestUtil.UniqueName());
+            await server.ShutdownAsync();
+            Assert.Throws<ObjectDisposedException>(() => server.Start());
+            Assert.Throws<ObjectDisposedException>(() => server.Map(
+                "late",
+                (request, cancellationToken) => Task.FromResult(new PipeMessage())));
+
+            var hub = new PipeEventHub(PipeTestUtil.UniqueName(), 1);
+            await hub.ShutdownAsync();
+            Assert.Throws<ObjectDisposedException>(() => hub.Start());
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => hub.PublishAsync("late", null));
+
+            var eventClient = new PipeEventClient(PipeTestUtil.UniqueName());
+            await eventClient.ShutdownAsync();
+            Assert.Throws<ObjectDisposedException>(() => eventClient.Start());
+        }
+
+        [Fact]
+        public async Task ConcurrentServerStarts_AdmitExactlyOneStart()
+        {
+            var server = NewServer(PipeTestUtil.UniqueName());
+            using (var gate = new ManualResetEventSlim(false))
+            {
+                var first = AttemptStart(server, gate);
+                var second = AttemptStart(server, gate);
+                gate.Set();
+
+                var firstError = await first;
+                var secondError = await second;
+
+                Assert.True((firstError == null) ^ (secondError == null));
+                Assert.IsType<InvalidOperationException>(firstError ?? secondError);
+                await server.ShutdownAsync();
             }
         }
 
@@ -152,6 +249,17 @@ namespace NekoLib.Pipes.Tests.Unit
             var winner = await Task.WhenAny(task, Task.Delay(timeoutMs));
             Assert.Same(task, winner);
             await task;
+        }
+
+        private static Task<Exception> AttemptStart(
+            PipeServer server,
+            ManualResetEventSlim gate)
+        {
+            return Task.Run(() =>
+            {
+                gate.Wait();
+                return Record.Exception(() => server.Start());
+            });
         }
     }
 }

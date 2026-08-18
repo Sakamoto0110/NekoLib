@@ -54,8 +54,8 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
             if (client != null) return await client.SendAsync(name, payload, Ct).ConfigureAwait(false);
 
-            using (PipeClient owned = NewClient())
-                return await owned.SendAsync(name, payload, Ct).ConfigureAwait(false);
+            PipeClient owned = NewClient();
+            return await owned.SendAsync(name, payload, Ct).ConfigureAwait(false);
         }
 
         public static async Task<Exception?> CaptureAsync(Func<Task> call)
@@ -139,23 +139,21 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         {
                             int wrong = 0;
 
-                            using (PipeClient client = context.NewClient())
+                            PipeClient client = context.NewClient();
+                            for (int i = 0; i < each; i++)
                             {
-                                for (int i = 0; i < each; i++)
-                                {
-                                    string marker = "w" + id + "-" + i;
-                                    PipeMessage response = await context
-                                        .SendAsync(Ops.Echo, Payload.Make(marker, 256), client)
-                                        .ConfigureAwait(false);
+                                string marker = "w" + id + "-" + i;
+                                PipeMessage response = await context
+                                    .SendAsync(Ops.Echo, Payload.Make(marker, 256), client)
+                                    .ConfigureAwait(false);
 
-                                    string? text = Payload.Text(response);
-                                    if (!response.Ok || text == null ||
-                                        !text.StartsWith(marker, StringComparison.Ordinal))
-                                    {
-                                        wrong++;
-                                    }
-                                    else context.Counters.Success();
+                                string? text = Payload.Text(response);
+                                if (!response.Ok || text == null ||
+                                    !text.StartsWith(marker, StringComparison.Ordinal))
+                                {
+                                    wrong++;
                                 }
+                                else context.Counters.Success();
                             }
 
                             return wrong;
@@ -182,13 +180,15 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     PipeMessage missing = await context.SendAsync(Ops.Missing, "x").ConfigureAwait(false);
                     check.That(!missing.Ok, "an unmapped operation reported success");
                     check.That(missing.Error != null, "an unmapped operation returned no error");
-                    check.Equal("not_found", missing.Error!.Code, "error code for an unmapped operation");
+                    check.Equal(PipeErrorCodes.NotFound, missing.Error!.Code,
+                        "error code for an unmapped operation");
                     context.Counters.ExpectedFailure();
 
                     PipeMessage boom = await context.SendAsync(Ops.Boom, "x").ConfigureAwait(false);
                     check.That(!boom.Ok, "a throwing handler reported success");
                     check.That(boom.Error != null, "a throwing handler returned no error");
-                    check.Equal("exception", boom.Error!.Code, "error code for a throwing handler");
+                    check.Equal(PipeErrorCodes.Exception, boom.Error!.Code,
+                        "error code for a throwing handler");
                     context.Counters.ExpectedFailure();
 
                     // The connection must remain usable after both.
@@ -209,11 +209,9 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                     System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
                     Exception? failure;
 
-                    using (PipeClient impatient = context.NewClient(TimeSpan.FromMilliseconds(400)))
-                    {
-                        failure = await PhaseContext.CaptureAsync(() =>
-                            context.SendAsync(Ops.Slow, "3000", impatient)).ConfigureAwait(false);
-                    }
+                    PipeClient impatient = context.NewClient(TimeSpan.FromMilliseconds(400));
+                    failure = await PhaseContext.CaptureAsync(() =>
+                        context.SendAsync(Ops.Slow, "3000", impatient)).ConfigureAwait(false);
 
                     clock.Stop();
 
@@ -247,14 +245,12 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                     for (int i = 0; i < cycles; i++)
                     {
-                        using (PipeClient client = context.NewClient())
-                        {
-                            PipeMessage response = await context
-                                .SendAsync(Ops.Echo, "cycle-" + i, client).ConfigureAwait(false);
+                        PipeClient client = context.NewClient();
+                        PipeMessage response = await context
+                            .SendAsync(Ops.Echo, "cycle-" + i, client).ConfigureAwait(false);
 
-                            check.That(response.Ok, "cycle " + i + " failed: " + Payload.Describe(response));
-                            context.Counters.Success();
-                        }
+                        check.That(response.Ok, "cycle " + i + " failed: " + Payload.Describe(response));
+                        context.Counters.Success();
                     }
 
                     check.Note(cycles + " client-initiated connect/request/disconnect cycles all succeeded");
@@ -401,18 +397,16 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                 {
                     Exception? failure;
 
-                    using (PipeClient client = context.NewClient())
-                    {
-                        failure = await PhaseContext.CaptureAsync(() =>
-                            context.SendAsync(Ops.Echo, Payload.Make("huge", 200 * 1024), client))
-                            .ConfigureAwait(false);
+                    PipeClient client = context.NewClient();
+                    failure = await PhaseContext.CaptureAsync(() =>
+                        context.SendAsync(Ops.Echo, Payload.Make("huge", 200 * 1024), client))
+                        .ConfigureAwait(false);
 
-                        check.That(failure != null, "an over-limit request was accepted");
-                        check.Note("over-limit request surfaced as " + failure!.GetType().Name + ": " +
-                                   Payload.Flatten(failure.Message));
+                    check.That(failure != null, "an over-limit request was accepted");
+                    check.Note("over-limit request surfaced as " + failure!.GetType().Name + ": " +
+                               Payload.Flatten(failure.Message));
 
-                        context.Counters.ExpectedFailure();
-                    }
+                    context.Counters.ExpectedFailure();
 
                     PipeMessage after = await context.SendAsync(Ops.Echo, "after-oversize").ConfigureAwait(false);
                     check.That(after.Ok, "an ordinary request after an over-limit one failed");
@@ -432,7 +426,8 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
 
                     check.That(!response.Ok, "an over-limit response was delivered");
                     check.That(response.Error != null, "an over-limit response carried no error");
-                    check.Equal("response_too_large", response.Error!.Code, "error code for an over-limit response");
+                    check.Equal(PipeErrorCodes.ResponseTooLarge, response.Error!.Code,
+                        "error code for an over-limit response");
                     context.Counters.ExpectedFailure();
 
                     PipeMessage after = await context.SendAsync(Ops.Echo, "after-fat").ConfigureAwait(false);
@@ -524,16 +519,14 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                         // Admit work, then dispose underneath it.
                         Task<Exception?> inFlight = Task.Run(async () =>
                         {
-                            using (PipeClient client = new PipeClient(new PipeClientOptions
+                            PipeClient client = new PipeClient(new PipeClientOptions
                             {
                                 PipeName = name,
                                 ConnectTimeout = TimeSpan.FromSeconds(5),
                                 RequestTimeout = TimeSpan.FromSeconds(5)
-                            }))
-                            {
-                                return await PhaseContext.CaptureAsync(() =>
-                                    client.SendAsync(Ops.Slow, "300", context.Ct)).ConfigureAwait(false);
-                            }
+                            });
+                            return await PhaseContext.CaptureAsync(() =>
+                                client.SendAsync(Ops.Slow, "300", context.Ct)).ConfigureAwait(false);
                         }, context.Ct);
 
                         await Task.Delay(120, context.Ct).ConfigureAwait(false);
@@ -589,19 +582,17 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
                             "rebinding the released name threw " +
                             (rebind == null ? string.Empty : rebind.GetType().Name));
 
-                        using (PipeClient client = new PipeClient(new PipeClientOptions
+                        PipeClient client = new PipeClient(new PipeClientOptions
                         {
                             PipeName = name,
                             ConnectTimeout = TimeSpan.FromSeconds(5),
                             RequestTimeout = TimeSpan.FromSeconds(5)
-                        }))
-                        {
-                            PipeMessage response = await client
-                                .SendAsync(Ops.Echo, "rebound", context.Ct).ConfigureAwait(false);
+                        });
+                        PipeMessage response = await client
+                            .SendAsync(Ops.Echo, "rebound", context.Ct).ConfigureAwait(false);
 
-                            check.That(response.Ok, "the rebound server did not answer");
-                            context.Counters.Success();
-                        }
+                        check.That(response.Ok, "the rebound server did not answer");
+                        context.Counters.Success();
                     }
 
                     check.Note("disposed under load, released the name, rebound it and served a request on it");

@@ -1,24 +1,41 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
+
 namespace NekoLib.Pipes
 {
-    
-
-    public sealed class PipeClient : IDisposable
-#if NET9
-    , IAsyncDisposable
-#endif
+    /// <summary>
+    /// Sends independent request/response calls. Each call owns its pipe stream;
+    /// the client itself owns no persistent transport and requires no disposal.
+    /// </summary>
+    public sealed class PipeClient
     {
-        private readonly PipeClientOptions _o;
+        private readonly string _pipeName;
+        private readonly TimeSpan _connectTimeout;
+        private readonly TimeSpan _requestTimeout;
+        private readonly int _maxMessageBytes;
         private readonly IPipeMetrics _metrics;
 
         public PipeClient(PipeClientOptions options)
         {
-            _o = options ?? throw new ArgumentNullException(nameof(options));
-            _metrics = options.Metrics ?? NoopPipeMetrics.Instance;
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
+
+            _pipeName = PipeConfiguration.RequirePipeName(
+                options.PipeName,
+                nameof(PipeClientOptions.PipeName));
+            _connectTimeout = PipeConfiguration.RequirePositiveTimeout(
+                options.ConnectTimeout,
+                nameof(PipeClientOptions.ConnectTimeout));
+            _requestTimeout = PipeConfiguration.RequirePositiveTimeout(
+                options.RequestTimeout,
+                nameof(PipeClientOptions.RequestTimeout));
+            _maxMessageBytes = PipeConfiguration.RequirePositive(
+                options.MaxMessageBytes,
+                nameof(PipeClientOptions.MaxMessageBytes));
+            _metrics = PipeMetricsGuard.Protect(options.Metrics ?? NoopPipeMetrics.Instance);
         }
 
         public async Task<PipeMessage> SendAsync(
@@ -30,7 +47,6 @@ namespace NekoLib.Pipes
                 throw new ArgumentException("Command name required.", nameof(name));
 
             var request = CreateRequest(name, payload);
-
             var swTotal = Stopwatch.StartNew();
             NamedPipeClientStream? pipe = null;
 
@@ -38,39 +54,45 @@ namespace NekoLib.Pipes
             {
                 pipe = new NamedPipeClientStream(
                     ".",
-                    _o.PipeName,
+                    _pipeName,
                     PipeDirection.InOut,
                     PipeOptions.Asynchronous);
 
                 await ConnectAsync(pipe, cancellationToken).ConfigureAwait(false);
+                _metrics.OnClientRequest(_pipeName, name);
 
-                _metrics.OnClientRequest(_o.PipeName, name);
+                using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken))
+                {
+                    timeoutCts.CancelAfter(_requestTimeout);
+                    await PipeFraming.WriteAsync(
+                        pipe,
+                        request,
+                        timeoutCts.Token,
+                        _maxMessageBytes).ConfigureAwait(false);
+                    var response = await PipeFraming.TryReadAsync(
+                        pipe,
+                        timeoutCts.Token,
+                        _maxMessageBytes).ConfigureAwait(false)
+                        ?? ConnectionClosedResponse(request);
 
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(_o.RequestTimeout);
+                    ValidateCorrelation(request, response);
 
-#if NET9
-            await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
-            var response = await PipeFraming.TryReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false)
-                ?? ConnectionClosedResponse(request);
-#else
-                await PipeFraming.WriteAsync(pipe, request, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false);
-                var response = await PipeFraming.TryReadAsync(pipe, timeoutCts.Token, _o.MaxMessageBytes).ConfigureAwait(false)
-                    ?? ConnectionClosedResponse(request);
-#endif
+                    swTotal.Stop();
+                    _metrics.OnClientResponse(
+                        _pipeName,
+                        name,
+                        response.Ok,
+                        swTotal.Elapsed,
+                        response.Ok ? null : response.Error?.Code);
 
-                ValidateCorrelation(request, response);
-
-                swTotal.Stop();
-                _metrics.OnClientResponse(_o.PipeName, name, response.Ok, swTotal.Elapsed,
-                    response.Ok ? null : response.Error?.Code);
-
-                return response;
+                    return response;
+                }
             }
             catch (Exception ex)
             {
                 swTotal.Stop();
-                _metrics.OnError(_o.PipeName, "client_send", ex);
+                _metrics.OnError(_pipeName, "client_send", ex);
                 throw;
             }
             finally
@@ -79,31 +101,35 @@ namespace NekoLib.Pipes
             }
         }
 
-        private async Task ConnectAsync(NamedPipeClientStream pipe, CancellationToken ct)
+        private async Task ConnectAsync(NamedPipeClientStream pipe, CancellationToken cancellationToken)
         {
             var sw = Stopwatch.StartNew();
 
             try
             {
-#if NET9
-            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            connectCts.CancelAfter(_o.ConnectTimeout);
-            await pipe.ConnectAsync(connectCts.Token).ConfigureAwait(false);
-#else
-                await Task.Run(() =>
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken))
                 {
-                    pipe.Connect((int)_o.ConnectTimeout.TotalMilliseconds);
-                }).ConfigureAwait(false);
+                    connectCts.CancelAfter(_connectTimeout);
+#if NET9
+                    await pipe.ConnectAsync(connectCts.Token).ConfigureAwait(false);
+#else
+                    var connectTask = Task.Run(
+                        () => pipe.Connect(PipeConfiguration.ToTimeoutMilliseconds(_connectTimeout)));
+                    await PipeTaskCancellation.WithCancellation(
+                        connectTask,
+                        connectCts.Token).ConfigureAwait(false);
 #endif
+                }
 
                 sw.Stop();
-                _metrics.OnClientConnect(_o.PipeName, sw.Elapsed, true, null);
+                _metrics.OnClientConnect(_pipeName, sw.Elapsed, true, null);
             }
             catch (Exception ex)
             {
                 sw.Stop();
-                _metrics.OnClientConnect(_o.PipeName, sw.Elapsed, false, "connect_failed");
-                _metrics.OnError(_o.PipeName, "client_connect", ex);
+                _metrics.OnClientConnect(_pipeName, sw.Elapsed, false, "connect_failed");
+                _metrics.OnError(_pipeName, "client_connect", ex);
                 throw;
             }
         }
@@ -127,7 +153,7 @@ namespace NekoLib.Pipes
                 Ok = false,
                 Error = new PipeError
                 {
-                    Code = "connection_closed",
+                    Code = PipeErrorCodes.ConnectionClosed,
                     Message = "The pipe closed before a response frame was received."
                 }
             };
@@ -136,16 +162,16 @@ namespace NekoLib.Pipes
         private static PipeMessage CreateRequest(string name, object? payload)
         {
 #if NET9
-        return new PipeMessage
-        {
-            Id = Guid.NewGuid(),
-            Type = "req",
-            Name = name,
-            Ok = true,
-            Data = payload == null
-                ? null
-                : System.Text.Json.JsonSerializer.SerializeToElement(payload)
-        };
+            return new PipeMessage
+            {
+                Id = Guid.NewGuid(),
+                Type = "req",
+                Name = name,
+                Ok = true,
+                Data = payload == null
+                    ? null
+                    : System.Text.Json.JsonSerializer.SerializeToElement(payload)
+            };
 #else
             return new PipeMessage
             {
@@ -159,23 +185,5 @@ namespace NekoLib.Pipes
             };
 #endif
         }
-
-        public void Dispose()
-        {
-            // currently stateless (per-call connection)
-            // reserved for future persistent connection model
-        }
-
-#if NET9
-    public ValueTask DisposeAsync()
-    {
-        Dispose();
-        return ValueTask.CompletedTask;
     }
-#endif
-    }
-
-
 }
-
-

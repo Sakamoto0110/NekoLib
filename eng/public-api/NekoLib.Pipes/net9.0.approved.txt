@@ -35,11 +35,9 @@ namespace NekoLib.Pipes
         PlatformDefault = 0,
         CurrentUserOnly = 1,
     }
-    public sealed class PipeClient : System.IAsyncDisposable, System.IDisposable
+    public sealed class PipeClient
     {
         public PipeClient(NekoLib.Pipes.PipeClientOptions options) { }
-        public void Dispose() { }
-        public System.Threading.Tasks.ValueTask DisposeAsync() { }
         public System.Threading.Tasks.Task<NekoLib.Pipes.PipeMessage> SendAsync(string name, object? payload = null, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class PipeClientOptions
@@ -57,6 +55,13 @@ namespace NekoLib.Pipes
         public string Code { get; set; }
         public string Message { get; set; }
     }
+    public static class PipeErrorCodes
+    {
+        public const string ConnectionClosed = "connection_closed";
+        public const string Exception = "exception";
+        public const string NotFound = "not_found";
+        public const string ResponseTooLarge = "response_too_large";
+    }
     public sealed class PipeEventClient : System.IAsyncDisposable, System.IDisposable
     {
         public PipeEventClient(string basePipeName) { }
@@ -65,9 +70,11 @@ namespace NekoLib.Pipes
         public System.TimeSpan ReconnectDelay { get; set; }
         public event System.Action? OnConnected;
         public event System.Action? OnDisconnected;
+        public event System.Action<System.Exception>? OnError;
         public event System.Action<NekoLib.Pipes.PipeMessage>? OnEvent;
         public void Dispose() { }
         public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public System.Threading.Tasks.Task ShutdownAsync() { }
         public void Start() { }
     }
     public sealed class PipeEventHub : System.IAsyncDisposable, System.IDisposable
@@ -79,6 +86,7 @@ namespace NekoLib.Pipes
         public void Dispose() { }
         public System.Threading.Tasks.ValueTask DisposeAsync() { }
         public System.Threading.Tasks.Task PublishAsync(string eventName, object? payload, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task ShutdownAsync() { }
         public void Start() { }
     }
     public enum PipeEventQueueOverflowPolicy
@@ -142,13 +150,15 @@ namespace NekoLib.Pipes
             public long Success { get; }
         }
     }
-    public sealed class PipeServer : System.IDisposable
+    public sealed class PipeServer : System.IAsyncDisposable, System.IDisposable
     {
         public PipeServer(NekoLib.Pipes.PipeServerOptions options) { }
         public NekoLib.Pipes.PipeAccessPolicy AccessPolicy { get; }
         public NekoLib.Pipes.PipeEventHub? Events { get; }
         public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
         public void Map(string name, System.Func<NekoLib.Pipes.PipeMessage, System.Threading.CancellationToken, System.Threading.Tasks.Task<NekoLib.Pipes.PipeMessage>> handler) { }
+        public System.Threading.Tasks.Task ShutdownAsync() { }
         public void Start() { }
     }
     public sealed class PipeServerOptions
@@ -165,7 +175,7 @@ namespace NekoLib.Pipes
         public NekoLib.Pipes.IPipeMetrics? Metrics { get; set; }
         public string PipeName { get; set; }
     }
-    public class SimplePipeMetrics : NekoLib.Pipes.IPipeMetrics
+    public sealed class SimplePipeMetrics : NekoLib.Pipes.IPipeMetrics
     {
         public SimplePipeMetrics() { }
         public void OnClientConnect(string pipeName, System.TimeSpan elapsed, bool ok, string? errorCode) { }

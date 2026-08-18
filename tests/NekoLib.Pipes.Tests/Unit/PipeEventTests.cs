@@ -132,6 +132,54 @@ namespace NekoLib.Pipes.Tests.Unit
             }
         }
 
+        [Fact]
+        public async Task OversizedPublish_IsRejectedWithoutDisconnectingSubscriberOrCountingPublication()
+        {
+            var name = PipeTestUtil.UniqueName();
+            var metrics = new SimplePipeMetrics();
+
+            using (var hub = new PipeEventHub(
+                name,
+                2,
+                PipeAccessPolicy.PlatformDefault,
+                subscriberQueueCapacity: 4,
+                PipeEventQueueOverflowPolicy.DropNewest,
+                metrics))
+            using (var received = new ManualResetEventSlim(false))
+            using (var client = new PipeEventClient(name))
+            {
+                client.OnEvent += message =>
+                {
+                    if (message.Name == "after")
+                        received.Set();
+                };
+                hub.Start();
+                client.Start();
+
+                Assert.True(
+                    PipeTestUtil.WaitUntil(() => hub.SubscriberCount == 1, 5000),
+                    "subscriber never connected");
+
+                await Assert.ThrowsAnyAsync<InvalidOperationException>(() =>
+                    hub.PublishAsync("oversized", new { text = new string('x', 1_200_000) }));
+
+                Assert.Equal(1, hub.SubscriberCount);
+                Assert.Equal(0L, metrics.Snapshot().Events.Published);
+
+                await hub.PublishAsync("after", new { value = 1 });
+
+                Assert.True(received.Wait(5000), "normal event after rejection was not delivered");
+                Assert.True(
+                    PipeTestUtil.WaitUntil(
+                        () => metrics.Snapshot().Events.Published == 1,
+                        5000),
+                    "normal publication metrics did not complete");
+                Assert.Equal(1L, metrics.Snapshot().Events.Delivered);
+                Assert.Equal(0L, metrics.Snapshot().Events.Failed);
+                Assert.Equal(1, hub.SubscriberCount);
+            }
+        }
+
         [Theory]
         [InlineData(PipeAccessPolicy.PlatformDefault)]
         [InlineData(PipeAccessPolicy.CurrentUserOnly)]

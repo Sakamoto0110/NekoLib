@@ -46,13 +46,13 @@ namespace NekoLib.Pipes.Tests.Unit
                 EnableEvents = false,
                 AccessPolicy = PipeAccessPolicy.CurrentUserOnly
             }))
-            using (var client = new PipeClient(new PipeClientOptions
             {
-                PipeName = name,
-                ConnectTimeout = TimeSpan.FromSeconds(3),
-                RequestTimeout = TimeSpan.FromSeconds(3)
-            }))
-            {
+                var client = new PipeClient(new PipeClientOptions
+                {
+                    PipeName = name,
+                    ConnectTimeout = TimeSpan.FromSeconds(3),
+                    RequestTimeout = TimeSpan.FromSeconds(3)
+                });
                 server.Map(
                     "ping",
                     (request, cancellationToken) =>

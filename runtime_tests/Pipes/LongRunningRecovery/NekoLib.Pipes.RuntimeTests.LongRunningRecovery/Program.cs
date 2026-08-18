@@ -619,16 +619,14 @@ namespace NekoLib.Pipes.RuntimeTests.LongRunningRecovery
             {
                 Exception? asked = await PhaseContext.CaptureAsync(async () =>
                 {
-                    using (NekoLib.Pipes.PipeClient client = new NekoLib.Pipes.PipeClient(
+                    NekoLib.Pipes.PipeClient client = new NekoLib.Pipes.PipeClient(
                         new NekoLib.Pipes.PipeClientOptions
                         {
                             PipeName = _pipeName,
                             ConnectTimeout = TimeSpan.FromSeconds(3),
                             RequestTimeout = TimeSpan.FromSeconds(3)
-                        }))
-                    {
-                        await client.SendAsync(Ops.Shutdown, null, CancellationToken.None).ConfigureAwait(false);
-                    }
+                        });
+                    await client.SendAsync(Ops.Shutdown, null, CancellationToken.None).ConfigureAwait(false);
                 }).ConfigureAwait(false);
 
                 artifacts.Out("  server   graceful shutdown " +
