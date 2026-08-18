@@ -2,22 +2,24 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-WDOG compiled public surface, application and advanced-runtime
 entry points, configuration ownership, process lifecycle, control IPC, log and
 crash evidence, target behavior, security boundary, and library package
 
-**Status:** review complete; decision pending; no disposition implemented
+**Status:** review complete; all eight accepted dispositions implemented in
+`6580b6f6ece4bd7c90f4cc80cd7e1f01d47eace6`
 
 **Reference date:** 2026-08-18
 
 **Reference commit:** `075bb7520dedd80dc853d6dac57c53e9e5b8aea7`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-18
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-WDOG remains open and is the
-sole authority for accepted work
+**Current state:** [`TODO.md`](../../TODO.md) F1-WDOG is complete; the
+[Watchdog technical reference](../../src/Watchdog/NekoLib.Watchdog/README.md)
+owns the current contract, while F1-WDOG-HOST remains open
 
 ## Baseline and worktree
 
@@ -746,3 +748,57 @@ F1-WDOG remains open. This review produces only this audit and its two current
 index entries. It implements no correction, accepts no proposal, changes no
 public API baseline, produces no module reference, migration, changelog, Host
 payload, package, publish, or push, and runs no runtime scenario.
+
+## Implementation reconciliation — 2026-08-18
+
+The user accepted all eight decision-gate proposals. Commit
+`6580b6f6ece4bd7c90f4cc80cd7e1f01d47eace6` implemented WDOG-01 through WDOG-12
+within the accepted boundaries:
+
+- `WatchdogBootstrap` remains the default application entry,
+  `WatchdogController` remains the current-application facade, and direct
+  `WatchdogRuntime` is a deliberate advanced extension.
+- Runtime options are captured without mutating the caller, the sink array is
+  copied, and the effective pipe name is read from `WatchdogRuntime.PipeName`.
+  Public update placeholders were removed; the internal update wire command
+  remains explicitly `not_implemented` pending F1-WDOG-HOST.
+- The obsolete raw log server was removed. Crash-bundling options, hotkey and
+  file helpers, batch forwarding, and non-control command constants became
+  implementation details. The public surface contains no experimental API.
+- Start, wait, stop, and dispose now share one terminal lifecycle. Shutdown
+  interrupts cooldown, drains owned workers, releases process handles, and
+  resolves the system `taskkill.exe`; `Stop(bool)` became `Stop()`.
+- Hotkeys remain enabled by default and can be disabled through
+  `WatchdogOptions.EnableHotkeys`; enabled registration failures are logged.
+- Controller mutations return exact acknowledgement success. Notifications
+  remain fail-soft. `LogEvent.MetaJson` is nullable serializer-neutral JSON
+  text, optional wire fields are nullable, and callback failures are isolated.
+- Status evidence distinguishes replay-history eviction, live event-queue
+  drops, and publication failures. Restart count is consistent across launch
+  and attach, and crash finalization reports complete, partial, failed, or no
+  pending evidence internally.
+- Targets, project/package dependencies, deterministic identity,
+  `CurrentUserOnly`, cooperative same-user security, and separate Host-package
+  ownership were preserved.
+
+Validation after implementation:
+
+| Command | Result |
+|---|---|
+| focused Watchdog tests, `net481` | **92 passed**, 0 failed, 0 skipped |
+| focused Watchdog tests, `net9.0-windows` | **92 passed**, 0 failed, 0 skipped |
+| `dotnet test NekoLib.sln -m:1 --no-restore` | **1,614 passed**, 0 failed, 0 skipped |
+| `dotnet build NekoLib.sln -t:Rebuild --no-restore -m:1` | succeeded with 340 existing warning occurrences and 0 errors |
+| `eng/verify-docs.ps1 -BuildLogPath <captured-rebuild-log>` | passed; no new warning identity and 68 baseline identities not emitted |
+| four versioned Watchdog runtime-scenario project builds | succeeded for applicable targets with 0 warnings and 0 errors; not launched |
+| `eng/verify-public-api.ps1 -PackageId NekoLib.Watchdog` | both reviewed manifests verified after the accepted baseline update |
+| `git diff --check` and `git diff --cached --check` | passed |
+
+The focused regressions close the original lifecycle, option-mutation,
+counter-split, metadata-parity, callback-isolation, system-taskkill-path, JSON,
+and crash-outcome gaps. Residual evidence is intentionally narrower than a
+release claim: no interactive hotkey or window-activation probe, actual
+`taskkill` termination, cross-user/elevation or hostile same-user probe,
+packaged-sidecar run, long-running crash/recovery campaign, immutable package,
+publish, or push was produced. Host deployment layout and protocol release
+evidence remain F1-WDOG-HOST work.

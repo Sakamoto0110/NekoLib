@@ -698,7 +698,7 @@ consumers does not prove that a public member is unused.
     cross-user/elevation security probe, package, publish, or push was produced;
     those residual release-evidence gaps remain outside this completed module
     implementation and, where applicable, under the F1 completion gate.
-12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
+12. [x] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
     advanced consumer surface or Host infrastructure, then finalize bootstrap,
     controller, options, IPC, process, and ownership contracts.
     **Accepted 2026-08-18:** retain `WatchdogBootstrap` as the default
@@ -725,9 +725,20 @@ consumers does not prove that a public member is unused.
     experimental API, or Host packaging work. The accepted rationale,
     compatibility impact, migration, and rejected alternatives are recorded in
     [`docs/audit/watchdog-public-api-review-2026-08-18.md`](docs/audit/watchdog-public-api-review-2026-08-18.md).
-    Keep this item open until implementation, dual-target regressions, reviewed
-    API manifests, current technical reference, changelog, migration guidance,
-    and focused validation are complete.
+    **Implemented 2026-08-18 in `6580b6f`.** All eight accepted dispositions
+    landed together with the reviewed dual-target API manifests, current
+    technical reference, changelog, and migration guide. The focused Watchdog
+    suite passed 92/92 tests on both `net481` and `net9.0-windows`; the full
+    solution passed 1,614/1,614 tests. The clean solution rebuild completed with
+    340 pre-existing warning occurrences, zero errors, no new warning identity,
+    and 68 former identities not emitted. The four versioned Watchdog
+    runtime-scenario projects compiled for their applicable targets with zero
+    warnings and errors but were not launched. Public API verification passed
+    against both updated baselines, documentation and warning verification
+    passed, and both Git diff checks passed. No interactive hotkey, visible
+    window, taskkill, cross-user/elevation, packaged sidecar, long-running
+    crash/recovery, immutable-package, publish, or push evidence was produced;
+    Host deployment and wire release finalization remain under F1-WDOG-HOST.
 13. [ ] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
     payload layout, build targets, bootstrap arguments, and Host/application
     protocol rather than treating the executable as a compile-time API.

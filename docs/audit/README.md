@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-18
 
-**Reference commit:** working tree after `075bb75`
+**Reference commit:** working tree after `6580b6f`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -41,7 +41,7 @@ and active freezes belong in [`TODO.md`](../../TODO.md).
 | [`repository-hygiene-phase-c-readiness-2026-08-01.md`](repository-hygiene-phase-c-readiness-2026-08-01.md) | Phase C readiness | historical; complete | 2026-08-01 | `88b07d83f037db6bf13eab34ac3f5abafba787b1` | 2026-08-01 | [`TODO.md`](../../TODO.md) |
 | [`telemetry-public-api-review-2026-08-17.md`](telemetry-public-api-review-2026-08-17.md) | Telemetry F1 public API finalization | historical; all dispositions implemented and package-validated | 2026-08-17 | `6480c9e57a42af3490eeda55b0f66400e75782cd` | 2026-08-17 | [Telemetry reference](../../src/Telemetry/NekoLib.Telemetry/README.md), [`TODO.md`](../../TODO.md) F1-TEL |
 | [`watchdog-first-pass.md`](watchdog-first-pass.md) | Watchdog first-pass review | historical | 2026-06-04 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
-| [`watchdog-public-api-review-2026-08-18.md`](watchdog-public-api-review-2026-08-18.md) | Watchdog F1 public API, application/advanced-runtime, lifecycle, process, IPC, evidence, target, security, and package review | current; review complete, decision pending | 2026-08-18 | `075bb7520dedd80dc853d6dac57c53e9e5b8aea7` | none | [`TODO.md`](../../TODO.md) F1-WDOG |
+| [`watchdog-public-api-review-2026-08-18.md`](watchdog-public-api-review-2026-08-18.md) | Watchdog F1 public API, application/advanced-runtime, lifecycle, process, IPC, evidence, target, security, and package review | historical; all eight dispositions implemented | 2026-08-18 | `075bb7520dedd80dc853d6dac57c53e9e5b8aea7` | 2026-08-18 | [Watchdog reference](../../src/Watchdog/NekoLib.Watchdog/README.md), [`TODO.md`](../../TODO.md) F1-WDOG |
 
 `not recorded` is intentional: an audit's first appearance in Git does not
 prove which commit its author reviewed.
