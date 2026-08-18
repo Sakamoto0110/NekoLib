@@ -16,8 +16,8 @@ namespace NekoLib.Watchdog.Tests.Unit
             return new WatchdogOptions
             {
                 // The watchdog derives its pipe + Global\ single-instance semaphore name
-                // from a hash of the target path (Normalize, by design, ignores any
-                // explicit PipeName). Tests all driving the same cmd.exe would therefore
+                // from a hash of the captured target path. Tests all driving the same
+                // cmd.exe would therefore
                 // share one OS kernel object and collide — especially since net481 and
                 // net9.0-windows test runs execute as parallel processes. Give each test
                 // its own private copy of cmd.exe so the derived identity is unique.
@@ -27,6 +27,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 RestartDelayMs = 500,
                 MonitorPollMs = 50,
                 HeartbeatIntervalMs = 0,
+                EnableHotkeys = false,
                 GracefulKillTimeoutMs = 100,
                 ForceKillTimeoutMs = 1000
             };

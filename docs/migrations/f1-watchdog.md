@@ -1,0 +1,154 @@
+# F1-WDOG Migration — Watchdog
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Watchdog candidate surface to the
+accepted F1-WDOG application facade, advanced runtime, ownership, lifecycle,
+control, evidence, target, and security contracts
+
+**Reference date:** 2026-08-18
+
+The complete current contract is owned by the
+[Watchdog reference](../../src/Watchdog/NekoLib.Watchdog/README.md).
+
+These are pre-stable corrections for the first `1.0.0` family candidate. Rebuild
+consumers after applying the source migrations below.
+
+## Breaking: runtime output no longer mutates options
+
+`WatchdogOptions.Normalize()` and `WatchdogOptions.PipeName` were removed.
+Constructing a runtime now captures normalized values without changing the
+caller's object. Read the effective identity from the runtime:
+
+```csharp
+// before
+var options = new WatchdogOptions { TargetPath = target };
+using var runtime = new WatchdogRuntime(options);
+var pipeName = options.PipeName;
+
+// after
+var options = new WatchdogOptions { TargetPath = target };
+using var runtime = new WatchdogRuntime(options);
+var pipeName = runtime.PipeName;
+```
+
+Apply every option before construction. Later property or outer `LogSinks`
+array mutation no longer changes the runtime. Supplied sink and telemetry
+objects remain caller-owned.
+
+## Breaking: unsupported update placeholders were removed
+
+Delete assignments to `EnableUpdates`, `UpdateStagingRoot`,
+`UseAtomicDirectorySwap`, and `BackupFolderName`. There is no replacement:
+Watchdog update orchestration is not implemented. The internal wire response
+remains `not_implemented` until the Host protocol is finalized separately.
+
+## Breaking: utility implementation is no longer public
+
+The following were not supported independent consumer boundaries and are now
+internal or removed:
+
+- `CrashBundler` and `CrashBundlerOptions`;
+- `WatchdogHotkeys`;
+- `WatchdogLogFile`;
+- `WatchdogController.NotifyLogBatch`;
+- `WatchdogCommands.LogHistory`, `ExceptionNotify`, and `AttachStatus`; and
+- the obsolete `WatchdogLogPipeServer`.
+
+Crash finalization is configured through `WatchdogOptions` and owned by
+`WatchdogRuntime`. Raw log consumers move to
+`WatchdogController.SubscribeLogs` or `SubscribeLogLines`. Custom supervisors
+retain the six public control command constants.
+
+## Breaking: `Stop(bool)` became terminal `Stop()`
+
+The `exitHost` argument never selected a distinct behavior and was removed:
+
+```csharp
+// before
+runtime.Stop(true);
+runtime.Stop(false);
+
+// after
+runtime.Stop();
+```
+
+Start is one-shot. Stop before start, a failed start, normal stop, and disposal
+all reach the same terminal state. Concurrent stop/dispose callers join one
+cleanup. `WaitForExit` now requires a successful start and waits for complete
+terminal cleanup. Construct a new runtime instead of restarting a stopped one.
+
+## Breaking: mutating controller operations return success
+
+`Pause`, `Resume`, `Restart`, and `Stop` changed from `void` to `bool`. Existing
+source statements may ignore the value after recompilation, but code that
+reports success should check it:
+
+```csharp
+if (!WatchdogController.Restart())
+    ShowRestartUnavailable();
+```
+
+The result is true only for the expected accepted acknowledgement. `Ping`
+remains boolean, `Status` retains serialized/error-string evidence, and crash
+and log notification remain fail-soft.
+
+## Breaking: `LogEvent.Meta` became `MetaJson`
+
+`object Meta` exposed a `JToken` on `net481` and a string on the modern target.
+Use nullable target-neutral JSON text:
+
+```csharp
+subscription = WatchdogController.SubscribeLogs(entry =>
+{
+    if (entry.MetaJson != null)
+        ParseApplicationMetadata(entry.MetaJson);
+});
+```
+
+`Level`, `Msg`, `Line`, and `MetaJson` are nullable. Replay runs synchronously
+before the live listener starts, so the handoff is best effort rather than
+gapless. Live callbacks run on the Pipes listener thread. Subscriber exceptions
+are isolated per entry.
+
+## Additive: hotkey opt-out
+
+Global Ctrl+Alt+P/R/Q remains enabled by default. Headless and custom
+supervisors can opt out:
+
+```csharp
+var options = new WatchdogOptions
+{
+    TargetPath = target,
+    EnableHotkeys = false
+};
+```
+
+Enabled registration failures are now observable through configured local
+logging. The fixed chords are not a general binding API.
+
+## Behavioral: counters and crash evidence are truthful
+
+Status adds cumulative `historyEvictions`, `eventQueueDropped`, and
+`eventPublishFailures`. `eventsDropped` remains a compatibility alias for queue
+drops. `restartCount` is now zero for the first supervised process in both
+launch and attach modes and counts only replacement launches.
+
+Crash finalization is internal and distinguishes complete, partial, failed, and
+no-pending outcomes. Optional evidence failures no longer produce an unqualified
+success log, callback exceptions cannot escape the fail-soft boundary, and the
+manifest is emitted by the target JSON serializer.
+
+## Unchanged targets and security model
+
+The library remains `net481` plus `net9.0-windows7.0`, references Core and
+Pipes on both targets, and references Newtonsoft.Json only on `net481`. Control
+and event endpoints remain `CurrentUserOnly`. The deterministic target hash and
+attach token are identities, not authentication against a hostile same-user
+process. No remote or privileged-control contract was added.
+
+The library package still excludes the companion Host payload. Host deployment,
+RID selection, build targets, arguments, and protocol release evidence belong
+to F1-WDOG-HOST.

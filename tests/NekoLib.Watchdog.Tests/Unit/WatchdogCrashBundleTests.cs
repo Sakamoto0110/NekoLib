@@ -20,18 +20,18 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                 using (var runtime = new WatchdogRuntime(options))
                 {
-                    var pending = Path.Combine(options.PendingCrashRoot, "crash-unit");
+                    var pending = Path.Combine(runtime.CapturedOptions.PendingCrashRoot, "crash-unit");
                     Directory.CreateDirectory(pending);
                     File.WriteAllText(Path.Combine(pending, "crash.txt"), "pending crash");
 
                     runtime.Start();
 
                     Assert.True(WatchdogTestUtil.WaitUntil(
-                        () => Directory.Exists(options.BundleRoot) &&
-                              Directory.GetDirectories(options.BundleRoot, "bundle-*").Length > 0,
+                        () => Directory.Exists(runtime.CapturedOptions.BundleRoot) &&
+                              Directory.GetDirectories(runtime.CapturedOptions.BundleRoot, "bundle-*").Length > 0,
                         6000));
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally
@@ -61,7 +61,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                         () => File.Exists(logPath + ".1"),
                         5000));
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally
@@ -88,14 +88,14 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                     Assert.True(WatchdogTestUtil.WaitUntil(() =>
                     {
-                        try { return WatchdogTestUtil.Send(options.PipeName, "ping").Ok; }
+                        try { return WatchdogTestUtil.Send(runtime.PipeName, "ping").Ok; }
                         catch { return false; }
                     }));
 
                     var handler = new CrashHandler(
                         new CrashHandlerOptions
                         {
-                            CrashRootDirectory = options.PendingCrashRoot,
+                            CrashRootDirectory = runtime.CapturedOptions.PendingCrashRoot,
                             DumpLevel = CrashDumpLevel.None,
                             ExternalNotifier = e => WatchdogController.NotifyExceptionForTarget(
                                 options.TargetPath,
@@ -107,11 +107,11 @@ namespace NekoLib.Watchdog.Tests.Unit
                     InvokeHandleCrash(handler);
 
                     Assert.True(WatchdogTestUtil.WaitUntil(
-                        () => Directory.Exists(options.BundleRoot) &&
-                              Directory.GetDirectories(options.BundleRoot, "bundle-*").Length > 0,
+                        () => Directory.Exists(runtime.CapturedOptions.BundleRoot) &&
+                              Directory.GetDirectories(runtime.CapturedOptions.BundleRoot, "bundle-*").Length > 0,
                         6000));
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally

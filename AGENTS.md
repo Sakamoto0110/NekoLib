@@ -19,6 +19,7 @@ the handoff state and the rules that are easy to get wrong.
 | Binding helper coercion, notification semantics, threading, and nullability | [`src/Mvvm/NekoLib.Mvvm/README.md`](src/Mvvm/NekoLib.Mvvm/README.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`src/Devices/NekoLib.Devices/README.md`](src/Devices/NekoLib.Devices/README.md) |
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
+| Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
@@ -177,7 +178,7 @@ before making a change.
 
 | Module | Current status | Historical detail |
 |---|---|---|
-| Watchdog | Update orchestration is explicitly `not_implemented`; the truncated SHA1 pipe identity, silent 300-entry replay-buffer eviction and relative fatal-log path remain. Application bootstrap/attach and Host argument preservation are implemented. App-log forwarding (old M7) and bring-to-front (old L7) are implemented now. | `docs/audit/watchdog-first-pass.md` |
+| Watchdog | F1-WDOG finalized the application facade and supported advanced runtime, immutable configuration capture, terminal race-safe lifecycle, controller outcomes, bounded-evidence counters, crash finalization, and hotkey opt-out. The internal update wire command remains explicitly `not_implemented`; Host deployment and release finalization remain F1-WDOG-HOST. | `src/Watchdog/NekoLib.Watchdog/README.md` |
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The versioned com0com runtime scenario now passes on both target families; physical UART/electrical behavior remains outside that evidence. | `docs/audit/devices-first-pass.md` |
 | Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |

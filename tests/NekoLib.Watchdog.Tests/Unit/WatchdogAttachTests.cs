@@ -27,10 +27,10 @@ namespace NekoLib.Watchdog.Tests.Unit
                 {
                     runtime.Start();
 
-                    Assert.True(WaitForAttach(options));
+                    Assert.True(WaitForAttach(runtime, options));
 
                     var status = WatchdogTestUtil.Send(
-                        options.PipeName,
+                        runtime.PipeName,
                         WatchdogCommands.Status);
                     Assert.True(status.Ok);
                     Assert.Matches(
@@ -70,7 +70,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 using (var runtime = new WatchdogRuntime(options))
                 {
                     runtime.Start();
-                    Assert.True(WaitForAttach(options));
+                    Assert.True(WaitForAttach(runtime, options));
 
                     initial.Kill();
                     initial.WaitForExit(3000);
@@ -83,10 +83,10 @@ namespace NekoLib.Watchdog.Tests.Unit
                         "Marker: " + SafeRead(marker) +
                         Environment.NewLine +
                         "Watchdog log: " +
-                        SafeRead(options.LogPath));
+                        SafeRead(runtime.CapturedOptions.LogPath));
 
                     var status = WatchdogTestUtil.Send(
-                        options.PipeName,
+                        runtime.PipeName,
                         WatchdogCommands.Status);
                     Assert.Matches(
                         new Regex(
@@ -95,7 +95,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                         status.Data.ToString());
 
                     var attachStatus = WatchdogTestUtil.Send(
-                        options.PipeName,
+                        runtime.PipeName,
                         WatchdogCommands.AttachStatus);
                     Assert.True(attachStatus.Ok);
                     var identity = attachStatus.Data.ToString().Trim('"');
@@ -155,7 +155,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 using (var runtime = new WatchdogRuntime(options))
                 {
                     runtime.Start();
-                    Assert.True(WaitForAttach(options));
+                    Assert.True(WaitForAttach(runtime, options));
 
                     File.WriteAllText(exitSignal, "exit");
 
@@ -165,7 +165,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                         try
                         {
                             var status = WatchdogTestUtil.Send(
-                                options.PipeName,
+                                runtime.PipeName,
                                 WatchdogCommands.Status);
                             statusText = status.Data.ToString();
                             return Regex.IsMatch(
@@ -184,7 +184,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                         "Status: " + statusText +
                         Environment.NewLine +
                         "Watchdog log: " +
-                        SafeRead(options.LogPath));
+                        SafeRead(runtime.CapturedOptions.LogPath));
                 }
             }
             finally
@@ -222,7 +222,8 @@ namespace NekoLib.Watchdog.Tests.Unit
                     WorkingDirectory = root,
                     MonitorPollMs = 50,
                     RestartDelayMs = 500,
-                    HeartbeatIntervalMs = 0
+                    HeartbeatIntervalMs = 0,
+                    EnableHotkeys = false
                 };
                 using (var runtime = new WatchdogRuntime(recovery))
                 {
@@ -232,7 +233,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                         try
                         {
                             return WatchdogTestUtil.Send(
-                                recovery.PipeName,
+                                runtime.PipeName,
                                 WatchdogCommands.Ping).Ok;
                         }
                         catch
@@ -302,7 +303,9 @@ namespace NekoLib.Watchdog.Tests.Unit
             return Process.Start(startInfo);
         }
 
-        private static bool WaitForAttach(WatchdogOptions options)
+        private static bool WaitForAttach(
+            WatchdogRuntime runtime,
+            WatchdogOptions options)
         {
             var expected = WatchdogBootstrap.FormatAttachmentStatus(
                 options.InitialProcessId.Value,
@@ -313,7 +316,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 try
                 {
                     var response = WatchdogTestUtil.Send(
-                        options.PipeName,
+                        runtime.PipeName,
                         WatchdogCommands.AttachStatus);
                     return response.Ok &&
                            string.Equals(

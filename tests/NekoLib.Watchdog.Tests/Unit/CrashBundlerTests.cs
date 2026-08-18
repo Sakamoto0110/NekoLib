@@ -6,6 +6,12 @@ using System.Text;
 using NekoLib.Watchdog.Tests.Unit.Fakes;
 using Xunit;
 
+#if NET9_0_OR_GREATER
+using System.Text.Json;
+#else
+using Newtonsoft.Json.Linq;
+#endif
+
 namespace NekoLib.Watchdog.Tests.Unit
 {
     /// <summary>
@@ -68,10 +74,12 @@ namespace NekoLib.Watchdog.Tests.Unit
         [Fact]
         public void NullOptions_DoesNotThrow()
         {
+            CrashBundleResult result = null;
             var ex = Record.Exception(() =>
-                CrashBundler.TryFinalizeLatestCrashBundle(null, "reason", 0));
+                result = CrashBundler.TryFinalizeLatestCrashBundle(null, "reason", 0));
 
             Assert.Null(ex);
+            Assert.Equal(CrashBundleOutcome.Failed, result.Outcome);
         }
 
         [Fact]
@@ -80,9 +88,10 @@ namespace NekoLib.Watchdog.Tests.Unit
             using var ws = new TempWorkspace();
             var o = OptionsFor(ws);
 
-            CrashBundler.TryFinalizeLatestCrashBundle(o, "reason", 0);
+            var result = CrashBundler.TryFinalizeLatestCrashBundle(o, "reason", 0);
 
             Assert.Empty(BundleDirs(o));
+            Assert.Equal(CrashBundleOutcome.NoPendingCrash, result.Outcome);
         }
 
         // -----------------------------------------------------------------
@@ -196,6 +205,77 @@ namespace NekoLib.Watchdog.Tests.Unit
             var manifest = File.ReadAllText(System.IO.Path.Combine(SingleBundle(o), "manifest.json"));
             Assert.Contains("\"checksums\": false", manifest);
             Assert.DoesNotContain("\"sha256\"", manifest);
+        }
+
+        [Fact]
+        public void Manifest_ControlCharacters_ProducesValidJson()
+        {
+            using var ws = new TempWorkspace();
+            var o = OptionsFor(ws);
+            ws.WriteFile(System.IO.Path.Combine("crash", "pending", "crash-001", "dump.txt"), "boom");
+
+            var result = CrashBundler.TryFinalizeLatestCrashBundle(
+                o,
+                "line-one\nline-two\t\"quoted\"",
+                3);
+
+            var manifest = File.ReadAllText(System.IO.Path.Combine(SingleBundle(o), "manifest.json"));
+#if NET9_0_OR_GREATER
+            using var parsed = JsonDocument.Parse(manifest);
+            Assert.Equal(
+                "line-one\nline-two\t\"quoted\"",
+                parsed.RootElement.GetProperty("watchdog").GetProperty("restartReason").GetString());
+#else
+            var parsed = JObject.Parse(manifest);
+            Assert.Equal(
+                "line-one\nline-two\t\"quoted\"",
+                parsed["watchdog"]?["restartReason"]?.ToString());
+#endif
+            Assert.Equal(CrashBundleOutcome.Complete, result.Outcome);
+        }
+
+        [Fact]
+        public void ThrowingLogCallback_DoesNotEscapeOrChangeOutcome()
+        {
+            using var ws = new TempWorkspace();
+            var o = OptionsFor(ws);
+            ws.WriteFile(System.IO.Path.Combine("crash", "pending", "crash-001", "dump.txt"), "boom");
+
+            var result = CrashBundler.TryFinalizeLatestCrashBundle(
+                o,
+                "reason",
+                0,
+                _ => throw new InvalidOperationException("callback"));
+
+            Assert.Equal(CrashBundleOutcome.Complete, result.Outcome);
+        }
+
+        [Fact]
+        public void OptionalEvidenceFailure_ReturnsPartialOutcome()
+        {
+            using var ws = new TempWorkspace();
+            var o = OptionsFor(ws);
+            o.GetWatchdogStatus = () => throw new InvalidOperationException("status");
+            ws.WriteFile(System.IO.Path.Combine("crash", "pending", "crash-001", "dump.txt"), "boom");
+
+            var result = CrashBundler.TryFinalizeLatestCrashBundle(o, "reason", 0);
+
+            Assert.Equal(CrashBundleOutcome.Partial, result.Outcome);
+            Assert.Contains("watchdog_status", result.Failures);
+            Assert.True(Directory.Exists(SingleBundle(o)));
+        }
+
+        [Fact]
+        public void BundleRootCreationFailure_ReturnsFailedOutcome()
+        {
+            using var ws = new TempWorkspace();
+            var o = OptionsFor(ws);
+            o.BundleRoot = ws.WriteFile("not-a-directory", "file");
+
+            var result = CrashBundler.TryFinalizeLatestCrashBundle(o, "reason", 0);
+
+            Assert.Equal(CrashBundleOutcome.Failed, result.Outcome);
+            Assert.NotEmpty(result.Failures);
         }
 
         // -----------------------------------------------------------------

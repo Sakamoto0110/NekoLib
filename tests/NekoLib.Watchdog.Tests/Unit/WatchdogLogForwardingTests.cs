@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using NekoLib.Core.Logging;
 using NekoLib.Pipes;
 using NekoLib.Watchdog;
@@ -55,7 +56,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 using (var runtime = new WatchdogRuntime(options))
                 {
                     runtime.Start();
-                    WaitForPing(options.PipeName);
+                    WaitForPing(runtime.PipeName);
 
                     var payload = new
                     {
@@ -66,14 +67,14 @@ namespace NekoLib.Watchdog.Tests.Unit
                         }
                     };
 
-                    var res = WatchdogTestUtil.Send(options.PipeName, "log_write_batch", payload);
+                    var res = WatchdogTestUtil.Send(runtime.PipeName, "log_write_batch", payload);
                     Assert.True(res.Ok);
 
-                    var history = WatchdogTestUtil.Send(options.PipeName, "log_history").Data.ToString();
+                    var history = WatchdogTestUtil.Send(runtime.PipeName, "log_history").Data.ToString();
                     Assert.Contains("batch-alpha", history);
                     Assert.Contains("batch-beta", history);
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally
@@ -100,7 +101,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 using (var runtime = new WatchdogRuntime(options))
                 {
                     runtime.Start();
-                    WaitForPing(options.PipeName);
+                    WaitForPing(runtime.PipeName);
 
                     // Sanity: internal logs DO reach the sink.
                     Assert.True(
@@ -115,16 +116,16 @@ namespace NekoLib.Watchdog.Tests.Unit
                         }
                     };
 
-                    Assert.True(WatchdogTestUtil.Send(options.PipeName, "log_write_batch", payload).Ok);
+                    Assert.True(WatchdogTestUtil.Send(runtime.PipeName, "log_write_batch", payload).Ok);
 
                     // It must be logged/buffered (in history) ...
-                    var history = WatchdogTestUtil.Send(options.PipeName, "log_history").Data.ToString();
+                    var history = WatchdogTestUtil.Send(runtime.PipeName, "log_history").Data.ToString();
                     Assert.Contains("loopy-msg", history);
 
                     // ... but never re-forwarded to the sink.
                     Assert.DoesNotContain("loopy-msg", sink.Messages());
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally
@@ -137,7 +138,7 @@ namespace NekoLib.Watchdog.Tests.Unit
         // Dropped-event counter is wired into the status telemetry.
         // ------------------------------------------------------------------
         [Fact]
-        public void Status_ExposesEventsDroppedCounter()
+        public void Status_ExposesDistinctCumulativeLossCounters()
         {
             var root = NewTempRoot();
             try
@@ -147,12 +148,63 @@ namespace NekoLib.Watchdog.Tests.Unit
                 using (var runtime = new WatchdogRuntime(options))
                 {
                     runtime.Start();
-                    WaitForPing(options.PipeName);
+                    WaitForPing(runtime.PipeName);
 
-                    var status = WatchdogTestUtil.Send(options.PipeName, "status").Data.ToString();
+                    var status = WatchdogTestUtil.Send(runtime.PipeName, "status").Data.ToString();
                     Assert.Contains("eventsDropped", status);
+                    Assert.Contains("eventQueueDropped", status);
+                    Assert.Contains("historyEvictions", status);
+                    Assert.Contains("eventPublishFailures", status);
 
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
+                }
+            }
+            finally
+            {
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
+        public void LogHistoryEviction_IncrementsDedicatedCounter()
+        {
+            var root = NewTempRoot();
+            try
+            {
+                var options = WatchdogTestUtil.NewOptions(
+                    root,
+                    "/c ping -n 30 127.0.0.1 > nul");
+
+                using (var runtime = new WatchdogRuntime(options))
+                {
+                    runtime.Start();
+                    WaitForPing(runtime.PipeName);
+                    var entries = new List<object>();
+                    for (var index = 0; index < 350; index++)
+                    {
+                        entries.Add(new
+                        {
+                            level = "Info",
+                            category = "eviction",
+                            message = "entry-" + index
+                        });
+                    }
+
+                    Assert.True(WatchdogTestUtil.Send(
+                        runtime.PipeName,
+                        "log_write_batch",
+                        new { entries }).Ok);
+
+                    var status = WatchdogTestUtil.Send(
+                        runtime.PipeName,
+                        "status").Data.ToString();
+                    Assert.Matches(
+                        new Regex(
+                            "\\\"?historyEvictions\\\"?\\s*:\\s*[1-9]",
+                            RegexOptions.IgnoreCase),
+                        status);
+
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally

@@ -13,8 +13,12 @@ namespace NekoLib.Watchdog
         public const string Resume = "resume";
         public const string Restart = "restart";
         public const string Stop = "stop";
-        public const string LogHistory = "log_history";
-        public const string ExceptionNotify = "exception_notify";
-        public const string AttachStatus = "attach_status";
+
+        internal const string LogHistory = "log_history";
+        internal const string ExceptionNotify = "exception_notify";
+        internal const string AttachStatus = "attach_status";
+        internal const string LogWrite = "log_write";
+        internal const string LogWriteBatch = "log_write_batch";
+        internal const string Update = "update";
     }
 }

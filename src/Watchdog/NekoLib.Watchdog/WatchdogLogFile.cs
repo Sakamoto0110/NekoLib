@@ -21,7 +21,7 @@ namespace NekoLib.Watchdog
     /// written in full (lines are never split) after rotation.
     /// </para>
     /// </summary>
-    public static class WatchdogLogFile
+    internal static class WatchdogLogFile
     {
         /// <summary>
         /// Appends <paramref name="line"/> (with a trailing newline) to <paramref name="path"/>,

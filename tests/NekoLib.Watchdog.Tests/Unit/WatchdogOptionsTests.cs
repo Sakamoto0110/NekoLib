@@ -1,278 +1,247 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using NekoLib.Core.Logging;
 using NekoLib.Watchdog.Tests.Unit.Fakes;
 using Xunit;
 
 namespace NekoLib.Watchdog.Tests.Unit
 {
-    /// <summary>
-    /// Unit tests for <see cref="WatchdogOptions.Normalize()"/> — the single
-    /// validate-and-fill-defaults entry point the runtime calls at construction.
-    /// These pin the policy decisions made there: required-field validation,
-    /// the SHA1-derived pipe identity, working-directory defaulting, restart-delay
-    /// clamping, log-path defaulting, and eager crash/update directory creation.
-    ///
-    /// <para>
-    /// Several findings from the first-pass audit live in this surface — most
-    /// notably that <c>Normalize()</c> unconditionally overwrites any caller-set
-    /// <see cref="WatchdogOptions.PipeName"/>. The relevant test below pins that
-    /// as current (if surprising) behavior so a future fix is a deliberate change.
-    /// </para>
-    /// </summary>
-    public class WatchdogOptionsTests
+    public sealed class WatchdogOptionsTests
     {
         private static readonly Regex PipeNamePattern =
             new Regex(@"^NekoLib\.Watchdog\.[0-9A-F]{16}$", RegexOptions.Compiled);
 
-        // -----------------------------------------------------------------
-        // Required-field validation
-        // -----------------------------------------------------------------
-
         [Fact]
-        public void Normalize_NullTargetPath_Throws()
+        public void Capture_NullTargetPath_Throws()
         {
-            var o = new WatchdogOptions { TargetPath = null };
+            var options = new WatchdogOptions { TargetPath = null };
 
-            Assert.Throws<InvalidOperationException>(() => o.Normalize());
+            Assert.Throws<InvalidOperationException>(
+                () => WatchdogRuntimeOptions.Capture(options));
         }
 
         [Theory]
         [InlineData("")]
         [InlineData("   ")]
-        public void Normalize_BlankTargetPath_Throws(string blank)
+        public void Capture_BlankTargetPath_Throws(string blank)
         {
-            var o = new WatchdogOptions { TargetPath = blank };
+            var options = new WatchdogOptions { TargetPath = blank };
 
-            Assert.Throws<InvalidOperationException>(() => o.Normalize());
+            Assert.Throws<InvalidOperationException>(
+                () => WatchdogRuntimeOptions.Capture(options));
         }
 
         [Fact]
-        public void Normalize_MissingTargetFile_ThrowsFileNotFound()
+        public void Capture_MissingTargetFile_ThrowsFileNotFound()
         {
-            using var ws = new TempWorkspace();
-            var ghost = ws.Path("does-not-exist.exe");
-
-            var o = new WatchdogOptions { TargetPath = ghost };
-
-            Assert.Throws<FileNotFoundException>(() => o.Normalize());
-        }
-
-        [Fact]
-        public void Normalize_AttachTokenWithoutInitialProcessId_Throws()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-            var o = new WatchdogOptions
+            using var workspace = new TempWorkspace();
+            var options = new WatchdogOptions
             {
-                TargetPath = target,
+                TargetPath = workspace.Path("does-not-exist.exe")
+            };
+
+            Assert.Throws<FileNotFoundException>(
+                () => WatchdogRuntimeOptions.Capture(options));
+        }
+
+        [Fact]
+        public void Capture_AttachTokenWithoutInitialProcessId_Throws()
+        {
+            using var workspace = new TempWorkspace();
+            var options = new WatchdogOptions
+            {
+                TargetPath = workspace.WriteFile("app.exe"),
                 AttachToken = "orphan-token"
             };
 
             var error = Assert.Throws<InvalidOperationException>(
-                () => o.Normalize());
+                () => WatchdogRuntimeOptions.Capture(options));
 
             Assert.Contains("InitialProcessId", error.Message);
         }
 
-        // -----------------------------------------------------------------
-        // Pipe identity (SHA1 of full lowercased path, first 16 hex chars)
-        // -----------------------------------------------------------------
-
         [Fact]
-        public void Normalize_ValidTarget_DerivesPipeNameFromHash()
+        public void Capture_ValidTarget_DerivesDeterministicPipeName()
         {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
+            using var workspace = new TempWorkspace();
+            var target = workspace.WriteFile("app.exe");
 
-            var o = new WatchdogOptions { TargetPath = target };
-            o.Normalize();
+            var first = WatchdogRuntimeOptions.Capture(
+                new WatchdogOptions { TargetPath = target });
+            var second = WatchdogRuntimeOptions.Capture(
+                new WatchdogOptions { TargetPath = target });
 
-            Assert.Matches(PipeNamePattern, o.PipeName);
+            Assert.Matches(PipeNamePattern, first.PipeName);
+            Assert.Equal(first.PipeName, second.PipeName);
+            Assert.Equal(
+                WatchdogController.ResolvePipeNameForTarget(target),
+                first.PipeName);
         }
 
         [Fact]
-        public void Normalize_SameTarget_ProducesDeterministicPipeName()
+        public void Capture_DifferentTargets_ProduceDifferentPipeNames()
         {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
+            using var workspace = new TempWorkspace();
 
-            var a = new WatchdogOptions { TargetPath = target };
-            var b = new WatchdogOptions { TargetPath = target };
-            a.Normalize();
-            b.Normalize();
+            var first = WatchdogRuntimeOptions.Capture(new WatchdogOptions
+            {
+                TargetPath = workspace.WriteFile("one.exe")
+            });
+            var second = WatchdogRuntimeOptions.Capture(new WatchdogOptions
+            {
+                TargetPath = workspace.WriteFile("two.exe")
+            });
 
-            Assert.Equal(a.PipeName, b.PipeName);
+            Assert.NotEqual(first.PipeName, second.PipeName);
         }
 
         [Fact]
-        public void Normalize_DifferentTargets_ProduceDifferentPipeNames()
+        public void Constructor_DoesNotMutateCallerOptions()
         {
-            using var ws = new TempWorkspace();
-            var first = ws.WriteFile("one.exe");
-            var second = ws.WriteFile("two.exe");
-
-            var a = new WatchdogOptions { TargetPath = first };
-            var b = new WatchdogOptions { TargetPath = second };
-            a.Normalize();
-            b.Normalize();
-
-            Assert.NotEqual(a.PipeName, b.PipeName);
-        }
-
-        [Fact]
-        public void Normalize_OverwritesCallerSuppliedPipeName_WithHash()
-        {
-            // Pins current behavior: Normalize() ignores an explicit PipeName and
-            // replaces it with the hash-derived identity (audit finding — kept as a
-            // regression lock, not an endorsement).
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions
+            using var workspace = new TempWorkspace();
+            var target = workspace.WriteFile("app.exe");
+            var options = new WatchdogOptions
             {
                 TargetPath = target,
-                PipeName = "my.custom.pipe"
+                WorkingDirectory = null,
+                LogPath = null,
+                PendingCrashRoot = null,
+                BundleRoot = null,
+                MonitorPollMs = 1,
+                RestartDelayMs = 2,
+                ForceKillTimeoutMs = 3,
+                MaxLogBytes = 4
             };
-            o.Normalize();
 
-            Assert.NotEqual("my.custom.pipe", o.PipeName);
-            Assert.Matches(PipeNamePattern, o.PipeName);
-        }
+            using var runtime = new WatchdogRuntime(options);
 
-        // -----------------------------------------------------------------
-        // TargetPath / WorkingDirectory resolution
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Normalize_ResolvesTargetPathToFullPath()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions { TargetPath = target };
-            o.Normalize();
-
-            Assert.Equal(System.IO.Path.GetFullPath(target), o.TargetPath);
+            Assert.Equal(target, options.TargetPath);
+            Assert.Null(options.WorkingDirectory);
+            Assert.Null(options.LogPath);
+            Assert.Null(options.PendingCrashRoot);
+            Assert.Null(options.BundleRoot);
+            Assert.Equal(1, options.MonitorPollMs);
+            Assert.Equal(2, options.RestartDelayMs);
+            Assert.Equal(3, options.ForceKillTimeoutMs);
+            Assert.Equal(4, options.MaxLogBytes);
         }
 
         [Fact]
-        public void Normalize_DefaultsWorkingDirectory_ToTargetDirectory()
+        public void Capture_DefaultsPathsAndClampsBounds()
         {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("nested\\app.exe");
+            using var workspace = new TempWorkspace();
+            var target = workspace.WriteFile(Path.Combine("nested", "app.exe"));
 
-            var o = new WatchdogOptions { TargetPath = target };
-            o.Normalize();
-
-            Assert.Equal(System.IO.Path.GetDirectoryName(o.TargetPath), o.WorkingDirectory);
-        }
-
-        [Fact]
-        public void Normalize_RespectsExplicitWorkingDirectory()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-            var work = ws.CreateDir("work");
-
-            var o = new WatchdogOptions { TargetPath = target, WorkingDirectory = work };
-            o.Normalize();
-
-            Assert.Equal(System.IO.Path.GetFullPath(work), o.WorkingDirectory);
-        }
-
-        // -----------------------------------------------------------------
-        // Restart-delay clamping (floor of 200 ms)
-        // -----------------------------------------------------------------
-
-        [Theory]
-        [InlineData(0, 200)]
-        [InlineData(50, 200)]
-        [InlineData(199, 200)]
-        [InlineData(200, 200)]
-        [InlineData(5000, 5000)]
-        public void Normalize_ClampsRestartDelayToFloor(int input, int expected)
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions { TargetPath = target, RestartDelayMs = input };
-            o.Normalize();
-
-            Assert.Equal(expected, o.RestartDelayMs);
-        }
-
-        // -----------------------------------------------------------------
-        // Log-path defaulting
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Normalize_DefaultsLogPath_WhenFileLoggingEnabled()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions { TargetPath = target, EnableFileLogging = true };
-            o.Normalize();
-
-            Assert.Equal(
-                System.IO.Path.Combine(o.WorkingDirectory, "watchdog.log"),
-                o.LogPath);
-        }
-
-        [Fact]
-        public void Normalize_LeavesLogPathUnset_WhenFileLoggingDisabled()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions
+            var captured = WatchdogRuntimeOptions.Capture(new WatchdogOptions
             {
                 TargetPath = target,
-                EnableFileLogging = false,
-                LogPath = null
+                MonitorPollMs = 1,
+                RestartDelayMs = 2,
+                GracefulKillTimeoutMs = -1,
+                ForceKillTimeoutMs = 3,
+                MaxLogBytes = 4
+            });
+
+            var workingDirectory = Path.GetDirectoryName(Path.GetFullPath(target));
+            Assert.Equal(workingDirectory, captured.WorkingDirectory);
+            Assert.Equal(Path.Combine(workingDirectory, "watchdog.log"), captured.LogPath);
+            Assert.Equal(Path.Combine(workingDirectory, "crash", "pending"), captured.PendingCrashRoot);
+            Assert.Equal(Path.Combine(workingDirectory, "crash", "bundles"), captured.BundleRoot);
+            Assert.Equal(50, captured.MonitorPollMs);
+            Assert.Equal(200, captured.RestartDelayMs);
+            Assert.Equal(0, captured.GracefulKillTimeoutMs);
+            Assert.Equal(100, captured.ForceKillTimeoutMs);
+            Assert.Equal(64 * 1024, captured.MaxLogBytes);
+        }
+
+        [Fact]
+        public void Capture_CreatesCrashAndLogDirectoriesOnly()
+        {
+            using var workspace = new TempWorkspace();
+            var target = workspace.WriteFile("app.exe");
+            var workingDirectory = workspace.CreateDir("work");
+            var updateDirectory = Path.Combine(workingDirectory, "updates");
+
+            var captured = WatchdogRuntimeOptions.Capture(new WatchdogOptions
+            {
+                TargetPath = target,
+                WorkingDirectory = workingDirectory
+            });
+
+            Assert.True(Directory.Exists(captured.PendingCrashRoot));
+            Assert.True(Directory.Exists(captured.BundleRoot));
+            Assert.True(Directory.Exists(Path.GetDirectoryName(captured.LogPath)));
+            Assert.False(Directory.Exists(updateDirectory));
+        }
+
+        [Fact]
+        public void Capture_FileLoggingDisabled_LeavesLogPathNull()
+        {
+            using var workspace = new TempWorkspace();
+
+            var captured = WatchdogRuntimeOptions.Capture(new WatchdogOptions
+            {
+                TargetPath = workspace.WriteFile("app.exe"),
+                EnableFileLogging = false
+            });
+
+            Assert.Null(captured.LogPath);
+        }
+
+        [Fact]
+        public void Capture_CopiesSinkArrayWithoutTakingSinkOwnership()
+        {
+            using var workspace = new TempWorkspace();
+            var first = new CountingSink();
+            var second = new CountingSink();
+            var supplied = new ILogSink[] { first };
+            var options = new WatchdogOptions
+            {
+                TargetPath = workspace.WriteFile("app.exe"),
+                LogSinks = supplied
             };
-            o.Normalize();
 
-            Assert.True(string.IsNullOrWhiteSpace(o.LogPath));
-        }
+            using var runtime = new WatchdogRuntime(options);
+            supplied[0] = second;
+            options.LogSinks = new ILogSink[] { second };
 
-        // -----------------------------------------------------------------
-        // Crash / update directory defaulting + eager creation
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Normalize_DefaultsCrashRoots_UnderWorkingDirectory()
-        {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
-
-            var o = new WatchdogOptions { TargetPath = target };
-            o.Normalize();
-
-            Assert.Equal(
-                System.IO.Path.Combine(o.WorkingDirectory, "crash", "pending"),
-                o.PendingCrashRoot);
-            Assert.Equal(
-                System.IO.Path.Combine(o.WorkingDirectory, "crash", "bundles"),
-                o.BundleRoot);
-            Assert.Equal(
-                System.IO.Path.Combine(o.WorkingDirectory, "updates"),
-                o.UpdateStagingRoot);
+            Assert.Same(first, runtime.CapturedOptions.LogSinks[0]);
         }
 
         [Fact]
-        public void Normalize_CreatesCrashAndUpdateDirectories()
+        public void Constructor_CapturesValuesAgainstLaterMutation()
         {
-            using var ws = new TempWorkspace();
-            var target = ws.WriteFile("app.exe");
+            using var workspace = new TempWorkspace();
+            var target = workspace.WriteFile("app.exe");
+            var options = new WatchdogOptions
+            {
+                TargetPath = target,
+                EnableHotkeys = false,
+                RestartDelayMs = 450
+            };
 
-            var o = new WatchdogOptions { TargetPath = target };
-            o.Normalize();
+            using var runtime = new WatchdogRuntime(options);
+            options.TargetPath = workspace.WriteFile("other.exe");
+            options.EnableHotkeys = true;
+            options.RestartDelayMs = 900;
 
-            Assert.True(Directory.Exists(o.PendingCrashRoot));
-            Assert.True(Directory.Exists(o.BundleRoot));
-            Assert.True(Directory.Exists(o.UpdateStagingRoot));
+            Assert.Equal(Path.GetFullPath(target), runtime.CapturedOptions.TargetPath);
+            Assert.False(runtime.CapturedOptions.EnableHotkeys);
+            Assert.Equal(450, runtime.CapturedOptions.RestartDelayMs);
+        }
+
+        [Fact]
+        public void EnableHotkeys_DefaultsToTrue()
+        {
+            Assert.True(new WatchdogOptions().EnableHotkeys);
+        }
+
+        private sealed class CountingSink : ILogSink
+        {
+            public void Write(LogEntry entry)
+            {
+            }
         }
     }
 }

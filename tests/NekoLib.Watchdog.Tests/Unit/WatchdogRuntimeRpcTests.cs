@@ -26,15 +26,15 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                     Assert.True(WatchdogTestUtil.WaitUntil(() =>
                     {
-                        try { return WatchdogTestUtil.Send(options.PipeName, "ping").Data.ToString().Contains("pong"); }
+                        try { return WatchdogTestUtil.Send(runtime.PipeName, "ping").Data.ToString().Contains("pong"); }
                         catch { return false; }
                     }));
 
-                    Assert.True(WatchdogTestUtil.Send(options.PipeName, "status").Ok);
-                    Assert.True(WatchdogTestUtil.Send(options.PipeName, "pause").Ok);
-                    Assert.True(WatchdogTestUtil.Send(options.PipeName, "resume").Ok);
+                    Assert.True(WatchdogTestUtil.Send(runtime.PipeName, "status").Ok);
+                    Assert.True(WatchdogTestUtil.Send(runtime.PipeName, "pause").Ok);
+                    Assert.True(WatchdogTestUtil.Send(runtime.PipeName, "resume").Ok);
 
-                    var stopped = WatchdogTestUtil.Send(options.PipeName, "stop");
+                    var stopped = WatchdogTestUtil.Send(runtime.PipeName, "stop");
                     Assert.True(stopped.Ok);
                     Assert.Contains("stopped", stopped.Data.ToString());
                 }
@@ -46,17 +46,17 @@ namespace NekoLib.Watchdog.Tests.Unit
         }
 
         [Fact]
-        public void OptionsPipeName_MatchesControllerTargetResolution()
+        public void RuntimePipeName_MatchesControllerTargetResolution()
         {
             var root = NewTempRoot();
             try
             {
                 var options = WatchdogTestUtil.NewOptions(root, "/c exit 0");
-                options.Normalize();
+                using var runtime = new WatchdogRuntime(options);
 
                 Assert.Equal(
                     WatchdogController.ResolvePipeNameForTarget(options.TargetPath),
-                    options.PipeName);
+                    runtime.PipeName);
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                     Assert.True(WatchdogTestUtil.WaitUntil(
                         () => FileContains(
-                            options.LogPath,
+                            runtime.CapturedOptions.LogPath,
                             "[child_start_failed]")));
 
                     var restoredTarget = Path.Combine(root, "restored-cmd.exe");
@@ -96,8 +96,8 @@ namespace NekoLib.Watchdog.Tests.Unit
                         WatchdogTestUtil.WaitUntil(
                             () => File.Exists(marker),
                             timeoutMs: 8000),
-                        File.Exists(options.LogPath)
-                            ? File.ReadAllText(options.LogPath)
+                        File.Exists(runtime.CapturedOptions.LogPath)
+                            ? File.ReadAllText(runtime.CapturedOptions.LogPath)
                             : "Watchdog log was not created.");
                 }
             }
@@ -121,16 +121,16 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                     Assert.True(WatchdogTestUtil.WaitUntil(() =>
                     {
-                        try { return WatchdogTestUtil.Send(options.PipeName, "ping").Ok; }
+                        try { return WatchdogTestUtil.Send(runtime.PipeName, "ping").Ok; }
                         catch { return false; }
                     }));
 
-                    var history = WatchdogTestUtil.Send(options.PipeName, "log_history");
+                    var history = WatchdogTestUtil.Send(runtime.PipeName, "log_history");
                     Assert.True(history.Ok);
                     Assert.Contains("watchdog_start", history.Data.ToString());
 
                     PipeMessage live = null;
-                    using (var events = new PipeEventClient(options.PipeName))
+                    using (var events = new PipeEventClient(runtime.PipeName))
                     {
                         events.OnEvent += msg =>
                         {
@@ -141,13 +141,13 @@ namespace NekoLib.Watchdog.Tests.Unit
 
                         for (int i = 0; i < 10 && live == null; i++)
                         {
-                            WatchdogTestUtil.Send(options.PipeName, i % 2 == 0 ? "pause" : "resume");
+                            WatchdogTestUtil.Send(runtime.PipeName, i % 2 == 0 ? "pause" : "resume");
                             WatchdogTestUtil.WaitUntil(() => live != null, 300);
                         }
                     }
 
                     Assert.NotNull(live);
-                    WatchdogTestUtil.Send(options.PipeName, "stop");
+                    WatchdogTestUtil.Send(runtime.PipeName, "stop");
                 }
             }
             finally

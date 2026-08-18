@@ -72,7 +72,7 @@ namespace NekoLib.Watchdog
 
             while (!_disposed)
             {
-                LogEntry first;
+                LogEntry? first;
                 try
                 {
                     // Block until an entry arrives; returns false when the queue is
@@ -82,6 +82,9 @@ namespace NekoLib.Watchdog
                 }
                 catch (ObjectDisposedException) { break; }
                 catch (InvalidOperationException) { break; }
+
+                if (first == null)
+                    continue;
 
                 batch.Clear();
                 batch.Add(first);

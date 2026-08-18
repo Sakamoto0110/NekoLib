@@ -5,7 +5,7 @@ namespace NekoLib.Watchdog.Tests.Unit.Fakes
 {
     /// <summary>
     /// A throwaway directory under the OS temp path, deleted (best-effort) on
-    /// <see cref="Dispose"/>. Watchdog's <c>WatchdogOptions.Normalize()</c> and
+    /// <see cref="Dispose"/>. Watchdog configuration capture and
     /// <c>CrashBundler</c> both touch the real filesystem — they create crash /
     /// bundle / update directories and copy files around — so the tests that
     /// exercise them need a sandbox they own and can clean up.

@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-18
 
-**Reference commit:** working tree after `075bb75`
+**Reference commit:** working tree after `81b6866`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -53,6 +53,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Telemetry pipeline technical contract | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | Telemetry source, tests, and the Observability scenario |
 | Inspection runtime technical contract | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | Inspection source, tests, and the Observability scenario |
 | Pipes technical contract | [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | Pipes source, dual-target tests, and the compiled public API manifests |
+| Watchdog technical contract | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
 | Navigation technical contract | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | Navigation source and tests |
 | Open work, accepted decisions, active freezes, and completion criteria | [`TODO.md`](../TODO.md) | Current implementation and validation |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
@@ -77,6 +78,7 @@ reference commit.
 | [`src/Devices/NekoLib.Devices/README.md`](../src/Devices/NekoLib.Devices/README.md) | reference | current | Hardware engine orchestration, operation boundaries, configuration ownership, transport and protocol contracts, encoding, and disposal |
 | [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Binding helper and command contracts: parameter coercion, notification semantics, threading, exception behavior, and nullability |
 | [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | reference | current | Named-pipe RPC/events, configuration ownership, lifecycle, framing, metrics, errors, access policy, and target-specific payload contracts |
+| [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | reference | current | Watchdog application bootstrap, advanced runtime, configuration, lifecycle, process ownership, control, evidence, security, and package boundary |
 | [`src/Logging/NekoLib.Logging/README.md`](../src/Logging/NekoLib.Logging/README.md) | reference | current | Logging pipeline composition, ownership, delivery ordering, snapshots, flush and disposal contracts, and the shipped sinks |
 | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | reference | current | Telemetry pipeline composition, ownership, operation lifecycle, time semantics, dimensions, bounded retention, snapshots, and sink dispatch |
 | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | reference | current | Passive Inspection composition, recording, provider identity and ordering, snapshot budgets, owner diagnostics, lifecycle, and experimental actions |
@@ -91,6 +93,7 @@ reference commit.
 | [`docs/migrations/f1-devices.md`](migrations/f1-devices.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
 | [`docs/migrations/f1-mvvm.md`](migrations/f1-mvvm.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
 | [`docs/migrations/f1-pipes.md`](migrations/f1-pipes.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
+| [`docs/migrations/f1-watchdog.md`](migrations/f1-watchdog.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
 | [`docs/migrations/f1-logging.md`](migrations/f1-logging.md) | guide | current | Migration from the initial Logging candidate surface to the accepted F1-LOG pipeline, flush, disposal, and sink behavior |
 | [`docs/migrations/f1-inspection.md`](migrations/f1-inspection.md) | guide | current | Migration from the initial Inspection candidate surface to the accepted passive runtime and experimental action boundary |
 | [`docs/migrations/f1-telemetry.md`](migrations/f1-telemetry.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
@@ -107,7 +110,7 @@ reference commit.
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
-| [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | current | F1-WDOG compiled public surface, application/advanced-runtime boundary, configuration, lifecycle, process, IPC, evidence, target, security, and package review; decision pending |
+| [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | current | F1-WDOG compiled public surface, accepted application/advanced-runtime direction, configuration, lifecycle, process, IPC, evidence, target, security, and package review; implementation in progress |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
 | [`docs/history/phase-c-repository-hygiene-2026-08-01.md`](history/phase-c-repository-hygiene-2026-08-01.md) | roadmap/status | historical | Phase C completion, commit-bound validation, and residual gaps |

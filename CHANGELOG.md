@@ -16,6 +16,28 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Watchdog — breaking, additive, and behavioral pre-stable candidate
+  correction for the first `1.0.0` stable family release.** Retained
+  `WatchdogBootstrap` as the ordinary application entry and
+  `WatchdogRuntime` as a deliberate advanced supervisor surface. Runtime
+  construction now captures normalized configuration without mutating the
+  caller's `WatchdogOptions`, copies the sink array, exposes the effective
+  `PipeName`, and implements one terminal, race-safe start/wait/stop/dispose
+  lifecycle. Removed the ineffective `Stop(bool)` distinction, unsupported
+  update options, obsolete raw-log server, and public implementation helpers;
+  internalized batching and Host-only protocol constants. Mutating
+  `WatchdogController` operations now return whether the exact acknowledgement
+  was accepted; notification remains fail-soft. `LogEvent.Meta` became nullable
+  serializer-neutral `MetaJson`, and nullable event fields now match wire data.
+  Added `WatchdogOptions.EnableHotkeys`, defaulting `true`, with observable
+  registration failure when enabled. Shutdown now interrupts crash-loop
+  cooldown, drains owned workers, disposes process handles, and resolves the
+  system `taskkill.exe` explicitly. Status evidence distinguishes history
+  eviction, event-queue drops, and publish failures; crash finalization records
+  complete, partial, or failed outcomes internally. Targets, dependencies,
+  deterministic target identity, current-user pipe policy, cooperative
+  same-user security model, and separate Host packaging remain unchanged. See
+  the [F1-WDOG migration guide](docs/migrations/f1-watchdog.md).
 - **NekoLib.Pipes — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed the no-op
   `IDisposable`/`IAsyncDisposable` surface from stateless `PipeClient`; each

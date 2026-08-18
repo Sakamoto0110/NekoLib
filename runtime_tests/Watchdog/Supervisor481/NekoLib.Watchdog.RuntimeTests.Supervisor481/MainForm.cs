@@ -68,10 +68,10 @@ namespace NekoLib.Watchdog.RuntimeTests.Supervisor481
                     EnableFileLogging = false   // keep the demo to in-memory + pipe only
                 };
 
-                // WatchdogRuntime's ctor calls Normalize(), which fills PipeName
-                // with the SHA1-derived identity we need for the pipe clients.
+                // The runtime exposes the effective SHA1-derived identity used by
+                // its pipe clients without mutating the supplied options.
                 _runtime = new WatchdogRuntime(options);
-                _pipeName = options.PipeName;
+                _pipeName = _runtime.PipeName;
 
                 _runtime.Start();
                 SubscribeEvents();

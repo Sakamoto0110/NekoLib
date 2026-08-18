@@ -84,7 +84,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Data`](src/Data/NekoLib.Data/README.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
 | [`NekoLib.Mvvm`](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | [`NekoLib.Pipes`](src/Pipes/NekoLib.Pipes/README.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
-| `NekoLib.Watchdog` | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
+| [`NekoLib.Watchdog`](src/Watchdog/NekoLib.Watchdog/README.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | [`NekoLib.Devices`](src/Devices/NekoLib.Devices/README.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
@@ -182,7 +182,7 @@ technical manual.
 | Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | [Mvvm](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency; coercion needs an exact runtime type match and `Execute` does not consult `CanExecute` | `NekoLib.Mvvm.Tests.Unit` |
 | [Pipes](src/Pipes/NekoLib.Pipes/README.md) | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; stateful shutdown is terminal and awaitable | `NekoLib.Pipes.Tests.Unit` |
-| Watchdog | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Windows process supervision plus an out-of-process Host; RPC/events are restricted to the current user, not protected from hostile same-user processes; update orchestration is not implemented | `NekoLib.Watchdog.Tests.Unit` |
+| [Watchdog](src/Watchdog/NekoLib.Watchdog/README.md) | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Default application bootstrap plus a deliberate advanced supervisor runtime; configuration is captured, shutdown is terminal, evidence is bounded/best-effort, and current-user RPC/events do not protect against a hostile same-user process | `NekoLib.Watchdog.Tests.Unit` |
 | [Devices](src/Devices/NekoLib.Devices/README.md) | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; a timed-out operation leaves an indeterminate receive state unless `CloseTransportOnNoResponse` is enabled; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
 
 Navigation and its adapters use their
@@ -346,6 +346,7 @@ cycles.
 | Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Pipes technical reference | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
+| Watchdog technical reference | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |

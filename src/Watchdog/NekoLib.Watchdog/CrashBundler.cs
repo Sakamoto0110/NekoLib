@@ -1,206 +1,320 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
+
+#if NET9
+using System.Text.Json;
+#else
+using Newtonsoft.Json;
+#endif
 
 namespace NekoLib.Watchdog
 {
-    /// <summary>
-    /// Watchdog-side bundler:
-    /// - Moves/copies newest pending app crash folder (created by the app) into a final bundle
-    /// - Adds watchdog status snapshot and watchdog log tail
-    /// - Writes manifest.json
-    /// - Optionally includes checksums (auto-disabled if CrashChecksums.cs is removed)
-    /// - Enforces MaxBundles
-    /// </summary>
-    public static class CrashBundler
+    internal enum CrashBundleOutcome
     {
-        public static void TryFinalizeLatestCrashBundle(
-            CrashBundlerOptions o,
+        NoPendingCrash,
+        Complete,
+        Partial,
+        Failed
+    }
+
+    internal sealed class CrashBundleResult
+    {
+        public CrashBundleResult(
+            CrashBundleOutcome outcome,
+            string? bundleId,
+            IReadOnlyList<string> failures)
+        {
+            Outcome = outcome;
+            BundleId = bundleId;
+            Failures = failures;
+        }
+
+        public CrashBundleOutcome Outcome { get; }
+        public string? BundleId { get; }
+        public IReadOnlyList<string> Failures { get; }
+    }
+
+    internal static class CrashBundler
+    {
+        public static CrashBundleResult TryFinalizeLatestCrashBundle(
+            CrashBundlerOptions? options,
             string restartReason,
             long restartCount,
-            Action<string> log = null)
+            Action<string>? log = null)
         {
-            if (o == null) return;
+            if (options == null)
+                return Failed(null, "options", log);
 
+            string? bundleId = null;
             try
             {
-                Directory.CreateDirectory(o.PendingCrashRoot);
-                Directory.CreateDirectory(o.BundleRoot);
+                Directory.CreateDirectory(options.PendingCrashRoot);
+                Directory.CreateDirectory(options.BundleRoot);
 
-                // Find newest pending crash folder: crash-YYYY...
-                var pending = new DirectoryInfo(o.PendingCrashRoot)
+                var pending = new DirectoryInfo(options.PendingCrashRoot)
                     .GetDirectories("crash-*")
-                    .OrderByDescending(d => d.CreationTimeUtc)
+                    .OrderByDescending(directory => directory.CreationTimeUtc)
                     .FirstOrDefault();
 
-                if (pending == null) return;
-
-                var bundleId = "bundle-" + DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss-fffZ");
-                var bundleDir = Path.Combine(o.BundleRoot, bundleId);
-                Directory.CreateDirectory(bundleDir);
-
-                // Copy app crash artifacts
-                CopyDirectory(pending.FullName, bundleDir);
-
-                // Add watchdog status snapshot
-                try
+                if (pending == null)
                 {
-                    var status = o.GetWatchdogStatus != null ? o.GetWatchdogStatus() : null;
+                    return new CrashBundleResult(
+                        CrashBundleOutcome.NoPendingCrash,
+                        null,
+                        new string[0]);
+                }
+
+                bundleId = "bundle-" + DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss-fffZ");
+                var bundleDirectory = Path.Combine(options.BundleRoot, bundleId);
+                Directory.CreateDirectory(bundleDirectory);
+                CopyDirectory(pending.FullName, bundleDirectory);
+
+                var failures = new List<string>();
+
+                TryOptional("watchdog_status", failures, () =>
+                {
+                    var status = options.GetWatchdogStatus?.Invoke();
                     if (!string.IsNullOrWhiteSpace(status))
-                        File.WriteAllText(Path.Combine(bundleDir, "watchdog-status.txt"), status);
-                }
-                catch { }
-
-                // Add watchdog log tail
-                if (o.CopyWatchdogLogTail && !string.IsNullOrWhiteSpace(o.WatchdogLogPath) && File.Exists(o.WatchdogLogPath))
-                {
-                    try
                     {
-                        TailFileLines(o.WatchdogLogPath, Path.Combine(bundleDir, "watchdog.log.tail"), o.TailLines);
+                        File.WriteAllText(
+                            Path.Combine(bundleDirectory, "watchdog-status.txt"),
+                            status);
                     }
-                    catch { }
-                }
+                });
 
-                // Manifest (+ optional checksums)
-                if (o.EnableManifests)
+                var watchdogLogPath = options.WatchdogLogPath;
+                if (options.CopyWatchdogLogTail &&
+                    !string.IsNullOrWhiteSpace(watchdogLogPath) &&
+                    File.Exists(watchdogLogPath))
                 {
-                    try
-                    {
-                        WriteManifest(o, bundleDir, bundleId, restartReason, restartCount);
-                    }
-                    catch { }
+                    TryOptional("watchdog_log_tail", failures, () =>
+                        TailFileLines(
+                            watchdogLogPath!,
+                            Path.Combine(bundleDirectory, "watchdog.log.tail"),
+                            options.TailLines));
                 }
 
-                // After successful copy, you can delete pending folder (or keep it if you want)
-                try { pending.Delete(true); } catch { }
+                if (options.EnableManifests)
+                {
+                    TryOptional("manifest", failures, () =>
+                        WriteManifest(
+                            options,
+                            bundleDirectory,
+                            bundleId,
+                            restartReason,
+                            restartCount,
+                            failures));
+                }
 
-                // Enforce MaxBundles (hard limit)
-                EnforceMaxBundles(o.BundleRoot, o.MaxBundles);
+                TryOptional("pending_cleanup", failures, () => pending.Delete(true));
+                if (!EnforceMaxBundles(options.BundleRoot, options.MaxBundles))
+                    failures.Add("bundle_retention");
 
-                log?.Invoke("[bundler] finalized " + bundleId);
+                var outcome = failures.Count == 0
+                    ? CrashBundleOutcome.Complete
+                    : CrashBundleOutcome.Partial;
+                SafeLog(
+                    log,
+                    outcome == CrashBundleOutcome.Complete
+                        ? "[bundler] finalized " + bundleId
+                        : "[bundler] partial " + bundleId + " (" + string.Join(",", failures) + ")");
+
+                return new CrashBundleResult(outcome, bundleId, failures.ToArray());
             }
             catch (Exception ex)
             {
-                log?.Invoke("[bundler] error " + ex.Message);
+                return Failed(bundleId, ex.GetType().Name + ": " + ex.Message, log);
             }
         }
 
-        private static void WriteManifest(CrashBundlerOptions o, string bundleDir, string bundleId, string restartReason, long restartCount)
+        private static CrashBundleResult Failed(
+            string? bundleId,
+            string failure,
+            Action<string>? log)
         {
-            var files = Directory.GetFiles(bundleDir)
-                .Select(p => new FileInfo(p))
-                .OrderBy(f => f.Name)
-                .ToList();
+            SafeLog(log, "[bundler] failed " + failure);
+            return new CrashBundleResult(
+                CrashBundleOutcome.Failed,
+                bundleId,
+                new[] { failure });
+        }
 
-            bool checksumsEnabled = o.EnableChecksums;
-
-            var sb = new StringBuilder(16 * 1024);
-            sb.AppendLine("{");
-            sb.AppendLine("  \"schemaVersion\": 1,");
-            sb.AppendLine("  \"bundleId\": " + Json(bundleId) + ",");
-            sb.AppendLine("  \"timestampUtc\": " + Json(DateTime.UtcNow.ToString("O")) + ",");
-            sb.AppendLine();
-
-            sb.AppendLine("  \"application\": {");
-            sb.AppendLine("    \"version\": " + Json(SafeCall(o.GetAppVersion)) + "");
-            sb.AppendLine("  },");
-            sb.AppendLine();
-
-            sb.AppendLine("  \"watchdog\": {");
-            sb.AppendLine("    \"version\": " + Json(SafeCall(o.GetWatchdogVersion)) + ",");
-            sb.AppendLine("    \"restartReason\": " + Json(restartReason) + ",");
-            sb.AppendLine("    \"restartCount\": " + restartCount);
-            sb.AppendLine("  },");
-            sb.AppendLine();
-
-            sb.AppendLine("  \"checksums\": " + (checksumsEnabled ? "true" : "false") + ",");
-            sb.AppendLine("  \"files\": [");
-
-            for (int i = 0; i < files.Count; i++)
+        private static void TryOptional(
+            string name,
+            ICollection<string> failures,
+            Action action)
+        {
+            try
             {
-                var f = files[i];
-                var rel = f.Name;
+                action();
+            }
+            catch
+            {
+                failures.Add(name);
+            }
+        }
 
-                string sha = null;
-                if (checksumsEnabled)
-                    sha = CrashChecksums.Sha256Hex(f.FullName);
+        private static void SafeLog(Action<string>? log, string message)
+        {
+            try
+            {
+                log?.Invoke(message);
+            }
+            catch
+            {
+                // Reporting is never allowed to replace the finalization outcome.
+            }
+        }
 
-                sb.AppendLine("    {");
-                sb.AppendLine("      \"path\": " + Json(rel) + ",");
-                sb.AppendLine("      \"size\": " + f.Length + (checksumsEnabled ? "," : ""));
-                if (checksumsEnabled)
-                    sb.AppendLine("      \"sha256\": " + Json(sha));
-                sb.Append("    }");
-                if (i != files.Count - 1) sb.Append(",");
-                sb.AppendLine();
+        private static void WriteManifest(
+            CrashBundlerOptions options,
+            string bundleDirectory,
+            string bundleId,
+            string restartReason,
+            long restartCount,
+            ICollection<string> failures)
+        {
+            var files = Directory.GetFiles(bundleDirectory)
+                .Select(path => new FileInfo(path))
+                .OrderBy(file => file.Name)
+                .ToList();
+            var manifestFiles = new List<Dictionary<string, object?>>(files.Count);
+
+            foreach (var file in files)
+            {
+                var item = new Dictionary<string, object?>
+                {
+                    { "path", file.Name },
+                    { "size", file.Length }
+                };
+                if (options.EnableChecksums)
+                    item.Add("sha256", CrashChecksums.Sha256Hex(file.FullName));
+                manifestFiles.Add(item);
             }
 
-            sb.AppendLine("  ]");
-            sb.AppendLine("}");
+            var appVersion = SafeCall(
+                options.GetAppVersion,
+                "application_version",
+                failures);
+            var watchdogVersion = SafeCall(
+                options.GetWatchdogVersion,
+                "watchdog_version",
+                failures);
+            var manifest = new Dictionary<string, object?>
+            {
+                { "schemaVersion", 1 },
+                { "bundleId", bundleId },
+                { "timestampUtc", DateTime.UtcNow.ToString("O") },
+                { "application", new Dictionary<string, object?> { { "version", appVersion } } },
+                {
+                    "watchdog",
+                    new Dictionary<string, object?>
+                    {
+                        { "version", watchdogVersion },
+                        { "restartReason", restartReason },
+                        { "restartCount", restartCount }
+                    }
+                },
+                { "checksums", options.EnableChecksums },
+                { "files", manifestFiles }
+            };
 
-            File.WriteAllText(Path.Combine(bundleDir, "manifest.json"), sb.ToString());
+#if NET9
+            var json = JsonSerializer.Serialize(
+                manifest,
+                new JsonSerializerOptions { WriteIndented = true });
+#else
+            var json = JsonConvert.SerializeObject(manifest, Formatting.Indented);
+#endif
+            File.WriteAllText(Path.Combine(bundleDirectory, "manifest.json"), json);
         }
 
-        private static string SafeCall(Func<string> f)
+        private static string? SafeCall(
+            Func<string?>? callback,
+            string failureName,
+            ICollection<string> failures)
         {
-            try { return f != null ? f() : null; } catch { return null; }
-        }
-
-        private static string Json(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "null";
-            return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-        }
-
-        private static void EnforceMaxBundles(string bundleRoot, int maxBundles)
-        {
-            if (maxBundles <= 0) return;
+            if (callback == null)
+                return null;
 
             try
             {
-                var dirs = new DirectoryInfo(bundleRoot)
+                return callback();
+            }
+            catch
+            {
+                failures.Add(failureName);
+                return null;
+            }
+        }
+
+        private static bool EnforceMaxBundles(string bundleRoot, int maxBundles)
+        {
+            if (maxBundles <= 0)
+                return true;
+
+            try
+            {
+                var directories = new DirectoryInfo(bundleRoot)
                     .GetDirectories("bundle-*")
-                    .OrderByDescending(d => d.CreationTimeUtc)
+                    .OrderByDescending(directory => directory.CreationTimeUtc)
                     .ToList();
-
-                for (int i = maxBundles; i < dirs.Count; i++)
+                var complete = true;
+                for (var index = maxBundles; index < directories.Count; index++)
                 {
-                    try { dirs[i].Delete(true); } catch { }
+                    try
+                    {
+                        directories[index].Delete(true);
+                    }
+                    catch
+                    {
+                        complete = false;
+                    }
                 }
+
+                return complete;
             }
-            catch { }
-        }
-
-        private static void CopyDirectory(string srcDir, string dstDir)
-        {
-            Directory.CreateDirectory(dstDir);
-
-            foreach (var file in Directory.GetFiles(srcDir))
+            catch
             {
-                var dst = Path.Combine(dstDir, Path.GetFileName(file));
-                File.Copy(file, dst, true);
-            }
-
-            foreach (var dir in Directory.GetDirectories(srcDir))
-            {
-                var name = Path.GetFileName(dir);
-                CopyDirectory(dir, Path.Combine(dstDir, name));
+                return false;
             }
         }
 
-        private static void TailFileLines(string src, string dst, int lines)
+        private static void CopyDirectory(string sourceDirectory, string targetDirectory)
         {
-            if (lines <= 0) return;
-
-            var q = new Queue<string>(lines);
-            foreach (var line in File.ReadLines(src))
+            Directory.CreateDirectory(targetDirectory);
+            foreach (var file in Directory.GetFiles(sourceDirectory))
             {
-                if (q.Count == lines) q.Dequeue();
-                q.Enqueue(line);
+                File.Copy(
+                    file,
+                    Path.Combine(targetDirectory, Path.GetFileName(file)),
+                    true);
             }
-            File.WriteAllLines(dst, q);
+
+            foreach (var directory in Directory.GetDirectories(sourceDirectory))
+            {
+                CopyDirectory(
+                    directory,
+                    Path.Combine(targetDirectory, Path.GetFileName(directory)));
+            }
+        }
+
+        private static void TailFileLines(string source, string target, int lines)
+        {
+            if (lines <= 0)
+                return;
+
+            var tail = new Queue<string>(lines);
+            foreach (var line in File.ReadLines(source))
+            {
+                if (tail.Count == lines)
+                    tail.Dequeue();
+                tail.Enqueue(line);
+            }
+
+            File.WriteAllLines(target, tail);
         }
     }
 }

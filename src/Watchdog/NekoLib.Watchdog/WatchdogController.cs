@@ -11,6 +11,7 @@ using System.Text;
 #if NET9
 using System.Text.Json;
 #else
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 #endif
 
@@ -25,10 +26,10 @@ namespace NekoLib.Watchdog
         public sealed class LogEvent
         {
             public long TsUnixMs { get; set; }
-            public string Level { get; set; }
-            public string Msg { get; set; }
-            public object Meta { get; set; }
-            public string Line { get; set; }
+            public string? Level { get; set; }
+            public string? Msg { get; set; }
+            public string? MetaJson { get; set; }
+            public string? Line { get; set; }
         }
 
         // ============================================================
@@ -39,12 +40,17 @@ namespace NekoLib.Watchdog
 
         private static string ResolvePipeName()
         {
-            var exe = Process.GetCurrentProcess().MainModule.FileName;
+            using var process = Process.GetCurrentProcess();
+            var exe = process.MainModule?.FileName ??
+                throw new InvalidOperationException("Unable to resolve the current executable path.");
             return ResolvePipeNameForTarget(exe);
         }
 
         public static string ResolvePipeNameForTarget(string targetPath)
         {
+            if (targetPath == null)
+                throw new ArgumentNullException(nameof(targetPath));
+
             var full = Path.GetFullPath(targetPath).ToLowerInvariant();
             using (var sha1 = SHA1.Create())
             {
@@ -69,17 +75,25 @@ namespace NekoLib.Watchdog
                 RequestTimeout = TimeSpan.FromMilliseconds(3000)
             });
         }
-        public static void NotifyException(string type, string message, string source)
+        public static void NotifyException(string? type, string? message, string? source)
         {
             NotifyExceptionToPipe(_pipeName, type, message, source);
         }
 
-        public static void NotifyExceptionForTarget(string targetPath, string type, string message, string source)
+        public static void NotifyExceptionForTarget(
+            string targetPath,
+            string? type,
+            string? message,
+            string? source)
         {
             NotifyExceptionToPipe(ResolvePipeNameForTarget(targetPath), type, message, source);
         }
 
-        private static void NotifyExceptionToPipe(string pipeName, string type, string message, string source)
+        private static void NotifyExceptionToPipe(
+            string pipeName,
+            string? type,
+            string? message,
+            string? source)
         {
             try
             {
@@ -91,7 +105,7 @@ namespace NekoLib.Watchdog
                     source
                 };
 
-                client.SendAsync("exception_notify", payload)
+                client.SendAsync(WatchdogCommands.ExceptionNotify, payload)
                       .GetAwaiter()
                       .GetResult();
             }
@@ -116,7 +130,7 @@ namespace NekoLib.Watchdog
 #if NET9
                 if (response.Data.HasValue &&
                     response.Data.Value.ValueKind == JsonValueKind.String)
-                    return response.Data.Value.GetString();
+                    return response.Data.Value.GetString() ?? "";
 
                 return response.Data.HasValue
                     ? response.Data.Value.ToString()
@@ -141,19 +155,19 @@ namespace NekoLib.Watchdog
         // Public API (No targetPath needed anymore)
         // ============================================================
 
-        public static bool Ping() => Send("ping") == "pong";
+        public static bool Ping() => Send(WatchdogCommands.Ping) == "pong";
 
-        public static string Status() => Send("status");
+        public static string Status() => Send(WatchdogCommands.Status);
 
-        public static void Pause() => Send("pause");
+        public static bool Pause() => Send(WatchdogCommands.Pause) == "paused";
 
-        public static void Resume() => Send("resume");
+        public static bool Resume() => Send(WatchdogCommands.Resume) == "running";
 
-        public static void Stop() => Send("stop");
+        public static bool Stop() => Send(WatchdogCommands.Stop) == "stopped";
 
-        public static void Restart() => Send("restart");
+        public static bool Restart() => Send(WatchdogCommands.Restart) == "restarting";
 
-        public static void NotifyLog(LogEntry entry)
+        public static void NotifyLog(LogEntry? entry)
         {
             if (entry == null)
                 return;
@@ -169,7 +183,7 @@ namespace NekoLib.Watchdog
                     exception = entry.Exception?.ToString()
                 };
 
-                client.SendAsync("log_write", payload)
+                client.SendAsync(WatchdogCommands.LogWrite, payload)
                       .GetAwaiter()
                       .GetResult();
             }
@@ -184,7 +198,7 @@ namespace NekoLib.Watchdog
         /// connection (one connect amortized over the whole batch). Used by the
         /// buffered <see cref="WatchdogPipeLogSink"/>.
         /// </summary>
-        public static void NotifyLogBatch(IReadOnlyList<LogEntry> entries)
+        internal static void NotifyLogBatch(IReadOnlyList<LogEntry>? entries)
         {
             if (entries == null || entries.Count == 0)
                 return;
@@ -211,7 +225,7 @@ namespace NekoLib.Watchdog
                     return;
 
                 var client = CreateClient();
-                client.SendAsync("log_write_batch", new { entries = items })
+                client.SendAsync(WatchdogCommands.LogWriteBatch, new { entries = items })
                       .GetAwaiter()
                       .GetResult();
             }
@@ -236,6 +250,9 @@ namespace NekoLib.Watchdog
 
             client.OnEvent += msg =>
             {
+                if (!string.Equals(msg.Name, "log", StringComparison.Ordinal))
+                    return;
+
 #if NET9
                 if (!msg.Data.HasValue ||
                     msg.Data.Value.ValueKind != JsonValueKind.Object)
@@ -261,10 +278,12 @@ namespace NekoLib.Watchdog
                     l.ValueKind == JsonValueKind.String)
                     e.Line = l.GetString();
 
-                if (root.TryGetProperty("meta", out var meta))
-                    e.Meta = meta.ToString();
+                if (root.TryGetProperty("meta", out var meta) &&
+                    meta.ValueKind != JsonValueKind.Null &&
+                    meta.ValueKind != JsonValueKind.Undefined)
+                    e.MetaJson = meta.GetRawText();
 
-                onLog(e);
+                InvokeLogSubscriber(onLog, e);
 #else
                 var t = msg.Data;
                 if (t == null || t.Type != JTokenType.Object)
@@ -272,14 +291,14 @@ namespace NekoLib.Watchdog
 
                 var e = new LogEvent
                 {
-                    TsUnixMs = t["tsUnixMs"] != null ? t["tsUnixMs"].Value<long>() : 0,
-                    Level = t["level"]?.ToString(),
-                    Msg = t["msg"]?.ToString(),
-                    Line = t["line"]?.ToString(),
-                    Meta = t["meta"]
+                    TsUnixMs = t["tsUnixMs"]?.Value<long>() ?? 0,
+                    Level = ToOptionalString(t["level"]),
+                    Msg = ToOptionalString(t["msg"]),
+                    Line = ToOptionalString(t["line"]),
+                    MetaJson = ToJsonText(t["meta"])
                 };
 
-                onLog(e);
+                InvokeLogSubscriber(onLog, e);
 #endif
             };
 
@@ -295,9 +314,9 @@ namespace NekoLib.Watchdog
             return SubscribeLogs(e =>
             {
                 if (!string.IsNullOrWhiteSpace(e.Line))
-                    onLine(e.Line);
+                    onLine(e.Line!);
                 else if (!string.IsNullOrWhiteSpace(e.Msg))
-                    onLine(e.Msg);
+                    onLine(e.Msg!);
             });
         }
 
@@ -338,10 +357,12 @@ namespace NekoLib.Watchdog
                     if (item.TryGetProperty("line", out var l))
                         e.Line = l.GetString();
 
-                    if (item.TryGetProperty("meta", out var meta))
-                        e.Meta = meta.ToString();
+                    if (item.TryGetProperty("meta", out var meta) &&
+                        meta.ValueKind != JsonValueKind.Null &&
+                        meta.ValueKind != JsonValueKind.Undefined)
+                        e.MetaJson = meta.GetRawText();
 
-                    onLog(e);
+                    InvokeLogSubscriber(onLog, e);
                 }
 #else
                 var arr = response.Data as JArray;
@@ -352,13 +373,13 @@ namespace NekoLib.Watchdog
                     var e = new LogEvent
                     {
                         TsUnixMs = item["tsUnixMs"]?.Value<long>() ?? 0,
-                        Level = item["level"]?.ToString(),
-                        Msg = item["msg"]?.ToString(),
-                        Line = item["line"]?.ToString(),
-                        Meta = item["meta"]
+                        Level = ToOptionalString(item["level"]),
+                        Msg = ToOptionalString(item["msg"]),
+                        Line = ToOptionalString(item["line"]),
+                        MetaJson = ToJsonText(item["meta"])
                     };
 
-                    onLog(e);
+                    InvokeLogSubscriber(onLog, e);
                 }
 #endif
             }
@@ -367,5 +388,34 @@ namespace NekoLib.Watchdog
                 // silent: best effort
             }
         }
+
+        private static void InvokeLogSubscriber(Action<LogEvent> subscriber, LogEvent value)
+        {
+            try
+            {
+                subscriber(value);
+            }
+            catch
+            {
+                // One application callback cannot terminate replay or the live
+                // event-client listener.
+            }
+        }
+
+#if !NET9
+        private static string? ToOptionalString(JToken? token)
+        {
+            return token == null || token.Type == JTokenType.Null
+                ? null
+                : token.ToString();
+        }
+
+        private static string? ToJsonText(JToken? token)
+        {
+            return token == null || token.Type == JTokenType.Null
+                ? null
+                : token.ToString(Formatting.None);
+        }
+#endif
     }
 }

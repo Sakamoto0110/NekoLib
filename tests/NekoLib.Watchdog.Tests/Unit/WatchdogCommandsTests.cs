@@ -1,4 +1,6 @@
 using Xunit;
+using System.Linq;
+using System.Reflection;
 
 namespace NekoLib.Watchdog.Tests.Unit
 {
@@ -17,12 +19,36 @@ namespace NekoLib.Watchdog.Tests.Unit
         [InlineData("resume", "Resume")]
         [InlineData("restart", "Restart")]
         [InlineData("stop", "Stop")]
+        public void PublicCommand_HasExpectedWireValue(string expected, string member)
+        {
+            var field = typeof(WatchdogCommands).GetField(member);
+            Assert.NotNull(field);
+            Assert.Equal(expected, (string)field.GetValue(null));
+        }
+
+        [Fact]
+        public void PublicCommands_ContainOnlySupportedControlOperations()
+        {
+            var names = typeof(WatchdogCommands)
+                .GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Select(field => field.Name)
+                .OrderBy(name => name)
+                .ToArray();
+
+            Assert.Equal(
+                new[] { "Pause", "Ping", "Restart", "Resume", "Status", "Stop" },
+                names);
+        }
+
+        [Theory]
         [InlineData("log_history", "LogHistory")]
         [InlineData("exception_notify", "ExceptionNotify")]
         [InlineData("attach_status", "AttachStatus")]
-        public void Command_HasExpectedWireValue(string expected, string member)
+        public void InternalCommand_HasExpectedWireValue(string expected, string member)
         {
-            var field = typeof(WatchdogCommands).GetField(member);
+            var field = typeof(WatchdogCommands).GetField(
+                member,
+                BindingFlags.NonPublic | BindingFlags.Static);
             Assert.NotNull(field);
             Assert.Equal(expected, (string)field.GetValue(null));
         }
