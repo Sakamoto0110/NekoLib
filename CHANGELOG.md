@@ -16,6 +16,29 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Devices — breaking, additive, and behavioral pre-stable candidate
+  correction for the first `1.0.0` stable family release.** Removed
+  `Protocols.HardwareProtocol`, a public abstract class whose single `Template`
+  property nothing read, wrote, or derived from, and which participated in no
+  contract; implement `IHardwareProtocol` directly. Added the opt-in
+  `HardwareEngine.CloseTransportOnNoResponse`, default off: a timed-out operation
+  leaves the transport in an indeterminate receive state, and by default a late
+  reply can still be returned as the next operation's successful response, which
+  is now documented and testable. Added `HardwareResponse.Failure`, so a
+  fail-soft response carries the real exception instead of only `ex.Message` in
+  the same `Status` field a protocol uses for `"Ok"` — a disposed transport, a
+  caller bug and a silent device were previously indistinguishable. The engine
+  now hands the transport a copy of `IHardwareProtocol.PortConfig` and neither
+  shipped transport writes the resolved endpoint back into a caller-owned config,
+  so a single send no longer rewrites the protocol's own configuration; read
+  `ICommTransport.PortName` or `PortInfo` instead. `SerialCommTransport` discards
+  the port input buffer on open, matching the stream transports, and its
+  `Dispose` now takes the transport gate so it cannot race an in-flight read.
+  `Checksum.Sum` and `Checksum.Xor` both reject null with
+  `ArgumentNullException`. `ReadLine`, `ReadExact` and `ReadAll` now declare the
+  null they always returned on timeout, `ParseResponse` takes `byte[]?`, and
+  `Log` is nullable across the contracts. See the
+  [F1-DEV migration guide](docs/migrations/f1-devices.md).
 - **NekoLib.Mvvm — behavioral and binary-breaking pre-stable candidate correction
   for the first `1.0.0` stable family release.** No type, member, signature,
   default value, namespace, target, or dependency was added or removed. The

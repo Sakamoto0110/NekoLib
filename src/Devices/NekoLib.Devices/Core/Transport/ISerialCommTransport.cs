@@ -29,7 +29,7 @@ namespace NekoLib.Devices.Core.Transport
         /// <summary>
         /// Optional logger injected by <see cref="HardwareEngine"/>.
         /// </summary>
-        HardwareLogHandler Log { get; set; }
+        HardwareLogHandler? Log { get; set; }
 
         /// <summary>
         /// Applies the desired communication parameters to the underlying medium.
@@ -77,16 +77,16 @@ namespace NekoLib.Devices.Core.Transport
         /// Reads a line terminated by <see cref="SerialConfig.NewLine"/>, or returns
         /// <c>null</c> if no line was received before <paramref name="timeoutMs"/> elapses.
         /// </summary>
-        Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default);
+        Task<string?> ReadLine(int timeoutMs = 2000, CancellationToken ct = default);
 
         /// <summary>
         /// Reads exactly <paramref name="length"/> bytes, or returns null on timeout.
         /// </summary>
-        Task<byte[]> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default);
+        Task<byte[]?> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default);
 
         /// <summary>
         /// Reads all available bytes until a quiet period or timeout occurs.
         /// </summary>
-        Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default);
+        Task<byte[]?> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default);
     }
 }

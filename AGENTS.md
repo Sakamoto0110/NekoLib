@@ -17,6 +17,7 @@ the handoff state and the rules that are easy to get wrong.
 | Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](src/Diagnostics/NekoLib.Diagnostics/README.md) |
 | Binding helper coercion, notification semantics, threading, and nullability | [`src/Mvvm/NekoLib.Mvvm/README.md`](src/Mvvm/NekoLib.Mvvm/README.md) |
+| Hardware engine, transports, operation boundaries, and device protocol contracts | [`src/Devices/NekoLib.Devices/README.md`](src/Devices/NekoLib.Devices/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |

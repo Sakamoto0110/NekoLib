@@ -8,13 +8,6 @@ using System.Threading.Tasks;
 namespace NekoLib.Devices.Core.Protocols
 {
 
-
-    public abstract class HardwareProtocol 
-    {
-        public virtual string Template { get; protected set; }
-
-    }
-
     /// <summary>
     /// Provides a simple "raw" hardware protocol that forwards 
     /// binary or ASCII commands directly to the transport layer.
@@ -83,7 +76,7 @@ namespace NekoLib.Devices.Core.Protocols
         /// <summary>
         /// Optional logger assigned by <see cref="Engine.HardwareEngine"/>.
         /// </summary>
-        public HardwareLogHandler Log { get; set; }
+        public HardwareLogHandler? Log { get; set; }
 
         /// <inheritdoc/>
         public ControllerModel Model => ControllerModel.ControllerRaw;
@@ -150,7 +143,7 @@ namespace NekoLib.Devices.Core.Protocols
         /// <param name="reply">Raw bytes returned by the transport.</param>
         /// <param name="op">Original operation (unused).</param>
         /// <returns>The raw response.</returns>
-        public HardwareResponse ParseResponse(byte[] reply, HardwareOperation op)
+        public HardwareResponse ParseResponse(byte[]? reply, HardwareOperation op)
         {
             if(reply == null)
             {

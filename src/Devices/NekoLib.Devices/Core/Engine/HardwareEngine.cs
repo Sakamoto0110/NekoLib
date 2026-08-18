@@ -33,14 +33,27 @@ namespace NekoLib.Devices.Core.Engine
         private readonly ICommTransport _transport;
         private readonly IHardwareProtocol _protocol;
         private readonly SemaphoreSlim _operationGate = new SemaphoreSlim(1, 1);
-        private HardwareLogHandler _log;
+        private HardwareLogHandler? _log;
+
+        /// <summary>
+        /// When enabled, the engine closes the transport after an operation that
+        /// received no bytes, so a late reply cannot be delivered as the next
+        /// operation's response. The next send reopens, and opening clears the
+        /// receive buffer.
+        ///
+        /// Off by default: a protocol with legitimate fire-and-forget commands, or
+        /// one that receives unsolicited device traffic, would reconnect needlessly.
+        /// When enabled, a failed reconnection surfaces as the next operation's
+        /// failure instead of a missing response.
+        /// </summary>
+        public bool CloseTransportOnNoResponse { get; set; }
 
         /// <summary>
         /// Logger for all engine, transport, and protocol operations.
         /// When set, applies automatically to transport and any protocol implementing
         /// <see cref="IProtocolWithLogging"/>.
         /// </summary>
-        public HardwareLogHandler Log
+        public HardwareLogHandler? Log
         {
             get => _log;
             set
@@ -152,11 +165,18 @@ namespace NekoLib.Devices.Core.Engine
                 var cfg = _protocol.PortConfig;
 
                 Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Applying transport config");
-                _transport.Configure(cfg);
 
-                var endpoint = string.IsNullOrWhiteSpace(explicitPort)
-                    ? cfg.PortName
-                    : explicitPort;
+                // The protocol owns its configuration: hand the transport a copy so
+                // an operation can never rewrite it.
+                _transport.Configure(CopyOf(cfg));
+
+                // Resolution order: the explicit endpoint, then the protocol config,
+                // then whatever endpoint the transport was constructed with.
+                var endpoint = !string.IsNullOrWhiteSpace(explicitPort)
+                    ? explicitPort
+                    : !string.IsNullOrWhiteSpace(cfg.PortName)
+                        ? cfg.PortName
+                        : _transport.PortName;
 
                 if(string.IsNullOrWhiteSpace(endpoint))
                 {
@@ -184,6 +204,9 @@ namespace NekoLib.Devices.Core.Engine
 
                 Log?.Invoke(LogLevel.Debug, $"[{_protocol.Model}] Awaiting response…");
                 var rspBytes = await _transport.ReadAll(timeout, 50, ct).ConfigureAwait(false);
+
+                if(rspBytes == null && CloseTransportOnNoResponse)
+                    await CloseForCleanBoundary().ConfigureAwait(false);
 
                 Log?.Invoke(LogLevel.Raw,
                     rspBytes != null
@@ -218,10 +241,52 @@ namespace NekoLib.Devices.Core.Engine
                 {
                     Success = false,
                     Status = ex.Message,
+                    Failure = ex,
                     Request = op,
                     Elapsed = sw.Elapsed
                 };
             }
+        }
+
+        private async Task CloseForCleanBoundary()
+        {
+            Log?.Invoke(
+                LogLevel.Info,
+                $"[{_protocol.Model}] No response; closing the transport so the next " +
+                "operation cannot inherit a late reply");
+
+            try
+            {
+                await _transport.Close().ConfigureAwait(false);
+            }
+            catch(OperationCanceledException)
+            {
+                throw;
+            }
+            catch(Exception ex)
+            {
+                // Failing to close is not this operation's outcome; the next one will
+                // report whatever state the transport is actually in.
+                Log?.Invoke(LogLevel.Error, $"[{_protocol.Model}] CLOSE FAILED: {ex.Message}");
+            }
+        }
+
+        private static SerialConfig CopyOf(SerialConfig source)
+        {
+            return new SerialConfig
+            {
+                BaudRate = source.BaudRate,
+                Parity = source.Parity,
+                DataBits = source.DataBits,
+                StopBits = source.StopBits,
+                Handshake = source.Handshake,
+                DtrEnable = source.DtrEnable,
+                RtsEnable = source.RtsEnable,
+                ReadTimeout = source.ReadTimeout,
+                WriteTimeout = source.WriteTimeout,
+                NewLine = source.NewLine,
+                PortName = source.PortName
+            };
         }
 
         private void EnsureTransportOpenOnExpectedPort(string expectedPortName)

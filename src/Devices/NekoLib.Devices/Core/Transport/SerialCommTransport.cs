@@ -25,7 +25,7 @@ namespace NekoLib.Devices.Core.Transport
         private bool _disposed;
 
         /// <inheritdoc/>
-        public HardwareLogHandler Log { get; set; }
+        public HardwareLogHandler? Log { get; set; }
 
         /// <inheritdoc/>
         public string PortName
@@ -48,10 +48,10 @@ namespace NekoLib.Devices.Core.Transport
         /// Initializes the transport by optionally providing a default port name.
         /// It will not open automatically until <see cref="Open"/> is called.
         /// </summary>
-        public SerialCommTransport(string portName = null)
+        public SerialCommTransport(string? portName = null)
         {
             if(!string.IsNullOrWhiteSpace(portName))
-                PortName = portName;
+                PortName = portName!;
         }
 
         /// <inheritdoc/>
@@ -86,9 +86,6 @@ namespace NekoLib.Devices.Core.Transport
                     throw new InvalidOperationException(
                         $"Port is already open as '{_port.PortName}' and cannot be reconfigured to '{cfg.PortName}'.");
 
-                if(string.IsNullOrWhiteSpace(cfg.PortName))
-                    cfg.PortName = _port.PortName;
-
                 return;
             }
 
@@ -105,14 +102,12 @@ namespace NekoLib.Devices.Core.Transport
             _port.ReadTimeout = cfg.ReadTimeout;
             _port.WriteTimeout = cfg.WriteTimeout;
 
+            // The supplied config is caller-owned and is never written back: the
+            // resolved endpoint is reported through PortName and PortInfo.
             if(!string.IsNullOrWhiteSpace(cfg.PortName))
             {
                 _port.PortName = cfg.PortName;
                 _hasExplicitPortName = true;
-            }
-            else if(_hasExplicitPortName)
-            {
-                cfg.PortName = _port.PortName;
             }
 
             Log?.Invoke(LogLevel.Info,
@@ -228,7 +223,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<byte[]> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default)
+        public async Task<byte[]?> ReadAll(int timeoutMs = 2000, int quietPeriodMs = 100, CancellationToken ct = default)
         {
             ThrowIfDisposed();
 
@@ -285,7 +280,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
+        public async Task<string?> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
         {
             ThrowIfDisposed();
 
@@ -349,7 +344,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<byte[]> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default)
+        public async Task<byte[]?> ReadExact(int length, int timeoutMs = 2000, CancellationToken ct = default)
         {
             ThrowIfDisposed();
 
@@ -411,16 +406,21 @@ namespace NekoLib.Devices.Core.Transport
             if(_disposed)
                 return;
 
+            // Take the gate first: closing the port under an in-flight read would
+            // fault that operation from a background task. StreamCommTransport.Dispose
+            // already does this.
+            _gate.Wait();
             try
             {
                 if(_port.IsOpen)
                     _port.Close();
+                _disposed = true;
             }
             finally
             {
                 _port.Dispose();
+                _gate.Release();
                 _gate.Dispose();
-                _disposed = true;
             }
         }
 
@@ -437,6 +437,12 @@ namespace NekoLib.Devices.Core.Transport
             try
             {
                 await Task.Run(() => _port.Open(), ct).ConfigureAwait(false);
+
+                // A freshly opened port must not deliver bytes that arrived before
+                // this operation existed. The stream transports clear their buffer on
+                // open; this makes the serial boundary symmetric.
+                try { _port.DiscardInBuffer(); } catch { }
+
                 Log?.Invoke(LogLevel.Info, $"[Transport] OPEN OK");
             }
             catch(Exception ex)

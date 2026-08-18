@@ -52,7 +52,11 @@ namespace NekoLib.Devices.Tests.Unit
                     using (var server = client.GetStream())
                     {
                         Assert.Equal($"tcp://127.0.0.1:{port}", transport.PortName);
-                        Assert.Equal(transport.PortName, cfg.PortName);
+
+                        // The caller-owned config is never written back; the resolved
+                        // endpoint is reported through PortName and PortInfo.
+                        Assert.Null(cfg.PortName);
+                        Assert.Equal(transport.PortName, transport.PortInfo.PortName);
 
                         await transport.Write("PING;");
                         Assert.Equal("PING;", Encoding.ASCII.GetString(await ReadExact(server, 5)));
@@ -127,7 +131,10 @@ namespace NekoLib.Devices.Tests.Unit
                 await AwaitStage(acceptTask, "server accept");
 
                 Assert.Equal($@"\\.\pipe\{pipeName}", transport.PortName);
-                Assert.Equal(transport.PortName, cfg.PortName);
+
+                // The caller-owned config is never written back.
+                Assert.Null(cfg.PortName);
+                Assert.Equal(transport.PortName, transport.PortInfo.PortName);
 
                 var serverReadTask = ReadExact(server, 5);
                 await AwaitStage(transport.Write("PING;"), "client write");

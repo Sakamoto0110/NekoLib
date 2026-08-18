@@ -9,14 +9,14 @@ operation boundaries, transport and protocol extension contracts, configuration
 ownership, timeout and cancellation semantics, raw-byte and encoding
 boundaries, disposal, target parity, and documentation ownership
 
-**Status:** review complete; dispositions proposed and awaiting the consolidated
-F1 decision gate
+**Status:** all dispositions accepted and implemented, with the DEV-01 remedy
+revised at the gate; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `a6af985245180bf1d5aa4581dbeb3352fee3e885`
 
-**Last reconciliation:** 2026-08-17 — DEV-01 remedy revised at the decision gate
+**Last reconciliation:** 2026-08-18 — dispositions accepted and implemented
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-DEV
 
@@ -821,3 +821,109 @@ operation leaves the transport in an indeterminate receive state and that
 `Close()` is the caller's remedy — remains the fallback if the decision gate
 declines any new public surface in this module; the hazard then stays real but
 stops being invisible.
+
+## Reconciliation — 2026-08-18: dispositions accepted and implemented
+
+The observed facts, probe output, and original recommendations above are the
+snapshot and are unchanged, as is the 2026-08-17 DEV-01 revision recorded before
+them. This section records the implementation.
+
+### Accepted
+
+All fifteen dispositions were accepted. DEV-01 (as revised), DEV-02, DEV-03,
+DEV-04, DEV-05, DEV-07, and DEV-09 landed as code; DEV-06, DEV-08, and DEV-10
+through DEV-14 landed in the new module reference; DEV-15 landed as ten focused
+regressions.
+
+No project reference was added. The no-project-reference graph is intact: no
+Core, no Pipes, no facade, and the `HardwareEngine.SendAsync` transaction was
+deliberately **not** instrumented, so the B4 Inspection freeze is untouched.
+
+### Implementation
+
+- **DEV-01.** `HardwareEngine.CloseTransportOnNoResponse`, default off, closes
+  the transport after an operation whose `ReadAll` returned null. The next send
+  reopens, and `StreamCommTransport.OpenCore` already clears the receive buffer.
+  `SerialCommTransport.OpenCore` now calls `SerialPort.DiscardInBuffer()` after a
+  successful open so the serial boundary is symmetric rather than dependent on OS
+  handle semantics. A failure to close is logged and does not become the
+  operation's outcome.
+- **DEV-02.** `ExecuteCore` passes `CopyOf(_protocol.PortConfig)` to
+  `Configure`, and both transports stopped writing the resolved endpoint back
+  into the caller's object. Endpoint resolution now consults
+  `ICommTransport.PortName` directly as its third fallback, which is what the
+  write-back used to supply — so the supported "endpoint from the transport
+  constructor" mode is preserved without mutation.
+- **DEV-03.** `HardwareResponse.Failure` is set on the engine's catch path.
+- **DEV-04.** The three read methods, `ParseResponse`, `Log`, and the
+  `SerialCommTransport` constructor are annotated; the `null!` suppressions the
+  stream transport needed are gone.
+- **DEV-05.** `HardwareProtocol` removed.
+- **DEV-07.** `SerialCommTransport.Dispose` takes the gate before closing.
+- **DEV-09.** Both `Checksum` methods reject null with `ArgumentNullException`.
+
+### Two implementation decisions worth recording
+
+`HardwareResponse.Failure` is declared `Exception?`. Adding it unannotated would
+have introduced a new `CS8618` occurrence, and the field is genuinely null unless
+a failure occurred.
+
+The `SerialCommTransport` constructor guard needed `portName!` after the
+parameter became nullable: the blank check above it already proves non-null, but
+the compiler cannot see that through `IsNullOrWhiteSpace`.
+
+### Validation
+
+```text
+dotnet build src/Devices/NekoLib.Devices/NekoLib.Devices.csproj -t:Rebuild
+  before: 40 warnings, 0 errors
+  after:  22 warnings, 0 errors
+  the remaining set is a strict subset of the pre-existing identities:
+  CS8618 on the public model fields, CS8600/CS8625 in ProtocolRaw
+
+dotnet test tests/NekoLib.Devices.Tests/Unit/NekoLib.Devices.Tests.Unit.csproj
+  net481:  50 passed, 0 failed, 0 skipped
+  net9.0:  50 passed, 0 failed, 0 skipped
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Devices
+  diff was exactly the accepted delta, then updated and re-verified:
+    - public abstract class HardwareProtocol
+    + public bool CloseTransportOnNoResponse { get; set; }
+    + public System.Exception? Failure;
+      ParseResponse(byte[]? reply, ...), Log?, Task<string?>, Task<byte[]?>,
+      SerialCommTransport(string? portName = null)
+
+dotnet build runtime_tests/Devices/Com0Com/.../NekoLib.Devices.RuntimeTests.Com0Com.csproj
+  0 warnings, 0 errors - BUILD ONLY, not launched
+
+eng/verify-docs.ps1        passed
+git diff --check           clean
+```
+
+Ten regressions were added, and two existing assertions that pinned the removed
+write-back were updated to assert `PortName`/`PortInfo` instead.
+
+The two DEV-01 regressions are the important ones. Both drive `HardwareEngine`
+and `TcpCommTransport` against a **real loopback peer** that answers the first
+command 600 ms after its 200 ms budget and never answers the second:
+
+- with the switch off, operation 2 returns `Success=true` carrying operation 1's
+  payload — pinning the unchanged default;
+- with the switch on, operation 2 returns no payload.
+
+### Residual limits carried forward
+
+Every limit recorded in the original snapshot still applies, and the central one
+is unchanged:
+
+- **No serial port was opened. The com0com scenario was built, not run.** Nothing
+  here is serial, UART, or electrical evidence, and the loopback and fake
+  coverage is explicitly not a substitute.
+- DEV-01 was verified over TCP. The `SerialCommTransport` exposure, and the
+  `DiscardInBuffer` half of the remedy, remain **unverified**.
+- DEV-07 remains unreproduced; it rests on the source symmetry with
+  `StreamCommTransport.Dispose`.
+- DEV-13's thread-occupancy claim is still a source reading, not a measurement.
+- No full-solution build or test run was performed for this module block, no
+  package was produced, and no PackageReference consumer probe was run.
+- The `PcbEmulator` was not inspected, run, or modified.

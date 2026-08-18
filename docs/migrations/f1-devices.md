@@ -1,0 +1,151 @@
+# F1-DEV Migration — Devices
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Devices candidate surface to the accepted
+F1-DEV operation-boundary, configuration-ownership, failure-evidence, and
+nullability contracts
+
+**Reference date:** 2026-08-18
+
+The contracts themselves are owned by the
+[Devices reference](../../src/Devices/NekoLib.Devices/README.md).
+
+One public type was removed. Two behaviours changed in ways a consumer can
+observe. Everything else is additive or annotation.
+
+## Breaking: `HardwareProtocol` was removed
+
+`NekoLib.Devices.Core.Protocols.HardwareProtocol` is gone. It was a public
+abstract class with a single `Template` property that nothing read, wrote, or
+derived from, and it participated in no contract — `HardwareEngine` accepts
+`IHardwareProtocol`, never this base.
+
+```csharp
+// before — inheriting a base that supplied nothing
+public sealed class MyProtocol : HardwareProtocol, IHardwareProtocol { /* … */ }
+
+// after
+public sealed class MyProtocol : IHardwareProtocol, IProtocolWithLogging { /* … */ }
+```
+
+Implement `IHardwareProtocol`, and `IProtocolWithLogging` if you want the engine
+to inject its logger.
+
+## Behavioural: the engine no longer rewrites your configuration
+
+`IHardwareProtocol.PortConfig` used to be handed straight to
+`ICommTransport.Configure`, and both shipped transports wrote the resolved
+endpoint back into it. A single `SendAsync` therefore permanently rewrote the
+protocol's own configuration.
+
+The engine now passes a copy, and neither transport writes back.
+
+```csharp
+// before — the config object learned the endpoint as a side effect
+transport.Configure(cfg);
+var endpoint = cfg.PortName;      // populated by Configure
+
+// after — ask the transport what it resolved
+transport.Configure(cfg);
+var endpoint = transport.PortName;          // or transport.PortInfo.PortName
+```
+
+If you relied on reading the endpoint back out of the config object, read
+`ICommTransport.PortName` or `PortInfo` instead. The supported endpoint
+resolution order is unchanged: the explicit `SendAsync` endpoint, then
+`PortConfig.PortName`, then the endpoint the transport was constructed with — the
+last of which the engine now consults directly rather than through the write-back.
+
+## Behavioural: a freshly opened serial port discards buffered input
+
+`SerialCommTransport.Open` now calls `SerialPort.DiscardInBuffer()` after a
+successful open, matching `StreamCommTransport`, which has always cleared its
+receive buffer on open. Bytes that arrived before the port was opened are no
+longer delivered to the first operation.
+
+## Additive: an opt-in clean operation boundary
+
+A timed-out operation leaves the transport in an indeterminate receive state, and
+by default a late reply can be returned as the **next** operation's successful
+response. That default is unchanged.
+
+For a strict request/response protocol, opt in:
+
+```csharp
+var engine = new HardwareEngine(transport, protocol)
+{
+    CloseTransportOnNoResponse = true
+};
+```
+
+The engine then closes the transport after any operation that received no bytes;
+the next send reopens, and opening clears the receive buffer.
+
+Before enabling it, note that a protocol with legitimate fire-and-forget commands
+will reconnect after every unanswered operation, and that a failed reconnection
+surfaces as the next operation's failure rather than a missing response.
+
+## Additive: `HardwareResponse.Failure`
+
+Every non-cancellation failure still becomes a failed response rather than an
+exception — the fail-soft behaviour an unattended terminal wants. But previously
+only `ex.Message` survived, in the same `Status` field a protocol uses for `"Ok"`
+and `"NoResponse"`, so a disposed transport, a caller bug, and a silent device
+were indistinguishable.
+
+```csharp
+if (!response.Success && response.Failure != null)
+    log.Error(response.Failure.ToString());   // real type, stack, inner exception
+```
+
+`Status` keeps its meaning. `Failure` is null for protocol-level failures and for
+success. Cancellation still propagates as `OperationCanceledException` and is
+never a failed response.
+
+## Behavioural: `Checksum` rejects null consistently
+
+`Checksum.Sum(null)` threw `ArgumentNullException` from LINQ while
+`Checksum.Xor(null)` threw `NullReferenceException`. Both now throw
+`ArgumentNullException` naming `bytes`.
+
+## Annotation: the read methods declare the null they always returned
+
+`ICommTransport.ReadLine`, `ReadExact`, and `ReadAll` are now
+`Task<string?>` and `Task<byte[]?>`; `IHardwareProtocol.ParseResponse` takes
+`byte[]?`; `Log` is nullable on the transport, protocol, and engine contracts;
+and `SerialCommTransport(string? portName = null)` is annotated.
+
+All three read methods have always returned null on timeout and their
+documentation always said so — the signatures denied it. The change is
+binary-compatible.
+
+**If your code is nullable-enabled**, you may now get warnings where you
+dereference a read result without checking. Those are true positives on the exact
+path a device is silent:
+
+```csharp
+var reply = await transport.ReadAll(2000);
+if (reply == null)
+    return;                                  // timeout
+Process(reply);
+```
+
+**If you implement `ICommTransport` yourself**, add the annotations to match, or
+your implementation will warn about the mismatch. No runtime behaviour changes.
+
+## Behavioural: serial disposal waits for in-flight work
+
+`SerialCommTransport.Dispose` now takes the transport's gate before closing,
+which `StreamCommTransport.Dispose` already did. Disposing while a read is in
+flight no longer faults that operation from a background task; it waits.
+
+## Unchanged
+
+Cancellation semantics, operation serialization, the quiet-period rule,
+`ReadExact` never returning a partial buffer, endpoint validation and
+canonicalization, raw-byte preservation, the ASCII text paths, the
+`StreamCommTransport` extension seam, both target frameworks, and the
+no-project-reference dependency graph are all unchanged.

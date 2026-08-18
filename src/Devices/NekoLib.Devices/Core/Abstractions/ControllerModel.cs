@@ -65,7 +65,7 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Assigns a logger to the protocol implementation.
         /// </summary>
-        HardwareLogHandler Log { get; set; }
+        HardwareLogHandler? Log { get; set; }
     }
 
     /// <summary>
@@ -99,14 +99,20 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Computes additive checksum mod 256.
         /// </summary>
-        public static byte Sum(params byte[] bytes) =>
-            (byte)(bytes.Sum(x => x) & 0xFF);
+        public static byte Sum(params byte[] bytes)
+        {
+            if(bytes == null) throw new ArgumentNullException(nameof(bytes));
+
+            return (byte)(bytes.Sum(x => x) & 0xFF);
+        }
 
         /// <summary>
         /// Computes XOR checksum across all bytes.
         /// </summary>
         public static byte Xor(params byte[] bytes)
         {
+            if(bytes == null) throw new ArgumentNullException(nameof(bytes));
+
             byte v = 0;
             foreach(var b in bytes) v ^= b;
             return v;
@@ -197,6 +203,14 @@ namespace NekoLib.Devices.Core.Abstractions
 
         /// <summary>User-friendly interpreted representation.</summary>
         public string PrettyText;
+
+        /// <summary>
+        /// Transport or engine exception behind an unsuccessful response, when one
+        /// occurred. <see cref="Status"/> stays the protocol-facing string; this
+        /// carries the evidence a caller needs to tell a device outcome apart from a
+        /// programming error. Null for protocol-level failures and for success.
+        /// </summary>
+        public Exception? Failure;
     }
     public interface IHardwareProtocol
     {
@@ -205,6 +219,10 @@ namespace NekoLib.Devices.Core.Abstractions
         byte[] BuildCommand(HardwareOperation op);
 
 
-        HardwareResponse ParseResponse(byte[] reply, HardwareOperation op);
+        /// <summary>
+        /// Interprets a transport reply. <paramref name="reply"/> is null when the
+        /// transport received nothing within its budget.
+        /// </summary>
+        HardwareResponse ParseResponse(byte[]? reply, HardwareOperation op);
     }
 }

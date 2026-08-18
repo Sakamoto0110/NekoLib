@@ -67,8 +67,10 @@ namespace NekoLib.Devices.Tests.Unit
 
                 transport.Configure(cfg);
 
-                Assert.Equal("COM7", cfg.PortName);
+                // The caller-owned config is never written back.
+                Assert.Null(cfg.PortName);
                 Assert.Equal("COM7", transport.PortInfo.PortName);
+                Assert.Equal("COM7", transport.PortName);
             }
         }
 

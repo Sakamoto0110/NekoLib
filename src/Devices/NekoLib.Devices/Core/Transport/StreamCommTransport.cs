@@ -33,7 +33,7 @@ namespace NekoLib.Devices.Core.Transport
         private bool _disposed;
 
         /// <inheritdoc/>
-        public HardwareLogHandler Log { get; set; } = null!;
+        public HardwareLogHandler? Log { get; set; }
 
         /// <inheritdoc/>
         public SerialConfig PortInfo
@@ -115,10 +115,10 @@ namespace NekoLib.Devices.Core.Transport
                         $"Transport is already open as '{_endpoint}' and cannot be reconfigured to '{configuredEndpoint}'.");
                 }
 
+                // The supplied config is caller-owned and is never written back: the
+                // resolved endpoint is reported through PortName and PortInfo.
                 if(configuredEndpoint != null)
                     _endpoint = configuredEndpoint;
-                else if(!string.IsNullOrWhiteSpace(_endpoint))
-                    cfg.PortName = _endpoint!;
 
                 _config = CloneConfig(cfg);
                 _config.NewLine = string.IsNullOrEmpty(cfg.NewLine) ? "\r\n" : cfg.NewLine;
@@ -241,7 +241,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<string> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
+        public async Task<string?> ReadLine(int timeoutMs = 2000, CancellationToken ct = default)
         {
             ThrowIfDisposed();
             ValidateTimeout(timeoutMs, nameof(timeoutMs));
@@ -270,7 +270,7 @@ namespace NekoLib.Devices.Core.Transport
                     if(remaining <= 0 || !await WaitForData(remaining, ct).ConfigureAwait(false))
                     {
                         Log?.Invoke(LogLevel.Raw, $"[{TransportName}] ReadLine DONE: <null>");
-                        return null!;
+                        return null;
                     }
                 }
             }
@@ -281,7 +281,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<byte[]> ReadExact(
+        public async Task<byte[]?> ReadExact(
             int length,
             int timeoutMs = 2000,
             CancellationToken ct = default)
@@ -314,7 +314,7 @@ namespace NekoLib.Devices.Core.Transport
                     if(remaining <= 0 || !await WaitForData(remaining, ct).ConfigureAwait(false))
                     {
                         Log?.Invoke(LogLevel.Raw, $"[{TransportName}] ReadExact DONE: <null>");
-                        return null!;
+                        return null;
                     }
                 }
             }
@@ -325,7 +325,7 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <inheritdoc/>
-        public async Task<byte[]> ReadAll(
+        public async Task<byte[]?> ReadAll(
             int timeoutMs = 2000,
             int quietPeriodMs = 100,
             CancellationToken ct = default)
@@ -375,7 +375,7 @@ namespace NekoLib.Devices.Core.Transport
                 var bytes = result.Count == 0 ? null : result.ToArray();
                 Log?.Invoke(LogLevel.Raw,
                     $"[{TransportName}] ReadAll DONE: {LogUtil.Hex(bytes ?? Array.Empty<byte>())}");
-                return bytes!;
+                return bytes;
             }
             finally
             {

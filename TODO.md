@@ -597,6 +597,38 @@ consumers does not prove that a public member is unused.
 10. [ ] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol
     extension contracts, configurations, timeouts, cancellation, and public
     models without adding a general forwarding facade.
+    **Accepted 2026-08-17, DEV-01 remedy revised at the gate:** retain 17 of 18
+    public types as stable candidates. Remove `HardwareProtocol`, a public
+    abstract type with one meaningless member and no derived type anywhere. Add
+    the opt-in `HardwareEngine.CloseTransportOnNoResponse` — **replacing the
+    originally recommended pre-write drain**, which narrowed but never closed the
+    hazard and required a new optional interface, whereas closing on an empty
+    response uses `Close()` and the buffer-clearing `Open()` that already exist —
+    plus `SerialPort.DiscardInBuffer` on open so the serial boundary is
+    symmetric. Add `HardwareResponse.Failure` so fail-soft responses keep their
+    exception evidence; stop writing the resolved endpoint back into a
+    caller-owned `SerialConfig` and hand the transport a copy; annotate the
+    null-returning reads, `ParseResponse`, and `Log`; gate serial disposal; and
+    make `Checksum` null handling consistent. Logging ownership transfer, the
+    `PortName` setter asymmetry, lossy `RawText` on binary payloads, ASCII text
+    paths, public mutable model fields, serial thread occupancy, and the
+    `System.IO.Ports` public dependency are documented rather than changed.
+    **No project reference was added**: no Core, no Pipes, no facade, and the B4
+    Inspection freeze is untouched. The accepted rationale, the withdrawn drain,
+    and rejected alternatives are recorded in
+    [`docs/audit/devices-public-api-review-2026-08-17.md`](docs/audit/devices-public-api-review-2026-08-17.md).
+    **Implementation landed 2026-08-18, package gate pending.** Devices passed
+    50/50 tests on `net481` and 50/50 on `net9.0`, up from 40 per target,
+    including both operation-boundary regressions over a real loopback TCP peer —
+    one pinning the unchanged default, one proving the opt-in keeps a late reply
+    out of the next operation. A clean rebuild emitted 22 warnings, **down from
+    40 and introducing no new identity**. Both `NekoLib.Devices` API manifests
+    changed by exactly the accepted delta; scoped API verification, documentation
+    verification, and diff hygiene passed. The com0com scenario **compiles with 0
+    warnings** against the new nullable contract — build-only evidence; it was
+    not launched, and no serial port was opened at any point. A dedicated Devices
+    reference now owns the ownership, boundary, failure, encoding, and disposal
+    contracts. **The package gate remains open for Codex.**
 11. [ ] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
     boundary, shutdown, security-policy, and error contracts.
 12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
