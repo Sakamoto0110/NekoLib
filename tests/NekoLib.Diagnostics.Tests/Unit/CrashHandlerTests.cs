@@ -429,7 +429,7 @@ namespace NekoLib.Diagnostics.Tests.Unit
 
                 string bundleDirectory = null;
                 handler.CrashBundleWritten += (s, e) => bundleDirectory = e.BundleDirectory;
-                handler.CrashBundleFailed += (s, e) => Assert.True(false, "bundle should still be written");
+                handler.CrashBundleFailed += (s, e) => Assert.Fail("bundle should still be written");
 
                 InvokeHandleCrash(handler, "captured-source");
 
