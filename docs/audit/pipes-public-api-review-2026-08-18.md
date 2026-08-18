@@ -2,22 +2,23 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-PIPE compiled public surface, request/response and event
 contracts, ownership, lifecycle, concurrency, framing, metrics, errors,
 security policy, target parity, and package boundary
 
-**Status:** review complete; decision pending; no disposition implemented
+**Status:** all eight dispositions accepted and implemented
 
 **Reference date:** 2026-08-18
 
 **Reference commit:** `2db588ac6fef271851e70c04f7b8b82cd8e004a7`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-18
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-PIPE remains open and is the
-sole authority for accepted work
+**Current state:** the [Pipes technical reference](../../src/Pipes/NekoLib.Pipes/README.md)
+owns the implemented contract; [`TODO.md`](../../TODO.md) records F1-PIPE as
+complete and retains the family release gates
 
 ## Baseline and authority
 
@@ -819,3 +820,108 @@ F1-PIPE remains open. This review produced only this audit and its two current
 index entries. It implemented no correction, accepted no proposal, changed no
 public API baseline, produced no migration or changelog entry, built no package,
 published nothing, and pushed nothing.
+
+## Reconciliation — 2026-08-18: dispositions accepted and implemented
+
+The preceding text remains the review snapshot at
+`2db588ac6fef271851e70c04f7b8b82cd8e004a7`. The user subsequently accepted all
+eight numbered decision-gate proposals. Acceptance was promoted to `TODO.md` in
+`0086817e88bc725c92bef3dff4ea69ab12492365`; implementation, tests, current
+documentation, migration guidance, changelog, and reviewed API baselines landed
+in `e608dc873c78f5bcecbd79dc5931c59f5d461dcc`.
+
+### Accepted decisions and implemented outcome
+
+1. **Configuration (PIPE-01).** Client and server values are captured and
+   validated at construction. Event-client timeouts and reconnect delay validate
+   their live setters; only `AutoReconnect` remains an intentional live behavior
+   switch. See [`PipeConfiguration.cs`](../../src/Pipes/NekoLib.Pipes/PipeConfiguration.cs)
+   and the mutation regressions in
+   [`PipeConfigurationTests.cs:115`](../../tests/NekoLib.Pipes.Tests/Unit/PipeConfigurationTests.cs#L115).
+2. **Lifecycle (PIPE-02).** `PipeServer`, `PipeEventHub`, and `PipeEventClient`
+   expose target-neutral `ShutdownAsync`; start and shutdown are terminal and
+   race-safe; admitted operations remain represented by shutdown completion;
+   modern async disposal performs real async shutdown. The stateless
+   `PipeClient` no longer exposes disposal. See
+   [`PipeServer.cs:357`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L357),
+   [`PipeEventHub.cs:488`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L488),
+   [`PipeEventClient.cs:232`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L232),
+   and [`PipeShutdownTests.cs:131`](../../tests/NekoLib.Pipes.Tests/Unit/PipeShutdownTests.cs#L131).
+3. **Metrics (PIPE-03 and PIPE-09).** Every framework-owned metrics callback is
+   isolated behind an internal guard; snapshots remain cumulative and do not
+   reset; `IPipeMetrics` remains the extension seam; and `SimplePipeMetrics` is
+   sealed. See [`PipeMetricsGuard.cs`](../../src/Pipes/NekoLib.Pipes/PipeMetricsGuard.cs)
+   and [`PipeMetricsIsolationTests.cs:12`](../../tests/NekoLib.Pipes.Tests/Unit/PipeMetricsIsolationTests.cs#L12).
+4. **Events (PIPE-04 and PIPE-05).** Bounded FIFO subscriber queues and both
+   overflow policies remain. Serialized events are preflighted against the fixed
+   1 MiB frame bound before enqueue, so an oversized publication fails without
+   disconnecting healthy subscribers or changing publication metrics. The event
+   client now exposes isolated `OnError`; connected, event, error, and
+   disconnected callbacks are isolated individually and retain documented
+   ordering. See [`PipeEventHub.cs:403`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L403),
+   [`PipeEventClient.cs:44`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L44),
+   [`PipeEventTests.cs:136`](../../tests/NekoLib.Pipes.Tests/Unit/PipeEventTests.cs#L136),
+   and [`PipeEventClientTests.cs:110`](../../tests/NekoLib.Pipes.Tests/Unit/PipeEventClientTests.cs#L110).
+5. **Errors and cancellation (PIPE-06 and PIPE-07).** `PipeErrorCodes` publishes
+   the four stable framework codes while the existing response-versus-exception
+   matrix and sanitized handler failure remain unchanged. The `net481` blocking
+   connect path now races caller cancellation without disposing the still-running
+   task prematurely. See [`PipeErrorCodes.cs`](../../src/Pipes/NekoLib.Pipes/PipeErrorCodes.cs),
+   [`PipeTaskCancellation.cs`](../../src/Pipes/NekoLib.Pipes/PipeTaskCancellation.cs),
+   [`PipeRpcTests.cs:339`](../../tests/NekoLib.Pipes.Tests/Unit/PipeRpcTests.cs#L339),
+   and [`PipeClientCancellationTests.cs`](../../tests/NekoLib.Pipes.Tests/Unit/PipeClientCancellationTests.cs).
+6. **Target and package contract (PIPE-08).** The target-specific
+   `PipeMessage.Data` types and the `net481` Newtonsoft dependency are accepted
+   for this baseline and documented. No new project reference or package
+   dependency was added. A mixed-target separate-process wire probe remains a
+   prerequisite before the first stable family release.
+7. **Security (PIPE-10).** `CurrentUserOnly` remains opt-in,
+   `PlatformDefault` remains the compatibility default, and applications own
+   authorization. No authentication, replay, remote, privileged-control, Core,
+   or Inspection infrastructure was added. The technical reference now states
+   this boundary prominently.
+8. **Remaining surface.** All other reviewed public types and members are stable
+   for this candidate baseline. No member is marked experimental and no
+   deprecation window was introduced.
+
+### Compiled API delta
+
+The reviewed manifests record only the accepted surface changes: removal of
+`PipeClient` disposal, addition of `PipeErrorCodes`, target-neutral shutdown on
+the three stateful endpoints, modern `PipeServer` async disposal, event-client
+`OnError`, and sealing `SimplePipeMetrics`. Both compiled targets verify against
+their baselines. Consumer sources in Watchdog and the versioned runtime-scenario
+projects were migrated mechanically away from stateless client disposal; no
+protocol behavior was changed by that migration.
+
+### Implementation validation
+
+Executed on Windows from the implementation worktree:
+
+| Command | Result |
+|---|---|
+| `dotnet test tests/NekoLib.Pipes.Tests/Unit/NekoLib.Pipes.Tests.Unit.csproj -f net481 -m:1` | **74 passed**, 0 failed, 0 skipped |
+| `dotnet test tests/NekoLib.Pipes.Tests/Unit/NekoLib.Pipes.Tests.Unit.csproj -f net9.0-windows -m:1` | **74 passed**, 0 failed, 0 skipped |
+| `dotnet test tests/NekoLib.Watchdog.Tests/Unit/NekoLib.Watchdog.Tests.Unit.csproj -f net481 -m:1` | **84 passed**, 0 failed, 0 skipped |
+| `dotnet test tests/NekoLib.Watchdog.Tests/Unit/NekoLib.Watchdog.Tests.Unit.csproj -f net9.0-windows -m:1` | **84 passed**, 0 failed, 0 skipped |
+| `dotnet test NekoLib.sln -c Release -m:1 --no-restore` | **1,598 passed**, 0 failed, 0 skipped |
+| `dotnet build NekoLib.sln -c Release -t:Rebuild -m:1 --no-restore` | succeeded; 464 warning occurrences, 0 errors; no new warning identity |
+| `dotnet build` for Pipes LongRunningRecovery and Watchdog Supervisor481/CrashRecovery scenario projects, each supported target | succeeded with 0 warnings and 0 errors; build-only, never launched |
+| `.\eng\verify-public-api.ps1 -PackageId NekoLib.Pipes` | both builds succeeded with 0 warnings and 0 errors; `net481` and `net9.0` manifests verified |
+| `.\eng\verify-docs.ps1 -BuildLogPath artifacts\f1-pipes-solution-rebuild.log` | passed; 25 baseline warning identities were not emitted |
+| `git diff --check` | passed |
+
+### Residual validation limits
+
+- No cross-user or cross-elevation denial probe was run. No hostile same-user,
+  pipe-name-squatting, impersonation, authorization, credential, or replay probe
+  was attempted.
+- No mixed-target or separate-process wire probe ran. Same-target tests do not
+  prove `net481`/`net9.0` process interoperability.
+- No Linux or macOS execution was performed for the unqualified modern asset.
+- No runtime, long-duration, saturation, throughput, memory-growth, abrupt
+  process-loss, or recovery scenario was launched. Scenario projects above were
+  compile-only evidence.
+- No immutable package, PackageReference consumer campaign, publish, or push was
+  produced. Package and mixed-target evidence remain family release-gate work,
+  not an implicit claim of this implementation reconciliation.

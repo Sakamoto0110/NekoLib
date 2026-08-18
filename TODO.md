@@ -657,7 +657,7 @@ consumers does not prove that a public member is unused.
       `659A076F85B11038A9C988E9ECE863BC814422166A9E4CD84768763DE0011CC6`.
       The gate adds package evidence, not serial evidence: com0com was not
       launched and no serial port was opened.
-11. [ ] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
+11. [x] **F1-PIPE — Pipes.** Finalize client/server, event, metrics, framing
     boundary, shutdown, security-policy, and error contracts.
     **Accepted 2026-08-18:** capture and validate client/server configuration;
     make server, event-hub, and event-client shutdown terminal, race-safe, and
@@ -680,6 +680,24 @@ consumers does not prove that a public member is unused.
     Keep this item open until the implementation, dual-target regressions,
     reviewed API manifests, current technical reference, changelog, migration
     guidance, and focused validation are complete.
+    **Implementation landed 2026-08-18.** Pipes passed 74/74 tests on `net481`
+    and 74/74 on `net9.0-windows`, up from 44 per target. The implementation
+    captures and validates configuration, makes stateful shutdown terminal and
+    awaitable, removes stateless client disposal, isolates metrics and event
+    callbacks, rejects oversized events before enqueue, exposes ordered event
+    failure observation and stable wire-error constants, and corrects `net481`
+    connect cancellation. Both API manifests changed by exactly the accepted
+    delta and passed compiled verification with 0 warnings and 0 errors. The
+    direct Watchdog consumer passed 84/84 tests on each target, the full solution
+    passed 1,598/1,598 tests, and a clean solution rebuild succeeded with 464
+    pre-existing warning occurrences and no new warning identity. The versioned
+    Pipes and Watchdog runtime-scenario projects affected by the source migration
+    compiled with 0 warnings and 0 errors but were not launched. The current
+    technical reference, changelog, and migration guide now own the resulting
+    contract. No runtime scenario, mixed-target separate-process probe,
+    cross-user/elevation security probe, package, publish, or push was produced;
+    those residual release-evidence gaps remain outside this completed module
+    implementation and, where applicable, under the F1 completion gate.
 12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
     advanced consumer surface or Host infrastructure, then finalize bootstrap,
     controller, options, IPC, process, and ownership contracts.
