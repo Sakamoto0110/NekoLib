@@ -243,13 +243,18 @@ namespace NekoLib.Diagnostics
 
         public void Install()
         {
-            ThrowIfDisposed();
-
-            if (Interlocked.Exchange(ref _installed, 1) == 1)
-                return;
-
             lock (RegistryLock)
             {
+                // Disposal and registration must make one atomic lifecycle decision.
+                // Checking before this lock allowed Dispose() to remove the handler
+                // while Install() was waiting, after which Install() could add the
+                // already-disposed instance to the process-wide registry.
+                ThrowIfDisposed();
+
+                if (_installed != 0)
+                    return;
+
+                _installed = 1;
                 InstalledHandlers.Add(this);
                 EnsureGlobalHandlersInstalled();
             }
@@ -1027,10 +1032,9 @@ namespace NekoLib.Diagnostics
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
-            Interlocked.Exchange(ref _installed, 0);
-
             lock (RegistryLock)
             {
+                _installed = 0;
                 InstalledHandlers.Remove(this);
                 RemoveGlobalHandlersIfUnused();
             }

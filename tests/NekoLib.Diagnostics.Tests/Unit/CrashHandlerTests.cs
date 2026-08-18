@@ -511,6 +511,69 @@ namespace NekoLib.Diagnostics.Tests.Unit
             Assert.False((bool)installedField.GetValue(null));
         }
 
+        [Fact]
+        public void Install_ConcurrentWithDispose_CannotRegisterDisposedHandler()
+        {
+            var registryLockField = typeof(CrashHandler).GetField(
+                "RegistryLock",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var installedField = typeof(CrashHandler).GetField(
+                "_installed",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(registryLockField);
+            Assert.NotNull(installedField);
+
+            var registryLock = registryLockField.GetValue(null);
+            Assert.NotNull(registryLock);
+
+            var handler = new CrashHandler(new CrashHandlerOptions
+            {
+                WriteCrashFolder = false,
+                DumpLevel = CrashDumpLevel.None
+            });
+            var dispatches = 0;
+            handler.CrashDetected += (_, __) => dispatches++;
+
+            Exception installFailure = null;
+            using (var started = new ManualResetEventSlim())
+            {
+                var installer = new Thread(() =>
+                {
+                    started.Set();
+                    try { handler.Install(); }
+                    catch (Exception ex) { installFailure = ex; }
+                });
+
+                Monitor.Enter(registryLock);
+                try
+                {
+                    installer.Start();
+                    Assert.True(started.Wait(TimeSpan.FromSeconds(2)));
+
+                    // On the former implementation _installed became 1 before the
+                    // registry lock. Give that path a chance to reach the locked
+                    // section, then dispose reentrantly while the installer waits.
+                    SpinWait.SpinUntil(
+                        () => (int)installedField.GetValue(handler) == 1,
+                        TimeSpan.FromMilliseconds(250));
+                    handler.Dispose();
+                }
+                finally
+                {
+                    Monitor.Exit(registryLock);
+                }
+
+                Assert.True(installer.Join(TimeSpan.FromSeconds(2)));
+            }
+
+            Assert.IsType<ObjectDisposedException>(installFailure);
+            CrashHandler.ReportExternalCrash(
+                "unit-test",
+                new InvalidOperationException("not dispatched"),
+                false);
+            Assert.Equal(0, dispatches);
+        }
+
         private static void InvokeHandleCrash(
             CrashHandler handler,
             string source = "unit-test",

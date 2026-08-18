@@ -59,6 +59,8 @@ installed handler, subscribes `AppDomain.UnhandledException` and
 `TaskScheduler.UnobservedTaskException`.
 
 - `Install()` is idempotent.
+- `Install()` and `Dispose()` serialize their registry transition. If they race,
+  terminal disposal wins and a disposed handler cannot be registered afterwards.
 - **`Dispose()` is terminal**, not a reversible uninstall. A disposed handler
   stops receiving reports, and `Install()` on it throws
   `ObjectDisposedException`. Create a new handler instead of re-arming one.
