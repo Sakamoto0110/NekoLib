@@ -701,6 +701,33 @@ consumers does not prove that a public member is unused.
 12. [ ] **F1-WDOG — Watchdog.** Decide whether `WatchdogRuntime` is a supported
     advanced consumer surface or Host infrastructure, then finalize bootstrap,
     controller, options, IPC, process, and ownership contracts.
+    **Accepted 2026-08-18:** retain `WatchdogBootstrap` as the default
+    application entry, `WatchdogController` as the current-application facade,
+    and `WatchdogRuntime` as a stable deliberate advanced extension. Internalize
+    the crash bundler, hotkey/file helpers, log batching, and internal protocol
+    constants; remove the obsolete raw log server and all update placeholders.
+    Capture immutable normalized runtime configuration without mutating caller
+    options, copy the sink array, expose the effective pipe name on the runtime,
+    and make start, stop, wait, and disposal one race-safe terminal lifecycle.
+    Shutdown must interrupt crash-loop cooldown, drain owned threads, dispose
+    process handles, and resolve the system `taskkill.exe` explicitly; remove the
+    ineffective `Stop(bool)` distinction. Add a compatibility-default hotkey
+    opt-out with observable registration failures. Return observable success
+    from mutating controller calls, keep notification fail-soft, replace
+    target-specific log metadata with nullable serializer-neutral JSON text,
+    and document replay/live threading and delivery gaps. Keep bounded
+    best-effort evidence while separating history eviction, event-queue drop,
+    and publish-failure counters, defining restart count consistently, and
+    reporting crash finalization as complete, partial, or failed internally.
+    Retain both Windows targets, the current Core/Pipes/Newtonsoft dependency
+    graph, deterministic target identity, `CurrentUserOnly`, and the cooperative
+    same-user threat model; do not add authentication, remote control,
+    experimental API, or Host packaging work. The accepted rationale,
+    compatibility impact, migration, and rejected alternatives are recorded in
+    [`docs/audit/watchdog-public-api-review-2026-08-18.md`](docs/audit/watchdog-public-api-review-2026-08-18.md).
+    Keep this item open until implementation, dual-target regressions, reviewed
+    API manifests, current technical reference, changelog, migration guidance,
+    and focused validation are complete.
 13. [ ] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
     payload layout, build targets, bootstrap arguments, and Host/application
     protocol rather than treating the executable as a compile-time API.
