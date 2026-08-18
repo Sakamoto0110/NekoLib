@@ -46,7 +46,7 @@ namespace NekoLib.Http
             }
 
             var effectiveOptions = options ?? new HttpApiClientOptions();
-            effectiveOptions.Validate();
+            effectiveOptions.Validate(nameof(options));
             _serializer = effectiveOptions.BodySerializer;
             _maxResponseContentBytes = effectiveOptions.MaxResponseContentBytes;
         }
@@ -81,8 +81,15 @@ namespace NekoLib.Http
         {
             if (!_catalog.Contains(endpoint))
             {
+                // Registration identity is by instance, so a structurally identical
+                // endpoint built by a factory is not the registered one. Saying only
+                // "not registered" when that name is present is misleading.
                 throw new InvalidOperationException(
-                    $"Endpoint '{endpoint.Name}' is not registered in this HTTP API catalog.");
+                    _catalog.ContainsName(endpoint.Name)
+                        ? $"Endpoint '{endpoint.Name}' is registered in this HTTP API " +
+                          "catalog, but a different endpoint instance was supplied. Send " +
+                          "the instance that was registered."
+                        : $"Endpoint '{endpoint.Name}' is not registered in this HTTP API catalog.");
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -93,11 +100,15 @@ namespace NekoLib.Http
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false))
             {
+                // Headers are captured before the body is read so that a response
+                // exceeding the bound can still carry its protocol evidence out
+                // through HttpResponseContentTooLargeException.
+                var headers = CaptureHeaders(responseMessage);
                 var body = await ReadBodyAsync(
                     endpoint.Name,
-                    responseMessage.Content,
+                    responseMessage,
+                    headers,
                     cancellationToken).ConfigureAwait(false);
-                var headers = CaptureHeaders(responseMessage);
 
                 if (!responseMessage.IsSuccessStatusCode)
                 {
@@ -160,9 +171,11 @@ namespace NekoLib.Http
 
         private async Task<string> ReadBodyAsync(
             string endpointName,
-            HttpContent? content,
+            HttpResponseMessage response,
+            IReadOnlyDictionary<string, IReadOnlyList<string>> headers,
             CancellationToken cancellationToken)
         {
+            var content = response.Content;
             if (content == null)
                 return string.Empty;
 
@@ -171,7 +184,10 @@ namespace NekoLib.Http
             {
                 throw new HttpResponseContentTooLargeException(
                     endpointName,
-                    _maxResponseContentBytes);
+                    _maxResponseContentBytes,
+                    response.StatusCode,
+                    response.ReasonPhrase,
+                    headers);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -193,7 +209,10 @@ namespace NekoLib.Http
                     {
                         throw new HttpResponseContentTooLargeException(
                             endpointName,
-                            _maxResponseContentBytes);
+                            _maxResponseContentBytes,
+                            response.StatusCode,
+                            response.ReasonPhrase,
+                            headers);
                     }
 
                     buffer.Write(chunk, 0, read);
@@ -211,9 +230,23 @@ namespace NekoLib.Http
         private static Encoding ResolveEncoding(HttpContent content)
         {
             var charset = content.Headers.ContentType?.CharSet;
-            return string.IsNullOrWhiteSpace(charset)
-                ? Encoding.UTF8
-                : Encoding.GetEncoding(charset!.Trim('"'));
+            if (string.IsNullOrWhiteSpace(charset))
+                return Encoding.UTF8;
+
+            try
+            {
+                return Encoding.GetEncoding(charset!.Trim('"').Trim());
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException)
+            {
+                // The declared charset is unknown to this runtime. .NET Framework
+                // ships the full code-page set and .NET does not, so throwing here
+                // made the same response succeed on one supported target and fail on
+                // the other - destroying the status, headers and body this module
+                // exists to preserve. Applications needing byte-accurate legacy
+                // decoding register CodePagesEncodingProvider themselves.
+                return Encoding.UTF8;
+            }
         }
 
         private static IReadOnlyDictionary<string, IReadOnlyList<string>> CaptureHeaders(

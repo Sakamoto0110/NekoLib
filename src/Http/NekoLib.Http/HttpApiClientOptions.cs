@@ -13,16 +13,18 @@ namespace NekoLib.Http
         public int MaxResponseContentBytes { get; set; }
             = DefaultMaxResponseContentBytes;
 
-        internal void Validate()
+        // Every invalid option is a problem with the argument the caller supplied,
+        // so all three report the same exception type and name the same parameter.
+        internal void Validate(string paramName)
         {
             if (BodySerializer == null)
-                throw new InvalidOperationException("A body serializer is required.");
+                throw new ArgumentException("A body serializer is required.", paramName);
             if (string.IsNullOrWhiteSpace(BodySerializer.MediaType))
-                throw new InvalidOperationException("The body serializer media type is required.");
+                throw new ArgumentException("The body serializer media type is required.", paramName);
             if (MaxResponseContentBytes <= 0)
-                throw new ArgumentOutOfRangeException(
-                    nameof(MaxResponseContentBytes),
-                    "The maximum response content size must be positive.");
+                throw new ArgumentException(
+                    "The maximum response content size must be positive.",
+                    paramName);
         }
     }
 }

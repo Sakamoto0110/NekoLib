@@ -5,10 +5,16 @@ using System.Text;
 
 namespace NekoLib.Http
 {
-    /// <summary>Base metadata for an immutable typed HTTP endpoint.</summary>
+    /// <summary>
+    /// Base metadata for an immutable typed HTTP endpoint. The hierarchy is
+    /// deliberately closed: request construction is an internal contract, so an
+    /// external assembly cannot supply a working endpoint type. Extend behaviour
+    /// through the endpoint factories, the body selector, the request
+    /// configuration callback, and <see cref="IHttpBodySerializer"/>.
+    /// </summary>
     public abstract class HttpEndpoint
     {
-        protected HttpEndpoint(string name, HttpMethod method, Type requestType, Type responseType)
+        private protected HttpEndpoint(string name, HttpMethod method, Type requestType, Type responseType)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Endpoint names cannot be empty.", nameof(name));

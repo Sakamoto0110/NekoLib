@@ -16,6 +16,26 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Http — breaking, additive, and behavioral pre-stable candidate
+  correction for the first `1.0.0` stable family release.** Reduced the
+  `HttpEndpoint` constructor from `protected` to `private protected`, removing it
+  from both manifests: it advertised an extension point that never existed,
+  because `CreateRequest` is `internal abstract` and an external subclass failed
+  with `CS0534`. An unresolvable response charset no longer throws — .NET
+  Framework ships the full code-page set and .NET does not, so a `windows-1252`
+  response succeeded on `net481` and threw a bare `ArgumentException` out of
+  `SendAsync` on `net9.0`, destroying the status, headers and body the module
+  exists to preserve; it now falls back to UTF-8 and returns the response intact,
+  and applications needing byte-accurate legacy decoding register
+  `CodePagesEncodingProvider` themselves.
+  `HttpResponseContentTooLargeException` gained `StatusCode`, `ReasonPhrase` and
+  `Headers`, captured before the body is read, so an oversized `502` with
+  `Retry-After` stays actionable. `HttpApiClientOptions` validation now reports
+  one exception type — `ArgumentException` naming `options` — instead of
+  `InvalidOperationException` and `ArgumentOutOfRangeException`. Sending an
+  endpoint that is not the registered instance now says so, instead of claiming
+  the name is unregistered. See the
+  [F1-HTTP migration guide](docs/migrations/f1-http.md).
 - **NekoLib.Diagnostics.Windows — behavioral pre-stable candidate correction for
   the first `1.0.0` stable family release.** No public type, member, signature,
   target, or dependency changed, and both accepted API manifests are unchanged;

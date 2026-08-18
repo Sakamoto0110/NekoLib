@@ -46,6 +46,9 @@ namespace NekoLib.Http
         internal bool Contains(HttpEndpoint endpoint)
             => _registeredEndpoints.Contains(endpoint);
 
+        internal bool ContainsName(string name)
+            => !string.IsNullOrWhiteSpace(name) && _byName.ContainsKey(name);
+
         internal static HttpApiCatalog From(Dictionary<string, HttpEndpoint> endpoints)
             => new HttpApiCatalog(
                 new ReadOnlyDictionary<string, HttpEndpoint>(endpoints));

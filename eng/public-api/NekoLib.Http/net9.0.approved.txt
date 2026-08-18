@@ -39,7 +39,6 @@ namespace NekoLib.Http
     }
     public abstract class HttpEndpoint
     {
-        protected HttpEndpoint(string name, System.Net.Http.HttpMethod method, System.Type requestType, System.Type responseType) { }
         public System.Net.Http.HttpMethod Method { get; }
         public string Name { get; }
         public System.Type RequestType { get; }
@@ -63,7 +62,10 @@ namespace NekoLib.Http
     public sealed class HttpResponseContentTooLargeException : System.Exception
     {
         public string EndpointName { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IReadOnlyList<string>> Headers { get; }
         public int MaximumBytes { get; }
+        public string? ReasonPhrase { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
     }
     public sealed class HttpResponseDeserializationException : System.Exception
     {

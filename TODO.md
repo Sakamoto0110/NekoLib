@@ -528,6 +528,39 @@ consumers does not prove that a public member is unused.
 8. [ ] **F1-HTTP — HTTP.** Finalize the typed catalog, relative URI, request,
    response-evidence, ownership, and bounded-buffer contracts without adding
    policy or credentials.
+   **Accepted 2026-08-17:** retain all 16 public types as stable candidates with
+   no experimental marker, one accessibility reduction, three additive
+   properties, and behavior corrections only. Reduce the `HttpEndpoint`
+   constructor to `private protected`, since `CreateRequest` is
+   `internal abstract` and external derivation already failed with `CS0534`; make
+   charset resolution non-throwing with a UTF-8 fallback, because the runtime
+   code-page difference made the same response succeed on `net481` and throw on
+   `net9.0`; add `StatusCode`, `ReasonPhrase`, and `Headers` to
+   `HttpResponseContentTooLargeException`; normalize option validation to
+   `ArgumentException` naming `options`; and distinguish "name not registered"
+   from "a different instance is registered under this name". The two identity
+   models, introspection-only `Get`, relative-URI edge behaviors, the
+   absolute-route escaping guarantee, message ownership, per-target timeout
+   shapes, emitted content type, header merging, the manifest's nullability blind
+   spot for `Value`, and the public Newtonsoft boundary are documented rather than
+   changed. **`System.Text.Encoding.CodePages` was explicitly not added**; the
+   application registers the provider when it needs byte-accurate legacy
+   decoding. Retries, credentials, resilience, a process-wide registry, a
+   `byte[]` body, and `System.Text.Json` on `net9.0` were all rejected. The
+   accepted rationale and rejected alternatives are recorded in
+   [`docs/audit/http-public-api-review-2026-08-17.md`](docs/audit/http-public-api-review-2026-08-17.md).
+   **Implementation landed 2026-08-17, package gate pending.** HTTP passed 29/29
+   tests on `net481` and 29/29 on `net9.0`, up from 16 per target, and the module
+   rebuilt with 0 warnings and 0 errors. Both `NekoLib.Http` API manifests changed
+   by exactly the accepted delta — the protected constructor removed, the three
+   evidence properties added — and scoped API verification, documentation
+   verification, and diff hygiene passed. The existing module reference gained the
+   identity, relative-URI, ownership, encoding, header, timeout, and dependency
+   sections it lacked. Evidence is focused: no external request was sent, no
+   credential was configured, the TheCatAPI scenario was neither built nor run, no
+   full-solution run, and no package was produced. **The package gate remains open
+   for Codex**, which also owns refreshing the package evidence still recorded in
+   the module reference from the pre-F1 `1.0.0-local.11` artifact.
 9. [ ] **F1-MVVM — Mvvm.** Finalize the deliberately small binding helper and
    command surface.
 10. [ ] **F1-DEV — Devices.** Finalize `HardwareEngine`, transport/protocol

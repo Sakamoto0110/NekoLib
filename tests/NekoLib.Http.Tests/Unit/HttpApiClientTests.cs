@@ -256,6 +256,218 @@ namespace NekoLib.Http.Tests.Unit
             Assert.Throws<ArgumentException>(() => new HttpApiClient(httpClient, catalog));
         }
 
+        [Fact]
+        public async Task SendAsync_UnknownCharset_FallsBackToUtf8AndPreservesEvidence()
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.text",
+                RelativeUri.FromPathSegments("text"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+            {
+                var content = new StringContent("body-text", Encoding.UTF8);
+                content.Headers.Remove("Content-Type");
+                content.Headers.TryAddWithoutValidation(
+                    "Content-Type",
+                    "text/plain; charset=totally-unknown-charset");
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = content
+                });
+            });
+
+            var response = await CreateClient(handler, endpoint).SendAsync(endpoint);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("body-text", response.Body);
+            Assert.Equal("body-text", response.RequireValue());
+        }
+
+        [Fact]
+        public async Task SendAsync_LegacyCodePageCharset_BehavesIdenticallyOnBothTargets()
+        {
+            // net481 resolves windows-1252 and net9.0 does not. Whichever way this
+            // runtime falls, the call must return protocol evidence rather than
+            // throwing out of SendAsync.
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.legacy",
+                RelativeUri.FromPathSegments("legacy"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+            {
+                var content = new StringContent("legacy", Encoding.ASCII);
+                content.Headers.Remove("Content-Type");
+                content.Headers.TryAddWithoutValidation(
+                    "Content-Type",
+                    "text/plain; charset=windows-1252");
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = content
+                });
+            });
+
+            var response = await CreateClient(handler, endpoint).SendAsync(endpoint);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("legacy", response.Body);
+        }
+
+        [Fact]
+        public async Task SendAsync_ContentExceedsLimit_ExposesStatusReasonAndHeaders()
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.big",
+                RelativeUri.FromPathSegments("big"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.BadGateway)
+                {
+                    ReasonPhrase = "Bad Gateway",
+                    Content = new StringContent(new string('x', 5000), Encoding.UTF8, "text/plain")
+                };
+                response.Headers.TryAddWithoutValidation("retry-after", "30");
+                return Task.FromResult(response);
+            });
+
+            var client = new HttpApiClient(
+                NewHttpClient(handler),
+                HttpApiCatalog.Create(builder => builder.Register(endpoint)),
+                new HttpApiClientOptions { MaxResponseContentBytes = 100 });
+
+            var error = await Assert.ThrowsAsync<HttpResponseContentTooLargeException>(
+                () => client.SendAsync(endpoint));
+
+            Assert.Equal("cats.big", error.EndpointName);
+            Assert.Equal(100, error.MaximumBytes);
+            Assert.Equal(HttpStatusCode.BadGateway, error.StatusCode);
+            Assert.Equal("Bad Gateway", error.ReasonPhrase);
+            Assert.Equal(new[] { "30" }, error.Headers["Retry-After"]);
+        }
+
+        [Fact]
+        public async Task SendAsync_EndpointNameRegisteredWithAnotherInstance_SaysSo()
+        {
+            var registered = HttpEndpoint.Get<string>(
+                "cats.shape",
+                RelativeUri.FromPathSegments("shape"));
+            var lookalike = HttpEndpoint.Get<string>(
+                "cats.shape",
+                RelativeUri.FromPathSegments("shape"));
+            var unknown = HttpEndpoint.Get<string>(
+                "cats.absent",
+                RelativeUri.FromPathSegments("absent"));
+
+            var client = CreateClient(
+                new DelegateHandler((request, cancellationToken) =>
+                    Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))),
+                registered);
+
+            var sameName = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => client.SendAsync(lookalike));
+            Assert.Contains("a different endpoint instance was supplied", sameName.Message);
+
+            var absent = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => client.SendAsync(unknown));
+            Assert.Contains("is not registered", absent.Message);
+        }
+
+        [Fact]
+        public async Task SendAsync_ResponseHeaders_MergeResponseAndContentHeaders()
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.headers",
+                RelativeUri.FromPathSegments("headers"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("body", Encoding.UTF8, "text/plain")
+                };
+                response.Headers.TryAddWithoutValidation("x-probe", "one");
+                response.Headers.TryAddWithoutValidation("x-probe", "two");
+                return Task.FromResult(response);
+            });
+
+            var response = await CreateClient(handler, endpoint).SendAsync(endpoint);
+
+            Assert.Equal(new[] { "one", "two" }, response.Headers["X-PROBE"]);
+            Assert.True(response.Headers.ContainsKey("Content-Type"));
+        }
+
+        [Fact]
+        public async Task SendAsync_NonSuccess_HasNoValueAndRequireValueThrows()
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.missing",
+                RelativeUri.FromPathSegments("missing"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+                Task.FromResult(JsonResponse(HttpStatusCode.NotFound, "{\"error\":\"nope\"}")));
+
+            var response = await CreateClient(handler, endpoint).SendAsync(endpoint);
+
+            Assert.False(response.IsSuccessStatusCode);
+            Assert.False(response.HasValue);
+            Assert.Null(response.Value);
+            Assert.Equal("{\"error\":\"nope\"}", response.Body);
+            Assert.Throws<InvalidOperationException>(() => response.RequireValue());
+        }
+
+        [Theory]
+        [InlineData(100, true)]
+        [InlineData(101, false)]
+        public async Task SendAsync_ResponseSizeBound_IsInclusiveAtTheLimit(int length, bool allowed)
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.bound." + length,
+                RelativeUri.FromPathSegments("bound"));
+            var handler = new DelegateHandler((request, cancellationToken) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(new string('x', length), Encoding.UTF8, "text/plain")
+                };
+                response.Content.Headers.ContentLength = null;
+                return Task.FromResult(response);
+            });
+
+            var client = new HttpApiClient(
+                NewHttpClient(handler),
+                HttpApiCatalog.Create(builder => builder.Register(endpoint)),
+                new HttpApiClientOptions { MaxResponseContentBytes = 100 });
+
+            if (allowed)
+            {
+                var response = await client.SendAsync(endpoint);
+                Assert.Equal(length, response.Body.Length);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<HttpResponseContentTooLargeException>(
+                    () => client.SendAsync(endpoint));
+            }
+        }
+
+        [Fact]
+        public void Constructor_InvalidOptions_ThrowArgumentExceptionNamingOptions()
+        {
+            var endpoint = HttpEndpoint.Get<string>(
+                "cats.options",
+                RelativeUri.FromPathSegments("options"));
+            var catalog = HttpApiCatalog.Create(builder => builder.Register(endpoint));
+
+            var size = Assert.Throws<ArgumentException>(() => new HttpApiClient(
+                NewHttpClient(new DelegateHandler((request, cancellationToken) =>
+                    Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))),
+                catalog,
+                new HttpApiClientOptions { MaxResponseContentBytes = 0 }));
+            Assert.Equal("options", size.ParamName);
+
+            var serializer = Assert.Throws<ArgumentException>(() => new HttpApiClient(
+                NewHttpClient(new DelegateHandler((request, cancellationToken) =>
+                    Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))),
+                catalog,
+                new HttpApiClientOptions { BodySerializer = null }));
+            Assert.Equal("options", serializer.ParamName);
+        }
+
         private static HttpApiClient CreateClient(
             HttpMessageHandler handler,
             params HttpEndpoint[] endpoints)

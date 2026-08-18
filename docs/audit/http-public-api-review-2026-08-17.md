@@ -9,14 +9,14 @@ identity, relative URI construction, request and response ownership,
 serialization contracts, bounded response buffering, protocol-evidence
 preservation, target parity, and compatibility boundaries
 
-**Status:** review complete; dispositions proposed and awaiting the consolidated
-F1 decision gate
+**Status:** all dispositions accepted and implemented, including both optional
+items; package gate pending
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `e845165252c60c9ecff2e90221eac739a1631c68`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-17 — dispositions accepted and implemented
 
 **Current state:** [`TODO.md`](../../TODO.md) F1-HTTP
 
@@ -660,3 +660,87 @@ recommended as documentation-only. HTTP-16 is recommended as test-only. The
 `System.Text.Encoding.CodePages` dependency is explicitly **not** recommended and
 would be a separate dependency decision. Nothing here may be implemented until
 the consolidated F1 decision gate accepts or modifies these dispositions.
+
+## Reconciliation — 2026-08-17: dispositions accepted and implemented
+
+The observed facts, probe output, and original recommendations above are the
+snapshot and are unchanged. This section records the decision-gate outcome and
+the implementation.
+
+### Accepted
+
+All sixteen dispositions were accepted as recommended, **including both optional
+items**. HTTP-01, HTTP-02, HTTP-03, HTTP-04, and HTTP-12's optional
+normalization landed as code; HTTP-05 through HTTP-11 and HTTP-13 through HTTP-15
+landed as new sections in the existing module reference; HTTP-16 landed as
+thirteen focused regressions.
+
+The `System.Text.Encoding.CodePages` dependency raised in HTTP-01 was **not**
+taken, exactly as recommended. The application registers
+`CodePagesEncodingProvider` when it needs byte-accurate legacy decoding, and the
+module reference says so.
+
+### Implementation
+
+- **HTTP-01.** `ResolveEncoding` catches `ArgumentException` and
+  `NotSupportedException` and falls back to UTF-8, so an unresolvable charset
+  degrades identically on both targets instead of throwing on one.
+- **HTTP-02.** `CaptureHeaders` now runs **before** the body is read, and both
+  size-bound throw sites pass the status, reason phrase, and captured headers
+  into `HttpResponseContentTooLargeException`. Its constructor is `internal`, so
+  widening it is not a public break; the three new properties are additive.
+- **HTTP-03.** The `HttpEndpoint` constructor became `private protected`. The
+  nested generic endpoints are in the same assembly and still bind to it.
+- **HTTP-04.** `HttpApiCatalog` gained an `internal ContainsName`, and the
+  client's error distinguishes an unregistered name from a registered name
+  supplied through a different instance.
+- **HTTP-12.** `Validate` takes the caller's parameter name and reports all three
+  invalid-option cases as `ArgumentException`.
+
+### Validation
+
+```text
+dotnet build src/Http/NekoLib.Http/NekoLib.Http.csproj
+  net481 and net9.0: 0 warnings, 0 errors
+
+dotnet test tests/NekoLib.Http.Tests/Unit/NekoLib.Http.Tests.Unit.csproj
+  net481:  29 passed, 0 failed, 0 skipped
+  net9.0:  29 passed, 0 failed, 0 skipped
+
+eng/verify-public-api.ps1 -PackageId NekoLib.Http
+  diff was exactly the accepted delta, then updated and re-verified:
+    -  protected HttpEndpoint(string, HttpMethod, Type, Type)
+    +  public IReadOnlyDictionary<string, IReadOnlyList<string>> Headers { get; }
+    +  public string? ReasonPhrase { get; }
+    +  public HttpStatusCode StatusCode { get; }
+
+eng/verify-docs.ps1        passed
+git diff --check           clean
+```
+
+Thirteen regressions were added: unknown-charset fallback, the `windows-1252`
+case behaving identically on both targets, oversized-response evidence, the
+mismatched-instance message, header merging with duplicate values, non-success
+shape and `RequireValue`, the size bound at and one byte above the limit, option
+validation naming `options`, repeated query keys, omitted null query values,
+segment escaping, and the empty relative URI.
+
+The `windows-1252` regression is deliberately written to assert the **outcome**
+rather than the encoding: `net481` resolves the code page and `net9.0` falls back,
+and the point is that neither throws.
+
+### Residual limits carried forward
+
+Every limit recorded in the original snapshot still applies:
+
+- **no external HTTP request was sent, no credential was configured, and the
+  TheCatAPI scenario was neither built nor run.** Nothing here is provider
+  evidence;
+- all tests use an in-process `HttpMessageHandler`, so no real socket, TLS,
+  proxy, redirect, compression, or HTTP/2 behaviour was exercised;
+- no full-solution build or test run was performed for this module block;
+- no package was produced and no PackageReference consumer probe was run.
+
+The module reference still carries package and scenario evidence from the pre-F1
+`1.0.0-local.11` artifact, now labelled as such. Refreshing it belongs to the
+coordinated package campaign.

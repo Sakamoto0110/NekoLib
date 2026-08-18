@@ -6,10 +6,12 @@
 
 **Subject:** typed HTTP endpoint catalogs and consumer-owned execution
 
-**Reference date:** 2026-08-16
+**Reference date:** 2026-08-17
 
-**Implementation/package reference commit:**
-`ae711fb51d27af29701d332a453912ad1f87a029`
+**Implementation/package reference commit:** F1-HTTP implementation landed
+2026-08-17; the package gate is pending, so the package evidence recorded below
+still describes the pre-F1 `1.0.0-local.11` artifact built from
+`ae711fb51d27af29701d332a453912ad1f87a029`.
 
 `NekoLib.Http` centralizes HTTP methods, relative routes and request/response
 types without hiding the HTTP protocol. It is an opt-in `net481`/`net9.0`
@@ -73,6 +75,51 @@ Static endpoint fields are immutable consumer metadata; the catalog and client
 instances are composed per API client. `NekoLib.Http` owns no process-wide
 registry.
 
+## Endpoint identity
+
+The catalog uses **two different identity models**, and the difference matters:
+
+- **Registration and duplicate detection use the endpoint name**, compared
+  case-insensitively. Registering `cats.search` and `Cats.Search` in one catalog
+  throws.
+- **`HttpApiClient.SendAsync` uses instance identity.** It sends only the exact
+  endpoint object that was registered.
+
+So a structurally identical endpoint built by a factory method is rejected even
+when its name is registered, and the error says which of the two cases it is.
+Hold your endpoints as static readonly fields — as in the example above — rather
+than constructing them per call.
+
+`HttpApiCatalog.Get(name)` and `Endpoints` return the non-generic `HttpEndpoint`,
+which neither `SendAsync` overload accepts. They are introspection and
+diagnostics surfaces — `Name`, `Method`, `RequestType`, `ResponseType` — not a
+way to dispatch by name; a name-to-typed-endpoint lookup cannot be type-safe.
+
+The endpoint hierarchy is **closed**. `HttpEndpoint` is public because it is the
+element type of `Endpoints` and the parameter of `Register`, but request
+construction is an internal contract and no external type can implement it.
+Extend behaviour through the factories, `selectBody`, `configureRequest`, and
+`IHttpBodySerializer`.
+
+## Relative URIs
+
+`RelativeUriBuilder` escapes every path segment and every query name and value
+with `Uri.EscapeDataString`. That is what guarantees an endpoint route can never
+replace the scheme or authority: `:` and `/` are escaped, and blank segments are
+rejected, so neither an absolute URI nor a protocol-relative `//` prefix can be
+built.
+
+| Input | Result |
+|---|---|
+| `Create("v1/images")` | `v1%2Fimages` — a segment cannot inject path structure |
+| `AddQuery("tag","a").AddQuery("tag","b")` | `?tag=a&tag=b` — repeated keys are preserved in order |
+| `AddQuery("x", (string)null)` | the parameter is omitted entirely |
+| `RelativeUri.FromPathSegments()` | `""` — targets the base address itself |
+
+The one deliberate bypass is `configureRequest`, which hands you the raw
+`HttpRequestMessage` and can therefore assign an absolute `RequestUri`. That is
+your trust boundary, not the module's.
+
 ## Ownership and policy boundaries
 
 The consumer owns:
@@ -109,6 +156,80 @@ not a streaming-download client.
 `HttpNoContent` is the typed success value for operations whose body is not
 part of the contract. `string` response endpoints return the bounded raw body
 directly; other success types use the configured body serializer.
+
+The bound is **inclusive at the limit**: a body of exactly
+`MaxResponseContentBytes` succeeds and one byte more throws. It is applied to the
+`Content-Length` header when present and again while streaming, so a lying or
+absent header cannot bypass it. `HttpCompletionOption.ResponseHeadersRead` keeps
+`HttpClient` from buffering the body first, which is what makes the bound real
+rather than advisory.
+
+`HttpResponseContentTooLargeException` carries `StatusCode`, `ReasonPhrase`, and
+`Headers`, captured before the body was read — so a `502` with `Retry-After`
+remains actionable even though its body was discarded.
+
+## Request and response ownership
+
+`HttpApiClient` disposes the request message it builds — and therefore its
+content — and the response message, after materializing the body into a string.
+It never disposes your `HttpClient`.
+
+Because the response message is disposed, everything you need must come from
+`HttpApiResponse`. There is no stream and no `byte[]` of the raw body.
+
+### Content type
+
+Serialized bodies are sent as `application/json; charset=utf-8`. A minority of
+providers reject the charset parameter on JSON. `configureRequest` runs **after**
+the body is assigned, so it can replace `message.Content` or reset its
+`ContentType`.
+
+### Character encoding
+
+The response body is decoded using the charset declared in `Content-Type`, or
+UTF-8 when none is declared.
+
+**An unknown charset never throws.** .NET Framework ships the full code-page set
+and .NET does not, so a response declaring `windows-1252` resolves on `net481`
+and is unknown on `net9.0`. Throwing there would make the same response succeed
+on one supported target and fail on the other, and would destroy the status,
+headers, and body this module exists to preserve — so an unresolvable charset
+falls back to UTF-8 and the response is returned intact.
+
+For byte-accurate legacy decoding on `net9.0`, register the provider in your
+application:
+
+```csharp
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+```
+
+That is a process-wide opt-in the application owns; `NekoLib.Http` deliberately
+takes no dependency on `System.Text.Encoding.CodePages`.
+
+### Headers
+
+`HttpApiResponse.Headers` merges response headers and content headers into one
+case-insensitive, read-only dictionary, response values first when a name appears
+in both. Multi-value headers keep their order, and content headers such as
+`Content-Type` and `Content-Length` appear alongside the rest.
+
+`HttpApiResponse.Value` is meaningful only when `HasValue` is true; use
+`RequireValue()` for the checked accessor. A non-success response is never
+deserialized, never throws, and keeps its raw body.
+
+### Timeout and cancellation
+
+Both remain transport outcomes and are never converted. Note one platform
+difference: `HttpClient.Timeout` produces a `TaskCanceledException` whose inner
+exception is a `TimeoutException` on `net9.0`, and which has no inner exception on
+`net481`. Caller cancellation produces a `TaskCanceledException` on both.
+
+### Serializer dependency
+
+`JsonHttpBodySerializer(JsonSerializerSettings)` puts a `Newtonsoft.Json` type in
+the compiled public surface, so the package's public contract is bound to
+Newtonsoft 13.x. That is the deliberate cost of identical serializer semantics on
+both target families; supply your own `IHttpBodySerializer` to avoid it.
 
 ## Explicit non-goals
 

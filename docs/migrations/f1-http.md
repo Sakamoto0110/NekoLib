@@ -1,0 +1,119 @@
+# F1-HTTP Migration — HTTP
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial HTTP candidate surface to the accepted
+F1-HTTP charset, response-evidence, identity, and validation contracts
+
+**Reference date:** 2026-08-17
+
+The contracts themselves are owned by the
+[HTTP reference](../../src/Http/NekoLib.Http/README.md).
+
+Most applications need **no source change**. The only compiled-surface removal
+affects a member nothing could use.
+
+## Breaking: the `HttpEndpoint` constructor left the public surface
+
+`protected HttpEndpoint(string, HttpMethod, Type, Type)` is now
+`private protected` and no longer appears in either manifest.
+
+Nothing could use it. `HttpEndpoint.CreateRequest` is `internal abstract`, so an
+external assembly deriving from `HttpEndpoint` never compiled — it failed with
+`CS0534`. The constructor advertised an extension point that did not exist.
+
+Build endpoints with the factories, and extend behaviour through `selectBody`,
+`configureRequest`, and `IHttpBodySerializer`:
+
+```csharp
+public static readonly HttpEndpoint<SearchRequest, CatImage[]> Search =
+    HttpEndpoint.Get<SearchRequest, CatImage[]>(
+        "cats.images.search",
+        request => RelativeUriBuilder.Create("images", "search")
+            .AddQuery("limit", request.Limit)
+            .Build());
+```
+
+## Behavioural: an unknown charset no longer throws
+
+A response whose `Content-Type` declares a charset this runtime cannot resolve
+used to let a bare `ArgumentException` escape `SendAsync`, discarding the status,
+reason, headers, and body.
+
+That divergence was target-visible: `windows-1252` resolves on `net481` and does
+not on `net9.0`, so the identical response succeeded on one supported target and
+threw on the other. An unresolvable charset now falls back to UTF-8 and the
+response is returned intact.
+
+If you were catching `ArgumentException` around `SendAsync` for this, remove it.
+For byte-accurate legacy decoding on `net9.0`, register the code-page provider in
+your own application:
+
+```csharp
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+```
+
+`NekoLib.Http` deliberately does not depend on
+`System.Text.Encoding.CodePages`; that stays your choice.
+
+## Additive: oversized responses keep their protocol evidence
+
+`HttpResponseContentTooLargeException` now carries `StatusCode`, `ReasonPhrase`,
+and `Headers`, captured before the body was read:
+
+```csharp
+catch (HttpResponseContentTooLargeException ex)
+{
+    if (ex.StatusCode == HttpStatusCode.BadGateway &&
+        ex.Headers.TryGetValue("Retry-After", out var retryAfter))
+    {
+        // actionable again, even though the body was discarded
+    }
+}
+```
+
+The exception message now includes the status code. Nothing was removed.
+
+## Behavioural: invalid options report one exception type
+
+`HttpApiClientOptions` validation previously threw `InvalidOperationException`
+for a null serializer or a blank media type and `ArgumentOutOfRangeException` for
+a non-positive size. All three now throw `ArgumentException` with
+`ParamName == "options"`.
+
+```csharp
+// before
+catch (InvalidOperationException) { /* null serializer */ }
+catch (ArgumentOutOfRangeException) { /* bad size */ }
+
+// after
+catch (ArgumentException ex) when (ex.ParamName == "options") { /* any of them */ }
+```
+
+`ArgumentOutOfRangeException` derives from `ArgumentException`, so a handler that
+already caught the base type is unaffected. A handler catching
+`InvalidOperationException` for this case must change.
+
+## Behavioural: a clearer message for a mismatched endpoint instance
+
+Sending an endpoint that is not the registered instance still throws
+`InvalidOperationException`, but the message now distinguishes the two cases:
+
+- `Endpoint 'x' is not registered in this HTTP API catalog.`
+- `Endpoint 'x' is registered in this HTTP API catalog, but a different endpoint
+  instance was supplied. Send the instance that was registered.`
+
+Registration identity is by instance while duplicate detection and lookup use the
+name, compared case-insensitively. Hold endpoints as static readonly fields
+rather than constructing them per call.
+
+## Unchanged
+
+Every other public type, member, signature, nullability annotation, default,
+namespace, target, and dependency is unchanged, and so is the behaviour that
+matters most: the inclusive response-size bound, non-success responses returned
+rather than thrown, raw body preservation, the absolute-route escaping guarantee,
+consumer ownership of `HttpClient` and policy, and the absence of retries,
+credentials, logging, and any process-wide registry.
