@@ -1,6 +1,5 @@
 <Project>
   <PropertyGroup>
-    <NekoLibWatchdogHostTargetsImported>true</NekoLibWatchdogHostTargetsImported>
     <NekoLibWatchdogHostDeploy Condition="'$(NekoLibWatchdogHostDeploy)' == ''">true</NekoLibWatchdogHostDeploy>
 
     <_NekoLibWatchdogHostTfm Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">net481</_NekoLibWatchdogHostTfm>

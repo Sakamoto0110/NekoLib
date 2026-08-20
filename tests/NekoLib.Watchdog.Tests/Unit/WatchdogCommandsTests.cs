@@ -43,6 +43,7 @@ namespace NekoLib.Watchdog.Tests.Unit
         [Theory]
         [InlineData("log_history", "LogHistory")]
         [InlineData("exception_notify", "ExceptionNotify")]
+        [InlineData("protocol_version", "ProtocolVersion")]
         [InlineData("attach_status", "AttachStatus")]
         public void InternalCommand_HasExpectedWireValue(string expected, string member)
         {

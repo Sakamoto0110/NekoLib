@@ -259,6 +259,9 @@ namespace NekoLib.Watchdog
 
             rpc.Map(WatchdogCommands.Ping, async (req, ct) => PipeOk("pong"));
 
+            rpc.Map(WatchdogCommands.ProtocolVersion, async (req, ct) =>
+                PipeOk(WatchdogBootstrap.HostProtocolVersion));
+
             rpc.Map(WatchdogCommands.Status, async (req, ct) =>
                 PipeOk(BuildTelemetry()));
 

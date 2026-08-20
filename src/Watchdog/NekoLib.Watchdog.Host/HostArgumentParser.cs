@@ -7,6 +7,8 @@ namespace NekoLib.Watchdog.Host
 {
     internal static class HostArgumentParser
     {
+        private const string SupportedProtocolVersion = "1";
+
         public static WatchdogOptions Parse(string[] args)
         {
             if (args == null || args.Length == 0)
@@ -16,11 +18,22 @@ namespace NekoLib.Watchdog.Host
             string? targetArgs = null;
             string? workdir = null;
             string? attachToken = null;
+            string? protocolVersion = null;
             int? attachPid = null;
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
             for (int i = 0; i < args.Length; i++)
             {
+                if (args[i] == "--protocol-version")
+                {
+                    EnsureUnique(seen, args[i]);
+                    protocolVersion = ReadValue(
+                        args,
+                        ref i,
+                        "--protocol-version");
+                    continue;
+                }
+
                 if (args[i] == "--target")
                 {
                     EnsureUnique(seen, args[i]);
@@ -74,11 +87,41 @@ namespace NekoLib.Watchdog.Host
 
             if (string.IsNullOrWhiteSpace(target))
                 throw new ArgumentException("--target is required.");
+            if (string.IsNullOrWhiteSpace(protocolVersion))
+                throw new ArgumentException("--protocol-version is required.");
+            if (!string.Equals(
+                    protocolVersion,
+                    SupportedProtocolVersion,
+                    StringComparison.Ordinal))
+            {
+                throw new NotSupportedException(
+                    "Unsupported Watchdog Host protocol version '" +
+                    protocolVersion +
+                    "'. Expected '" +
+                    SupportedProtocolVersion +
+                    "'.");
+            }
 
             var fullPath = Path.GetFullPath(target);
+            var fullWorkdir = string.IsNullOrWhiteSpace(workdir)
+                ? ""
+                : Path.GetFullPath(workdir);
 
             if (!File.Exists(fullPath))
                 throw new FileNotFoundException("Target executable not found.", fullPath);
+            if (!string.IsNullOrEmpty(fullWorkdir) &&
+                !Directory.Exists(fullWorkdir))
+            {
+                if (File.Exists(fullWorkdir))
+                {
+                    throw new ArgumentException(
+                        "--workdir must identify a directory.");
+                }
+
+                throw new DirectoryNotFoundException(
+                    "Watchdog Host working directory not found: " +
+                    fullWorkdir);
+            }
             if (attachPid.HasValue && string.IsNullOrWhiteSpace(attachToken))
                 throw new ArgumentException(
                     "--attach-token is required when --attach-pid is supplied.");
@@ -90,9 +133,7 @@ namespace NekoLib.Watchdog.Host
             {
                 TargetPath = fullPath,
                 TargetArguments = targetArgs ?? "",
-                WorkingDirectory = string.IsNullOrWhiteSpace(workdir)
-                    ? ""
-                    : Path.GetFullPath(workdir),
+                WorkingDirectory = fullWorkdir,
                 InitialProcessId = attachPid,
                 AttachToken = attachToken ?? ""
             };

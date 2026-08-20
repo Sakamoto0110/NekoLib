@@ -1,4 +1,0 @@
-<Project>
-  <Import Project="$(MSBuildThisFileDirectory)..\build\NekoLib.Watchdog.Host.targets"
-          Condition="'$(NekoLibWatchdogHostTargetsImported)' != 'true' and Exists('$(MSBuildThisFileDirectory)..\build\NekoLib.Watchdog.Host.targets')" />
-</Project>

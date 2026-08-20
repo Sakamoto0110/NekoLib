@@ -31,6 +31,54 @@ function Invoke-DotNet {
     }
 }
 
+function Invoke-DotNetExpectFailure {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Arguments,
+
+        [Parameter(Mandatory)]
+        [string]$ExpectedText
+    )
+
+    Write-Host "dotnet $($Arguments -join ' ') (expected failure)"
+    $output = (& dotnet @Arguments 2>&1 | Out-String)
+    $exitCode = $LASTEXITCODE
+    Write-Host $output
+
+    if ($exitCode -eq 0) {
+        throw "dotnet unexpectedly succeeded."
+    }
+
+    if ($output.IndexOf($ExpectedText, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        throw "Expected failure did not contain '$ExpectedText'."
+    }
+}
+
+function Invoke-Program {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [string]$WorkingDirectory,
+
+        [Parameter()]
+        [string[]]$Arguments = @()
+    )
+
+    Write-Host "$Path $($Arguments -join ' ')"
+    Push-Location $WorkingDirectory
+    try {
+        & $Path @Arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Program exited with code $LASTEXITCODE`: $Path"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Get-PackageEntries {
     param(
         [Parameter(Mandatory)]
@@ -46,7 +94,7 @@ function Get-PackageEntries {
     }
 }
 
-function Get-PackagePeMachine {
+function Get-PackageEntryBytes {
     param(
         [Parameter(Mandatory)]
         [string]$PackagePath,
@@ -66,17 +114,7 @@ function Get-PackagePeMachine {
         $memory = New-Object System.IO.MemoryStream
         try {
             $entryStream.CopyTo($memory)
-            $memory.Position = 0x3c
-
-            $reader = New-Object System.IO.BinaryReader($memory)
-            try {
-                $peHeaderOffset = $reader.ReadInt32()
-                $memory.Position = $peHeaderOffset + 4
-                return $reader.ReadUInt16()
-            }
-            finally {
-                $reader.Dispose()
-            }
+            return $memory.ToArray()
         }
         finally {
             $entryStream.Dispose()
@@ -85,6 +123,115 @@ function Get-PackagePeMachine {
     }
     finally {
         $archive.Dispose()
+    }
+}
+
+function Get-PeInfo {
+    param(
+        [Parameter(Mandatory)]
+        [byte[]]$Bytes
+    )
+
+    $peHeaderOffset = [BitConverter]::ToInt32($Bytes, 0x3c)
+    $machine = [BitConverter]::ToUInt16($Bytes, $peHeaderOffset + 4)
+    $sectionCount = [BitConverter]::ToUInt16($Bytes, $peHeaderOffset + 6)
+    $optionalHeaderSize = [BitConverter]::ToUInt16($Bytes, $peHeaderOffset + 20)
+    $optionalHeaderOffset = $peHeaderOffset + 24
+    $optionalMagic = [BitConverter]::ToUInt16($Bytes, $optionalHeaderOffset)
+    $dataDirectoryOffset = switch ($optionalMagic) {
+        0x010b { $optionalHeaderOffset + 96 }
+        0x020b { $optionalHeaderOffset + 112 }
+        default { throw "Unsupported PE optional-header magic 0x$($optionalMagic.ToString('x4'))." }
+    }
+
+    $clrRva = [BitConverter]::ToUInt32($Bytes, $dataDirectoryOffset + (14 * 8))
+    $corFlags = $null
+    if ($clrRva -ne 0) {
+        $sectionOffset = $optionalHeaderOffset + $optionalHeaderSize
+        for ($index = 0; $index -lt $sectionCount; $index++) {
+            $currentSection = $sectionOffset + ($index * 40)
+            $virtualSize = [BitConverter]::ToUInt32($Bytes, $currentSection + 8)
+            $virtualAddress = [BitConverter]::ToUInt32($Bytes, $currentSection + 12)
+            $rawSize = [BitConverter]::ToUInt32($Bytes, $currentSection + 16)
+            $rawPointer = [BitConverter]::ToUInt32($Bytes, $currentSection + 20)
+            $sectionSpan = [Math]::Max($virtualSize, $rawSize)
+
+            if ($clrRva -ge $virtualAddress -and
+                $clrRva -lt ($virtualAddress + $sectionSpan)) {
+                $clrOffset = $rawPointer + ($clrRva - $virtualAddress)
+                $corFlags = [BitConverter]::ToUInt32($Bytes, $clrOffset + 16)
+                break
+            }
+        }
+
+        if ($null -eq $corFlags) {
+            throw "Unable to resolve the CLR header in the PE image."
+        }
+    }
+
+    return [pscustomobject]@{
+        Machine = $machine
+        CorFlags = $corFlags
+    }
+}
+
+function Get-PackagePeInfo {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PackagePath,
+
+        [Parameter(Mandatory)]
+        [string]$EntryName
+    )
+
+    return Get-PeInfo -Bytes (Get-PackageEntryBytes `
+        -PackagePath $PackagePath `
+        -EntryName $EntryName)
+}
+
+function Get-FilePeInfo {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    return Get-PeInfo -Bytes ([System.IO.File]::ReadAllBytes($Path))
+}
+
+function Get-BytesSha256 {
+    param(
+        [Parameter(Mandatory)]
+        [byte[]]$Bytes
+    )
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString($sha256.ComputeHash($Bytes)).Replace("-", "")
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
+function Assert-FileMatchesPackageEntry {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [string]$PackagePath,
+
+        [Parameter(Mandatory)]
+        [string]$EntryName
+    )
+
+    $fileHash = Get-BytesSha256 -Bytes ([System.IO.File]::ReadAllBytes($Path))
+    $packageHash = Get-BytesSha256 -Bytes (Get-PackageEntryBytes `
+        -PackagePath $PackagePath `
+        -EntryName $EntryName)
+
+    if (-not [string]::Equals($fileHash, $packageHash, [StringComparison]::Ordinal)) {
+        throw "Deployed Host bytes do not match package entry $EntryName`: $Path"
     }
 }
 
@@ -169,7 +316,6 @@ if (-not (Test-Path -LiteralPath $hostPackagePath)) {
 $hostEntries = Get-PackageEntries -PackagePath $hostPackagePath
 $requiredHostEntries = @(
     "build/NekoLib.Watchdog.Host.targets",
-    "buildTransitive/NekoLib.Watchdog.Host.targets",
     "tools/net481/NekoLib.Watchdog.Host.exe",
     "tools/net9.0-windows7.0/win-x86/NekoLib.Watchdog.Host.exe",
     "tools/net9.0-windows7.0/win-x64/NekoLib.Watchdog.Host.exe"
@@ -181,23 +327,43 @@ foreach ($requiredEntry in $requiredHostEntries) {
     }
 }
 
+$forbiddenHostEntries = @(
+    "buildTransitive/NekoLib.Watchdog.Host.targets"
+)
+foreach ($forbiddenEntry in $forbiddenHostEntries) {
+    if ($hostEntries -contains $forbiddenEntry) {
+        throw "NekoLib.Watchdog.Host must not contain $forbiddenEntry."
+    }
+}
+
 if (@($hostEntries | Where-Object { $_.StartsWith("lib/", [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0) {
     throw "NekoLib.Watchdog.Host must not expose a library under lib/."
 }
 
-$x86Machine = Get-PackagePeMachine `
+$net481Pe = Get-PackagePeInfo `
+    -PackagePath $hostPackagePath `
+    -EntryName "tools/net481/NekoLib.Watchdog.Host.exe"
+$x86Pe = Get-PackagePeInfo `
     -PackagePath $hostPackagePath `
     -EntryName "tools/net9.0-windows7.0/win-x86/NekoLib.Watchdog.Host.exe"
-$x64Machine = Get-PackagePeMachine `
+$x64Pe = Get-PackagePeInfo `
     -PackagePath $hostPackagePath `
     -EntryName "tools/net9.0-windows7.0/win-x64/NekoLib.Watchdog.Host.exe"
 
-if ($x86Machine -ne 0x014c) {
-    throw "The win-x86 Watchdog Host apphost has unexpected PE machine 0x$($x86Machine.ToString('x4'))."
+if ($net481Pe.Machine -ne 0x014c -or
+    $null -eq $net481Pe.CorFlags -or
+    ($net481Pe.CorFlags -band 0x00000001) -eq 0 -or
+    ($net481Pe.CorFlags -band 0x00000002) -ne 0 -or
+    ($net481Pe.CorFlags -band 0x00020000) -ne 0) {
+    throw "The net481 Watchdog Host payload is not managed AnyCPU IL."
 }
 
-if ($x64Machine -ne 0x8664) {
-    throw "The win-x64 Watchdog Host apphost has unexpected PE machine 0x$($x64Machine.ToString('x4'))."
+if ($x86Pe.Machine -ne 0x014c) {
+    throw "The win-x86 Watchdog Host apphost has unexpected PE machine 0x$($x86Pe.Machine.ToString('x4'))."
+}
+
+if ($x64Pe.Machine -ne 0x8664) {
+    throw "The win-x64 Watchdog Host apphost has unexpected PE machine 0x$($x64Pe.Machine.ToString('x4'))."
 }
 
 $projectReferenceMatches = @(
@@ -215,6 +381,9 @@ $consumerProjects = @(
     (Join-Path $consumerRoot "Wpf481\Wpf481.csproj")
 )
 $multiTargetConsumer = Join-Path $consumerRoot "WinFormsMultiTarget\WinFormsMultiTarget.csproj"
+$protocolConsumer = Join-Path $consumerRoot "WatchdogHostProtocol\WatchdogHostProtocol.csproj"
+$wrapperProject = Join-Path $consumerRoot "WatchdogHostWrapper\WatchdogHostWrapper.csproj"
+$transitiveConsumer = Join-Path $consumerRoot "WatchdogHostTransitive\WatchdogHostTransitive.csproj"
 
 $smokeArtifactsRoot = Join-Path $repoRoot "artifacts\package-smoke"
 $smokeSessionRoot = Get-VerifiedChildPath `
@@ -224,7 +393,17 @@ $cachePath = Join-Path $smokeSessionRoot "global-packages"
 $outputRoot = Join-Path $smokeSessionRoot "bin"
 $intermediateRoot = Join-Path $smokeSessionRoot "obj"
 $publishRoot = Join-Path $smokeSessionRoot "publish"
+$combinedFeed = Join-Path $smokeSessionRoot "feed"
 New-Item -ItemType Directory -Force -Path $cachePath | Out-Null
+New-Item -ItemType Directory -Force -Path $combinedFeed | Out-Null
+
+Get-ChildItem -LiteralPath $FeedPath -Filter "*.nupkg" -File |
+    ForEach-Object {
+        [System.IO.File]::Copy(
+            $_.FullName,
+            (Join-Path $combinedFeed $_.Name),
+            $false)
+    }
 
 function Get-ConsumerBuildProperties {
     param(
@@ -245,10 +424,57 @@ function Get-ConsumerBuildProperties {
 
 $previousFeed = $env:NEKOLIB_LOCAL_FEED
 $previousCache = $env:NEKOLIB_PACKAGE_CACHE
-$env:NEKOLIB_LOCAL_FEED = $FeedPath
+$env:NEKOLIB_LOCAL_FEED = $combinedFeed
 $env:NEKOLIB_PACKAGE_CACHE = $cachePath
 
 try {
+    $wrapperBuildProperties = @(
+        Get-ConsumerBuildProperties -ProjectPath $wrapperProject
+    )
+    Invoke-DotNet -Arguments (@(
+        "restore",
+        $wrapperProject,
+        "--configfile",
+        $nugetConfig,
+        "--force-evaluate",
+        "--no-http-cache"
+    ) + $wrapperBuildProperties)
+    Invoke-DotNet -Arguments (@(
+        "pack",
+        $wrapperProject,
+        "-c",
+        $Configuration,
+        "--no-restore",
+        "-o",
+        $combinedFeed
+    ) + $wrapperBuildProperties)
+
+    $transitiveBuildProperties = @(
+        Get-ConsumerBuildProperties -ProjectPath $transitiveConsumer
+    )
+    Invoke-DotNet -Arguments (@(
+        "restore",
+        $transitiveConsumer,
+        "--configfile",
+        $nugetConfig,
+        "--force-evaluate",
+        "--no-http-cache"
+    ) + $transitiveBuildProperties)
+    Invoke-DotNet -Arguments (@(
+        "build",
+        $transitiveConsumer,
+        "-c",
+        $Configuration,
+        "--no-restore"
+    ) + $transitiveBuildProperties)
+
+    $transitiveHostOutput = Join-Path `
+        $outputRoot `
+        "WatchdogHostTransitive\$Configuration\net9.0-windows\NekoLib.Watchdog.Host"
+    if (Test-Path -LiteralPath $transitiveHostOutput) {
+        throw "The Watchdog Host sidecar propagated through a transitive package reference."
+    }
+
     foreach ($project in $consumerProjects) {
         $buildProperties = @(Get-ConsumerBuildProperties -ProjectPath $project)
 
@@ -297,6 +523,56 @@ try {
 
     if (Test-Path -LiteralPath $stalePayloadProbe) {
         throw "The Host package target did not replace a stale sidecar directory: $stalePayloadProbe"
+    }
+
+    $deployedHost = Join-Path $net9HostOutput "NekoLib.Watchdog.Host.exe"
+    $defaultHostPe = Get-FilePeInfo -Path $deployedHost
+    if ($defaultHostPe.Machine -ne 0x8664) {
+        throw "The default Watchdog Host deployment did not select win-x64."
+    }
+    Assert-FileMatchesPackageEntry `
+        -Path $deployedHost `
+        -PackagePath $hostPackagePath `
+        -EntryName "tools/net9.0-windows7.0/win-x64/NekoLib.Watchdog.Host.exe"
+
+    Invoke-DotNet -Arguments (@(
+        "build",
+        $winForms9Project,
+        "-c",
+        $Configuration,
+        "--no-restore",
+        "-p:NekoLibWatchdogHostRid=win-x86"
+    ) + $winForms9BuildProperties)
+
+    $selectedX86HostPe = Get-FilePeInfo -Path $deployedHost
+    if ($selectedX86HostPe.Machine -ne 0x014c) {
+        throw "NekoLibWatchdogHostRid=win-x86 did not deploy the x86 Host apphost."
+    }
+    Assert-FileMatchesPackageEntry `
+        -Path $deployedHost `
+        -PackagePath $hostPackagePath `
+        -EntryName "tools/net9.0-windows7.0/win-x86/NekoLib.Watchdog.Host.exe"
+
+    Invoke-DotNetExpectFailure -Arguments (@(
+        "build",
+        $winForms9Project,
+        "-c",
+        $Configuration,
+        "--no-restore",
+        "-p:NekoLibWatchdogHostRid=win-arm64"
+    ) + $winForms9BuildProperties) -ExpectedText "contains win-x86 and win-x64 payloads only"
+
+    Invoke-DotNet -Arguments (@(
+        "build",
+        $winForms9Project,
+        "-c",
+        $Configuration,
+        "--no-restore"
+    ) + $winForms9BuildProperties)
+
+    $restoredDefaultHostPe = Get-FilePeInfo -Path $deployedHost
+    if ($restoredDefaultHostPe.Machine -ne 0x8664) {
+        throw "The default Watchdog Host deployment was not restored after RID probes."
     }
 
     $multiTargetBuildProperties = @(
@@ -366,6 +642,59 @@ try {
 
     if (Test-Path -LiteralPath (Join-Path $net9HostOutput "Newtonsoft.Json.dll")) {
         throw "The net9 Watchdog Host payload must not contain Newtonsoft.Json.dll."
+    }
+
+    $deployedNet481Pe = Get-FilePeInfo -Path (
+        Join-Path $net481HostOutput "NekoLib.Watchdog.Host.exe")
+    if ($deployedNet481Pe.Machine -ne 0x014c -or
+        $null -eq $deployedNet481Pe.CorFlags -or
+        ($deployedNet481Pe.CorFlags -band 0x00000001) -eq 0 -or
+        ($deployedNet481Pe.CorFlags -band 0x00000002) -ne 0 -or
+        ($deployedNet481Pe.CorFlags -band 0x00020000) -ne 0) {
+        throw "The deployed net481 Watchdog Host is not managed AnyCPU IL."
+    }
+    Assert-FileMatchesPackageEntry `
+        -Path (Join-Path $net481HostOutput "NekoLib.Watchdog.Host.exe") `
+        -PackagePath $hostPackagePath `
+        -EntryName "tools/net481/NekoLib.Watchdog.Host.exe"
+
+    $protocolBuildProperties = @(
+        Get-ConsumerBuildProperties -ProjectPath $protocolConsumer
+    )
+    Invoke-DotNet -Arguments (@(
+        "restore",
+        $protocolConsumer,
+        "--configfile",
+        $nugetConfig,
+        "--force-evaluate",
+        "--no-http-cache"
+    ) + $protocolBuildProperties)
+    Invoke-DotNet -Arguments (@(
+        "build",
+        $protocolConsumer,
+        "-c",
+        $Configuration,
+        "--no-restore"
+    ) + $protocolBuildProperties)
+
+    foreach ($protocolTfm in @("net481", "net9.0-windows")) {
+        $protocolOutput = Join-Path `
+            $outputRoot `
+            "WatchdogHostProtocol\$Configuration\$protocolTfm"
+        $protocolExecutable = Join-Path $protocolOutput "WatchdogHostProtocol.exe"
+        $protocolWorkingDirectory = Join-Path `
+            $smokeSessionRoot `
+            "protocol-runs\$protocolTfm"
+        New-Item -ItemType Directory -Force -Path $protocolWorkingDirectory | Out-Null
+
+        Invoke-Program `
+            -Path $protocolExecutable `
+            -WorkingDirectory $protocolWorkingDirectory `
+            -Arguments @("mismatch")
+        Start-Sleep -Milliseconds 250
+        Invoke-Program `
+            -Path $protocolExecutable `
+            -WorkingDirectory $protocolWorkingDirectory
     }
 
     $net9PublishOutput = Join-Path $publishRoot "net9"

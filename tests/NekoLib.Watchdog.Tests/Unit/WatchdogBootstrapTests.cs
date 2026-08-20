@@ -108,6 +108,10 @@ namespace NekoLib.Watchdog.Tests.Unit
                     WatchdogCommands.Ping,
                     (request, cancellationToken) => Task.FromResult(Pong()));
                 server.Map(
+                    WatchdogCommands.ProtocolVersion,
+                    (request, cancellationToken) => Task.FromResult(
+                        StringResponse(WatchdogBootstrap.HostProtocolVersion)));
+                server.Map(
                     WatchdogCommands.AttachStatus,
                     (request, cancellationToken) =>
                     {
@@ -192,6 +196,10 @@ namespace NekoLib.Watchdog.Tests.Unit
             }))
             {
                 server.Map(
+                    WatchdogCommands.ProtocolVersion,
+                    (request, cancellationToken) => Task.FromResult(
+                        StringResponse(WatchdogBootstrap.HostProtocolVersion)));
+                server.Map(
                     WatchdogCommands.AttachStatus,
                     async (request, cancellationToken) =>
                     {
@@ -213,6 +221,48 @@ namespace NekoLib.Watchdog.Tests.Unit
                 Assert.False(attached);
                 Assert.InRange(elapsed.ElapsedMilliseconds, 50, 1500);
             }
+        }
+
+        [Fact]
+        public void WaitForAttachment_IncompatibleProtocol_ThrowsClearMismatch()
+        {
+            var pipeName =
+                "NekoLib.Watchdog.Protocol." + Guid.NewGuid().ToString("N");
+            using (var server = new PipeServer(new PipeServerOptions
+            {
+                PipeName = pipeName
+            }))
+            {
+                server.Map(
+                    WatchdogCommands.ProtocolVersion,
+                    (request, cancellationToken) => Task.FromResult(
+                        StringResponse("0")));
+                server.Start();
+                Thread.Sleep(250);
+
+                var error = Assert.Throws<InvalidOperationException>(() =>
+                    WatchdogBootstrap.WaitForAttachment(
+                        pipeName,
+                        1234,
+                        "token",
+                        5000));
+
+                Assert.Contains("incompatible protocol", error.Message);
+                Assert.Contains("version '0'", error.Message);
+                Assert.Contains(
+                    WatchdogBootstrap.HostProtocolVersion,
+                    error.Message);
+            }
+        }
+
+        [Fact]
+        public void FormatAttachmentStatus_UsesVersionedIdentity()
+        {
+            Assert.Equal(
+                "attached:v" +
+                WatchdogBootstrap.HostProtocolVersion +
+                ":1234:token",
+                WatchdogBootstrap.FormatAttachmentStatus(1234, "token"));
         }
 
         private static string[] ParseWindowsCommandLine(string commandLine)

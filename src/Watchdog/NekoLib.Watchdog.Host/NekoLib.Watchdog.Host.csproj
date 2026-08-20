@@ -44,9 +44,6 @@
     <None Include="NekoLib.Watchdog.Host.Package.targets"
           Pack="true"
           PackagePath="build\NekoLib.Watchdog.Host.targets" />
-    <None Include="buildTransitive\NekoLib.Watchdog.Host.targets"
-          Pack="true"
-          PackagePath="buildTransitive\NekoLib.Watchdog.Host.targets" />
   </ItemGroup>
 
   <Target Name="ValidateWatchdogHostPayload"

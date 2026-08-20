@@ -41,13 +41,14 @@ isolation, or its canonical command materially differ.
 | `NekoLib.Pipes.Tests/Unit` | unit + integration | real named-pipe IPC in-process | net481, net9.0-windows |
 | `NekoLib.Telemetry.Tests/Unit` | unit | none | net481, net9.0 |
 | `NekoLib.Watchdog.Tests/Unit` | unit + integration/functional | temporary filesystem, named-pipe RPC, and controlled child processes | net481, net9.0-windows |
-| `NekoLib.PackageConsumers/` | package probe | fresh local packages, restore graph, WinForms/WPF build targets | net481 and/or net9.0-windows per probe |
+| `NekoLib.PackageConsumers/` | package probe | fresh local packages, restore graph, WinForms/WPF build targets, direct-only Host deployment, and packaged Host protocol startup | net481 and/or net9.0-windows per probe |
 
 All `NekoLib.*.Tests/Unit` projects above belong to `NekoLib.sln`.
 `NekoLib.PackageConsumers/` deliberately does not: a normal source build must
 not depend on packages that have not been produced yet. The canonical packaging
-workflow restores and builds those consumers after it validates package
-contents.
+workflow restores, builds, and runs the applicable consumers after it validates
+package contents. Host probes use session-owned working directories and stop
+the package-backed sidecar before returning.
 
 Watchdog's controlled-process tests resolve the Windows system `cmd.exe` and
 copy it into an isolated temporary workspace to obtain a unique target path.
@@ -90,7 +91,8 @@ version:
 
 Use `-AllowDirty` only with a disposable, previously unused version. The script
 builds and tests the solution, publishes the Watchdog Host payloads, packs the
-family, validates package structure, and restores/builds the consumer probes.
+family, validates package structure, and restores/builds/runs the consumer
+probes.
 
 ## Manual scenarios
 

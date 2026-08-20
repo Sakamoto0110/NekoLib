@@ -218,9 +218,10 @@ Pipes and Newtonsoft remain implementation dependencies at the public-signature
 level. The `NekoLib.Watchdog` library package contains only its two library
 assets and dependency groups. It does not embed Host payloads.
 
-The `NekoLib.Watchdog.Host` deployment package, RID payload selection, build and
-publish targets, bootstrap argument protocol, and sidecar release evidence are
-owned by F1-WDOG-HOST.
+The [`NekoLib.Watchdog.Host` reference](../NekoLib.Watchdog.Host/README.md) owns
+the direct-reference deployment package, RID payload selection, build and
+publish targets, protocol v1 launch/attachment contract, fatal startup evidence,
+and sidecar release validation.
 
 ## Verification scope
 
@@ -228,6 +229,7 @@ The focused dual-target suite covers configuration capture, lifecycle races,
 attach and restart semantics, current-user control pipes, command outcomes,
 bounded history, log forwarding, crash finalization, manifest JSON, file
 rotation, bootstrap budgets, and the obsolete-surface removal. Interactive
-hotkey registration, cross-user/elevation denial, packaged sidecar launch, and
-long-running crash/recovery remain explicit runtime or release evidence rather
-than unit-test claims.
+hotkey registration, cross-user/elevation denial, and long-running
+crash/recovery remain explicit runtime evidence rather than unit-test claims.
+Package-backed Host protocol startup is covered separately by the canonical
+package-consumer flow.

@@ -85,6 +85,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Mvvm`](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | [`NekoLib.Pipes`](src/Pipes/NekoLib.Pipes/README.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
 | [`NekoLib.Watchdog`](src/Watchdog/NekoLib.Watchdog/README.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
+| [`NekoLib.Watchdog.Host`](src/Watchdog/NekoLib.Watchdog.Host/README.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
 | [`NekoLib.Devices`](src/Devices/NekoLib.Devices/README.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
@@ -260,7 +261,8 @@ references only its top-level modules. For example,
 `NekoLib.Navigation.WinForms` brings Navigation and Core transitively.
 
 `NekoLib.Watchdog.Host` is a deployment package rather than a compile-time
-library. Reference it directly from the executable project. On build and
+library. Reference it directly from the executable project; deployment does not
+flow through wrapper packages. On build and
 publish it copies an isolated sidecar to:
 
 ```text
@@ -298,6 +300,14 @@ the same target pipe and confirms the current PID, no second Host is started. A
 conflicting supervised PID fails clearly instead of being mistaken for a valid
 handoff. Lock wait, preflight, pipe I/O and readiness confirmation share the one
 bounded timeout supplied to `EnsureStarted`.
+
+The coordinated library and Host use internal protocol v1 and must be updated
+together. Bootstrap checks the version before accepting the versioned
+`attached:v1:<pid>:<token>` identity. A stale or independently copied Host fails
+with an incompatible-protocol diagnostic. Explicit working directories must
+already exist. Fatal Host startup evidence is bounded under
+`%LOCALAPPDATA%\NekoLib\Watchdog\watchdog-host-fatal.log`; see the
+[Host technical reference](src/Watchdog/NekoLib.Watchdog.Host/README.md).
 
 The package-consumer probes live under `tests/NekoLib.PackageConsumers/` and
 cover single- and multi-target WinForms plus WPF without any `ProjectReference`.

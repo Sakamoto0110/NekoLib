@@ -26,6 +26,8 @@ namespace NekoLib.Watchdog
         public const string HostDirectoryName = "NekoLib.Watchdog.Host";
         public const string HostExecutableName = "NekoLib.Watchdog.Host.exe";
 
+        internal const string HostProtocolVersion = "1";
+
         private const int DefaultHandshakeTimeoutMs = 5000;
 
         /// <summary>
@@ -134,6 +136,8 @@ namespace NekoLib.Watchdog
             var targetArguments = BuildCommandLine(arguments);
             var hostArguments = BuildCommandLine(new[]
             {
+                "--protocol-version",
+                HostProtocolVersion,
                 "--target",
                 targetPath,
                 "--attach-pid",
@@ -183,7 +187,9 @@ namespace NekoLib.Watchdog
                 if (exited)
                 {
                     throw new InvalidOperationException(
-                        "The Watchdog Host exited before confirming the initial process attach.");
+                        "The Watchdog Host exited before confirming the initial " +
+                        "process attach. Inspect fatal startup evidence at '" +
+                        GetHostFatalLogPath() + "'.");
                 }
 
                 throw CreateHandshakeTimeout();
@@ -210,18 +216,29 @@ namespace NekoLib.Watchdog
 
             while (elapsed.ElapsedMilliseconds < timeoutMs)
             {
-                if (TrySendString(
-                        pipeName,
-                        WatchdogCommands.AttachStatus,
-                        Math.Min(
-                            300,
-                            RemainingBudgetMs(elapsed, timeoutMs)),
-                        out var response,
-                        out _,
-                        out _) &&
-                    string.Equals(response, expected, StringComparison.Ordinal))
+                var protocolBudget = Math.Min(
+                    300,
+                    RemainingBudgetMs(elapsed, timeoutMs));
+                if (protocolBudget > 0 &&
+                    TryConfirmProtocolVersion(pipeName, protocolBudget))
                 {
-                    return true;
+                    var attachmentBudget = Math.Min(
+                        300,
+                        RemainingBudgetMs(elapsed, timeoutMs));
+                    if (attachmentBudget < 1)
+                        break;
+
+                    if (TrySendString(
+                            pipeName,
+                            WatchdogCommands.AttachStatus,
+                            attachmentBudget,
+                            out var response,
+                            out _,
+                            out _) &&
+                        string.Equals(response, expected, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
                 }
 
                 var remaining = timeoutMs - (int)elapsed.ElapsedMilliseconds;
@@ -238,10 +255,24 @@ namespace NekoLib.Watchdog
             out int attachedPid)
         {
             attachedPid = 0;
+            var elapsed = Stopwatch.StartNew();
+            var protocolBudget = Math.Min(
+                300,
+                RemainingBudgetMs(elapsed, timeoutMs));
+            if (protocolBudget < 1 ||
+                !TryConfirmProtocolVersion(pipeName, protocolBudget))
+            {
+                return false;
+            }
+
+            var attachmentBudget = RemainingBudgetMs(elapsed, timeoutMs);
+            if (attachmentBudget < 1)
+                return false;
+
             var succeeded = TrySendString(
                 pipeName,
                 WatchdogCommands.AttachStatus,
-                timeoutMs,
+                attachmentBudget,
                 out var response,
                 out var hostResponded,
                 out var errorCode);
@@ -292,22 +323,23 @@ namespace NekoLib.Watchdog
             out int attachedPid)
         {
             attachedPid = 0;
-            if (status == null ||
-                string.IsNullOrWhiteSpace(status) ||
-                !status.StartsWith("attached:", StringComparison.Ordinal))
+            if (status == null || string.IsNullOrWhiteSpace(status))
+                return false;
+
+            var parts = status.Split(':');
+            if (parts.Length != 4 ||
+                !string.Equals(parts[0], "attached", StringComparison.Ordinal) ||
+                !string.Equals(
+                    parts[1],
+                    "v" + HostProtocolVersion,
+                    StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(parts[3]))
             {
                 return false;
             }
 
-            var firstSeparator = status.IndexOf(':');
-            var secondSeparator = status.IndexOf(':', firstSeparator + 1);
-            if (secondSeparator < 0 || secondSeparator == status.Length - 1)
-                return false;
-
             return int.TryParse(
-                       status.Substring(
-                           firstSeparator + 1,
-                           secondSeparator - firstSeparator - 1),
+                       parts[2],
                        System.Globalization.NumberStyles.None,
                        System.Globalization.CultureInfo.InvariantCulture,
                        out attachedPid) &&
@@ -315,10 +347,20 @@ namespace NekoLib.Watchdog
         }
 
         internal static string FormatAttachmentStatus(int pid, string attachToken)
-            => "attached:" +
+            => "attached:v" +
+               HostProtocolVersion +
+               ":" +
                pid.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                ":" +
                attachToken;
+
+        internal static string GetHostFatalLogPath()
+            => Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "NekoLib",
+                "Watchdog",
+                "watchdog-host-fatal.log");
 
         private static bool IsRunningUnderWatchdog()
         {
@@ -450,6 +492,51 @@ namespace NekoLib.Watchdog
             {
                 return false;
             }
+        }
+
+        private static bool TryConfirmProtocolVersion(
+            string pipeName,
+            int timeoutMs)
+        {
+            var succeeded = TrySendString(
+                pipeName,
+                WatchdogCommands.ProtocolVersion,
+                timeoutMs,
+                out var version,
+                out var hostResponded,
+                out var errorCode);
+
+            if (!hostResponded)
+                return false;
+
+            if (!succeeded ||
+                !string.Equals(
+                    version,
+                    HostProtocolVersion,
+                    StringComparison.Ordinal))
+            {
+                throw CreateProtocolMismatch(version, errorCode);
+            }
+
+            return true;
+        }
+
+        private static InvalidOperationException CreateProtocolMismatch(
+            string? version,
+            string? errorCode)
+        {
+            var observed = !string.IsNullOrWhiteSpace(version)
+                ? "version '" + version + "'"
+                : !string.IsNullOrWhiteSpace(errorCode)
+                    ? "protocol error '" + errorCode + "'"
+                    : "an invalid response";
+
+            return new InvalidOperationException(
+                "The deployed Watchdog Host uses an incompatible protocol (" +
+                observed + "). Expected version '" +
+                HostProtocolVersion +
+                "'. Update NekoLib.Watchdog and NekoLib.Watchdog.Host to the " +
+                "same package version and rebuild the application.");
         }
 
         private static void ObserveFault(System.Threading.Tasks.Task task)

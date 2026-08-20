@@ -16,6 +16,7 @@ namespace NekoLib.Watchdog
 
         internal const string LogHistory = "log_history";
         internal const string ExceptionNotify = "exception_notify";
+        internal const string ProtocolVersion = "protocol_version";
         internal const string AttachStatus = "attach_status";
         internal const string LogWrite = "log_write";
         internal const string LogWriteBatch = "log_write_batch";

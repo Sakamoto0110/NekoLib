@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <PackageId>NekoLib.PackageConsumers.WatchdogHostWrapper</PackageId>
+    <Title>NekoLib Watchdog Host package smoke wrapper</Title>
+    <Description>Package-only fixture that verifies Watchdog Host deployment does not propagate transitively.</Description>
+    <PackageTags>nekolib;package-smoke;watchdog</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" />
+  </ItemGroup>
+</Project>

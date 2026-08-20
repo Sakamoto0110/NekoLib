@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
- 
 
 namespace NekoLib.Watchdog.Host
 {
@@ -29,17 +27,6 @@ namespace NekoLib.Watchdog.Host
         }
 
         internal static void TryWriteFatalLog(Exception exception)
-        {
-            try
-            {
-                File.AppendAllText(
-                    "watchdog_host_fatal.log",
-                    $"[{DateTime.Now}] {exception}\n");
-            }
-            catch
-            {
-                // Fatal reporting must never replace the original startup failure.
-            }
-        }
+            => HostFatalLog.TryWrite(exception);
     }
 }

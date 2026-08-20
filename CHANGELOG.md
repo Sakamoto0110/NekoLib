@@ -16,6 +16,21 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Watchdog.Host — breaking and behavioral pre-stable deployment
+  correction for the first `1.0.0` stable family release.** The Host remains a
+  separate framework-dependent tools/build package with no compile-time API,
+  but deployment is now direct-only: the accidental `buildTransitive` asset was
+  removed, so each executable must reference the Host package explicitly.
+  Coordinated Host/library pairs now use internal protocol v1 with a required
+  launch version, version check, and `attached:v1:<pid>:<token>` identity;
+  stale or mismatched pairs fail clearly. Explicit working directories must
+  exist before supervision. Fatal startup evidence moved from an unbounded
+  relative sidecar file to a fail-soft per-user LocalApplicationData log with a
+  256 KiB active bound, one backup, UTC timestamp, and process identity. The
+  AnyCPU `net481` and framework-dependent x86/x64 .NET 9 payload roots, owned
+  output directory, opt-out property, runtime requirements, and cooperative
+  same-user security boundary remain. See the
+  [F1-WDOG-HOST migration guide](docs/migrations/f1-watchdog-host.md).
 - **NekoLib.Watchdog — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Retained
   `WatchdogBootstrap` as the ordinary application entry and

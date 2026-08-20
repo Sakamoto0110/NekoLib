@@ -104,11 +104,14 @@ namespace NekoLib.Watchdog.Tests.Unit
                         identity,
                         StringComparison.Ordinal);
                     var identityParts = identity.Split(':');
-                    Assert.Equal(3, identityParts.Length);
+                    Assert.Equal(4, identityParts.Length);
+                    Assert.Equal(
+                        "v" + WatchdogBootstrap.HostProtocolVersion,
+                        identityParts[1]);
                     Assert.NotEqual(
                         initial.Id,
                         int.Parse(
-                            identityParts[1],
+                            identityParts[2],
                             System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
