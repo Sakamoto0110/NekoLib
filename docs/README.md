@@ -6,9 +6,9 @@
 
 **Subject:** repository documentation governance
 
-**Reference date:** 2026-08-18
+**Reference date:** 2026-08-20
 
-**Reference commit:** working tree after `6580b6f`
+**Reference commit:** working tree after `3ec2c63`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -111,6 +111,7 @@ reference commit.
 | [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | historical | F1-WDOG compiled public surface, accepted decisions, implementation reconciliation, and residual Host/release-evidence gaps |
+| [`docs/audit/watchdog-host-contract-review-2026-08-20.md`](audit/watchdog-host-contract-review-2026-08-20.md) | audit | current | F1-WDOG-HOST deployment package, payload, build/publish target, bootstrap argument, protocol, security, and release-evidence review; implementation decision pending |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
 | [`docs/history/phase-c-repository-hygiene-2026-08-01.md`](history/phase-c-repository-hygiene-2026-08-01.md) | roadmap/status | historical | Phase C completion, commit-bound validation, and residual gaps |
