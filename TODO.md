@@ -742,6 +742,37 @@ consumers does not prove that a public member is unused.
 13. [ ] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
     payload layout, build targets, bootstrap arguments, and Host/application
     protocol rather than treating the executable as a compile-time API.
+    **Accepted 2026-08-20:** establish an internal Host protocol v1 with an
+    explicit launch version, versioned attachment identity, deterministic
+    mismatch reporting, and coordinated Host/library versions. Remove the
+    accidental `buildTransitive` deployment and its import guard; require a
+    direct Host PackageReference from each executable while retaining the
+    `build/` target and stable deployment outcomes. Replace the relative,
+    unbounded fatal log with bounded fail-soft evidence under the documented
+    per-user LocalApplicationData path, including UTC/process context, one
+    backup, and a discoverable bootstrap diagnostic. Reject missing or
+    non-directory explicit `--workdir` values before supervision while keeping
+    the target-directory default when the option is absent. Add a dedicated
+    current Host README covering payloads, properties, arguments, protocol,
+    lifecycle, ownership, security, target differences, evidence, and
+    non-goals; do not create an empty compiled-API manifest for the executable.
+    Expand package-only validation for direct ownership, required and forbidden
+    layout, AnyCPU `net481`, selected/default x86/x64 payloads, unsupported RID,
+    build/publish/disable/re-enable/replacement/clean behavior, coordinated
+    protocol startup, and explicit mismatch. After implementation is committed,
+    produce one new clean immutable coordinated package without `-AllowDirty`
+    and record its version, hashes, and repository provenance. Retain the
+    separate framework-dependent package, current payload roots, fixed owned
+    output subdirectory, x86/x64 modern support, application/install ACL
+    boundary, and cooperative same-user security model; do not add
+    self-contained or per-RID packages, remote control, authentication, Host
+    self-supervision, service installation, or update orchestration. The
+    accepted evidence, compatibility impact, migration, and rejected
+    alternatives are recorded in
+    [`docs/audit/watchdog-host-contract-review-2026-08-20.md`](docs/audit/watchdog-host-contract-review-2026-08-20.md).
+    Keep this item open until implementation, dual-target regressions, current
+    Host documentation, expanded package-only validation, and immutable
+    package/protocol evidence are complete.
 14. [ ] **F1-NAV — Navigation.** Finalize the public facade, contracts,
     registration, lifecycle, history, guard, session, surface, and diagnostic
     API last. Review does not unfreeze `NavigationContext`,
