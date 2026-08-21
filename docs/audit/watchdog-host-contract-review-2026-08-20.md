@@ -2,22 +2,23 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** F1-WDOG-HOST deployment package, payload layout, build and publish
 targets, bootstrap arguments, Host/application protocol, startup evidence,
 target behavior, security boundary, and release validation
 
-**Status:** review complete; six proposed dispositions await the decision gate
+**Status:** all six accepted dispositions implemented and package-validated
 
 **Reference date:** 2026-08-20
 
 **Reference commit:** `3ec2c63e2d60d96a8462c1a91483dea863015c01`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-20
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-WDOG-HOST remains open; no
-proposal in this review is accepted or implemented
+**Current state:** [`TODO.md`](../../TODO.md) records F1-WDOG-HOST as complete;
+the [Host technical reference](../../src/Watchdog/NekoLib.Watchdog.Host/README.md)
+owns the implemented deployment and protocol contract
 
 ## Baseline and worktree
 
@@ -573,3 +574,88 @@ validation limitation, not a confirmed Host product defect.
 This review produced no product fix, test change, project or manifest change,
 public API baseline update, package, publish, runtime execution, `TODO.md`
 promotion, or push. F1-WDOG-HOST is not marked complete.
+
+## Reconciliation — 2026-08-20: dispositions accepted and implemented
+
+The preceding text remains the review snapshot at
+`3ec2c63e2d60d96a8462c1a91483dea863015c01`. The user subsequently accepted all
+six numbered decision-gate proposals. Acceptance was promoted to `TODO.md` in
+`0cedb390bb5e206e341df99a29a6d4fe537b15c2`; the implementation and current
+documentation landed in `db2cdd88d70d6f63dab1817c8a4f3f20ab14432e`.
+Package-probe corrections landed in
+`ae98467d0b3b2b1502462e9caede6b10af91bb1a` and
+`5c4aa621bee039a9a3c616212aba07a3e444c696`.
+
+### Accepted decisions and implemented outcome
+
+1. **Protocol v1 (WDHOST-01).** Bootstrap now supplies the required protocol
+   version, Host parsing rejects absent or unsupported versions, attachment
+   identity is `attached:v1:<pid>:<token>`, and a ready but incompatible Host
+   produces a deterministic version-mismatch error instead of timing out.
+   Coordinated Host/library package versions remain required.
+2. **Direct-only deployment (WDHOST-02).** The package retains its deliberate
+   `build/` target but no longer contains or imports `buildTransitive`; every
+   executable that owns a Host must reference `NekoLib.Watchdog.Host` directly.
+   A wrapper-only consumer is explicitly verified to receive no sidecar.
+3. **Fatal evidence (WDHOST-03).** Fatal Host failures use a fail-soft,
+   256-KiB-bounded per-user LocalApplicationData log with UTC and process
+   context plus one `.1` backup. Bootstrap diagnostics publish the path without
+   turning evidence storage into a startup dependency.
+4. **Working-directory validation (WDHOST-04).** An explicit `--workdir` must
+   exist and be a directory before supervision begins. Omitting it still selects
+   the target executable's directory.
+5. **Current contract authority (WDHOST-05).** The dedicated
+   [Host README](../../src/Watchdog/NekoLib.Watchdog.Host/README.md) now owns
+   payload, property, argument, protocol, lifecycle, ownership, evidence,
+   security, target-difference, package-content, and non-goal documentation.
+   No empty compiled public API manifest was created for the executable.
+6. **Release evidence (WDHOST-06).** The package-only campaign now verifies
+   exact required and forbidden layout, direct ownership, byte identity between
+   package and deployed payloads, AnyCPU `net481`, explicit x86 and default x64
+   selection, unsupported RID failure, replacement, build, publish, clean,
+   deployment opt-out and re-enable, clear protocol mismatch, and real
+   package-backed startup/shutdown on both supported target families.
+
+### Implementation and package validation
+
+Executed on Windows from the accepted implementation and then through the
+canonical clean package flow:
+
+| Evidence | Result |
+|---|---|
+| Watchdog unit tests, `net481` | **106 passed**, 0 failed, 0 skipped |
+| Watchdog unit tests, `net9.0-windows` | **106 passed**, 0 failed, 0 skipped |
+| `eng/verify-public-api.ps1 -PackageId NekoLib.Watchdog` | both compiled baselines verified unchanged |
+| `eng/verify-docs.ps1` and `git diff --check` | passed |
+| `eng/pack-local.ps1 -PackageVersion 1.0.0-local.21` | passed from clean commit `5c4aa621bee039a9a3c616212aba07a3e444c696` without `-AllowDirty`; Release build emitted 340 known warnings and 0 errors; full serial solution tests passed; 16 coordinated packages published |
+| expanded PackageReference-only campaign | passed all layout, ownership, selection, architecture, lifecycle, mismatch, and real startup/shutdown probes on both target families |
+
+The Host package's nuspec records branch
+`phase-e/sqlserver-and-orchestration`, repository commit
+`5c4aa621bee039a9a3c616212aba07a3e444c696`, and its exact coordinated
+`NekoLib.Watchdog` dependency. Immutable package hashes are:
+
+- `NekoLib.Watchdog.Host.1.0.0-local.21.nupkg` — SHA-256
+  `F0D8572B261AEE65811CDE4F30921BA3A2EA417735C424AA0C7CB63A738DFBE5`;
+- `NekoLib.Watchdog.1.0.0-local.21.nupkg` — SHA-256
+  `BB7A68F7CD056E7EB3EAE94FC51D36AF91F301FD9AE1C76F94B84E4B77712D2D`.
+
+### Residual validation limits after implementation
+
+- The package-backed probes exercised startup, mismatch, and cooperative
+  shutdown, but not the tracked long-running crash/recovery campaign,
+  interactive hotkeys, visible-window activation, taskkill, or repeated crash
+  loops.
+- No cross-user, cross-elevation, hostile-same-user, service-account,
+  installer/ACL, signing, or tamper probe was run.
+- No unsupported operating system, ARM64 payload, self-contained deployment,
+  absent-runtime machine, LocalApplicationData denial, or read-only installation
+  scenario was exercised. ARM64 and self-contained payloads remain deliberate
+  non-goals rather than implied support.
+- The package was produced and consumed on the current Windows machine; it is
+  strong package/protocol evidence, not a claim about every deployment image or
+  external installer policy.
+
+No push was performed. The current technical reference and `TODO.md`, rather
+than this historical snapshot, own the implemented contract and remaining
+family release gates.

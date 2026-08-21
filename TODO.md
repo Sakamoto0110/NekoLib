@@ -739,7 +739,7 @@ consumers does not prove that a public member is unused.
     window, taskkill, cross-user/elevation, packaged sidecar, long-running
     crash/recovery, immutable-package, publish, or push evidence was produced;
     Host deployment and wire release finalization remain under F1-WDOG-HOST.
-13. [ ] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
+13. [x] **F1-WDOG-HOST — Watchdog Host.** Finalize the deployment package,
     payload layout, build targets, bootstrap arguments, and Host/application
     protocol rather than treating the executable as a compile-time API.
     **Accepted 2026-08-20:** establish an internal Host protocol v1 with an
@@ -770,9 +770,24 @@ consumers does not prove that a public member is unused.
     accepted evidence, compatibility impact, migration, and rejected
     alternatives are recorded in
     [`docs/audit/watchdog-host-contract-review-2026-08-20.md`](docs/audit/watchdog-host-contract-review-2026-08-20.md).
-    Keep this item open until implementation, dual-target regressions, current
-    Host documentation, expanded package-only validation, and immutable
-    package/protocol evidence are complete.
+    **Completed 2026-08-20:** the accepted implementation landed in `db2cdd8`,
+    with package-probe corrections in `ae98467` and `5c4aa62`. Watchdog passed
+    106/106 tests on both `net481` and `net9.0-windows`; both compiled public API
+    baselines verified unchanged; documentation and diff hygiene passed. The
+    canonical clean package flow built from
+    `5c4aa621bee039a9a3c616212aba07a3e444c696` without `-AllowDirty`, ran the
+    full serial solution successfully, published the 16-package coordinated
+    family as `1.0.0-local.21`, and passed the expanded package-only layout,
+    direct-ownership, payload-byte, PE architecture, selection, unsupported-RID,
+    replacement, build, publish, clean, opt-out/re-enable, protocol-mismatch,
+    and real startup/shutdown probes on both target families. Package
+    `NekoLib.Watchdog.Host.1.0.0-local.21.nupkg` has SHA-256
+    `F0D8572B261AEE65811CDE4F30921BA3A2EA417735C424AA0C7CB63A738DFBE5`;
+    `NekoLib.Watchdog.1.0.0-local.21.nupkg` has SHA-256
+    `BB7A68F7CD056E7EB3EAE94FC51D36AF91F301FD9AE1C76F94B84E4B77712D2D`.
+    Long-running crash/recovery, interactive, cross-user/elevation,
+    installer/ACL/signing, hostile-same-user, and runtime-provisioning evidence
+    remains outside this closure.
 14. [ ] **F1-NAV — Navigation.** Finalize the public facade, contracts,
     registration, lifecycle, history, guard, session, surface, and diagnostic
     API last. Review does not unfreeze `NavigationContext`,
