@@ -30,9 +30,11 @@ All accepted unmarked public and protected surfaces are stable from `1.0.0`.
 `IInspectionRecorder.RegisterAction` remains explicitly experimental under
 `NEKOEXP0001`; this declaration does not promote it.
 
-The declaration records a support and compatibility boundary. It does not
-claim remote distribution: no `1.0.0` package was pushed to a remote feed, no
-Git tag was created, and no branch was pushed.
+The declaration records a support and compatibility boundary. The annotated
+`v1.0.0` Git tag points exactly to materialized package-source commit
+`db63529cafce11690a18a595e4abc6c0610b9b8e`, and the release history has been
+pushed to GitHub. No `1.0.0` package has been pushed to a remote package feed,
+and no GitHub Release has been created.
 
 ## Materialized stable package evidence
 
@@ -142,6 +144,7 @@ The same isolated Watchdog target then passed 106/106 tests, and the complete
 canonical flow was rerun from the same clean commit and same still-unused
 version. Only that exit-0 complete rerun qualifies this baseline.
 
-The successful package run is local, manual evidence. It does not substitute
-for remote feed publication, CI, a Git tag, gated Phase F2-F7 work, or any
-additional manual runtime campaign beyond the package flow's own probes.
+The successful package run is local, manual evidence. The later tag and branch
+publication preserve its provenance but do not substitute for remote package
+feed publication, CI, gated Phase F2-F7 work, or any additional manual runtime
+campaign beyond the package flow's own probes.

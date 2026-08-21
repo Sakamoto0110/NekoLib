@@ -254,6 +254,7 @@ stable compatibility rules in this policy. The
 
 The complete candidate provenance, package hashes, validation results, and
 evidence boundaries are recorded in the
-[`1.0.0` stable release record](stable-release-1.0.0.md). The declaration does
-not claim remote distribution: no stable package was pushed to a remote feed,
-no Git tag was created, and no branch was pushed.
+[`1.0.0` stable release record](stable-release-1.0.0.md). The annotated
+`v1.0.0` tag identifies the materialized package-source commit, but the
+declaration does not claim remote package distribution: no stable package has
+been pushed to a remote package feed.
