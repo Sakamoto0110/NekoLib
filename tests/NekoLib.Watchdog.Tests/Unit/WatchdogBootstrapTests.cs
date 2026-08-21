@@ -101,7 +101,9 @@ namespace NekoLib.Watchdog.Tests.Unit
             var pipeName = WatchdogController.ResolvePipeNameForTarget(targetPath);
             using (var server = new PipeServer(new PipeServerOptions
             {
-                PipeName = pipeName
+                PipeName = pipeName,
+                MaxClients = 2,
+                EnableEvents = false
             }))
             {
                 server.Map(
@@ -192,7 +194,9 @@ namespace NekoLib.Watchdog.Tests.Unit
                 "NekoLib.Watchdog.Slow." + Guid.NewGuid().ToString("N");
             using (var server = new PipeServer(new PipeServerOptions
             {
-                PipeName = pipeName
+                PipeName = pipeName,
+                MaxClients = 2,
+                EnableEvents = false
             }))
             {
                 server.Map(
@@ -230,7 +234,9 @@ namespace NekoLib.Watchdog.Tests.Unit
                 "NekoLib.Watchdog.Protocol." + Guid.NewGuid().ToString("N");
             using (var server = new PipeServer(new PipeServerOptions
             {
-                PipeName = pipeName
+                PipeName = pipeName,
+                MaxClients = 2,
+                EnableEvents = false
             }))
             {
                 server.Map(
@@ -252,6 +258,44 @@ namespace NekoLib.Watchdog.Tests.Unit
                 Assert.Contains(
                     WatchdogBootstrap.HostProtocolVersion,
                     error.Message);
+            }
+        }
+
+        [Fact]
+        public void EnsureStarted_ReadyIncompatibleHost_ThrowsClearMismatch()
+        {
+            string targetPath;
+            using (var process = Process.GetCurrentProcess())
+            {
+                targetPath = process.MainModule?.FileName
+                    ?? throw new InvalidOperationException(
+                        "Unable to resolve the test executable path.");
+            }
+
+            var pipeName = WatchdogController.ResolvePipeNameForTarget(targetPath);
+            using (var server = new PipeServer(new PipeServerOptions
+            {
+                PipeName = pipeName,
+                MaxClients = 2,
+                EnableEvents = false
+            }))
+            {
+                server.Map(
+                    WatchdogCommands.ProtocolVersion,
+                    (request, cancellationToken) => Task.FromResult(
+                        StringResponse("0")));
+                server.Start();
+                Assert.True(WatchdogTestUtil.WaitUntil(
+                    () => ProtocolVersionEquals(pipeName, "0"),
+                    10000));
+
+                var error = Assert.Throws<InvalidOperationException>(() =>
+                    WatchdogBootstrap.EnsureStarted(
+                        Array.Empty<string>(),
+                        5000));
+
+                Assert.Contains("incompatible protocol", error.Message);
+                Assert.Contains("version '0'", error.Message);
             }
         }
 
@@ -317,6 +361,38 @@ namespace NekoLib.Watchdog.Tests.Unit
                     Message = code
                 }
             };
+
+        private static bool ProtocolVersionEquals(
+            string pipeName,
+            string expected)
+        {
+            try
+            {
+                var client = new PipeClient(new PipeClientOptions
+                {
+                    PipeName = pipeName,
+                    ConnectTimeout = TimeSpan.FromSeconds(1),
+                    RequestTimeout = TimeSpan.FromSeconds(1)
+                });
+                var response = client.SendAsync(WatchdogCommands.ProtocolVersion)
+                    .GetAwaiter()
+                    .GetResult();
+                if (!response.Ok)
+                    return false;
+
+#if NET481
+                return response.Data?.Value<string>() == expected;
+#else
+                return response.Data.HasValue &&
+                       response.Data.Value.ValueKind == JsonValueKind.String &&
+                       response.Data.Value.GetString() == expected;
+#endif
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         [DllImport("shell32.dll", SetLastError = true)]
         private static extern IntPtr CommandLineToArgvW(

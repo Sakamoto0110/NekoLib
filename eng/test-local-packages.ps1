@@ -674,7 +674,8 @@ try {
         $protocolConsumer,
         "-c",
         $Configuration,
-        "--no-restore"
+        "--no-restore",
+        "-p:NekoLibWatchdogHostDeploy=false"
     ) + $protocolBuildProperties)
 
     foreach ($protocolTfm in @("net481", "net9.0-windows")) {
@@ -691,7 +692,25 @@ try {
             -Path $protocolExecutable `
             -WorkingDirectory $protocolWorkingDirectory `
             -Arguments @("mismatch")
-        Start-Sleep -Milliseconds 250
+    }
+
+    Invoke-DotNet -Arguments (@(
+        "build",
+        $protocolConsumer,
+        "-c",
+        $Configuration,
+        "--no-restore"
+    ) + $protocolBuildProperties)
+
+    foreach ($protocolTfm in @("net481", "net9.0-windows")) {
+        $protocolOutput = Join-Path `
+            $outputRoot `
+            "WatchdogHostProtocol\$Configuration\$protocolTfm"
+        $protocolExecutable = Join-Path $protocolOutput "WatchdogHostProtocol.exe"
+        $protocolWorkingDirectory = Join-Path `
+            $smokeSessionRoot `
+            "protocol-runs\$protocolTfm"
+
         Invoke-Program `
             -Path $protocolExecutable `
             -WorkingDirectory $protocolWorkingDirectory
