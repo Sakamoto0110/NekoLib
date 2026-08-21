@@ -46,10 +46,10 @@ namespace NekoLib.Navigation.Wpf.Hosting
         void IToastView.BindDismiss(Action dismissCallback)
             => _dismissCallback = dismissCallback;
 
-        void IToastView.OnShown(object? payload) => OnShown(payload!);
+        void IToastView.OnShown(object? payload) => OnShown(payload);
 
         /// <summary>Override to react to the toast becoming visible.</summary>
-        protected virtual void OnShown(object payload) { }
+        protected virtual void OnShown(object? payload) { }
 
         /// <summary>Programmatic early dismiss. Equivalent to the user clicking the toast.</summary>
         protected void Dismiss() => _dismissCallback?.Invoke();

@@ -32,7 +32,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     public sealed class WpfInteractionObserver : NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService, System.IDisposable
     {
         public WpfInteractionObserver(System.Windows.UIElement root) { }
-        public event System.Action InteractionDetected;
+        public event System.Action? InteractionDetected;
         public void Dispose() { }
     }
     public sealed class WpfPlatformAdapter : NekoLib.Navigation.Contracts.Platform.IPlatformAdapter
@@ -52,7 +52,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     {
         public WpfTimerAdapter(int intervalMillis = 15000) { }
         public int IntervalMilliseconds { get; set; }
-        public event System.Action Tick;
+        public event System.Action? Tick;
         public void Dispose() { }
         public void Start() { }
         public void Stop() { }
@@ -68,7 +68,7 @@ namespace NekoLib.Navigation.Wpf.Defaults
         public object NativeView { get; }
         public void Dispose() { }
         public System.Threading.Tasks.Task OnOverlayClosingAsync() { }
-        public System.Threading.Tasks.Task OnOverlayOpenedAsync(object payload) { }
+        public System.Threading.Tasks.Task OnOverlayOpenedAsync(object? payload) { }
     }
 }
 namespace NekoLib.Navigation.Wpf.Hosting
@@ -87,7 +87,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
         protected void Cancel() { }
         protected void Confirm() { }
         public virtual void Dispose() { }
-        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object? payload) { }
     }
     public class PageView : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageLifecycle, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPageVisibility, System.IDisposable
     {
@@ -110,7 +110,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
         public object NativeView { get; }
         protected void Complete(bool result) { }
         public virtual void Dispose() { }
-        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object? payload) { }
     }
     public class PromptViewBase<TResult> : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPromptView, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult>, System.IDisposable
     {
@@ -118,9 +118,9 @@ namespace NekoLib.Navigation.Wpf.Hosting
         public bool DesignMode { get; }
         public bool IsDisposed { get; }
         public object NativeView { get; }
-        protected void CompletePrompt(TResult result) { }
+        protected void CompletePrompt(TResult? result) { }
         public virtual void Dispose() { }
-        protected virtual System.Threading.Tasks.Task OnShownAsync(object payload) { }
+        protected virtual System.Threading.Tasks.Task OnShownAsync(object? payload) { }
     }
     public class ToastViewBase : System.Windows.Controls.UserControl, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IToastView, System.IDisposable
     {
@@ -130,7 +130,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
         public object NativeView { get; }
         protected void Dismiss() { }
         public virtual void Dispose() { }
-        protected virtual void OnShown(object payload) { }
+        protected virtual void OnShown(object? payload) { }
     }
     public class WpfLayeredPageHostBase : NekoLib.Navigation.Contracts.Pages.IPageHost, NekoLib.Navigation.Contracts.Pages.IViewHost, NekoLib.Navigation.Toolkit.Abstractions.INavigationToolkit
     {

@@ -39,14 +39,14 @@ namespace NekoLib.Navigation.Wpf.Defaults
             Content = _message;
         }
 
-        public Task OnOverlayOpenedAsync(object payload)
+        public Task OnOverlayOpenedAsync(object? payload)
         {
             _message.Text = payload?.ToString() ?? "Loading...";
             return Task.CompletedTask;
         }
 
         Task IPageOverlay.OnOverlayOpenedAsync(object? payload)
-            => OnOverlayOpenedAsync(payload!);
+            => OnOverlayOpenedAsync(payload);
 
         public Task OnOverlayClosingAsync() => Task.CompletedTask;
 

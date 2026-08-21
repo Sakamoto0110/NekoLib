@@ -17,7 +17,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
         private readonly KeyEventHandler _keyDown;
         private readonly TextCompositionEventHandler _textInput;
 
-        public event Action InteractionDetected;
+        public event Action? InteractionDetected;
 
         event Action? IInteractionObserverService.InteractionDetected
         {

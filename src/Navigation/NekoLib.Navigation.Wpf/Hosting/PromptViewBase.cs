@@ -32,13 +32,13 @@ namespace NekoLib.Navigation.Wpf.Hosting
         void IPromptView<TResult>.BindCompletion(Action<TResult?> completionCallback)
             => _completionCallback = completionCallback;
 
-        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload!);
+        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload);
 
         /// <summary>Override to react to the prompt becoming visible.</summary>
-        protected virtual Task OnShownAsync(object payload) => Task.CompletedTask;
+        protected virtual Task OnShownAsync(object? payload) => Task.CompletedTask;
 
         /// <summary>Resolves the awaiting task with the user's result. Subsequent calls are no-ops.</summary>
-        protected void CompletePrompt(TResult result)
+        protected void CompletePrompt(TResult? result)
         {
             var callback = _completionCallback;
             _completionCallback = null;

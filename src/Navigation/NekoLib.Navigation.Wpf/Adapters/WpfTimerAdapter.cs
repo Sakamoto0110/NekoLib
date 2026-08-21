@@ -8,7 +8,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     {
         private readonly DispatcherTimer _timer;
 
-        public event Action Tick;
+        public event Action? Tick;
 
         event Action? ITimerAdapter.Tick
         {

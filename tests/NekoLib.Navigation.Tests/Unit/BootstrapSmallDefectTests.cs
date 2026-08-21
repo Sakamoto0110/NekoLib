@@ -52,6 +52,27 @@ namespace NekoLib.Navigation.Tests.Unit
             });
         }
 
+        [Fact]
+        public void WinFormsTimerAdapter_ConstructorParameter_UsesCorrectSpelling()
+        {
+            ConstructorInfo constructor = typeof(WinFormsTimerAdapter).GetConstructor(
+                new[] { typeof(int) });
+
+            Assert.NotNull(constructor);
+            ParameterInfo parameter = Assert.Single(constructor.GetParameters());
+            Assert.Equal("intervalMillis", parameter.Name);
+        }
+
+        [Fact]
+        public void WinFormsInteractionBlocker_PublicSurface_DoesNotExposeNativeControlConversion()
+        {
+            MethodInfo conversion = typeof(WinFormsInteractionBlocker).GetMethod(
+                "op_Explicit",
+                BindingFlags.Public | BindingFlags.Static);
+
+            Assert.Null(conversion);
+        }
+
         // NAV-008(b): the custom-loading-mask probe ran raw Assembly.GetTypes() on
         // the first line of Start(), so one unloadable type aborted bootstrap before
         // any of the tolerance the rest of it advertises could apply.

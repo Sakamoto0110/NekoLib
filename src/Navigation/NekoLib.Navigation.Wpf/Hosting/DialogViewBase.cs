@@ -34,10 +34,10 @@ namespace NekoLib.Navigation.Wpf.Hosting
         void IDialogView.BindCompletion(Action<bool> completionCallback)
             => _completionCallback = completionCallback;
 
-        Task IDialogView.OnShownAsync(object? payload) => OnShownAsync(payload!);
+        Task IDialogView.OnShownAsync(object? payload) => OnShownAsync(payload);
 
         /// <summary>Override to react to the dialog becoming visible (apply payload, focus).</summary>
-        protected virtual Task OnShownAsync(object payload) => Task.CompletedTask;
+        protected virtual Task OnShownAsync(object? payload) => Task.CompletedTask;
 
         /// <summary>Signals user confirmation. Subsequent completion calls are no-ops.</summary>
         protected void Confirm() => Complete(true);

@@ -8,7 +8,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
     {
         private readonly System.Windows.Forms.Timer _timer;
 
-        public event Action Tick;
+        public event Action? Tick;
 
         event Action? ITimerAdapter.Tick
         {
@@ -22,13 +22,13 @@ namespace NekoLib.Navigation.WinForms.Adapters
             set => _timer.Interval = value;
         }
 
-        public WinFormsTimerAdapter(int intervalMilis = 15000)
+        public WinFormsTimerAdapter(int intervalMillis = 15000)
         {
             // NAV-008(a): the parameter used to be ignored, leaving the WinForms
             // default of 100 ms. WpfTimerAdapter always honoured it, and
             // NavigationBootstrapLifetime assigns IntervalMilliseconds anyway, so only
             // a direct construction was affected — and it silently ticked 150x too fast.
-            _timer = new System.Windows.Forms.Timer { Interval = intervalMilis };
+            _timer = new System.Windows.Forms.Timer { Interval = intervalMillis };
             _timer.Tick += (_, __) => Tick?.Invoke();
         }
 

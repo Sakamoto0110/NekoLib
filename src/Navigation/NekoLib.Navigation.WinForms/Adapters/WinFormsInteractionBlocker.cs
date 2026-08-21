@@ -19,8 +19,6 @@ namespace NekoLib.Navigation.WinForms.Adapters
         private readonly List<Control> _modalStack = new List<Control>();
         private int _blockDepth;
 
-        public static explicit operator Control(WinFormsInteractionBlocker host) => host._root;
-
         public WinFormsInteractionBlocker(Control root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));

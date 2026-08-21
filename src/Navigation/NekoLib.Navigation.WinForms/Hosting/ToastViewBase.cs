@@ -54,7 +54,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         void IToastView.OnShown(object? payload)
         {
-            OnShown(payload!);
+            OnShown(payload);
 
             // After OnShown, so a subclass that resizes itself from the payload is
             // placed at its final size.
@@ -118,7 +118,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
         /// <summary>
         /// Override to react to the toast becoming visible (e.g. apply payload to labels).
         /// </summary>
-        protected virtual void OnShown(object payload) { }
+        protected virtual void OnShown(object? payload) { }
 
         /// <summary>
         /// Programmatic early dismiss. Equivalent to the user clicking the toast.

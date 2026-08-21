@@ -38,13 +38,13 @@ namespace NekoLib.Navigation.Wpf.Hosting
         void IPopoverView.BindCompletion(Action<bool> completionCallback)
             => _completionCallback = completionCallback;
 
-        Task IPopoverView.OnShownAsync(object? payload) => OnShownAsync(payload!);
+        Task IPopoverView.OnShownAsync(object? payload) => OnShownAsync(payload);
 
         /// <summary>
         /// Override to react to the popover becoming visible (e.g. focus a control,
         /// position relative to an anchor passed via <paramref name="payload"/>).
         /// </summary>
-        protected virtual Task OnShownAsync(object payload) => Task.CompletedTask;
+        protected virtual Task OnShownAsync(object? payload) => Task.CompletedTask;
 
         /// <summary>Resolves the awaiting task. Subsequent calls are no-ops.</summary>
         protected void Complete(bool result)

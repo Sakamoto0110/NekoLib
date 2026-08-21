@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
         // Tracks ONLY controls we have hooked
         private readonly HashSet<Control> _hooked = new();
 
-        public event Action InteractionDetected;
+        public event Action? InteractionDetected;
 
         event Action? IInteractionObserverService.InteractionDetected
         {

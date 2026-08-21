@@ -43,18 +43,18 @@ namespace NekoLib.Navigation.WinForms.Hosting
             _completionCallback = completionCallback;
         }
 
-        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload!);
+        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload);
 
         /// <summary>
         /// Override to react to the prompt becoming visible (e.g. focus, load payload).
         /// </summary>
-        protected virtual Task OnShownAsync(object payload) => Task.CompletedTask;
+        protected virtual Task OnShownAsync(object? payload) => Task.CompletedTask;
 
         /// <summary>
         /// Signals that the user has produced a result. Resolves the awaiting service
         /// task; subsequent calls are no-ops.
         /// </summary>
-        protected void CompletePrompt(TResult result)
+        protected void CompletePrompt(TResult? result)
         {
             var callback = _completionCallback;
             _completionCallback = null;

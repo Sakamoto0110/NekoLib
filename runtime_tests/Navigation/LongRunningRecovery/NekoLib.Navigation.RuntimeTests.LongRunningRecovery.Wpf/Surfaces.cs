@@ -9,9 +9,9 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf
 {
     public sealed class ScenarioDialog : DialogViewBase
     {
-        protected override Task OnShownAsync(object payload)
+        protected override Task OnShownAsync(object? payload)
         {
-            SurfaceDirective directive = (SurfaceDirective)payload;
+            SurfaceDirective directive = (SurfaceDirective)payload!;
             if (directive.ThrowOnShow)
                 throw new ScenarioInjectedException("Injected dialog show failure.");
             if (directive.Complete)
@@ -24,9 +24,9 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf
 
     public sealed class ScenarioPrompt : PromptViewBase<string?>
     {
-        protected override Task OnShownAsync(object payload)
+        protected override Task OnShownAsync(object? payload)
         {
-            SurfaceDirective directive = (SurfaceDirective)payload;
+            SurfaceDirective directive = (SurfaceDirective)payload!;
             if (directive.ThrowOnShow)
                 throw new ScenarioInjectedException("Injected prompt show failure.");
             if (directive.Complete) CompletePrompt(directive.TextResult);
@@ -36,9 +36,9 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf
 
     public sealed class ScenarioPopover : PopoverViewBase
     {
-        protected override Task OnShownAsync(object payload)
+        protected override Task OnShownAsync(object? payload)
         {
-            SurfaceDirective directive = (SurfaceDirective)payload;
+            SurfaceDirective directive = (SurfaceDirective)payload!;
             if (directive.ThrowOnShow)
                 throw new ScenarioInjectedException("Injected popover show failure.");
             if (directive.Complete) Complete(directive.BooleanResult);
@@ -48,9 +48,9 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf
 
     public sealed class ScenarioToast : ToastViewBase
     {
-        protected override void OnShown(object payload)
+        protected override void OnShown(object? payload)
         {
-            SurfaceDirective directive = (SurfaceDirective)payload;
+            SurfaceDirective directive = (SurfaceDirective)payload!;
             if (directive.ThrowOnShow)
                 throw new ScenarioInjectedException("Injected toast show failure.");
             if (directive.Complete) Dismiss();
