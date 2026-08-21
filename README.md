@@ -229,10 +229,19 @@ deployment package are packaged together; tests, runtime scenarios,
 `BundlerTool`, and the constants-only
 `src/Hosting/NekoLib` project are not.
 
+NekoLib `1.0.0` is the first stable coordinated family support baseline. Its
+qualifying immutable local candidate, `1.0.0-local.22`, passed the clean
+canonical package flow from source commit
+`7090e40eed7c6b888ce8da732f21cbe10f1a936c`. This declaration does not claim
+remote publication. See the
+[`1.0.0` stable release record](docs/stable-release-1.0.0.md) for provenance,
+hashes, validation results, and evidence boundaries.
+
 Use the packaging entry point instead of packing individual projects:
 
 ```powershell
-.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.8
+$packageVersion = Read-Host "Enter a new immutable package version"
+.\eng\pack-local.ps1 -PackageVersion $packageVersion
 ```
 
 The command requires a clean Git worktree, builds and tests the solution,
@@ -240,8 +249,8 @@ publishes the Watchdog Host payloads, packs the whole family, validates package
 structure and cross-TFM compatibility, restores clean PackageReference-only
 consumers, and finally copies the verified artifacts to
 `artifacts/local-feed/`. Main packages and `.snupkg` symbol packages are
-retained. Package versions are immutable: after publishing `local.8`, use
-`local.9` for changed bits.
+retained. Package versions are immutable: after publishing any version, choose
+a different version for changed bits.
 
 Use `-AllowDirty` only for a disposable validation version; a package produced
 from uncommitted sources cannot carry exact Git/Source Link provenance.
@@ -250,7 +259,8 @@ Register the generated folder as a source on a consumer machine:
 
 ```powershell
 dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
-dotnet add package NekoLib.Navigation.WinForms --version 1.0.0-local.8
+$coordinatedVersion = Read-Host "Enter the coordinated package version"
+dotnet add package NekoLib.Navigation.WinForms --version $coordinatedVersion
 ```
 
 The same verified `.nupkg` files can be pushed to an authenticated private

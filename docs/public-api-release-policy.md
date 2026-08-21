@@ -230,3 +230,23 @@ A stable family release requires:
 
 F1 defines local, manual release stability. CI evaluation remains gated under
 F2 and is not activated by this policy.
+
+## First stable family baseline
+
+NekoLib `1.0.0` was declared the first stable coordinated family support
+baseline on 2026-08-21. The qualifying immutable package candidate is
+`1.0.0-local.22`, produced by the canonical clean package flow from source
+commit `7090e40eed7c6b888ce8da732f21cbe10f1a936c`.
+
+The 30 accepted compiled API manifests and the accepted Watchdog Host
+deployment contract at that source commit are the initial stable baselines.
+From `1.0.0` onward, every accepted unmarked public or protected API follows the
+stable compatibility rules in this policy. The
+`IInspectionRecorder.RegisterAction` extension remains experimental under
+`NEKOEXP0001` and is not promoted by this declaration.
+
+The complete candidate provenance, package hashes, validation results, and
+evidence boundaries are recorded in the
+[`1.0.0` stable release record](stable-release-1.0.0.md). The declaration does
+not claim remote distribution: no stable package was pushed to a remote feed,
+no Git tag was created, and no branch was pushed.

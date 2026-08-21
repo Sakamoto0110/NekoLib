@@ -25,8 +25,8 @@ Phase G1 is complete at its deterministic, package, and real-provider runtime
 boundaries. The optional TheCatAPI probe passed on both target families with
 run-owned mutation, reconciliation, and complete cleanup. The Phase G2 design
 review is complete and awaiting an explicit architecture decision; product
-implementation remains gated. Phase F is active only for F1 public API and
-release stability; F2-F7 remain gated.
+implementation remains gated. Phase F1 public API and release-stability work is
+complete; F2-F7 remain gated.
 
 The Phase G1 work preserved these rules, which continue to apply:
 
@@ -229,16 +229,18 @@ evidence, be promoted selectively to this roadmap, receive an explicit
 module-scoped unfreeze, and preserve the canonical lifecycle invariants. The
 freeze is restored after the authorized scope.
 
-## Phase F — Scale preparation (F1 active; F2-F7 gated)
+## Phase F — Scale preparation (F1 complete; F2-F7 gated)
 
-> **Status: PARTIALLY ACTIVE.** F1 was explicitly promoted on 2026-08-16.
+> **Status: F1 COMPLETE.** F1 was explicitly promoted on 2026-08-16 and
+> completed on 2026-08-21 with a clean package-family candidate and the first
+> stable family baseline declaration.
 > F2-F7 remain gated and must not be investigated or implemented without their
 > own explicit promotion.
 
 ### F1 — Public API and release stability
 
-**ACTIVE — promotion decision 2026-08-16.** Finalize the public package family
-one module at a time under the accepted
+**COMPLETE — promoted 2026-08-16; completed 2026-08-21.** The public package
+family was finalized one module at a time under the accepted
 [`public API and release policy`](docs/public-api-release-policy.md). F1 does
 not activate F2 automation/CI, unrelated Phase F candidates, broad Inspection
 instrumentation, or Navigation runtime changes in frozen components.
@@ -847,10 +849,32 @@ consumers does not prove that a public member is unused.
   protocol baseline for each supported target.
 - [x] Every accepted breaking change has a changelog entry, migration guidance,
   and coordinated release target; no accidental diff remains.
-- [ ] The final clean package-family candidate passes the canonical package
+- [x] The final clean package-family candidate passes the canonical package
   flow and external PackageReference consumer probes without `-SkipTests`.
-- [ ] The first stable family release and its baseline are declared explicitly;
+- [x] The first stable family release and its baseline are declared explicitly;
   completing module reviews alone does not publish or promise that release.
+
+**Completion record — 2026-08-21.** The canonical
+`eng\pack-local.ps1 -PackageVersion 1.0.0-local.22` flow completed from clean
+source commit `7090e40eed7c6b888ce8da732f21cbe10f1a936c`, without `-SkipTests`:
+1,670 solution tests passed with 0 failed and 0 skipped; all 16 coordinated
+packages were built; the Watchdog Host payloads for `net481`, `win-x86`, and
+`win-x64` were validated; and the clean PackageReference-only WinForms and WPF
+consumers passed on both target families. The 31 retained package artifacts
+(16 `.nupkg` and 15 `.snupkg`) have the deterministic aggregate SHA-256
+`15EB21F30EB7D3C4BDDC39F39EE32A6D17536D2973E5C2C36416686234CC425A`.
+Every package records that source commit. The serial Release rebuild completed
+with 202 baseline warning occurrences, 0 errors, and no new normalized warning
+identity; all 30 compiled API manifests and documentation verification passed.
+
+NekoLib `1.0.0` is therefore the first stable coordinated family support
+baseline. The accepted compiled manifests and Watchdog Host deployment contract
+at the identified source commit are the initial stable baselines; the one
+`NEKOEXP0001` surface remains explicitly experimental. This declaration is not
+a remote package publication: no stable package was pushed to a feed, no Git
+tag was created, and no branch was pushed. The complete hashes, commands,
+attempt history, and evidence boundaries are recorded in the
+[`1.0.0` stable release record](docs/stable-release-1.0.0.md).
 
 **Recorded inputs — public-surface changes made before F1.** These are
 historical facts for the first candidate baseline and changelog reconciliation,

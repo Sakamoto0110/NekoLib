@@ -14,6 +14,23 @@ remain under `docs/history/`.
 
 ## Unreleased
 
+No consumer-visible changes are recorded after the first stable baseline.
+
+## 1.0.0 — stable baseline declared 2026-08-21
+
+NekoLib `1.0.0` is the first stable coordinated family support baseline. The
+qualifying immutable local candidate is `1.0.0-local.22`, built from clean
+source commit `7090e40eed7c6b888ce8da732f21cbe10f1a936c`. The accepted compiled
+API manifests and Watchdog Host deployment contract at that commit are the
+initial stable baselines. `IInspectionRecorder.RegisterAction` remains
+explicitly experimental under `NEKOEXP0001`; the other accepted public and
+protected surfaces are stable under the release policy.
+
+This is a release and support-baseline declaration, not evidence of remote
+distribution. No `1.0.0` package was pushed to a remote feed, no Git tag was
+created, and no branch was pushed. Package hashes and qualifying evidence are
+recorded in [`docs/stable-release-1.0.0.md`](docs/stable-release-1.0.0.md).
+
 ### Public API
 
 - **NekoLib.Navigation family — breaking, additive, and behavioral pre-stable
