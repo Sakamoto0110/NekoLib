@@ -12,7 +12,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// Called by the PromptService right after the view is attached and made visible.
         /// </summary>
-        Task OnShownAsync(object payload);
+        Task OnShownAsync(object? payload);
     }
 
     /// <summary>
@@ -24,6 +24,6 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// Supplies the completion callback that the view should invoke when the user
         /// confirms or cancels the prompt and a result is available.
         /// </summary>
-        void BindCompletion(Action<TResult> completionCallback);
+        void BindCompletion(Action<TResult?> completionCallback);
     }
 }

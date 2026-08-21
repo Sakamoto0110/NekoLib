@@ -17,13 +17,13 @@
         /// hold in memory for the lifetime of the history entry. Return <c>null</c> if
         /// there is nothing to restore.
         /// </summary>
-        object CaptureState();
+        object? CaptureState();
 
         /// <summary>
         /// Restore state previously produced by <see cref="CaptureState"/>. Called by the
         /// runtime only on back-navigation, before <c>OnNavigatedToAsync</c>. The argument
         /// is whatever <see cref="CaptureState"/> returned (may be <c>null</c>).
         /// </summary>
-        void RestoreState(object state);
+        void RestoreState(object? state);
     }
 }

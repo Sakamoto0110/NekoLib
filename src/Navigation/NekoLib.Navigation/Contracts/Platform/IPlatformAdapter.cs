@@ -22,10 +22,10 @@ namespace NekoLib.Navigation.Contracts.Platform
         IEventDispatcherAdapter CreateEventDispatcher(object host);
 
         /// <summary>Create optional platform event subscription support.</summary>
-        IEventSubscriptionAdapter CreateEventSubscriber(object host);
+        IEventSubscriptionAdapter? CreateEventSubscriber(object host);
 
         /// <summary>Create the blocker used by modal dialogs and prompts.</summary>
-        IInteractionBlocker CreateInteractionBlocker(object host);
+        IInteractionBlocker? CreateInteractionBlocker(object host);
 
         /// <summary>Create a timer suitable for idle timeout wiring.</summary>
         ITimerAdapter CreateTimerAdapter();
@@ -34,19 +34,19 @@ namespace NekoLib.Navigation.Contracts.Platform
         /// Return the platform default loading mask type, or <c>null</c> when no
         /// default mask should be auto-registered.
         /// </summary>
-        Type GetDefaultLoadingMaskType( );
+        Type? GetDefaultLoadingMaskType();
 
         /// <summary>
         /// Create an observer for user input under the host. Used by idle timeout.
         /// Return <c>null</c> when the platform cannot observe interaction.
         /// </summary>
-        IInteractionObserverService CreateInteractionObserverAdapter(object host);
+        IInteractionObserverService? CreateInteractionObserverAdapter(object host);
 
         /// <summary>
         /// Builds a focus observer for the given host. Required by <c>PopoverService</c>
         /// to wire <c>IUnfocusAware</c> views; adapters that cannot observe focus may
         /// return <c>null</c>, in which case popovers will simply not auto-dismiss.
         /// </summary>
-        IFocusObserverAdapter CreateFocusObserver(object host);
+        IFocusObserverAdapter? CreateFocusObserver(object host);
     }
 }

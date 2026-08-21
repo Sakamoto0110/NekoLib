@@ -14,7 +14,11 @@ namespace NekoLib.Navigation.Bootstrap
         private readonly List<Assembly> _assemblies = new();
         private readonly Dictionary<Type, Action<PageDescriptorBuilder>> _manual
             = new();
-        private readonly HashSet<Type> _explicitTypes = new(); // <-- NEW: Track explicit types
+        private readonly HashSet<Type> _explicitTypes = new();
+
+        internal PageMetadataBuilder()
+        {
+        }
         public void RegisterFromAssembly(Assembly assembly)
         {
             if (assembly == null)
@@ -74,7 +78,20 @@ namespace NekoLib.Navigation.Bootstrap
             _explicitTypes.Add(type);
 
             if (configure != null)
-                _manual[type] = configure;
+            {
+                if (_manual.TryGetValue(type, out var existing))
+                {
+                    _manual[type] = descriptor =>
+                    {
+                        existing(descriptor);
+                        configure(descriptor);
+                    };
+                }
+                else
+                {
+                    _manual[type] = configure;
+                }
+            }
         }
 
        
@@ -139,11 +156,9 @@ namespace NekoLib.Navigation.Bootstrap
             if (meta != null)
             {
                 if (!string.IsNullOrWhiteSpace(meta.Name))
-                    builder.Name = meta.Name;
+                    builder.Name = meta.Name!;
 
                 builder.Role = meta.Role;
-                builder.Presentation = meta.Presentation;
-
                 if (meta.Tags != null)
                     foreach (var tag in meta.Tags)
                         builder.AddTag(tag);
@@ -162,10 +177,9 @@ namespace NekoLib.Navigation.Bootstrap
                 builder.ReusePolicy = reuseMeta.Policy;
             }
             // Idle timeout (seconds). Only meaningful on the idle page; the bootstrap
-            // validates placement. A non-positive value is treated as "not declared"
-            // so it falls back to the global UseIdleTimeout(ms).
+            // validates placement.
             var timeoutMeta = type.GetCustomAttribute<PageTimeoutAttribute>();
-            if (timeoutMeta != null && timeoutMeta.Seconds > 0)
+            if (timeoutMeta != null)
             {
                 builder.IdleTimeoutSeconds = timeoutMeta.Seconds;
             }

@@ -5,13 +5,11 @@ namespace NekoLib.Navigation.Bootstrap
 {
     public sealed class PageBuilderConfigurator
     {
-        public PageBuilderConfigurator(NekoLib.Navigation.Bootstrap.PageMetadataBuilder builder) { }
         public NekoLib.Navigation.Bootstrap.PageRuleBuilder<T> Page<T>()
             where T : NekoLib.Navigation.Contracts.Pages.IPageView { }
     }
     public sealed class PageMetadataBuilder
     {
-        public PageMetadataBuilder() { }
         public void Register<TPage>(System.Action<NekoLib.Navigation.Metadata.PageDescriptorBuilder>? configure = null)
             where TPage : NekoLib.Navigation.Contracts.Pages.IPageView { }
         public void RegisterFromAssemblies(System.Collections.Generic.IEnumerable<System.Reflection.Assembly> assemblies) { }
@@ -37,7 +35,6 @@ namespace NekoLib.Navigation.Bootstrap
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseTelemetry(NekoLib.Core.Telemetry.ITelemetry telemetry) { }
         public static NekoLib.Navigation.Bootstrap.PageNavBootstrap Use<TPlatform>(object nativeHost)
             where TPlatform : NekoLib.Navigation.Contracts.Platform.IPlatformAdapter, new () { }
-        public static NekoLib.Navigation.Bootstrap.PageNavBootstrap UseRegistered(object nativeHost) { }
     }
     public sealed class PageRuleBuilder<T>
         where T : NekoLib.Navigation.Contracts.Pages.IPageView
@@ -55,14 +52,6 @@ namespace NekoLib.Navigation.Bootstrap
 }
 namespace NekoLib.Navigation.Contracts.Guards
 {
-    public sealed class DefaultUserContext : NekoLib.Navigation.Contracts.Guards.IUserContext
-    {
-        public DefaultUserContext() { }
-        public bool IsAuthenticated { get; }
-        public System.Collections.Generic.IReadOnlyCollection<string> Permissions { get; }
-        public System.Collections.Generic.IReadOnlyCollection<string> Roles { get; }
-        public string UserId { get; }
-    }
     public sealed class GuardContext
     {
         public GuardContext(System.Type targetPage, NekoLib.Navigation.Contracts.Guards.IUserContext user, NekoLib.Navigation.Telemetry.NavigationTimingContext? timing = null) { }
@@ -73,12 +62,13 @@ namespace NekoLib.Navigation.Contracts.Guards
     public sealed class GuardResult
     {
         public bool Allowed { get; }
-        public string Reason { get; }
-        public System.Type RedirectPage { get; }
+        public string? Reason { get; }
+        public System.Type? RedirectPage { get; }
         public static NekoLib.Navigation.Contracts.Guards.GuardResult Allow() { }
-        public static NekoLib.Navigation.Contracts.Guards.GuardResult Deny(string reason = null) { }
-        public static NekoLib.Navigation.Contracts.Guards.GuardResult Redirect(System.Type pageType, string reason = null) { }
-        public static NekoLib.Navigation.Contracts.Guards.GuardResult Redirect<TPage>(string reason = null) { }
+        public static NekoLib.Navigation.Contracts.Guards.GuardResult Deny(string? reason = null) { }
+        public static NekoLib.Navigation.Contracts.Guards.GuardResult Redirect(System.Type pageType, string? reason = null) { }
+        public static NekoLib.Navigation.Contracts.Guards.GuardResult Redirect<TPage>(string? reason = null)
+            where TPage : NekoLib.Navigation.Contracts.Pages.IPageView { }
     }
     public interface IGuard
     {
@@ -96,12 +86,12 @@ namespace NekoLib.Navigation.Contracts.Pages
     public interface IBackgroundLoadable
     {
         System.Threading.Tasks.Task ApplyBackgroundResultAsync();
-        System.Threading.Tasks.Task LoadInBackgroundAsync(object args);
+        System.Threading.Tasks.Task LoadInBackgroundAsync(object? args);
     }
     public interface IDialogView : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
         void BindCompletion(System.Action<bool> completionCallback);
-        System.Threading.Tasks.Task OnShownAsync(object payload);
+        System.Threading.Tasks.Task OnShownAsync(object? payload);
     }
     public interface IGlobalLoadingMask : NekoLib.Navigation.Contracts.Pages.IPageOverlay, NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable { }
     public interface IHostAttachable
@@ -115,11 +105,6 @@ namespace NekoLib.Navigation.Contracts.Pages
         void BringToFront(NekoLib.Navigation.Contracts.Pages.IPageView page);
         void Detach(NekoLib.Navigation.Contracts.Pages.IPageView page);
     }
-    public interface IPageInteraction
-    {
-        void DisableInteraction();
-        void EnableInteraction();
-    }
     public interface IPageLifecycle
     {
         System.Threading.Tasks.Task OnNavigatedFromAsync();
@@ -128,17 +113,12 @@ namespace NekoLib.Navigation.Contracts.Pages
     public interface IPageOverlay : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
         System.Threading.Tasks.Task OnOverlayClosingAsync();
-        System.Threading.Tasks.Task OnOverlayOpenedAsync(object payload);
-    }
-    public interface IPageResources
-    {
-        System.Threading.Tasks.Task LoadResourcesAsync();
-        System.Threading.Tasks.Task ReleaseResourcesAsync();
+        System.Threading.Tasks.Task OnOverlayOpenedAsync(object? payload);
     }
     public interface IPageStateful
     {
-        object CaptureState();
-        void RestoreState(object state);
+        object? CaptureState();
+        void RestoreState(object? state);
     }
     public interface IPageView : System.IDisposable
     {
@@ -154,20 +134,20 @@ namespace NekoLib.Navigation.Contracts.Pages
     public interface IPopoverView : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
         void BindCompletion(System.Action<bool> completionCallback);
-        System.Threading.Tasks.Task OnShownAsync(object payload);
+        System.Threading.Tasks.Task OnShownAsync(object? payload);
     }
     public interface IPromptView : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
-        System.Threading.Tasks.Task OnShownAsync(object payload);
+        System.Threading.Tasks.Task OnShownAsync(object? payload);
     }
     public interface IPromptView<TResult> : NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPromptView, System.IDisposable
     {
-        void BindCompletion(System.Action<TResult> completionCallback);
+        void BindCompletion(System.Action<TResult?> completionCallback);
     }
     public interface IToastView : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
         void BindDismiss(System.Action dismissCallback);
-        void OnShown(object payload);
+        void OnShown(object? payload);
     }
     public interface IUnfocusAware
     {
@@ -213,18 +193,18 @@ namespace NekoLib.Navigation.Contracts.Platform
     {
         bool CanHandle(object host);
         NekoLib.Navigation.Contracts.Platform.IEventDispatcherAdapter CreateEventDispatcher(object host);
-        NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter CreateEventSubscriber(object host);
-        NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter CreateFocusObserver(object host);
+        NekoLib.Navigation.Contracts.Platform.IEventSubscriptionAdapter? CreateEventSubscriber(object host);
+        NekoLib.Navigation.Contracts.Platform.IFocusObserverAdapter? CreateFocusObserver(object host);
         NekoLib.Navigation.Contracts.Pages.IPageHost CreateHost(object host);
-        NekoLib.Navigation.Contracts.Platform.IInteractionBlocker CreateInteractionBlocker(object host);
-        NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService CreateInteractionObserverAdapter(object host);
+        NekoLib.Navigation.Contracts.Platform.IInteractionBlocker? CreateInteractionBlocker(object host);
+        NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService? CreateInteractionObserverAdapter(object host);
         NekoLib.Navigation.Contracts.Platform.ITimerAdapter CreateTimerAdapter();
-        System.Type GetDefaultLoadingMaskType();
+        System.Type? GetDefaultLoadingMaskType();
     }
     public interface ITimerAdapter : System.IDisposable
     {
         int IntervalMilliseconds { get; set; }
-        event System.Action Tick;
+        event System.Action? Tick;
         void Start();
         void Stop();
     }
@@ -234,29 +214,29 @@ namespace NekoLib.Navigation.Contracts.Runtime
     public interface IDialogService
     {
         void CloseAll();
-        System.Threading.Tasks.Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+        System.Threading.Tasks.Task<bool> ShowDialogAsync<TDialog>(object? payload = null)
             where TDialog :  class, NekoLib.Navigation.Contracts.Pages.IDialogView;
     }
     public interface IInteractionObserverService
     {
-        event System.Action InteractionDetected;
+        event System.Action? InteractionDetected;
     }
     public interface IPopoverService
     {
         void CloseAll();
-        System.Threading.Tasks.Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+        System.Threading.Tasks.Task<bool> ShowPopoverAsync<TPopover>(object? payload = null)
             where TPopover :  class, NekoLib.Navigation.Contracts.Pages.IPopoverView;
     }
     public interface IPromptService
     {
         void CloseAll();
-        System.Threading.Tasks.Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+        System.Threading.Tasks.Task<TResult?> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
             where TPrompt :  class, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult>;
     }
     public interface IToastService
     {
         void DismissCurrentToast();
-        void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+        void ShowToast<TToast>(object? payload = null, int durationMs = 3000)
             where TToast :  class, NekoLib.Navigation.Contracts.Pages.IToastView;
     }
 }
@@ -264,7 +244,6 @@ namespace NekoLib.Navigation.Diagnostics
 {
     public sealed class GuardDeniedEvent
     {
-        public GuardDeniedEvent(NekoLib.Navigation.Contracts.Pages.IPageView? fromPage, System.Type? targetPage, System.Type? redirectPage, string? reason) { }
         public string? AttemptId { get; }
         public long DurationMilliseconds { get; }
         public NekoLib.Navigation.Contracts.Pages.IPageView? FromPage { get; }
@@ -278,11 +257,6 @@ namespace NekoLib.Navigation.Diagnostics
         public System.DateTime TimestampUtc { get; }
         public string? Trigger { get; }
     }
-    public interface INavigationDiagnosticsSink
-    {
-        void OnGuardDenied(NekoLib.Navigation.Diagnostics.GuardDeniedEvent e);
-        void OnNavigation(NekoLib.Navigation.Diagnostics.PageLogEntry entry);
-    }
     public sealed class InspectionNavigationObserver : System.IDisposable
     {
         public const string Module = "Navigation";
@@ -290,32 +264,17 @@ namespace NekoLib.Navigation.Diagnostics
         public static System.IDisposable Attach(NekoLib.Navigation.Diagnostics.NavigationEventHub hub, NekoLib.Core.Inspection.IInspectionRecorder debug) { }
         public static System.IDisposable Attach(NekoLib.Navigation.Runtime.Core.NavigationContext context, NekoLib.Core.Inspection.IInspectionRecorder debug) { }
     }
-    public sealed class LoggingNavigationSink : NekoLib.Navigation.Diagnostics.INavigationDiagnosticsSink
-    {
-        public LoggingNavigationSink(NekoLib.Core.Logging.ILogger logger) { }
-        public void OnGuardDenied(NekoLib.Navigation.Diagnostics.GuardDeniedEvent denied) { }
-        public void OnNavigation(NekoLib.Navigation.Diagnostics.PageLogEntry entry) { }
-    }
     public sealed class NavigationDiagnostics
     {
-        public NavigationDiagnostics(NekoLib.Navigation.Diagnostics.NavigationEventHub hub, NekoLib.Navigation.Diagnostics.INavigationDiagnosticsSink? sink = null) { }
         public NekoLib.Navigation.Diagnostics.NavigationEventHub Hub { get; }
-        public void EmitFailure(NekoLib.Navigation.Contracts.Pages.IPageView? from, NekoLib.Navigation.Contracts.Pages.IPageView? to, NekoLib.Navigation.Metadata.NavigationArgs args, NekoLib.Navigation.Runtime.NavigationFailureKind kind = 0, string? error = null, NekoLib.Navigation.Metadata.PageDescriptor? desc = null) { }
-        public void EmitGuardDenied(NekoLib.Navigation.Contracts.Pages.IPageView? from, System.Type? target, System.Type? redirect, string? reason) { }
-        public void EmitNavigation(NekoLib.Navigation.Diagnostics.PageLogEntry entry) { }
-        public void EmitSuccess(NekoLib.Navigation.Contracts.Pages.IPageView? from, NekoLib.Navigation.Contracts.Pages.IPageView? to, NekoLib.Navigation.Metadata.NavigationArgs args, NekoLib.Navigation.Metadata.PageDescriptor? desc = null) { }
     }
     public sealed class NavigationEventHub
     {
-        public NavigationEventHub() { }
         public event System.Action<NekoLib.Navigation.Diagnostics.GuardDeniedEvent>? GuardDenied;
         public event System.Action<NekoLib.Navigation.Diagnostics.PageLogEntry>? NavigationLogged;
-        public void Publish(NekoLib.Navigation.Diagnostics.GuardDeniedEvent e) { }
-        public void Publish(NekoLib.Navigation.Diagnostics.PageLogEntry entry) { }
     }
     public sealed class PageLogEntry
     {
-        public PageLogEntry(System.Type? fromType, string? fromName, System.Type toType, string? toName, NekoLib.Navigation.Metadata.NavigationArgs args, bool success, NekoLib.Navigation.Metadata.PagePresentationMode navigationBehavior, NekoLib.Navigation.Metadata.NavigationLoadMode navigationLoadMode, NekoLib.Navigation.Metadata.PageReusePolicy reusePolicy, NekoLib.Navigation.Runtime.NavigationFailureKind failureKind = 0, bool isTimeout = false, bool isBackNavigation = false, string? error = null) { }
         public string? AttemptId { get; }
         public long DurationMilliseconds { get; }
         public string? Error { get; }
@@ -326,7 +285,6 @@ namespace NekoLib.Navigation.Diagnostics
         public bool IsTimeout { get; }
         public NekoLib.Navigation.Metadata.NavigationLoadMode LoadMode { get; }
         public string? ParentAttemptId { get; }
-        public NekoLib.Navigation.Metadata.PagePresentationMode Presentation { get; }
         public int RedirectDepth { get; }
         public string? RequestId { get; }
         public NekoLib.Navigation.Metadata.PageReusePolicy ReusePolicy { get; }
@@ -350,7 +308,7 @@ namespace NekoLib.Navigation.Metadata.Attributes
     public abstract class GuardAttribute : System.Attribute
     {
         protected GuardAttribute() { }
-        public System.Type RedirectTo { get; set; }
+        public System.Type? RedirectTo { get; set; }
         public abstract NekoLib.Navigation.Contracts.Guards.IGuard CreateGuard();
     }
     [System.AttributeUsage(System.AttributeTargets.Class)]
@@ -368,10 +326,9 @@ namespace NekoLib.Navigation.Metadata.Attributes
     public sealed class PageMetadataAttribute : System.Attribute
     {
         public PageMetadataAttribute() { }
-        public string Name { get; set; }
-        public NekoLib.Navigation.Metadata.PagePresentationMode Presentation { get; set; }
+        public string? Name { get; set; }
         public NekoLib.Navigation.Metadata.PageRole Role { get; set; }
-        public string[] Tags { get; set; }
+        public string[]? Tags { get; set; }
     }
     [System.AttributeUsage(System.AttributeTargets.Class, Inherited=false)]
     public sealed class PageReuseAttribute : System.Attribute
@@ -402,6 +359,7 @@ namespace NekoLib.Navigation.Metadata.Attributes
     }
     public sealed class RequirePermissionAttribute : NekoLib.Navigation.Metadata.Attributes.GuardAttribute
     {
+        public RequirePermissionAttribute(string permission) { }
         public RequirePermissionAttribute(string permission, System.Type redirect) { }
         public string Permission { get; }
         public override NekoLib.Navigation.Contracts.Guards.IGuard CreateGuard() { }
@@ -420,20 +378,24 @@ namespace NekoLib.Navigation.Metadata
         public static readonly NekoLib.Navigation.Metadata.NavigationArgs Empty;
         public bool IsBackNavigation { get; }
         public NekoLib.Navigation.Metadata.NavigationLoadMode LoadMode { get; }
-        public object Payload { get; }
+        public object? Payload { get; }
         public NekoLib.Navigation.Telemetry.NavigationTimingContext? Timing { get; }
         public NekoLib.Navigation.Metadata.NavigationArgs WithTiming(NekoLib.Navigation.Telemetry.NavigationTimingContext timing) { }
-        public static NekoLib.Navigation.Metadata.NavigationArgs Back(object state = null) { }
-        public static NekoLib.Navigation.Metadata.NavigationArgs Background(object payload = null) { }
-        public static NekoLib.Navigation.Metadata.NavigationArgs Default(object payload = null) { }
-        public static NekoLib.Navigation.Metadata.NavigationArgs Preload(object payload = null) { }
-        public static NekoLib.Navigation.Metadata.NavigationArgs Transient(object payload = null) { }
+        public static NekoLib.Navigation.Metadata.NavigationArgs Default(object? payload = null) { }
     }
     public enum NavigationLoadMode
     {
         ShowImmediately = 0,
         LoadBeforeShow = 1,
         LoadInBackground = 2,
+    }
+    public sealed class NavigationResult
+    {
+        public string? DenialReason { get; }
+        public System.Type? FinalPage { get; }
+        public System.Type RequestedPage { get; }
+        public bool Succeeded { get; }
+        public bool WasRedirected { get; }
     }
     public sealed class PageDescriptor
     {
@@ -444,21 +406,18 @@ namespace NekoLib.Navigation.Metadata
         public NekoLib.Navigation.Metadata.NavigationLoadMode LoadMode { get; }
         public string Name { get; }
         public System.Type PageType { get; }
-        public NekoLib.Navigation.Metadata.PagePresentationMode Presentation { get; }
         public NekoLib.Navigation.Metadata.PageReusePolicy ReusePolicy { get; }
         public NekoLib.Navigation.Metadata.PageRole Role { get; }
         public System.Collections.Generic.IReadOnlyList<string> Tags { get; }
     }
     public sealed class PageDescriptorBuilder
     {
-        public PageDescriptorBuilder(System.Type type) { }
         public bool AllowAnonymous { get; set; }
         public int? IdleTimeoutSeconds { get; set; }
         public bool KeepAttachedWhenHidden { get; set; }
         public NekoLib.Navigation.Metadata.NavigationLoadMode LoadMode { get; set; }
         public string Name { get; set; }
         public System.Type PageType { get; }
-        public NekoLib.Navigation.Metadata.PagePresentationMode Presentation { get; set; }
         public NekoLib.Navigation.Metadata.PageReusePolicy ReusePolicy { get; set; }
         public NekoLib.Navigation.Metadata.PageRole Role { get; set; }
         public void AddGuard(NekoLib.Navigation.Contracts.Guards.IGuard guard) { }
@@ -467,15 +426,10 @@ namespace NekoLib.Navigation.Metadata
     }
     public sealed class PageHistoryEntry
     {
-        public PageHistoryEntry(System.Type pageType, string pageName, object state) { }
         public string PageName { get; }
         public System.Type PageType { get; }
-        public object State { get; }
+        public object? State { get; }
         public System.DateTime Timestamp { get; }
-    }
-    public enum PagePresentationMode
-    {
-        Replace = 0,
     }
     public enum PageReusePolicy
     {
@@ -487,7 +441,6 @@ namespace NekoLib.Navigation.Metadata
     {
         Normal = 0,
         Idle = 1,
-        TimeoutTarget = 2,
     }
 }
 namespace NekoLib.Navigation
@@ -495,36 +448,33 @@ namespace NekoLib.Navigation
     public static class NavigationService
     {
         public static bool CanGoBack { get; }
-        public static NekoLib.Navigation.Contracts.Pages.IPageView Current { get; }
+        public static NekoLib.Navigation.Contracts.Pages.IPageView? Current { get; }
         public static NekoLib.Navigation.Diagnostics.NavigationEventHub Events { get; }
         public static NekoLib.Navigation.Runtime.History.NavigationHistory History { get; }
         public static NekoLib.Navigation.Runtime.Session.NavigationSession Session { get; }
-        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView> CurrentChanged;
-        public static event System.Action HistoryChanged;
-        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Metadata.NavigationArgs> Navigated;
-        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView, System.Type, NekoLib.Navigation.Metadata.NavigationArgs> Navigating;
-        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView, System.Type, System.Exception> NavigationFailed;
-        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView> OnFirstPageAttached;
-        public static event System.Action OnNoPageAttached;
-        public static event System.Action OnNoPageVisible;
+        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView?>? CurrentChanged;
+        public static event System.Action? HistoryChanged;
+        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView?, NekoLib.Navigation.Contracts.Pages.IPageView, NekoLib.Navigation.Metadata.NavigationArgs>? Navigated;
+        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView?, System.Type, NekoLib.Navigation.Metadata.NavigationArgs>? Navigating;
+        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView?, System.Type, System.Exception>? NavigationFailed;
+        public static event System.Action<NekoLib.Navigation.Contracts.Pages.IPageView>? OnFirstPageAttached;
+        public static event System.Action? OnNoPageAttached;
+        public static event System.Action? OnNoPageVisible;
         public static void DismissCurrentToast() { }
         public static System.Threading.Tasks.Task<bool> GoBackAsync() { }
         public static System.Threading.Tasks.Task GoIdleAsync() { }
         public static System.Threading.Tasks.Task ResetAsync() { }
-        public static System.Threading.Tasks.Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+        public static System.Threading.Tasks.Task<bool> ShowDialogAsync<TDialog>(object? payload = null)
             where TDialog :  class, NekoLib.Navigation.Contracts.Pages.IDialogView { }
-        public static System.Threading.Tasks.Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+        public static System.Threading.Tasks.Task<bool> ShowPopoverAsync<TPopover>(object? payload = null)
             where TPopover :  class, NekoLib.Navigation.Contracts.Pages.IPopoverView { }
-        public static System.Threading.Tasks.Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+        public static System.Threading.Tasks.Task<TResult?> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
             where TPrompt :  class, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult> { }
-        public static void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+        public static void ShowToast<TToast>(object? payload = null, int durationMs = 3000)
             where TToast :  class, NekoLib.Navigation.Contracts.Pages.IToastView { }
         public static System.Threading.Tasks.Task Shutdown() { }
-        public static System.Threading.Tasks.Task SwitchPage(System.Type type, object args = null) { }
-        public static System.Threading.Tasks.Task SwitchPage<T>(object args = null)
-            where T : NekoLib.Navigation.Contracts.Pages.IPageView { }
-        public static System.Threading.Tasks.Task SwitchTransient(System.Type type, object args = null) { }
-        public static System.Threading.Tasks.Task SwitchTransient<T>(object args = null)
+        public static System.Threading.Tasks.Task<NekoLib.Navigation.Metadata.NavigationResult> SwitchPage(System.Type type, NekoLib.Navigation.Metadata.NavigationArgs? args = null) { }
+        public static System.Threading.Tasks.Task<NekoLib.Navigation.Metadata.NavigationResult> SwitchPage<T>(NekoLib.Navigation.Metadata.NavigationArgs? args = null)
             where T : NekoLib.Navigation.Contracts.Pages.IPageView { }
     }
 }
@@ -532,7 +482,6 @@ namespace NekoLib.Navigation.Runtime.Core
 {
     public sealed class NavigationContext
     {
-        public NavigationContext(NekoLib.Navigation.Contracts.Pages.IPageHost host, NekoLib.Navigation.Runtime.Services.ServiceLocator services, NekoLib.Navigation.Runtime.Registry.PageRegistry registry, NekoLib.Navigation.Contracts.Platform.IPlatformAdapter platform, NekoLib.Core.Logging.ILogger? logger = null) { }
         public NekoLib.Navigation.Diagnostics.NavigationDiagnostics Diagnostics { get; }
         public NekoLib.Navigation.Diagnostics.NavigationEventHub Events { get; }
         public NekoLib.Navigation.Runtime.History.NavigationHistory History { get; }
@@ -589,12 +538,12 @@ namespace NekoLib.Navigation.Runtime.Guards
     }
     public sealed class RequirePermissionGuard : NekoLib.Navigation.Contracts.Guards.IGuard
     {
-        public RequirePermissionGuard(string permission, System.Type redirect) { }
+        public RequirePermissionGuard(string permission, System.Type? redirect = null) { }
         public System.Threading.Tasks.Task<NekoLib.Navigation.Contracts.Guards.GuardResult> EvaluateAsync(NekoLib.Navigation.Contracts.Guards.GuardContext context) { }
     }
     public sealed class RequireRoleGuard : NekoLib.Navigation.Contracts.Guards.IGuard
     {
-        public RequireRoleGuard(string role, System.Type redirect) { }
+        public RequireRoleGuard(string role, System.Type? redirect = null) { }
         public System.Threading.Tasks.Task<NekoLib.Navigation.Contracts.Guards.GuardResult> EvaluateAsync(NekoLib.Navigation.Contracts.Guards.GuardContext context) { }
     }
 }
@@ -602,20 +551,11 @@ namespace NekoLib.Navigation.Runtime.History
 {
     public sealed class NavigationHistory
     {
-        public NavigationHistory() { }
         public bool CanGoBack { get; }
         public bool CanGoForward { get; }
         public bool HasHistory { get; }
-        public System.Collections.Generic.IEnumerable<NekoLib.Navigation.Metadata.PageHistoryEntry> HistoryBack { get; }
-        public System.Collections.Generic.IEnumerable<NekoLib.Navigation.Metadata.PageHistoryEntry> HistoryForward { get; }
-        public System.Collections.Generic.IReadOnlyList<NekoLib.Navigation.Metadata.PageHistoryEntry> BackStackSnapshot() { }
-        public void Clear() { }
-        public string Dump() { }
-        public System.Collections.Generic.IReadOnlyList<NekoLib.Navigation.Metadata.PageHistoryEntry> ForwardStackSnapshot() { }
-        public NekoLib.Navigation.Metadata.PageHistoryEntry PopForward() { }
-        public void PushForward(NekoLib.Navigation.Metadata.PageHistoryEntry entry) { }
-        public void Record(NekoLib.Navigation.Metadata.PageHistoryEntry entry) { }
-        public bool TryPopBack(out NekoLib.Navigation.Metadata.PageHistoryEntry entry) { }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Navigation.Metadata.PageHistoryEntry> HistoryBack { get; }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Navigation.Metadata.PageHistoryEntry> HistoryForward { get; }
     }
 }
 namespace NekoLib.Navigation.Runtime
@@ -664,7 +604,7 @@ namespace NekoLib.Navigation.Runtime.Services
     {
         public PromptService(NekoLib.Navigation.Contracts.Pages.IViewHost viewHost, NekoLib.Navigation.Runtime.Factories.PageFactory factory, NekoLib.Navigation.Contracts.Platform.IInteractionBlocker? interactionBlocker = null) { }
         public void CloseAll() { }
-        public System.Threading.Tasks.Task<TResult> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
+        public System.Threading.Tasks.Task<TResult?> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
             where TPrompt :  class, NekoLib.Navigation.Contracts.Pages.IPromptView<TResult> { }
     }
     public sealed class ServiceLocator

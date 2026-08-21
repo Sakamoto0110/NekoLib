@@ -7,7 +7,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         /// <summary>
         /// Called when any user interaction is detected.
         /// </summary>
-        event Action InteractionDetected;
+        event Action? InteractionDetected;
     }
 
 }

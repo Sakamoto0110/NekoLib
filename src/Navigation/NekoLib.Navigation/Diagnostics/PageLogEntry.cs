@@ -18,7 +18,6 @@ namespace NekoLib.Navigation.Diagnostics
 
         /// <summary>UTC timestamp at which the correlated request began.</summary>
         public DateTime TimestampUtc { get; }
-        public PagePresentationMode Presentation { get; }
         public NavigationLoadMode LoadMode { get; }
         public PageReusePolicy ReusePolicy { get; }
         public bool IsTimeout { get; }
@@ -37,17 +36,16 @@ namespace NekoLib.Navigation.Diagnostics
         public long DurationMilliseconds { get; }
 
         /// <summary>
-        /// Existing public constructor retained unchanged for source and binary API
-        /// compatibility. Runtime-created entries use an internal correlated overload.
+        /// Internal constructor used by tests and runtime helpers that do not carry a
+        /// correlated trace scope.
         /// </summary>
-        public PageLogEntry(
+        internal PageLogEntry(
             Type? fromType,
             string? fromName,
             Type toType,
             string? toName,
             NavigationArgs args,
             bool success,
-            PagePresentationMode navigationBehavior,
             NavigationLoadMode navigationLoadMode,
             PageReusePolicy reusePolicy,
             NavigationFailureKind failureKind = NavigationFailureKind.None,
@@ -60,7 +58,6 @@ namespace NekoLib.Navigation.Diagnostics
                 toType,
                 toName,
                 success,
-                navigationBehavior,
                 navigationLoadMode,
                 reusePolicy,
                 failureKind,
@@ -84,7 +81,6 @@ namespace NekoLib.Navigation.Diagnostics
             Type toType,
             string? toName,
             bool success,
-            PagePresentationMode navigationBehavior,
             NavigationLoadMode navigationLoadMode,
             PageReusePolicy reusePolicy,
             NavigationFailureKind failureKind,
@@ -98,7 +94,6 @@ namespace NekoLib.Navigation.Diagnostics
                 toType,
                 toName,
                 success,
-                navigationBehavior,
                 navigationLoadMode,
                 reusePolicy,
                 failureKind,
@@ -122,7 +117,6 @@ namespace NekoLib.Navigation.Diagnostics
             Type toType,
             string? toName,
             bool success,
-            PagePresentationMode navigationBehavior,
             NavigationLoadMode navigationLoadMode,
             PageReusePolicy reusePolicy,
             NavigationFailureKind failureKind,
@@ -143,7 +137,6 @@ namespace NekoLib.Navigation.Diagnostics
             ToPageType = toType ?? throw new ArgumentNullException(nameof(toType));
             ToPageName = toName ?? toType.Name;
             TimestampUtc = timestampUtc;
-            Presentation = navigationBehavior;
             LoadMode = navigationLoadMode;
             ReusePolicy = reusePolicy;
             FailureKind = failureKind;
@@ -167,7 +160,7 @@ namespace NekoLib.Navigation.Diagnostics
 
             return $"[{TimestampUtc:HH:mm:ss}] {direction} " +
                    $"{FromPageName ?? "<null>"} -> {ToPageName} " +
-                   $"({status}, {Presentation} | {LoadMode} | {ReusePolicy})";
+                   $"({status}, {LoadMode} | {ReusePolicy})";
         }
     }
 }

@@ -17,7 +17,7 @@ namespace NekoLib.Navigation.Runtime.Core
     /// </summary>
     public sealed class NavigationContext
     {
-        public NavigationContext(
+        internal NavigationContext(
             IPageHost host,
             ServiceLocator services,
             PageRegistry registry,

@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// Called after the overlay native view has been added and brought to front.
         /// </summary>
-        Task OnOverlayOpenedAsync(object payload);
+        Task OnOverlayOpenedAsync(object? payload);
 
         /// <summary>
         /// Called before the overlay native view is removed and disposed.

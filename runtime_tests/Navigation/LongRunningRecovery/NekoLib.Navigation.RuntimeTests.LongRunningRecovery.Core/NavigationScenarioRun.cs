@@ -490,7 +490,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
 
         private sealed class HandlerOwner
         {
-            public void OnCurrentChanged(NekoLib.Navigation.Contracts.Pages.IPageView page) { }
+            public void OnCurrentChanged(NekoLib.Navigation.Contracts.Pages.IPageView? page) { }
         }
     }
 }

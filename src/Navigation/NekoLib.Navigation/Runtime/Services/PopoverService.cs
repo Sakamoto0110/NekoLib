@@ -113,7 +113,7 @@ namespace NekoLib.Navigation.Runtime.Services
                     }
                 }
 
-                await popover.OnShownAsync(payload!);
+                await popover.OnShownAsync(payload);
                 entry.Trace?.Opened();
             }
             catch (Exception ex)

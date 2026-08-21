@@ -9,12 +9,17 @@ namespace NekoLib.Navigation.Runtime.Guards {
 
         public OrGuard(params IGuard[] guards)
         {
-            _guards = guards ?? Array.Empty<IGuard>();
+            if (guards == null)
+                throw new ArgumentNullException(nameof(guards));
+
+            _guards = (IGuard[])guards.Clone();
+            if (Array.Exists(_guards, guard => guard == null))
+                throw new ArgumentException("A guard collection cannot contain null.", nameof(guards));
         }
 
         public async Task<GuardResult> EvaluateAsync(GuardContext context)
         {
-            GuardResult lastFailure = null;
+            GuardResult? lastFailure = null;
 
             foreach (var g in _guards)
             {

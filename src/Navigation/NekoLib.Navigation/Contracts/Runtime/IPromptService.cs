@@ -15,7 +15,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         /// awaits its <typeparamref name="TResult"/> completion. The view is removed
         /// and interaction is unblocked once the task is resolved.
         /// </summary>
-        Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+        Task<TResult?> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
             where TPrompt : class, IPromptView<TResult>;
 
         /// <summary>

@@ -5,7 +5,7 @@ namespace NekoLib.Navigation.Diagnostics
     /// <summary>
     /// Optional sink that forwards navigation events to an external diagnostics system.
     /// </summary>
-    public interface INavigationDiagnosticsSink
+    internal interface INavigationDiagnosticsSink
     {
         void OnNavigation(PageLogEntry entry);
         void OnGuardDenied(GuardDeniedEvent e);

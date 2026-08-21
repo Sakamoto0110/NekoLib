@@ -19,6 +19,12 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
         public event Action InteractionDetected;
 
+        event Action? IInteractionObserverService.InteractionDetected
+        {
+            add { if (value != null) InteractionDetected += value; }
+            remove { if (value != null) InteractionDetected -= value; }
+        }
+
         public WpfInteractionObserver(UIElement root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));

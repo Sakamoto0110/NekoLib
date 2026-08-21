@@ -348,7 +348,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery
             return _stateValue;
         }
 
-        public void RestoreState(object value)
+        public void RestoreState(object? value)
         {
             RestoredStateValue = value is int integer ? integer : -1;
             Record("restore");

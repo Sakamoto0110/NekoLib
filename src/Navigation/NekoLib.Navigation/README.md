@@ -46,10 +46,16 @@ PageNavBootstrap
 and mounts the static `NavigationService` facade:
 
 ```csharp
-await NavigationService.SwitchPage<DashboardPage>();
+var result = await NavigationService.SwitchPage<DashboardPage>();
 await NavigationService.GoBackAsync();
 await NavigationService.GoIdleAsync();
 ```
+
+`SwitchPage` accepts an optional immutable `NavigationArgs` request and returns a
+call-scoped `NavigationResult`. Guard denial and redirect are normal results;
+registration, page creation, load, lifecycle, and teardown failures throw.
+`NavigationResult.FinalPage` is null for a terminal denial and identifies the
+redirect destination after a successful redirect.
 
 Call `NavigationService.Shutdown()` before a fresh `Start()` — double-mount
 throws.
@@ -157,8 +163,7 @@ Page-side contracts are opt-in — a page implements only what it needs:
 | `IHostAttachable` | `OnAttach(host)` / `OnDetach()` |
 | `IUnfocusAware` | `OnUnfocusAsync()` for light-dismiss surfaces |
 
-`IPageResources` and `IPageInteraction` are legacy compatibility contracts and
-are not invoked by the runtime. The `AllowBackNavigation` property retained by
+The `AllowBackNavigation` property retained by
 the WinForms/WPF base pages is likewise inert; history policy must not depend on
 it. `IPageOverlay` is consumed by the built-in runtime only for a registered
 `IGlobalLoadingMask`; toast, dialog, prompt and popover use their dedicated
@@ -169,8 +174,8 @@ contracts.
 Descriptors are built in three phases; later phases override earlier ones.
 
 1. **Defaults** (`PageDescriptorBuilder`) — Name = type name, `Transient`,
-   `ShowImmediately`, `Replace`, no guards.
-2. **Attributes** — `[PageMetadata(Name/Role/Presentation/Tags)]`,
+   `ShowImmediately`, no guards.
+2. **Attributes** — `[PageMetadata(Name/Role/Tags)]`,
    `[PageLoad(mode)]`, `[PageReuse(policy)]`, `[PageTimeout(seconds)]`,
    `[KeepAttached]`, `[AllowAnonymous]`, and the guard attributes
    (`[RequireAuthenticated]`, `[RequireRole]`, `[RequirePermission]`,
@@ -182,6 +187,10 @@ Descriptors are built in three phases; later phases override earlier ones.
 The DSL configures reuse, naming, tags, load mode and idle role; it does **not**
 declare guards — those come from attributes only. Multiple guard attributes on
 one page compose into an `AndGuard`; `OrGuard` exists for manual composition.
+Repeated DSL rules for one page compose in declaration order. Built descriptors
+own defensive copies of their tag collections, and invalid names, tags, enum
+values, page types, callbacks, or timeout bounds fail during configuration or
+registry creation.
 
 `PageRegistry` is immutable after `Create` (FrozenDictionary on net9). A
 duplicate page **type** or **name** (case-insensitive) throws at bootstrap.
@@ -225,10 +234,12 @@ attach:
   `ApplyBackgroundResultAsync` **only if** the page is still `Current` and not
   disposed; failures are logged to diagnostics, never thrown.
 
-The registered descriptor is authoritative. `NavigationArgs.Preload()` and
-`.Background()` describe the caller's requested mode for diagnostics; after
-registry lookup, `Navigating`, `Navigated` and page lifecycle hooks receive an
-effective `NavigationArgs` whose `LoadMode` matches the descriptor.
+The registered descriptor is the sole public owner of load mode and reuse
+policy. A caller creates `NavigationArgs.Default(payload)` and may attach a
+`NavigationTimingContext`; after registry lookup, `Navigating`, `Navigated` and
+page lifecycle hooks receive an effective copy whose `LoadMode` matches the
+descriptor. There are no request-side preload, background, transient, or back
+factories.
 
 `LoadInBackgroundAsync` runs via `Task.Run` and must not touch the UI;
 `ApplyBackgroundResultAsync` runs on the UI thread. During a load the runtime
@@ -239,16 +250,14 @@ auto-registered at bootstrap **unless** the scanned assemblies contain a custom
 
 ## History and page state
 
-- `NavigationHistory` is a back stack plus a forward stack. Forward navigation
-  records the **from** page (`Record` pushes back and clears forward).
-  History entries use the descriptor's logical name.
+- `NavigationHistory` is a framework-owned back stack plus a forward stack.
+  Consumers receive top-first `IReadOnlyList<PageHistoryEntry>` snapshots through
+  `HistoryBack` and `HistoryForward`; construction and mutation are internal.
+  Forward navigation records the **from** page and clears forward. History
+  entries use the descriptor's logical name.
 - `GoBackAsync` first inspects the entry and navigates with
-  `NavigationArgs.Back(state)`. It commits the pop/push only after the requested
+  an internal back request. It commits the pop/push only after the requested
   target succeeds; denial, redirect and pre-show failure preserve both stacks.
-- Lifecycle/event callbacks can reach the public history object reentrantly. If
-  they replace its top entry during a successful back switch, the runtime leaves
-  that externally changed history untouched and does not push a synthetic
-  forward entry.
 - Back-navigation **skips** `History.Record` inside the switch — the back path
   manages both stacks itself — and fires `HistoryChanged` once from
   `GoBackInternalAsync`.
@@ -262,6 +271,9 @@ auto-registered at bootstrap **unless** the scanned assemblies contain a custom
 
 - `IGuard.EvaluateAsync(GuardContext{TargetPage, User})` returns
   `GuardResult.Allow()`, `.Deny(reason)` or `.Redirect(pageType, reason)`.
+- Every built-in guard attribute honors its optional `RedirectTo` property.
+  `RequirePermissionAttribute(string)` is the deny-only form; the two-argument
+  constructor and the named property configure a redirect.
 - Redirect chains are capped at depth 8 with cycle detection via a visited set;
   violations emit `GuardDenied` and stop without throwing.
 - A guard that throws denies the navigation with the exception message as the
@@ -480,7 +492,7 @@ z-order (`SendToBack`) and surfaces stay above.
 
 ## Logging, telemetry, Inspection, and local diagnostics
 
-`NavigationDiagnostics` emits `PageLogEntry` (success/failure, presentation, load
+`NavigationDiagnostics` emits `PageLogEntry` (success/failure, load
 mode, reuse policy, failure kind, error, correlation and duration) and
 `GuardDeniedEvent` into the context's `NavigationEventHub`, surfaced as
 `NavigationLogged` and `GuardDenied`. Subscriber exceptions are isolated
@@ -497,6 +509,11 @@ promptly; blocking one delays dispatch/lifecycle work. The built-in
 `NavigationFailed`, `CurrentChanged`, `HistoryChanged`, `OnFirstPageAttached`,
 `OnNoPageAttached`, `OnNoPageVisible`. Static events root their subscribers, so
 `Shutdown()` nulls all of them.
+
+The hub is read-only to consumers: event publication, event/DTO construction,
+and diagnostic emission are framework-owned. Configure logging through
+`UseLogging(ILogger)` or subscribe to the read-only events; consumers cannot
+fabricate Navigation evidence through a public emitter or sink.
 
 Four independent observation layers coexist:
 

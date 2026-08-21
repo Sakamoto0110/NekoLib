@@ -1,5 +1,7 @@
 ﻿using System;
 
+using NekoLib.Navigation.Contracts.Pages;
+
 namespace NekoLib.Navigation.Contracts.Guards {
     /// <summary>
     /// Result returned by a navigation guard. A result either allows navigation,
@@ -13,14 +15,14 @@ namespace NekoLib.Navigation.Contracts.Guards {
         /// <summary>
         /// If not null, the runtime should navigate to this page instead.
         /// </summary>
-        public Type RedirectPage { get; }
+        public Type? RedirectPage { get; }
 
         /// <summary>
         /// Optional diagnostic reason.
         /// </summary>
-        public string Reason { get; }
+        public string? Reason { get; }
 
-        private GuardResult(bool allowed, Type redirectPage, string reason)
+        private GuardResult(bool allowed, Type? redirectPage, string? reason)
         {
             Allowed = allowed;
             RedirectPage = redirectPage;
@@ -32,16 +34,24 @@ namespace NekoLib.Navigation.Contracts.Guards {
             => new GuardResult(true, null, null);
 
         /// <summary>Create a deny result with an optional diagnostic reason.</summary>
-        public static GuardResult Deny(string reason = null)
+        public static GuardResult Deny(string? reason = null)
             => new GuardResult(false, null, reason);
 
         /// <summary>Create a redirect result to <typeparamref name="TPage"/>.</summary>
-        public static GuardResult Redirect<TPage>(string reason = null)
-            => new GuardResult(false, typeof(TPage), reason);
+        public static GuardResult Redirect<TPage>(string? reason = null)
+            where TPage : IPageView
+            => Redirect(typeof(TPage), reason);
 
         /// <summary>Create a redirect result to a runtime page type.</summary>
-        public static GuardResult Redirect(Type pageType, string reason = null)
-            => new GuardResult(false, pageType, reason);
+        public static GuardResult Redirect(Type pageType, string? reason = null)
+        {
+            if (pageType == null)
+                throw new ArgumentNullException(nameof(pageType));
+            if (!typeof(IPageView).IsAssignableFrom(pageType) || pageType.IsAbstract)
+                throw new ArgumentException("A redirect target must be a concrete IPageView type.", nameof(pageType));
+
+            return new GuardResult(false, pageType, reason);
+        }
     }
 }
  

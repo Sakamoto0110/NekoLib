@@ -20,8 +20,8 @@ namespace NekoLib.Navigation
     /// </summary>
     public static partial class NavigationService
     {
-        private static NavigationContext _context;
-        private static NavigationRuntime _runtime;
+        private static NavigationContext? _context;
+        private static NavigationRuntime? _runtime;
         private static IDisposable? _observationLifetime;
         private static IDisposable? _bootstrapLifetime;
         private static readonly object _lifecycleSync = new object();
@@ -33,7 +33,7 @@ namespace NekoLib.Navigation
         // PUBLIC STATE
         // -------------------------------------------------------------------------
 
-        public static IPageView Current => _runtime?.Current;
+        public static IPageView? Current => _runtime?.Current;
 
         /// <summary>
         /// The framework-owned mutable session. Use
@@ -74,14 +74,14 @@ namespace NekoLib.Navigation
         // unsubscribe when they no longer need the events, but a missed unsubscribe
         // will not leak past the next Shutdown() call.
 
-        public static event Action<IPageView, Type, NavigationArgs> Navigating;
-        public static event Action<IPageView, IPageView, NavigationArgs> Navigated;
-        public static event Action<IPageView, Type, Exception> NavigationFailed;
-        public static event Action<IPageView> CurrentChanged;
-        public static event Action HistoryChanged;
-        public static event Action<IPageView> OnFirstPageAttached;
-        public static event Action OnNoPageAttached;
-        public static event Action OnNoPageVisible;
+        public static event Action<IPageView?, Type, NavigationArgs>? Navigating;
+        public static event Action<IPageView?, IPageView, NavigationArgs>? Navigated;
+        public static event Action<IPageView?, Type, Exception>? NavigationFailed;
+        public static event Action<IPageView?>? CurrentChanged;
+        public static event Action? HistoryChanged;
+        public static event Action<IPageView>? OnFirstPageAttached;
+        public static event Action? OnNoPageAttached;
+        public static event Action? OnNoPageVisible;
 
         // -------------------------------------------------------------------------
         // INIT / SHUTDOWN
@@ -157,8 +157,8 @@ namespace NekoLib.Navigation
         {
             TaskCompletionSource<bool> completion;
             Task sharedTask;
-            NavigationContext context;
-            NavigationRuntime runtime;
+            NavigationContext? context;
+            NavigationRuntime? runtime;
             IDisposable? observationLifetime;
             IDisposable? bootstrapLifetime;
             Task runtimeOperationsDrained;
@@ -204,8 +204,8 @@ namespace NekoLib.Navigation
         }
 
         private static async Task CompleteShutdownAsync(
-            NavigationContext context,
-            NavigationRuntime runtime,
+            NavigationContext? context,
+            NavigationRuntime? runtime,
             IDisposable? observationLifetime,
             IDisposable? bootstrapLifetime,
             Task runtimeOperationsDrained,
@@ -305,30 +305,23 @@ namespace NekoLib.Navigation
         // PUBLIC API (forwarders)
         // -------------------------------------------------------------------------
 
-        /// <summary>Navigate to a registered page and pass an optional payload.</summary>
-        public static Task SwitchPage<T>(object args = null) where T : IPageView =>
+        /// <summary>
+        /// Navigate to a registered page using an immutable request and return its
+        /// normal success, denial, or redirect outcome.
+        /// </summary>
+        public static Task<NavigationResult> SwitchPage<T>(NavigationArgs? args = null)
+            where T : IPageView =>
             InvokeRuntimeAsync(runtime =>
-                runtime.NavigateAsync(typeof(T), NavigationArgs.Default(args)));
-
-        /// <summary>Navigate to a registered page type and pass an optional payload.</summary>
-        public static Task SwitchPage(Type type, object args = null) =>
-            InvokeRuntimeAsync(runtime =>
-                runtime.NavigateAsync(type, NavigationArgs.Default(args)));
+                runtime.NavigateAsync(typeof(T), args));
 
         /// <summary>
-        /// Navigate through the transient entrypoint. The target page lifetime is
-        /// still controlled by the registered page reuse policy.
+        /// Navigate to a registered runtime page type using an immutable request.
         /// </summary>
-        public static Task SwitchTransient<T>(object args = null) where T : IPageView =>
+        public static Task<NavigationResult> SwitchPage(
+            Type type,
+            NavigationArgs? args = null) =>
             InvokeRuntimeAsync(runtime =>
-                runtime.NavigateAsync(typeof(T), NavigationArgs.Transient(args)));
-
-        /// <summary>Navigate through the transient entrypoint using a runtime page type.</summary>
-        public static Task SwitchTransient(Type type, object args = null) =>
-            InvokeRuntimeAsync(runtime =>
-                runtime.NavigateAsync(type, NavigationArgs.Transient(args)));
-
-
+                runtime.NavigateAsync(type, args));
 
         /// <summary>Navigate to the configured idle page if one can be resolved.</summary>
         public async static Task GoIdleAsync() =>
@@ -352,12 +345,12 @@ namespace NekoLib.Navigation
         // ------------------------------------------------------------
 
         /// <summary>Show a non-blocking toast surface.</summary>
-        public static void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+        public static void ShowToast<TToast>(object? payload = null, int durationMs = 3000)
             where TToast : class, IToastView
         {
             AdmitRuntimeAction((runtime, admissionCompleted) =>
                 runtime.ShowToast<TToast>(
-                    payload,
+                    payload!,
                     durationMs,
                     admissionCompleted));
         }
@@ -374,12 +367,12 @@ namespace NekoLib.Navigation
         // ------------------------------------------------------------
 
         /// <summary>Show a modal binary dialog and await its confirm/cancel result.</summary>
-        public static Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+        public static Task<bool> ShowDialogAsync<TDialog>(object? payload = null)
             where TDialog : class, IDialogView
         {
             return AdmitRuntimeTask((runtime, admissionCompleted) =>
                 runtime.ShowDialogAsync<TDialog>(
-                    payload,
+                    payload!,
                     admissionCompleted));
         }
 
@@ -388,12 +381,12 @@ namespace NekoLib.Navigation
         // ------------------------------------------------------------
 
         /// <summary>Show a modal prompt and await its typed result.</summary>
-        public static Task<TResult> ShowPromptAsync<TPrompt, TResult>(object payload = null)
+        public static Task<TResult?> ShowPromptAsync<TPrompt, TResult>(object? payload = null)
             where TPrompt : class, IPromptView<TResult>
         {
             return AdmitRuntimeTask((runtime, admissionCompleted) =>
                 runtime.ShowPromptAsync<TPrompt, TResult>(
-                    payload,
+                    payload!,
                     admissionCompleted));
         }
 
@@ -402,12 +395,12 @@ namespace NekoLib.Navigation
         // ------------------------------------------------------------
 
         /// <summary>Show a non-blocking popover and await its completion result.</summary>
-        public static Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+        public static Task<bool> ShowPopoverAsync<TPopover>(object? payload = null)
             where TPopover : class, IPopoverView
         {
             return AdmitRuntimeTask((runtime, admissionCompleted) =>
                 runtime.ShowPopoverAsync<TPopover>(
-                    payload,
+                    payload!,
                     admissionCompleted));
         }
 
@@ -618,29 +611,29 @@ namespace NekoLib.Navigation
             runtime.OnNoPageVisible -= OnNoPageVisibleInternal;
         }
 
-        private static void OnNavigating(IPageView from, Type to, NavigationArgs args)
+        private static void OnNavigating(IPageView? from, Type to, NavigationArgs args)
             => InvokeSubscribers(
                 Navigating,
                 nameof(Navigating),
-                subscriber => ((Action<IPageView, Type, NavigationArgs>)subscriber)(from, to, args));
+                subscriber => ((Action<IPageView?, Type, NavigationArgs>)subscriber)(from, to, args));
 
-        private static void OnNavigated(IPageView from, IPageView to, NavigationArgs args)
+        private static void OnNavigated(IPageView? from, IPageView to, NavigationArgs args)
             => InvokeSubscribers(
                 Navigated,
                 nameof(Navigated),
-                subscriber => ((Action<IPageView, IPageView, NavigationArgs>)subscriber)(from, to, args));
+                subscriber => ((Action<IPageView?, IPageView, NavigationArgs>)subscriber)(from, to, args));
 
-        private static void OnNavigationFailed(IPageView from, Type to, Exception ex)
+        private static void OnNavigationFailed(IPageView? from, Type to, Exception ex)
             => InvokeSubscribers(
                 NavigationFailed,
                 nameof(NavigationFailed),
-                subscriber => ((Action<IPageView, Type, Exception>)subscriber)(from, to, ex));
+                subscriber => ((Action<IPageView?, Type, Exception>)subscriber)(from, to, ex));
 
-        private static void OnCurrentChanged(IPageView current)
+        private static void OnCurrentChanged(IPageView? current)
             => InvokeSubscribers(
                 CurrentChanged,
                 nameof(CurrentChanged),
-                subscriber => ((Action<IPageView>)subscriber)(current));
+                subscriber => ((Action<IPageView?>)subscriber)(current));
 
         private static void OnHistoryChanged()
             => InvokeSubscribers(

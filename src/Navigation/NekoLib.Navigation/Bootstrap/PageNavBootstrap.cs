@@ -33,9 +33,9 @@ namespace NekoLib.Navigation.Bootstrap
     {
         private readonly object _nativeHost;
         private readonly IPlatformAdapter _platform;
-        private PageRegistry _registry;
+        private PageRegistry? _registry;
         private Action<PageMetadataBuilder>? _pageConfig;
-        private Action<ServiceLocator, IPlatformAdapter> _serviceConfig;
+        private Action<ServiceLocator, IPlatformAdapter>? _serviceConfig;
 
         private ILogger? _logger;
         private ITelemetry? _telemetry;
@@ -44,7 +44,7 @@ namespace NekoLib.Navigation.Bootstrap
 
         private int _idleTimeoutMs;
 
-        private Type _idlePageType;
+        private Type? _idlePageType;
 
          
         private PageNavBootstrap(object nativeHost, IPlatformAdapter adapter)
@@ -52,12 +52,6 @@ namespace NekoLib.Navigation.Bootstrap
             if (nativeHost == null) throw new ArgumentNullException(nameof(nativeHost));
             _nativeHost = nativeHost;
             _platform = adapter;
-        }
-        private PageNavBootstrap(object nativeHost)
-        {
-            if (nativeHost == null) throw new ArgumentNullException(nameof(nativeHost));
-            _nativeHost = nativeHost;
-     
         }
         // --------------------------------------------------------------------
         // Entry points
@@ -75,13 +69,6 @@ namespace NekoLib.Navigation.Bootstrap
             return new PageNavBootstrap(nativeHost, adapter);
         }
       
-
-        /// <summary>
-        /// Start a bootstrap chain when the platform adapter is supplied through
-        /// a previously registered platform mechanism.
-        /// </summary>
-        public static PageNavBootstrap UseRegistered(object nativeHost)
-            => new PageNavBootstrap(nativeHost);
 
         // --------------------------------------------------------------------
         // Configuration
@@ -188,7 +175,7 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         public PageNavBootstrap RegisterPagesFromAssembly(Assembly asm)
         {
-            _assemblies.Add(asm);
+            _assemblies.Add(asm ?? throw new ArgumentNullException(nameof(asm)));
             return this;
         }
  
@@ -198,7 +185,7 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         public PageNavBootstrap ConfigureServices(Action<ServiceLocator,IPlatformAdapter> configure)
         {
-            _serviceConfig = configure;
+            _serviceConfig = configure ?? throw new ArgumentNullException(nameof(configure));
             return this;
         }
         // 
@@ -207,7 +194,7 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         public PageNavBootstrap ConfigurePages(Action<PageMetadataBuilder> configure)
         {
-            _pageConfig += configure;
+            _pageConfig += configure ?? throw new ArgumentNullException(nameof(configure));
             return this;
         }
         // 

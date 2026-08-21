@@ -12,7 +12,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// Called by the DialogService right after the view is attached and made visible.
         /// </summary>
-        Task OnShownAsync(object payload);
+        Task OnShownAsync(object? payload);
 
         /// <summary>
         /// Supplies the completion callback that the view invokes with the user choice.

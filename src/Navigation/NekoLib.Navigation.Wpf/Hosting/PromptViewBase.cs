@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// </summary>
     public class PromptViewBase<TResult> : UserControl, IPromptView<TResult>
     {
-        private Action<TResult> _completionCallback;
+        private Action<TResult?>? _completionCallback;
 
         public object NativeView => this;
         public bool IsDisposed { get; private set; }
@@ -29,10 +29,10 @@ namespace NekoLib.Navigation.Wpf.Hosting
             VerticalAlignment = VerticalAlignment.Center;
         }
 
-        void IPromptView<TResult>.BindCompletion(Action<TResult> completionCallback)
+        void IPromptView<TResult>.BindCompletion(Action<TResult?> completionCallback)
             => _completionCallback = completionCallback;
 
-        Task IPromptView.OnShownAsync(object payload) => OnShownAsync(payload);
+        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload!);
 
         /// <summary>Override to react to the prompt becoming visible.</summary>
         protected virtual Task OnShownAsync(object payload) => Task.CompletedTask;

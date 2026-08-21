@@ -13,7 +13,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         /// Shows a dialog of type <typeparamref name="TDialog"/> and awaits the user's
         /// boolean answer. Returns <c>true</c> when the user confirms.
         /// </summary>
-        Task<bool> ShowDialogAsync<TDialog>(object payload = null)
+        Task<bool> ShowDialogAsync<TDialog>(object? payload = null)
             where TDialog : class, IDialogView;
 
         /// <summary>

@@ -680,14 +680,14 @@ namespace NekoLib.Navigation.Tests.Unit
             => new PageLogEntry(
                 typeof(string), "From", typeof(int), "To",
                 NavigationArgs.Default(), true,
-                default(PagePresentationMode), default(NavigationLoadMode), default(PageReusePolicy),
+                default(NavigationLoadMode), default(PageReusePolicy),
                 isBackNavigation: isBackNavigation);
 
         private static PageLogEntry FailureEntry(bool isTimeout = false)
             => new PageLogEntry(
                 typeof(string), "From", typeof(int), "To",
                 NavigationArgs.Default(), false,
-                default(PagePresentationMode), default(NavigationLoadMode), default(PageReusePolicy),
+                default(NavigationLoadMode), default(PageReusePolicy),
                 failureKind: NavigationFailureKind.None, isTimeout: isTimeout, error: "boom");
     }
 }

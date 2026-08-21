@@ -9,11 +9,14 @@ namespace NekoLib.Navigation.Metadata.Attributes
 
         public RequireAllPermissionsAttribute(params string[] permissions)
         {
-            _permissions = permissions;
+            _permissions = GuardContractValidation.CopyNames(
+                permissions,
+                nameof(permissions),
+                "required permission");
         }
 
         public override IGuard CreateGuard()
-            => new RequireAllPermissionsGuard(_permissions);
+            => ApplyRedirect(new RequireAllPermissionsGuard(_permissions));
     }
 
 

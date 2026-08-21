@@ -1,4 +1,5 @@
 ﻿// FILE: PageNav.Core/Services/NavigationHistory.cs
+using System;
 using NekoLib.Navigation.Metadata;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,10 @@ namespace NekoLib.Navigation.Runtime.History
         private readonly Stack<PageHistoryEntry> _back = new();
         private readonly Stack<PageHistoryEntry> _forward = new();
 
+        internal NavigationHistory()
+        {
+        }
+
         public bool CanGoBack => _back.Count > 0;
         public bool CanGoForward => _forward.Count > 0;
 
@@ -21,10 +26,10 @@ namespace NekoLib.Navigation.Runtime.History
         // RECORDING
         // ------------------------------------------------------------
 
-        public void Record(PageHistoryEntry entry)
+        internal void Record(PageHistoryEntry entry)
         {
             if (entry == null)
-                return;
+                throw new ArgumentNullException(nameof(entry));
 
             _back.Push(entry);
             _forward.Clear();
@@ -34,11 +39,11 @@ namespace NekoLib.Navigation.Runtime.History
         // BACK / FORWARD
         // ------------------------------------------------------------
 
-        public bool TryPopBack(out PageHistoryEntry entry)
+        internal bool TryPopBack(out PageHistoryEntry entry)
         {
             if (_back.Count == 0)
             {
-                entry = null;
+                entry = null!;
                 return false;
             }
 
@@ -67,30 +72,37 @@ namespace NekoLib.Navigation.Runtime.History
             return true;
         }
 
-        public void PushForward(PageHistoryEntry entry)
+        internal void PushForward(PageHistoryEntry entry)
         {
-            if (entry != null)
-                _forward.Push(entry);
+            if (entry == null)
+                throw new ArgumentNullException(nameof(entry));
+
+            _forward.Push(entry);
         }
 
-        public PageHistoryEntry PopForward()
+        internal PageHistoryEntry PopForward()
             => _forward.Pop();
 
         // ------------------------------------------------------------
         // INSPECTION (debug / UI)
         // ------------------------------------------------------------
 
-        public IEnumerable<PageHistoryEntry> HistoryBack
-            => _back.ToList();
+        /// <summary>Top-first snapshot of the back stack.</summary>
+        public IReadOnlyList<PageHistoryEntry> HistoryBack
+            => _back.ToList().AsReadOnly();
 
-        public IEnumerable<PageHistoryEntry> HistoryForward
-            => _forward.ToList();
+        /// <summary>Top-first snapshot of the forward stack.</summary>
+        public IReadOnlyList<PageHistoryEntry> HistoryForward
+            => _forward.ToList().AsReadOnly();
+
+        public bool HasHistory
+            => _back.Count > 0 || _forward.Count > 0;
 
         // ------------------------------------------------------------
         // RESET
         // ------------------------------------------------------------
 
-        public void Clear()
+        internal void Clear()
         {
             _back.Clear();
             _forward.Clear();

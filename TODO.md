@@ -788,10 +788,33 @@ consumers does not prove that a public member is unused.
     Long-running crash/recovery, interactive, cross-user/elevation,
     installer/ACL/signing, hostile-same-user, and runtime-provisioning evidence
     remains outside this closure.
-14. [ ] **F1-NAV — Navigation.** Finalize the public facade, contracts,
+14. [x] **F1-NAV — Navigation.** Finalize the public facade, contracts,
     registration, lifecycle, history, guard, session, surface, and diagnostic
     API last. Review does not unfreeze `NavigationContext`,
     `NavigationRuntime`, `PageRegistry`, or `PageFactory`.
+    **Review accepted 2026-08-20:** the code-first review is recorded in
+    [`docs/audit/navigation-public-api-review-2026-08-20.md`](docs/audit/navigation-public-api-review-2026-08-20.md).
+    All twelve dispositions are accepted for implementation. The only approved
+    frozen-type changes are the `NavigationContext` constructor accessibility
+    and `NavigationRuntime` request-result propagation described by NAV-02 and
+    NAV-03; `PageRegistry`, `PageFactory`, and every lifecycle algorithm remain
+    frozen. **Completed 2026-08-20:** the accepted core implementation keeps
+    the static facade and custom guard-attribute extensibility while adding a
+    call-scoped navigation result, composing and validating registration,
+    making history and framework evidence read-only, removing the accepted
+    inert/unused surface, and aligning public nullability. `PageRegistry`,
+    `PageFactory`, lifecycle ordering, the navigation gate, rollback, caching,
+    and teardown remain unchanged. Navigation passed 290/290 focused tests on
+    each target family; the full serial solution passed 1,666 executions with
+    0 failures and 0 skips. The full solution rebuild succeeded with 210
+    existing warning occurrences, 0 errors, and no new normalized warning
+    identity. All six core/WinForms/WPF manifests verified; only the two
+    accepted core baselines changed. All six tracked Navigation runtime-scenario
+    projects built successfully but were not launched. Current documentation,
+    migration guidance, changelog, documentation verification, and diff hygiene
+    passed. No package, PackageReference campaign, interactive/manual runtime,
+    commit, publish, or push evidence is part of this closure; adapter public
+    finalization remains under F1-NAV-WF and F1-NAV-WPF.
 15. [ ] **F1-NAV-WF — Navigation.WinForms.** Finalize the adapter, native host,
     base-view, dispatcher, timer, interaction, and surface contracts against the
     accepted Navigation API.

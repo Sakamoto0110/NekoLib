@@ -45,6 +45,9 @@ namespace NekoLib.Navigation.WinForms.Defaults
             return Task.CompletedTask;
         }
 
+        Task IPageOverlay.OnOverlayOpenedAsync(object? payload)
+            => OnOverlayOpenedAsync(payload!);
+
         public Task OnOverlayClosingAsync() => Task.CompletedTask;
     }
 }

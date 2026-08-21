@@ -7,9 +7,9 @@ namespace NekoLib.Navigation.Bootstrap
     {
         private readonly PageMetadataBuilder _builder;
 
-        public PageBuilderConfigurator(PageMetadataBuilder builder)
+        internal PageBuilderConfigurator(PageMetadataBuilder builder)
         {
-            _builder = builder;
+            _builder = builder ?? throw new System.ArgumentNullException(nameof(builder));
         }
 
         public PageRuleBuilder<T> Page<T>() where T : IPageView

@@ -116,7 +116,7 @@ namespace NekoLib.Navigation.Runtime.Services
 
                 _viewHost.BringToFront(nextToast.NativeView);
 
-                nextToast.OnShown(payload!);
+                nextToast.OnShown(payload);
 
                 // OnShown is allowed to dismiss synchronously. In that case its CTS
                 // has already been reclaimed and there is no timer left to start.

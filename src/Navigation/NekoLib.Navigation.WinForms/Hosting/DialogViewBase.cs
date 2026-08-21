@@ -44,7 +44,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
             _completionCallback = completionCallback;
         }
 
-        Task IDialogView.OnShownAsync(object payload) => OnShownAsync(payload);
+        Task IDialogView.OnShownAsync(object? payload) => OnShownAsync(payload!);
 
         /// <summary>
         /// Override to react to the dialog becoming visible (e.g. apply payload, focus).

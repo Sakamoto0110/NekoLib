@@ -483,7 +483,9 @@ namespace NekoLib.Navigation.Runtime.Core
         // PUBLIC API (all entry points are gated)
         // ---------------------------------------------------------------------
 
-        public Task NavigateAsync(Type pageType, NavigationArgs args = null)
+        public Task<NavigationResult> NavigateAsync(
+            Type pageType,
+            NavigationArgs? args = null)
             => StartNavigateRequest(
                 pageType,
                 args ?? NavigationArgs.Empty,
@@ -503,7 +505,7 @@ namespace NekoLib.Navigation.Runtime.Core
             return ExecuteBackRequestAsync(trace);
         }
 
-        private Task StartNavigateRequest(
+        private Task<NavigationResult> StartNavigateRequest(
             Type? pageType,
             NavigationArgs args,
             NavigationTraceTrigger trigger)
@@ -520,7 +522,7 @@ namespace NekoLib.Navigation.Runtime.Core
             return ExecuteNavigateRequestAsync(trace, pageType, args);
         }
 
-        private async Task ExecuteNavigateRequestAsync(
+        private async Task<NavigationResult> ExecuteNavigateRequestAsync(
             NavigationTraceScope? trace,
             Type? pageType,
             NavigationArgs args)
@@ -543,6 +545,8 @@ namespace NekoLib.Navigation.Runtime.Core
                     result.RequestOutcome,
                     result.Decision,
                     targetPage: result.TerminalTarget);
+                return result.ToPublicResult(
+                    pageType ?? throw new ArgumentNullException(nameof(pageType)));
             }
             catch (Exception ex)
             {
@@ -632,7 +636,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 admissionCompleted);
         }
 
-        internal Task<TResult> ShowPromptAsync<TPrompt, TResult>(
+        internal Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
             object payload = null,
             Action? admissionCompleted = null)
             where TPrompt : class, IPromptView<TResult>
@@ -991,7 +995,8 @@ namespace NekoLib.Navigation.Runtime.Core
                     attemptTerminal = true;
                     return NavigationAttemptResult.Denied(
                         canonicalPageType,
-                        toDesc.Name);
+                        toDesc.Name,
+                        "Guard redirect cycle detected.");
                 }
 
                 if (redirectDepth > 8)
@@ -1008,7 +1013,8 @@ namespace NekoLib.Navigation.Runtime.Core
                     attemptTerminal = true;
                     return NavigationAttemptResult.Denied(
                         canonicalPageType,
-                        toDesc.Name);
+                        toDesc.Name,
+                        "Max guard redirect depth exceeded.");
                 }
 
                 // AllowAnonymous is descriptor policy, so it bypasses the composed
@@ -1051,7 +1057,8 @@ namespace NekoLib.Navigation.Runtime.Core
                             attemptTerminal = true;
                             return NavigationAttemptResult.Denied(
                                 canonicalPageType,
-                                toDesc.Name);
+                                toDesc.Name,
+                                "Guard evaluation timed out.");
                         }
 
                         guardResult = await evaluation;
@@ -1071,7 +1078,8 @@ namespace NekoLib.Navigation.Runtime.Core
                         attemptTerminal = true;
                         return NavigationAttemptResult.Denied(
                             canonicalPageType,
-                            toDesc.Name);
+                            toDesc.Name,
+                            $"Guard exception: {ex.Message}");
                     }
 
                     if (!guardResult.Allowed)
@@ -1091,7 +1099,8 @@ namespace NekoLib.Navigation.Runtime.Core
                             attemptTerminal = true;
                             return NavigationAttemptResult.Denied(
                                 canonicalPageType,
-                                toDesc.Name);
+                                toDesc.Name,
+                                guardResult.Reason);
                         }
 
                         attemptTrace?.Complete(
@@ -1129,7 +1138,7 @@ namespace NekoLib.Navigation.Runtime.Core
                 {
                     attemptTrace?.SetStage(NavigationTraceStage.LoadBeforeShow);
                     failureStage = NavigationFailureKind.LoadFailed;
-                    await LoadAsync(to, effectiveArgs.Payload, attemptTrace);
+                    await LoadAsync(to, effectiveArgs.Payload!, attemptTrace);
                 }
 
                 failureStage = NavigationFailureKind.LifecycleFailed;
@@ -1223,14 +1232,14 @@ namespace NekoLib.Navigation.Runtime.Core
                 {
                     attemptTrace?.SetStage(NavigationTraceStage.LoadAfterShow);
                     failureStage = NavigationFailureKind.LoadFailed;
-                    await LoadAsync(to, effectiveArgs.Payload, attemptTrace);
+                    await LoadAsync(to, effectiveArgs.Payload!, attemptTrace);
                     failureStage = NavigationFailureKind.LifecycleFailed;
                 }
                 else if (toDesc.LoadMode == NavigationLoadMode.LoadInBackground)
                 {
                     backgroundLoad = StartBackgroundLoad(
                         to!,
-                        effectiveArgs.Payload,
+                        effectiveArgs.Payload!,
                         requestTrace,
                         attemptTrace);
                 }
@@ -2438,17 +2447,26 @@ namespace NekoLib.Navigation.Runtime.Core
             public NavigationTraceOutcome RequestOutcome { get; }
             public string Decision { get; }
             public string TerminalTarget { get; }
+            public Type? FinalPage { get; }
+            public bool WasRedirected { get; }
+            public string? DenialReason { get; }
 
             private NavigationAttemptResult(
                 bool targetNavigated,
                 NavigationTraceOutcome requestOutcome,
                 string decision,
-                string terminalTarget)
+                string terminalTarget,
+                Type? finalPage,
+                bool wasRedirected,
+                string? denialReason)
             {
                 TargetNavigated = targetNavigated;
                 RequestOutcome = requestOutcome;
                 Decision = decision;
                 TerminalTarget = terminalTarget;
+                FinalPage = finalPage;
+                WasRedirected = wasRedirected;
+                DenialReason = denialReason;
             }
 
             public static NavigationAttemptResult Succeeded(
@@ -2458,16 +2476,23 @@ namespace NekoLib.Navigation.Runtime.Core
                     true,
                     NavigationTraceOutcome.Succeeded,
                     "Navigated",
-                    logicalName ?? target.FullName ?? target.Name);
+                    logicalName ?? target.FullName ?? target.Name,
+                    target,
+                    false,
+                    null);
 
             public static NavigationAttemptResult Denied(
                 Type target,
-                string? logicalName)
+                string? logicalName,
+                string? reason)
                 => new NavigationAttemptResult(
                     false,
                     NavigationTraceOutcome.Denied,
                     "GuardDenied",
-                    logicalName ?? target.FullName ?? target.Name);
+                    logicalName ?? target.FullName ?? target.Name,
+                    null,
+                    false,
+                    reason);
 
             public static NavigationAttemptResult Redirected(
                 NavigationAttemptResult child)
@@ -2475,14 +2500,29 @@ namespace NekoLib.Navigation.Runtime.Core
                     false,
                     child.RequestOutcome,
                     "Redirected",
-                    child.TerminalTarget);
+                    child.TerminalTarget,
+                    child.FinalPage,
+                    true,
+                    child.DenialReason);
 
             public static NavigationAttemptResult NoHistory()
                 => new NavigationAttemptResult(
                     false,
                     NavigationTraceOutcome.NoHistory,
                     "NoHistory",
-                    "<history>");
+                    "<history>",
+                    null,
+                    false,
+                    null);
+
+            public NavigationResult ToPublicResult(Type requestedPage)
+                => new NavigationResult(
+                    requestedPage,
+                    FinalPage,
+                    RequestOutcome == NavigationTraceOutcome.Succeeded &&
+                    FinalPage != null,
+                    WasRedirected,
+                    DenialReason);
         }
 
         private readonly struct PageLoadResult

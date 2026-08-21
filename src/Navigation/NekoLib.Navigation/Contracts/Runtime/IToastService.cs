@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         /// </summary>
         /// <param name="payload">Optional data passed to the toast view.</param>
         /// <param name="durationMs">Auto-dismiss timeout in milliseconds.</param>
-        void ShowToast<TToast>(object payload = null, int durationMs = 3000)
+        void ShowToast<TToast>(object? payload = null, int durationMs = 3000)
             where TToast : class, IToastView;
 
         /// <summary>

@@ -6,7 +6,7 @@ namespace NekoLib.Navigation.Metadata.Attributes
     public sealed class RequireAuthenticatedAttribute : GuardAttribute
     {
         public override IGuard CreateGuard()
-            => new RequireAuthenticatedGuard();
+            => ApplyRedirect(new RequireAuthenticatedGuard());
     }
 
 

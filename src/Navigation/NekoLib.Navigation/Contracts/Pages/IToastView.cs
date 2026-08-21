@@ -12,7 +12,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// Called by the ToastService right after the view is attached and made visible.
         /// </summary>
-        void OnShown(object payload);
+        void OnShown(object? payload);
 
         /// <summary>
         /// Supplies the dismiss callback that the view should invoke when the user

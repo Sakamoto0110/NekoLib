@@ -102,7 +102,6 @@ namespace NekoLib.Navigation.Diagnostics
         public string? RequestedLoadMode { get; }
         public string? EffectiveLoadMode { get; }
         public string? ReusePolicy { get; }
-        public string? Presentation { get; }
         public string? Decision { get; }
         public string? FailureKind { get; }
         public string? ErrorType { get; }
@@ -145,7 +144,6 @@ namespace NekoLib.Navigation.Diagnostics
             string? requestedLoadMode = null,
             string? effectiveLoadMode = null,
             string? reusePolicy = null,
-            string? presentation = null,
             string? decision = null,
             string? failureKind = null,
             string? errorType = null,
@@ -185,7 +183,6 @@ namespace NekoLib.Navigation.Diagnostics
             RequestedLoadMode = requestedLoadMode;
             EffectiveLoadMode = effectiveLoadMode;
             ReusePolicy = reusePolicy;
-            Presentation = presentation;
             Decision = decision;
             FailureKind = failureKind;
             ErrorType = errorType;

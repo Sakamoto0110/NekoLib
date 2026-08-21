@@ -4,11 +4,11 @@ using System;
 namespace NekoLib.Navigation.Diagnostics
 {
     /// <summary>Projects Navigation outcomes into the independent logging channel.</summary>
-    public sealed class LoggingNavigationSink : INavigationDiagnosticsSink
+    internal sealed class LoggingNavigationSink : INavigationDiagnosticsSink
     {
         private readonly ILogger _logger;
 
-        public LoggingNavigationSink(ILogger logger)
+        internal LoggingNavigationSink(ILogger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }

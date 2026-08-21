@@ -51,16 +51,16 @@ namespace NekoLib.Navigation.Runtime.Services
                 interactionBlocker as IPageAwareInteractionBlocker;
         }
 
-        public async Task<TResult> ShowPromptAsync<TPrompt, TResult>(
+        public async Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
             object? payload = null)
             where TPrompt : class, IPromptView<TResult>
         {
             var prompt = _factory.Create<TPrompt>();
-            var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<TResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var entry = new PromptEntry
             {
                 View = prompt,
-                Cancel = () => tcs.TrySetResult(default!)
+                Cancel = () => tcs.TrySetResult(default)
             };
 
             try
@@ -114,7 +114,7 @@ namespace NekoLib.Navigation.Runtime.Services
                 _viewHost.BringToFront(prompt.NativeView);
                 _viewHost.Focus(prompt.NativeView);
 
-                await prompt.OnShownAsync(payload!);
+                await prompt.OnShownAsync(payload);
                 entry.Trace?.Opened();
             }
             catch (Exception ex)
@@ -221,7 +221,10 @@ namespace NekoLib.Navigation.Runtime.Services
             SurfaceCleanup.Rethrow(firstError);
         }
 
-        private void Complete<TResult>(IPromptView<TResult> view, TaskCompletionSource<TResult> tcs, TResult result)
+        private void Complete<TResult>(
+            IPromptView<TResult> view,
+            TaskCompletionSource<TResult?> tcs,
+            TResult? result)
         {
             PromptEntry? owned;
             bool unblock;

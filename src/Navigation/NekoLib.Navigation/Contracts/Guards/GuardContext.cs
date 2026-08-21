@@ -11,8 +11,8 @@ namespace NekoLib.Navigation.Contracts.Guards
             IUserContext user,
             NavigationTimingContext? timing = null)
         {
-            TargetPage = targetPage;
-            User = user;
+            TargetPage = targetPage ?? throw new ArgumentNullException(nameof(targetPage));
+            User = user ?? throw new ArgumentNullException(nameof(user));
             Timing = timing;
         }
 

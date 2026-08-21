@@ -10,6 +10,9 @@ namespace NekoLib.Navigation.Metadata.Attributes
 
         public PageLoadAttribute(NavigationLoadMode mode)
         {
+            if (!Enum.IsDefined(typeof(NavigationLoadMode), mode))
+                throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported navigation load mode.");
+
             Mode = mode;
         }
     }

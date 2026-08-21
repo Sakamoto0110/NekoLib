@@ -12,18 +12,13 @@ namespace NekoLib.Navigation.Metadata.Attributes
         public PageRole Role { get; set; } = PageRole.Normal;
 
         /// <summary>
-        /// Presentation behavior relative to stack.
-        /// </summary>
-        public PagePresentationMode Presentation { get; set; } = PagePresentationMode.Replace;
-
-        /// <summary>
         /// Optional explicit name override.
         /// </summary>
-        public string  Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Optional classification tags.
         /// </summary>
-        public string[]  Tags { get; set; }
+        public string[]? Tags { get; set; }
     }
 }

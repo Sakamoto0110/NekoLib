@@ -54,11 +54,11 @@ namespace NekoLib.Navigation.Tests.Unit
         }
 
         [Fact]
-        public void Record_Null_IsIgnored()
+        public void Record_Null_Throws()
         {
             var h = new NavigationHistory();
 
-            h.Record(null);
+            Assert.Throws<System.ArgumentNullException>(() => h.Record(null));
 
             Assert.False(h.CanGoBack);
             Assert.Empty(h.HistoryBack);
@@ -139,11 +139,11 @@ namespace NekoLib.Navigation.Tests.Unit
         }
 
         [Fact]
-        public void PushForward_Null_IsIgnored()
+        public void PushForward_Null_Throws()
         {
             var h = new NavigationHistory();
 
-            h.PushForward(null);
+            Assert.Throws<System.ArgumentNullException>(() => h.PushForward(null));
 
             Assert.False(h.CanGoForward);
             Assert.Empty(h.HistoryForward);
@@ -159,6 +159,21 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.Equal("B", h.PopForward().PageName);
             Assert.Equal("A", h.PopForward().PageName);
             Assert.False(h.CanGoForward);
+        }
+
+        [Fact]
+        public void HistorySnapshots_AreTopFirstAndReadOnly()
+        {
+            var h = new NavigationHistory();
+            h.Record(Entry("A"));
+            h.Record(Entry("B"));
+
+            Assert.Equal(new[] { "B", "A" }, h.HistoryBack.Select(entry => entry.PageName));
+            Assert.IsAssignableFrom<System.Collections.Generic.IReadOnlyList<PageHistoryEntry>>(
+                h.HistoryBack);
+            Assert.Throws<System.NotSupportedException>(
+                () => ((System.Collections.Generic.IList<PageHistoryEntry>)h.HistoryBack)
+                    .Add(Entry("C")));
         }
 
         // -----------------------------------------------------------------

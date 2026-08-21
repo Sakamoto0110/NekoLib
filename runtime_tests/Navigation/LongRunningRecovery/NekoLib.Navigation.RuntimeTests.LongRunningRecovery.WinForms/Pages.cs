@@ -20,10 +20,10 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms
 
         public override Task OnNavigatedToAsync(NavigationArgs args) => Probe.EnterAsync(args);
         public override Task OnNavigatedFromAsync() => Probe.LeaveAsync();
-        public Task LoadInBackgroundAsync(object args) => Probe.LoadAsync();
+        public Task LoadInBackgroundAsync(object? args) => Probe.LoadAsync();
         public Task ApplyBackgroundResultAsync() => Probe.ApplyAsync();
         public object CaptureState() => Probe.CaptureState();
-        public void RestoreState(object state) => Probe.RestoreState(state);
+        public void RestoreState(object? state) => Probe.RestoreState(state);
         public void OnAttach(IPageHost host) => Probe.Attached();
         public void OnDetach() => Probe.Detached();
 

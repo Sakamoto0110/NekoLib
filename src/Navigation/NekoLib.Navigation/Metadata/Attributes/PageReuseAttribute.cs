@@ -20,6 +20,9 @@ namespace NekoLib.Navigation.Metadata.Attributes
 
         public PageReuseAttribute(PageReusePolicy policy)
         {
+            if (!Enum.IsDefined(typeof(PageReusePolicy), policy))
+                throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unsupported page reuse policy.");
+
             Policy = policy;
         }
     }

@@ -20,8 +20,8 @@ namespace NekoLib.Navigation.Diagnostics
         public string? Trigger { get; }
         public long DurationMilliseconds { get; }
 
-        /// <summary>Existing constructor retained for compatibility.</summary>
-        public GuardDeniedEvent(
+        /// <summary>Internal constructor for uncorrelated runtime and test events.</summary>
+        internal GuardDeniedEvent(
             IPageView? fromPage,
             Type? targetPage,
             Type? redirectPage,

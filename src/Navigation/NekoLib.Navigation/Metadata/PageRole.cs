@@ -23,12 +23,6 @@ namespace NekoLib.Navigation.Metadata
         /// the page the runtime falls back to when there is nothing else
         /// to show.
         /// </summary>
-        Idle = 1,
-
-        /// <summary>
-        /// Explicit timeout destination for timeout policies that distinguish
-        /// timeout targets from the idle page.
-        /// </summary>
-        TimeoutTarget = 2
+        Idle = 1
     }
 }

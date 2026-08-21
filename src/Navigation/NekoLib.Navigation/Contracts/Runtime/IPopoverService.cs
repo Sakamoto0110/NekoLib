@@ -17,7 +17,7 @@ namespace NekoLib.Navigation.Contracts.Runtime
         /// awaits its boolean completion. Background interaction is NOT blocked
         /// while the popover is on screen.
         /// </summary>
-        Task<bool> ShowPopoverAsync<TPopover>(object payload = null)
+        Task<bool> ShowPopoverAsync<TPopover>(object? payload = null)
             where TPopover : class, IPopoverView;
 
         /// <summary>

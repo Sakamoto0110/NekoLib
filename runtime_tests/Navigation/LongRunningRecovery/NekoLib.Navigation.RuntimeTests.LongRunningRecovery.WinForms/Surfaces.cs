@@ -65,6 +65,6 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.WinForms
         public new bool IsDisposed => base.IsDisposed;
         public void BindCompletion(Action<bool> completionCallback) =>
             throw new ScenarioInjectedException("Injected surface binding failure.");
-        public Task OnShownAsync(object payload) => Task.FromResult(0);
+        public Task OnShownAsync(object? payload) => Task.FromResult(0);
     }
 }

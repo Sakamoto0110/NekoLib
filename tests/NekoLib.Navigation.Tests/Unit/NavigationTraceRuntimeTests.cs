@@ -108,7 +108,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             await fixture.Runtime.NavigateAsync(
                 typeof(StubConditionalLoadBefore),
-                NavigationArgs.Background("payload"));
+                NavigationArgs.Default("payload"));
 
             var page = Assert.IsType<StubConditionalLoadBefore>(
                 fixture.Runtime.Current);
@@ -133,7 +133,7 @@ namespace NekoLib.Navigation.Tests.Unit
                 NavigationLoadMode.LoadBeforeShow,
                 log.LoadMode);
             Assert.Equal(
-                NavigationLoadMode.LoadInBackground.ToString(),
+                NavigationLoadMode.ShowImmediately.ToString(),
                 requestStart.RequestedLoadMode);
             Assert.Equal(
                 NavigationLoadMode.LoadBeforeShow.ToString(),
@@ -144,7 +144,6 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.Equal(attemptEnd.TargetPage, requestEnd.TargetPage);
             Assert.Equal(attemptEnd.EffectiveLoadMode, requestEnd.EffectiveLoadMode);
             Assert.Equal(attemptEnd.ReusePolicy, requestEnd.ReusePolicy);
-            Assert.Equal(attemptEnd.Presentation, requestEnd.Presentation);
         }
 
         [Fact]
@@ -197,7 +196,6 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.Equal(childEnd.TargetPage, requestEnd.TargetPage);
             Assert.Equal(childEnd.EffectiveLoadMode, requestEnd.EffectiveLoadMode);
             Assert.Equal(childEnd.ReusePolicy, requestEnd.ReusePolicy);
-            Assert.Equal(childEnd.Presentation, requestEnd.Presentation);
 
             var guardEvent = Assert.Single(denied);
             var pageLog = Assert.Single(logs);
@@ -243,9 +241,6 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.Equal(
                 PageReusePolicy.Transient.ToString(),
                 request.ReusePolicy);
-            Assert.Equal(
-                PagePresentationMode.Replace.ToString(),
-                request.Presentation);
         }
 
         [Fact]
@@ -387,9 +382,6 @@ namespace NekoLib.Navigation.Tests.Unit
             Assert.Equal(
                 PageReusePolicy.StrongSingleton.ToString(),
                 request.ReusePolicy);
-            Assert.Equal(
-                PagePresentationMode.Replace.ToString(),
-                request.Presentation);
         }
 
         [Fact]

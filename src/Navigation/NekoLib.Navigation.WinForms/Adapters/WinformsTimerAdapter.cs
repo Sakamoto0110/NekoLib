@@ -10,6 +10,12 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
         public event Action Tick;
 
+        event Action? ITimerAdapter.Tick
+        {
+            add { if (value != null) Tick += value; }
+            remove { if (value != null) Tick -= value; }
+        }
+
         public int IntervalMilliseconds
         {
             get => _timer.Interval;

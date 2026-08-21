@@ -17,7 +17,7 @@ namespace NekoLib.Navigation.Diagnostics
         private readonly INavigationDiagnosticsSink? _sink;
         internal string RuntimeId { get; } = Guid.NewGuid().ToString("N");
 
-        public NavigationDiagnostics(
+        internal NavigationDiagnostics(
             NavigationEventHub hub,
             INavigationDiagnosticsSink? sink = null)
         {
@@ -123,7 +123,7 @@ namespace NekoLib.Navigation.Diagnostics
                 elapsedMilliseconds: elapsedMilliseconds));
         }
 
-        public void EmitNavigation(PageLogEntry entry)
+        internal void EmitNavigation(PageLogEntry entry)
         {
             if (entry is null)
                 return;
@@ -134,7 +134,7 @@ namespace NekoLib.Navigation.Diagnostics
             _hub.Publish(entry);
         }
 
-        public void EmitSuccess(
+        internal void EmitSuccess(
             IPageView? from,
             IPageView? to,
             NavigationArgs args,
@@ -159,7 +159,6 @@ namespace NekoLib.Navigation.Diagnostics
                 targetType,
                 desc?.Name ?? PageName(to) ?? targetType.Name,
                 success: true,
-                navigationBehavior: desc?.Presentation ?? default,
                 navigationLoadMode: desc?.LoadMode ?? args?.LoadMode ?? default,
                 reusePolicy: desc?.ReusePolicy ?? default,
                 failureKind: NavigationFailureKind.None,
@@ -169,7 +168,7 @@ namespace NekoLib.Navigation.Diagnostics
                 trace: trace));
         }
 
-        public void EmitFailure(
+        internal void EmitFailure(
             IPageView? from,
             IPageView? to,
             NavigationArgs args,
@@ -208,7 +207,6 @@ namespace NekoLib.Navigation.Diagnostics
                 targetType,
                 desc?.Name ?? PageName(to) ?? targetType.Name,
                 success: false,
-                navigationBehavior: desc?.Presentation ?? default,
                 navigationLoadMode: desc?.LoadMode ?? args?.LoadMode ?? default,
                 reusePolicy: desc?.ReusePolicy ?? default,
                 failureKind: kind,
@@ -218,7 +216,7 @@ namespace NekoLib.Navigation.Diagnostics
                 trace: trace));
         }
 
-        public void EmitGuardDenied(
+        internal void EmitGuardDenied(
             IPageView? from,
             Type? target,
             Type? redirect,

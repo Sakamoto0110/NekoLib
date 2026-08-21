@@ -14,7 +14,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// Called by the PopoverService right after the view is attached and made visible.
         /// </summary>
-        Task OnShownAsync(object payload);
+        Task OnShownAsync(object? payload);
 
         /// <summary>
         /// Supplies the completion callback the view invokes to dismiss itself.

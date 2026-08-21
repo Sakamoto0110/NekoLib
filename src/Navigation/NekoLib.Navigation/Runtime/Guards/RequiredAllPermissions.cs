@@ -10,7 +10,10 @@ namespace NekoLib.Navigation.Runtime.Guards {
 
         public RequireAllPermissionsGuard(params string[] requiredPermissions)
         {
-            _required = requiredPermissions ?? Array.Empty<string>();
+            _required = GuardContractValidation.CopyNames(
+                requiredPermissions,
+                nameof(requiredPermissions),
+                "required permission");
         }
 
         public Task<GuardResult> EvaluateAsync(GuardContext context)

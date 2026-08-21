@@ -8,15 +8,22 @@ namespace NekoLib.Navigation.Metadata.Attributes
     public sealed class RequirePermissionAttribute : GuardAttribute
     {
         public string Permission { get; }
-        private readonly Type Redirect;
+
+        public RequirePermissionAttribute(string permission)
+        {
+            Permission = !string.IsNullOrWhiteSpace(permission)
+                ? permission
+                : throw new ArgumentException(
+                    "A required permission cannot be null, empty, or whitespace.", nameof(permission));
+        }
 
         public RequirePermissionAttribute(string permission, Type redirect)
+            : this(permission)
         {
-            Permission = permission;
-            Redirect = redirect;
+            RedirectTo = redirect ?? throw new ArgumentNullException(nameof(redirect));
         }
 
         public override IGuard CreateGuard()
-            => new RequirePermissionGuard(Permission, Redirect);
+            => ApplyRedirect(new RequirePermissionGuard(Permission));
     }
 }

@@ -17,11 +17,15 @@ namespace NekoLib.Navigation.Metadata.Attributes
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class PageTimeoutAttribute : Attribute
     {
-        /// <summary>Idle timeout in seconds. Values &lt;= 0 are ignored.</summary>
+        /// <summary>Idle timeout in seconds.</summary>
         public int Seconds { get; }
 
         public PageTimeoutAttribute(int seconds)
         {
+            if (seconds <= 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(seconds), seconds, "Idle timeout must be greater than zero seconds.");
+
             Seconds = seconds;
         }
     }

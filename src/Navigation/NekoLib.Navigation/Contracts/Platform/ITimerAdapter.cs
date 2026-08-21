@@ -18,7 +18,7 @@ namespace NekoLib.Navigation.Contracts.Platform
         /// <summary>
         /// Raised when the timer interval elapses.
         /// </summary>
-        event Action Tick;
+        event Action? Tick;
 
         /// <summary>
         /// Starts or resumes the timer.

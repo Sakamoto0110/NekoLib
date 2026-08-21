@@ -1,0 +1,153 @@
+# F1-NAV Candidate Migration
+
+**Kind:** guide
+
+**Lifecycle:** current
+
+**Subject:** migration from the initial Navigation candidate surface to the
+accepted F1-NAV core contract
+
+This guide covers the pre-stable `NekoLib.Navigation` correction accepted on
+2026-08-20. The rationale, evidence, and rejected alternatives are preserved in
+the [Navigation public API review](../audit/navigation-public-api-review-2026-08-20.md).
+The WinForms and WPF concrete adapter surfaces have separate F1 reviews; this
+guide covers the shared core package only.
+
+## Navigation now accepts a request and returns its outcome
+
+`NavigationService.SwitchPage` now accepts `NavigationArgs?` instead of an
+untyped payload and returns `Task<NavigationResult>`:
+
+```csharp
+var result = await NavigationService.SwitchPage<DashboardPage>(
+    NavigationArgs.Default(orderId).WithTiming(timing));
+
+if (!result.Succeeded)
+{
+    ShowAccessDenied(result.DenialReason);
+}
+else if (result.WasRedirected)
+{
+    TrackRedirect(result.RequestedPage, result.FinalPage);
+}
+```
+
+This makes `NavigationTimingContext` reachable through the supported facade and
+keeps each normal outcome correlated with its own call. Guard denial and guard
+redirect remain normal completions. Registration, creation, load, lifecycle,
+and teardown failures still throw.
+
+Migrate payload-only calls as follows:
+
+```csharp
+// Before
+await NavigationService.SwitchPage<DashboardPage>(orderId);
+
+// After
+await NavigationService.SwitchPage<DashboardPage>(
+    NavigationArgs.Default(orderId));
+```
+
+Calls with no payload remain `await NavigationService.SwitchPage<TPage>()`.
+There is no caller cancellation token: an admitted request still owns its UI
+lifecycle and rollback terminal.
+
+## Request factories no longer imitate descriptor policy
+
+Remove `NavigationArgs.Transient`, `Preload`, `Background`, and public `Back`,
+plus both `NavigationService.SwitchTransient` aliases. Configure reuse and load
+timing on the registered descriptor:
+
+```csharp
+PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(mainPanel)
+    .ConfigurePages(pages => pages
+        .Page<DashboardPage>()
+        .StrongSingleton()
+        .LoadMode(NavigationLoadMode.LoadBeforeShow))
+    .Start();
+```
+
+`GoBackAsync` remains the only public way to request a history back-step.
+
+## Registration is composed and framework-owned
+
+Repeated rules for one page now compose in declaration order instead of each
+call replacing the previous action. Descriptor tags are copied when built, so
+a retained configuration callback cannot mutate an existing descriptor.
+Invalid page types, callbacks, names, tags, enum values, and timeouts now fail
+deterministically.
+
+Constructors for `PageMetadataBuilder`, `PageBuilderConfigurator`, and
+`PageDescriptorBuilder` are internal. Use `PageRegistry.Create(...)` or the
+bootstrap configuration callbacks rather than constructing detached builders.
+
+## Inert metadata was removed
+
+Delete `PagePresentationMode`, every `Presentation` assignment/read, and
+`PageRole.TimeoutTarget`. The only presentation value was `Replace` and it had
+no runtime branch. Use `PageRole.Idle` plus `[PageTimeout]`, `.IdleTimeout(...)`,
+or `UseIdleTimeout(...)` for idle behavior. Toast, dialog, prompt, popover, and
+loading-mask surfaces remain separate contracts and services.
+
+## Guard redirects are uniform
+
+`RedirectTo` now applies to every built-in guard attribute:
+
+```csharp
+[RequireAuthenticated(RedirectTo = typeof(LoginPage))]
+[RequirePermission("orders.read", RedirectTo = typeof(AccessDeniedPage))]
+public sealed class OrdersPage : PageView
+{
+}
+```
+
+`RequirePermissionAttribute(string)` supports deny-only use; the existing
+two-argument redirect constructor remains. Invalid or blank role, permission,
+redirect, page, and context inputs fail early. Role and permission collections
+are copied. Remove `DefaultUserContext`; use the context's `NavigationSession`
+or an application implementation of `IUserContext`. Custom guard attributes
+remain supported through public `GuardAttribute.CreateGuard()`; uniform
+`RedirectTo` wrapping is guaranteed for the built-in attributes.
+
+## Page, platform, surface, and result nullability is explicit
+
+Remove `IPageResources` and `IPageInteraction` from consumer page declarations;
+the runtime never invoked them. Page payloads and captured/restored state are
+nullable. Optional platform event, interaction, focus, blocker, and loading-mask
+factories now declare nullable returns. Prompt shutdown can produce
+`default(TResult)`, so prompt results are nullable for reference result types.
+
+`NavigationService.Current` and the previous/current page arguments of facade
+events are nullable. Handle the absence that already occurred before first
+navigation and after reset or shutdown.
+
+## History and diagnostics are read-only
+
+`NavigationHistory` remains observable through `NavigationService.History`, but
+its constructor and mutation methods are internal. `HistoryBack` and
+`HistoryForward` are top-first `IReadOnlyList<PageHistoryEntry>` snapshots.
+Remove calls to `BackStackSnapshot`, `ForwardStackSnapshot`, and `Dump`; read the
+two properties instead and use facade operations to mutate navigation.
+`PageHistoryEntry.State` is nullable and its constructor is framework-owned.
+
+`NavigationService.Events` and `NavigationDiagnostics.Hub` remain subscription
+surfaces. Event publication, DTO construction, `NavigationDiagnostics.Emit*`,
+`INavigationDiagnosticsSink`, and `LoggingNavigationSink` are internal. Use
+`PageNavBootstrap.UseLogging(...)`, `UseTelemetry(...)`, and passive Inspection
+configuration rather than fabricating framework evidence.
+
+## Unchanged contracts
+
+- the static facade, `PageNavBootstrap.Use<TPlatform>()`, `Start()`, terminal
+  `Shutdown()`, reset, history back, session, services, and read-only events;
+- UI dispatch, the navigation gate, 30-second guard bound, redirect correlation
+  and depth/cycle checks, lifecycle order, rollback, history commit, caching,
+  background-load ownership, and teardown;
+- dialog, prompt, popover, toast, loading-mask, surface, toolkit, and service
+  boundaries, including their intentionally asymmetric teardown;
+- `net481`/`net9.0` targets, the `NekoLib.Core` project dependency, package ID,
+  namespaces, compile-time constants, and nullable/implicit-using project
+  settings;
+- passive-only Inspection: no action registration or privileged navigation
+  control was added.

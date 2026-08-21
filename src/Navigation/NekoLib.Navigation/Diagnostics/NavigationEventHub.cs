@@ -13,6 +13,10 @@ namespace NekoLib.Navigation.Diagnostics
     /// </summary>
     public sealed class NavigationEventHub
     {
+        internal NavigationEventHub()
+        {
+        }
+
         public event Action<PageLogEntry>? NavigationLogged;
         public event Action<GuardDeniedEvent>? GuardDenied;
         internal event Action<NavigationStartedEvent>? NavigationStarted;
@@ -46,13 +50,13 @@ namespace NekoLib.Navigation.Diagnostics
             PublishToEach(NavigationTrace, e);
         }
 
-        public void Publish(PageLogEntry entry)
+        internal void Publish(PageLogEntry entry)
         {
             if (entry is null) return;
             PublishToEach(NavigationLogged, entry);
         }
 
-        public void Publish(GuardDeniedEvent e)
+        internal void Publish(GuardDeniedEvent e)
         {
             if (e is null) return;
             PublishToEach(GuardDenied, e);

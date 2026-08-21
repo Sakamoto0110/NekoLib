@@ -51,73 +51,7 @@ namespace NekoLib.Navigation.Tests.Unit
         }
 
         // -----------------------------------------------------------------
-        // Transient factory
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Transient_ShowImmediately_NotBack()
-        {
-            var args = NavigationArgs.Transient();
-
-            Assert.Equal(NavigationLoadMode.ShowImmediately, args.LoadMode);
-            Assert.False(args.IsBackNavigation);
-        }
-
-        [Fact]
-        public void Transient_CarriesPayload()
-        {
-            var payload = "x";
-            var args = NavigationArgs.Transient(payload);
-
-            Assert.Equal("x", args.Payload);
-        }
-
-        // -----------------------------------------------------------------
-        // Preload factory
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Preload_LoadBeforeShow_NotBack()
-        {
-            var args = NavigationArgs.Preload();
-
-            Assert.Equal(NavigationLoadMode.LoadBeforeShow, args.LoadMode);
-            Assert.False(args.IsBackNavigation);
-        }
-
-        [Fact]
-        public void Preload_CarriesPayload()
-        {
-            var payload = 42;
-            var args = NavigationArgs.Preload(payload);
-
-            Assert.Equal(42, args.Payload);
-        }
-
-        // -----------------------------------------------------------------
-        // Background factory
-        // -----------------------------------------------------------------
-
-        [Fact]
-        public void Background_LoadInBackground_NotBack()
-        {
-            var args = NavigationArgs.Background();
-
-            Assert.Equal(NavigationLoadMode.LoadInBackground, args.LoadMode);
-            Assert.False(args.IsBackNavigation);
-        }
-
-        [Fact]
-        public void Background_CarriesPayload()
-        {
-            var payload = new int[] { 1, 2, 3 };
-            var args = NavigationArgs.Background(payload);
-
-            Assert.Same(payload, args.Payload);
-        }
-
-        // -----------------------------------------------------------------
-        // Back factory  (Pass 4 / N-2)
+        // Internal back factory  (Pass 4 / N-2)
         // -----------------------------------------------------------------
 
         [Fact]

@@ -19,15 +19,17 @@ namespace NekoLib.Navigation.Metadata
         /// Page-owned history state. This is not the original forward-navigation
         /// payload; it is the value returned by <c>IPageStateful.CaptureState()</c>.
         /// </summary>
-        public object State { get; }
+        public object? State { get; }
 
         /// <summary>Time the history entry was created.</summary>
         public DateTime Timestamp { get; }
 
-        public PageHistoryEntry(Type pageType, string pageName, object state)
+        internal PageHistoryEntry(Type pageType, string pageName, object? state)
         {
-            PageType = pageType;
-            PageName = pageName;
+            PageType = pageType ?? throw new ArgumentNullException(nameof(pageType));
+            PageName = !string.IsNullOrWhiteSpace(pageName)
+                ? pageName
+                : throw new ArgumentException("A history entry must have a non-empty page name.", nameof(pageName));
             State = state;
             Timestamp = DateTime.Now;
         }

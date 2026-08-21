@@ -24,7 +24,7 @@ public sealed class NavigationArgs
     /// <c>IPageStateful.RestoreState(object)</c> before the page's
     /// <c>OnNavigatedToAsync</c> runs, so stateful pages should prefer that channel.
     /// </summary>
-    public object Payload { get; }
+    public object? Payload { get; }
 
     /// <summary>
     /// Requested load mode before registry lookup, and the descriptor-effective
@@ -47,7 +47,7 @@ public sealed class NavigationArgs
     public NavigationTimingContext? Timing { get; }
 
     private NavigationArgs(
-        object payload,
+        object? payload,
         NavigationLoadMode loadMode,
         bool isBackNavigation = false,
         NavigationTimingContext? timing = null)
@@ -64,30 +64,8 @@ public sealed class NavigationArgs
     /// Requests immediate display. Registered descriptor metadata remains
     /// authoritative after the target is resolved.
     /// </summary>
-    public static NavigationArgs Default(object payload = null)
+    public static NavigationArgs Default(object? payload = null)
         => new(payload, NavigationLoadMode.ShowImmediately);
-
-    /// <summary>
-    /// Currently an alias of <see cref="Default"/>; retained as a distinct entry
-    /// point for transient navigations so reuse-policy semantics can be attached
-    /// here later without churning call sites.
-    /// </summary>
-    public static NavigationArgs Transient(object payload = null)
-        => new(payload, NavigationLoadMode.ShowImmediately);
-
-    /// <summary>
-    /// Requests loading before display. Registered descriptor metadata remains
-    /// authoritative after the target is resolved.
-    /// </summary>
-    public static NavigationArgs Preload(object payload = null)
-        => new(payload, NavigationLoadMode.LoadBeforeShow);
-
-    /// <summary>
-    /// Requests background loading after display. Registered descriptor metadata
-    /// remains authoritative after the target is resolved.
-    /// </summary>
-    public static NavigationArgs Background(object payload = null)
-        => new(payload, NavigationLoadMode.LoadInBackground);
 
     /// <summary>
     /// Back-navigation request created by the runtime when replaying a history
@@ -95,7 +73,7 @@ public sealed class NavigationArgs
     /// <c>IPageStateful.CaptureState()</c>; it is delivered both via
     /// <see cref="Payload"/> and via <c>IPageStateful.RestoreState(object)</c>.
     /// </summary>
-    public static NavigationArgs Back(object state = null)
+    internal static NavigationArgs Back(object? state = null)
         => new(state, NavigationLoadMode.ShowImmediately, isBackNavigation: true);
 
     /// <summary>

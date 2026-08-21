@@ -7,11 +7,13 @@ namespace NekoLib.Navigation.Runtime.Guards {
     public sealed class RequireRoleGuard : IGuard
     {
         private readonly string _role;
-        private readonly Type _redirect;
+        private readonly Type? _redirect;
 
-        public RequireRoleGuard(string role, Type redirect)
+        public RequireRoleGuard(string role, Type? redirect = null)
         {
-            _role = role;
+            _role = GuardContractValidation.RequireName(role, nameof(role), "required role");
+            if (redirect != null)
+                GuardResult.Redirect(redirect);
             _redirect = redirect;
         }
 

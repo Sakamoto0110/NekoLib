@@ -8,11 +8,16 @@ namespace NekoLib.Navigation.Runtime.Guards
     public sealed class RequirePermissionGuard : IGuard
     {
         private readonly string _permission;
-        private readonly Type _redirect;
+        private readonly Type? _redirect;
 
-        public RequirePermissionGuard(string permission, Type redirect)
+        public RequirePermissionGuard(string permission, Type? redirect = null)
         {
-            _permission = permission;
+            _permission = GuardContractValidation.RequireName(
+                permission,
+                nameof(permission),
+                "required permission");
+            if (redirect != null)
+                GuardResult.Redirect(redirect);
             _redirect = redirect;
         }
 

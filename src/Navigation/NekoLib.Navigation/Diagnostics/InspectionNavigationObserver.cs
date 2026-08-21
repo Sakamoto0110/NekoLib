@@ -998,12 +998,12 @@ namespace NekoLib.Navigation.Diagnostics
         // -----------------------------------------------------------------
 
         private void OnFacadeNavigating(
-            IPageView from,
+            IPageView? from,
             Type toType,
             NavigationArgs args)
             => RefreshSessionMirror();
 
-        private void OnCurrentChanged(IPageView page)
+        private void OnCurrentChanged(IPageView? page)
         {
             string? name = null;
             string? type = null;
@@ -1379,7 +1379,6 @@ namespace NekoLib.Navigation.Diagnostics
                     type = descriptor.PageType.FullName ??
                         descriptor.PageType.Name,
                     role = descriptor.Role.ToString(),
-                    presentation = descriptor.Presentation.ToString(),
                     reuse = descriptor.ReusePolicy.ToString(),
                     loadMode = descriptor.LoadMode.ToString(),
                     allowAnonymous = descriptor.AllowAnonymous,
@@ -1428,7 +1427,6 @@ namespace NekoLib.Navigation.Diagnostics
                     failureKind = (string?)null,
                     errorType = (string?)null,
                     stage = (string?)null,
-                    presentation = (string?)null,
                     loadMode = (string?)null,
                     reuse = (string?)null,
                     timeout = false,
@@ -1455,7 +1453,6 @@ namespace NekoLib.Navigation.Diagnostics
                 failureKind = outcome.FailureKind,
                 errorType = outcome.ErrorType,
                 stage = outcome.Stage,
-                presentation = outcome.Presentation,
                 loadMode = outcome.LoadMode,
                 reuse = outcome.Reuse,
                 timeout = outcome.Timeout,
@@ -1904,7 +1901,6 @@ namespace NekoLib.Navigation.Diagnostics
             public string? FailureKind { get; private set; }
             public string? ErrorType { get; private set; }
             public string? Stage { get; private set; }
-            public string? Presentation { get; private set; }
             public string? LoadMode { get; private set; }
             public string? Reuse { get; private set; }
             public bool Timeout { get; private set; }
@@ -1930,7 +1926,6 @@ namespace NekoLib.Navigation.Diagnostics
                     FailureKind = e.FailureKind,
                     ErrorType = e.ErrorType,
                     Stage = e.PreviousStage.ToString(),
-                    Presentation = e.Presentation,
                     LoadMode = e.EffectiveLoadMode ?? e.RequestedLoadMode,
                     Reuse = e.ReusePolicy,
                     Timeout = string.Equals(
@@ -1960,7 +1955,6 @@ namespace NekoLib.Navigation.Diagnostics
                     FailureKind = entry.FailureKind.ToString(),
                     ErrorType = null,
                     Stage = entry.FailureKind.ToString(),
-                    Presentation = entry.Presentation.ToString(),
                     LoadMode = entry.LoadMode.ToString(),
                     Reuse = entry.ReusePolicy.ToString(),
                     Timeout = entry.IsTimeout,
@@ -1989,7 +1983,6 @@ namespace NekoLib.Navigation.Diagnostics
                     FailureKind = null,
                     ErrorType = null,
                     Stage = null,
-                    Presentation = null,
                     LoadMode = null,
                     Reuse = null,
                     Timeout = false,

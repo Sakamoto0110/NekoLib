@@ -111,7 +111,7 @@ namespace NekoLib.Navigation.Runtime.Services
                 _viewHost.BringToFront(dialog.NativeView);
                 _viewHost.Focus(dialog.NativeView);
 
-                await dialog.OnShownAsync(payload!);
+                await dialog.OnShownAsync(payload);
                 entry.Trace?.Opened();
             }
             catch (Exception ex)

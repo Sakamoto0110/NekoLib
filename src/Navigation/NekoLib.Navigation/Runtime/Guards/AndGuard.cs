@@ -1,6 +1,5 @@
 ﻿using NekoLib.Navigation.Contracts.Guards;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Guards {
@@ -10,10 +9,12 @@ namespace NekoLib.Navigation.Runtime.Guards {
 
         public AndGuard(params IGuard[] guards)
         {
-            _guards = guards?
-            .Where(g => g != null)
-            .ToArray()
-            ?? Array.Empty<IGuard>();
+            if (guards == null)
+                throw new ArgumentNullException(nameof(guards));
+
+            _guards = (IGuard[])guards.Clone();
+            if (Array.Exists(_guards, guard => guard == null))
+                throw new ArgumentException("A guard collection cannot contain null.", nameof(guards));
         }
 
         public async Task<GuardResult> EvaluateAsync(GuardContext context)

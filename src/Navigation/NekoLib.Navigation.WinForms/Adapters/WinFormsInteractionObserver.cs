@@ -16,6 +16,12 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
         public event Action InteractionDetected;
 
+        event Action? IInteractionObserverService.InteractionDetected
+        {
+            add { if (value != null) InteractionDetected += value; }
+            remove { if (value != null) InteractionDetected -= value; }
+        }
+
         public WinFormsInteractionObserver(Control root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));

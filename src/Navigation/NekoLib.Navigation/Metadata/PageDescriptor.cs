@@ -19,9 +19,6 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>Semantic role such as normal or idle page.</summary>
         public PageRole Role { get; }
 
-        /// <summary>Presentation mode requested for the page.</summary>
-        public PagePresentationMode Presentation { get; }
-
         /// <summary>Instance reuse policy used by the runtime page cache.</summary>
         public PageReusePolicy ReusePolicy { get; }
 
@@ -58,7 +55,6 @@ namespace NekoLib.Navigation.Metadata
             Type pageType,
             string name,
             PageRole role,
-            PagePresentationMode presentation,
             PageReusePolicy reusePolicy,
             int? idleTimeoutSeconds,
             NavigationLoadMode loadMode,
@@ -67,15 +63,16 @@ namespace NekoLib.Navigation.Metadata
             IGuard? guard,
             bool keepAttachedWhenHidden)
         {
-            PageType = pageType;
-            Name = name;
+            PageType = pageType ?? throw new ArgumentNullException(nameof(pageType));
+            Name = !string.IsNullOrWhiteSpace(name)
+                ? name
+                : throw new ArgumentException("A page descriptor must have a non-empty name.", nameof(name));
             Role = role;
-            Presentation = presentation;
             ReusePolicy = reusePolicy;
             IdleTimeoutSeconds = idleTimeoutSeconds;
             LoadMode = loadMode;
             AllowAnonymous = allowAnonymous;
-            Tags = tags;
+            Tags = tags ?? throw new ArgumentNullException(nameof(tags));
             Guard = guard;
             KeepAttachedWhenHidden = keepAttachedWhenHidden;
          }

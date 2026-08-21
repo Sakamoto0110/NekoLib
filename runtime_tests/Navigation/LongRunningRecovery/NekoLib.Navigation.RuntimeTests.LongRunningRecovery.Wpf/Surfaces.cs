@@ -63,7 +63,7 @@ namespace NekoLib.Navigation.RuntimeTests.LongRunningRecovery.Wpf
         public bool IsDisposed { get; private set; }
         public void BindCompletion(Action<bool> completionCallback) =>
             throw new ScenarioInjectedException("Injected surface binding failure.");
-        public Task OnShownAsync(object payload) => Task.CompletedTask;
+        public Task OnShownAsync(object? payload) => Task.CompletedTask;
         public void Dispose() { IsDisposed = true; }
     }
 }

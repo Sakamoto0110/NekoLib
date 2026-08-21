@@ -42,15 +42,10 @@ namespace NekoLib.Navigation.Tests.Unit
         }
 
         [Fact]
-        public async Task EvaluateAsync_WithoutUserContext_DeniesWithStableReason()
+        public void GuardContext_WithoutUserContext_Throws()
         {
-            var guard = new RequireAuthenticatedGuard();
-
-            var result = await guard.EvaluateAsync(
-                new GuardContext(typeof(StubAuthenticated), null));
-
-            Assert.False(result.Allowed);
-            Assert.Equal(ExpectedReason, result.Reason);
+            Assert.Throws<System.ArgumentNullException>(
+                () => new GuardContext(typeof(StubAuthenticated), null));
         }
 
         [Fact]

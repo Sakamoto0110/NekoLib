@@ -1,6 +1,8 @@
 ﻿using NekoLib.Navigation.Contracts.Guards;
 using NekoLib.Navigation.Runtime.Guards;
 
+using System;
+
 namespace NekoLib.Navigation.Metadata.Attributes
 {
     public sealed class RequireRoleAttribute : GuardAttribute
@@ -10,13 +12,13 @@ namespace NekoLib.Navigation.Metadata.Attributes
 
         public RequireRoleAttribute(string role)
         {
-            Role = role;
+            Role = !string.IsNullOrWhiteSpace(role)
+                ? role
+                : throw new ArgumentException("A required role cannot be null, empty, or whitespace.", nameof(role));
         }
 
         public override IGuard CreateGuard()
-        {
-            return new RequireRoleGuard(Role, RedirectTo);
-        }
+            => ApplyRedirect(new RequireRoleGuard(Role));
     }
 
 

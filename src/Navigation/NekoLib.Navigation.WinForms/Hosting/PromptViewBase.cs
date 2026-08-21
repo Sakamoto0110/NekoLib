@@ -20,7 +20,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// </summary>
     public class PromptViewBase<TResult> : UserControl, IPromptView<TResult>
     {
-        private Action<TResult> _completionCallback;
+        private Action<TResult?>? _completionCallback;
         private Size _naturalSize;
         private Control _trackedParent;
         private Action? _pendingLayout;
@@ -38,12 +38,12 @@ namespace NekoLib.Navigation.WinForms.Hosting
             ParentChanged += OnParentChanged;
         }
 
-        void IPromptView<TResult>.BindCompletion(Action<TResult> completionCallback)
+        void IPromptView<TResult>.BindCompletion(Action<TResult?> completionCallback)
         {
             _completionCallback = completionCallback;
         }
 
-        Task IPromptView.OnShownAsync(object payload) => OnShownAsync(payload);
+        Task IPromptView.OnShownAsync(object? payload) => OnShownAsync(payload!);
 
         /// <summary>
         /// Override to react to the prompt becoming visible (e.g. focus, load payload).

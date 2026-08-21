@@ -52,9 +52,9 @@ namespace NekoLib.Navigation.WinForms.Hosting
             _dismissCallback = dismissCallback;
         }
 
-        void IToastView.OnShown(object payload)
+        void IToastView.OnShown(object? payload)
         {
-            OnShown(payload);
+            OnShown(payload!);
 
             // After OnShown, so a subclass that resizes itself from the payload is
             // placed at its final size.

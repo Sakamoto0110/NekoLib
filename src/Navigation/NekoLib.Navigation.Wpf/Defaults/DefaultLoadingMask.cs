@@ -45,6 +45,9 @@ namespace NekoLib.Navigation.Wpf.Defaults
             return Task.CompletedTask;
         }
 
+        Task IPageOverlay.OnOverlayOpenedAsync(object? payload)
+            => OnOverlayOpenedAsync(payload!);
+
         public Task OnOverlayClosingAsync() => Task.CompletedTask;
 
         public void Dispose() => IsDisposed = true;

@@ -24,7 +24,6 @@ namespace NekoLib.Navigation.Tests.Unit
                 nameof(StubA),
                 NavigationArgs.Empty,
                 success: true,
-                navigationBehavior: PagePresentationMode.Replace,
                 navigationLoadMode: NavigationLoadMode.ShowImmediately,
                 reusePolicy: PageReusePolicy.Transient));
 

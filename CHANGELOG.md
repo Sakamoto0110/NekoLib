@@ -16,6 +16,23 @@ remain under `docs/history/`.
 
 ### Public API
 
+- **NekoLib.Navigation — breaking, additive, and behavioral pre-stable
+  candidate correction for the first `1.0.0` stable family release.** The
+  intentional static facade remains, but `SwitchPage` now accepts
+  `NavigationArgs?` directly and returns a call-scoped `NavigationResult` for
+  success, denial, and redirect. Removed ineffective request-mode factories,
+  transient aliases, forged public back requests, the nonfunctional
+  `UseRegistered`, inert presentation/timeout-target metadata, two unused page
+  interfaces, and `DefaultUserContext`. Registration rules now compose and
+  descriptors copy their collections. Guard attributes honor `RedirectTo`
+  uniformly and role/permission/session inputs are validated and copied.
+  History is a top-first read-only snapshot surface; framework evidence can be
+  subscribed to but no longer fabricated through public constructors, emitters,
+  or sinks. Optional payload, state, result, event, and platform-factory
+  nullability now matches runtime behavior. Lifecycle ordering, UI dispatch,
+  navigation gate, guard bound, redirect correlation, rollback, caching,
+  surfaces, passive Inspection, targets, and dependencies remain unchanged. See
+  the [F1-NAV migration guide](docs/migrations/f1-navigation.md).
 - **NekoLib.Watchdog.Host — breaking and behavioral pre-stable deployment
   correction for the first `1.0.0` stable family release.** The Host remains a
   separate framework-dependent tools/build package with no compile-time API,

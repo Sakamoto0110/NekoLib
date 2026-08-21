@@ -159,7 +159,6 @@ namespace NekoLib.Navigation.Diagnostics
                 requestedLoadMode: RequestedLoadMode,
                 effectiveLoadMode: terminalAttempt?.EffectiveLoadMode,
                 reusePolicy: terminalAttempt?.ReusePolicy,
-                presentation: terminalAttempt?.Presentation,
                 decision: decision,
                 failureKind: failureKind ?? _failureKind,
                 errorType: errorType ?? _errorType,
@@ -227,7 +226,6 @@ namespace NekoLib.Navigation.Diagnostics
                 requestedLoadMode: RequestedLoadMode,
                 effectiveLoadMode: attempt.EffectiveLoadMode,
                 reusePolicy: attempt.ReusePolicy,
-                presentation: attempt.Presentation,
                 decision: decision,
                 errorType: errorType,
                 success: kind == NavigationTraceKind.BackgroundLoadCompleted
@@ -278,7 +276,6 @@ namespace NekoLib.Navigation.Diagnostics
 
         public string? EffectiveLoadMode { get; private set; }
         public string? ReusePolicy { get; private set; }
-        public string? Presentation { get; private set; }
 
         internal NavigationAttemptTraceScope(
             NavigationDiagnostics diagnostics,
@@ -325,7 +322,6 @@ namespace NekoLib.Navigation.Diagnostics
             TargetPage = descriptor.Name;
             EffectiveLoadMode = descriptor.LoadMode.ToString();
             ReusePolicy = descriptor.ReusePolicy.ToString();
-            Presentation = descriptor.Presentation.ToString();
         }
 
         internal void SetFromPageName(string? fromPage)
@@ -362,7 +358,6 @@ namespace NekoLib.Navigation.Diagnostics
                 requestedLoadMode: _request.RequestedLoadMode,
                 effectiveLoadMode: EffectiveLoadMode,
                 reusePolicy: ReusePolicy,
-                presentation: Presentation,
                 isBackNavigation: IsBackNavigation,
                 elapsedMilliseconds: _watch.ElapsedMilliseconds,
                 stageElapsedMilliseconds: previousElapsed));
@@ -397,7 +392,6 @@ namespace NekoLib.Navigation.Diagnostics
                 requestedLoadMode: _request.RequestedLoadMode,
                 effectiveLoadMode: EffectiveLoadMode,
                 reusePolicy: ReusePolicy,
-                presentation: Presentation,
                 decision: decision,
                 isBackNavigation: IsBackNavigation,
                 isDisposed: isDisposed,
@@ -452,7 +446,6 @@ namespace NekoLib.Navigation.Diagnostics
                 requestedLoadMode: _request.RequestedLoadMode,
                 effectiveLoadMode: EffectiveLoadMode,
                 reusePolicy: ReusePolicy,
-                presentation: Presentation,
                 decision: decision,
                 failureKind: failureKind,
                 errorType: errorType,

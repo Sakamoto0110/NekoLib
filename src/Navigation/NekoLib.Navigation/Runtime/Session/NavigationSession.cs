@@ -29,10 +29,11 @@ namespace NekoLib.Navigation.Runtime.Session
         /// <summary>Mark the session authenticated with the given roles.</summary>
         public void SignIn(params string[] roles)
         {
+            var copiedRoles = GuardContractValidation.CopyNames(roles, nameof(roles), "role");
+
             IsAuthenticated = true;
-            Roles = roles != null && roles.Length > 0
-                ? (IReadOnlyCollection<string>)Array.AsReadOnly(
-                    (string[])roles.Clone())
+            Roles = copiedRoles.Length > 0
+                ? (IReadOnlyCollection<string>)Array.AsReadOnly(copiedRoles)
                 : Empty;
             Permissions = Empty;
             RaiseChanged();
@@ -41,9 +42,15 @@ namespace NekoLib.Navigation.Runtime.Session
         /// <summary>Mark the session authenticated with explicit roles + permissions.</summary>
         public void SignIn(IEnumerable<string> roles, IEnumerable<string> permissions)
         {
+            var copiedRoles = GuardContractValidation.CopyNames(roles, nameof(roles), "role");
+            var copiedPermissions = GuardContractValidation.CopyNames(
+                permissions,
+                nameof(permissions),
+                "permission");
+
             IsAuthenticated = true;
-            Roles = roles != null ? new List<string>(roles).AsReadOnly() : (IReadOnlyCollection<string>)Empty;
-            Permissions = permissions != null ? new List<string>(permissions).AsReadOnly() : (IReadOnlyCollection<string>)Empty;
+            Roles = Array.AsReadOnly(copiedRoles);
+            Permissions = Array.AsReadOnly(copiedPermissions);
             RaiseChanged();
         }
 

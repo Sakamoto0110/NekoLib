@@ -13,7 +13,7 @@ namespace NekoLib.Navigation.Contracts.Pages
         /// <summary>
         /// May be executed off the UI thread. Must not touch UI elements directly.
         /// </summary>
-        Task LoadInBackgroundAsync(object args);
+        Task LoadInBackgroundAsync(object? args);
 
         /// <summary>
         /// Executed on the UI thread after background load completes. In
