@@ -79,6 +79,79 @@ function Invoke-Program {
     }
 }
 
+function Invoke-WatchdogProtocolScenario {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [string]$WorkingDirectory
+    )
+
+    $markerPath = Join-Path $WorkingDirectory "watchdog-host-ready.marker"
+    $stdoutPath = Join-Path $WorkingDirectory "watchdog-host-startup.stdout.log"
+    $stderrPath = Join-Path $WorkingDirectory "watchdog-host-startup.stderr.log"
+    foreach ($pathToRemove in @($markerPath, $stdoutPath, $stderrPath)) {
+        if (Test-Path -LiteralPath $pathToRemove) {
+            Remove-Item -LiteralPath $pathToRemove -Force
+        }
+    }
+
+    Write-Host "$Path startup"
+    $supervisedProcess = Start-Process `
+        -FilePath $Path `
+        -ArgumentList @("startup") `
+        -WorkingDirectory $WorkingDirectory `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput $stdoutPath `
+        -RedirectStandardError $stderrPath `
+        -PassThru
+
+    try {
+        $elapsed = [Diagnostics.Stopwatch]::StartNew()
+        while ($elapsed.Elapsed -lt [TimeSpan]::FromSeconds(20) -and
+            -not (Test-Path -LiteralPath $markerPath)) {
+            $supervisedProcess.Refresh()
+            if ($supervisedProcess.HasExited) {
+                break
+            }
+            Start-Sleep -Milliseconds 50
+        }
+
+        if (-not (Test-Path -LiteralPath $markerPath)) {
+            $stdout = if (Test-Path -LiteralPath $stdoutPath) {
+                Get-Content -LiteralPath $stdoutPath -Raw
+            }
+            else { "<missing>" }
+            $stderr = if (Test-Path -LiteralPath $stderrPath) {
+                Get-Content -LiteralPath $stderrPath -Raw
+            }
+            else { "<missing>" }
+            throw "The packaged Host did not report startup readiness. stdout=$stdout stderr=$stderr"
+        }
+
+        Invoke-Program `
+            -Path $Path `
+            -WorkingDirectory $WorkingDirectory `
+            -Arguments @("stop")
+
+        if (-not $supervisedProcess.WaitForExit(15000)) {
+            throw "The supervised package consumer did not exit after Host stop."
+        }
+    }
+    finally {
+        try {
+            $supervisedProcess.Refresh()
+            if (-not $supervisedProcess.HasExited) {
+                Stop-Process -Id $supervisedProcess.Id -Force
+            }
+        }
+        catch {
+        }
+        $supervisedProcess.Dispose()
+    }
+}
+
 function Get-PackageEntries {
     param(
         [Parameter(Mandatory)]
@@ -711,7 +784,7 @@ try {
             $smokeSessionRoot `
             "protocol-runs\$protocolTfm"
 
-        Invoke-Program `
+        Invoke-WatchdogProtocolScenario `
             -Path $protocolExecutable `
             -WorkingDirectory $protocolWorkingDirectory
     }

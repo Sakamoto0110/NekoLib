@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes;
@@ -26,33 +27,13 @@ namespace NekoLib.PackageConsumers.WatchdogHostProtocol
 
                 if (args.Length == 1 && args[0] == "mismatch")
                     return VerifyMismatch();
+                if (args.Length == 1 && args[0] == "startup")
+                    return VerifyStartup();
+                if (args.Length == 1 && args[0] == "stop")
+                    return StopSupervisedInstance();
 
-                WatchdogBootstrap.EnsureStarted(Array.Empty<string>(), 10000);
-                if (!WatchdogController.Ping())
-                    throw new InvalidOperationException("The packaged Host did not answer ping.");
-
-                var status = WatchdogController.Status();
-                if (status.StartsWith("error=", StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        "The packaged Host returned an error status: " + status);
-                }
-
-                if (!WatchdogController.Stop())
-                    throw new InvalidOperationException("The packaged Host did not accept stop.");
-
-                var elapsed = Stopwatch.StartNew();
-                while (elapsed.Elapsed < TimeSpan.FromSeconds(10) &&
-                       WatchdogController.Ping())
-                {
-                    Thread.Sleep(50);
-                }
-
-                if (WatchdogController.Ping())
-                    throw new InvalidOperationException("The packaged Host did not stop.");
-
-                Console.WriteLine("Packaged Watchdog Host protocol startup passed.");
-                return 0;
+                throw new ArgumentException(
+                    "Expected one mode: mismatch, startup, or stop.");
             }
             catch (Exception exception)
             {
@@ -61,15 +42,110 @@ namespace NekoLib.PackageConsumers.WatchdogHostProtocol
             }
         }
 
-        private static int VerifyMismatch()
+        private static int VerifyStartup()
         {
-            string targetPath;
+            WatchdogBootstrap.EnsureStarted(new[] { "startup" }, 10000);
+            if (!WatchdogController.Ping())
+                throw new InvalidOperationException("The packaged Host did not answer ping.");
+
+            var status = WatchdogController.Status();
+            if (status.StartsWith("error=", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The packaged Host returned an error status: " + status);
+            }
+
+            File.WriteAllText(
+                Path.Combine(
+                    Environment.CurrentDirectory,
+                    "watchdog-host-ready.marker"),
+                "ready");
+
+            Thread.Sleep(Timeout.Infinite);
+            return 2;
+        }
+
+        private static int StopSupervisedInstance()
+        {
+            var targetPath = GetCurrentExecutablePath();
+            var response = SendToTarget(targetPath, "stop");
+            if (!string.Equals(response, "stopped", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The packaged Host did not accept stop: " + response);
+            }
+
+            var elapsed = Stopwatch.StartNew();
+            while (elapsed.Elapsed < TimeSpan.FromSeconds(15) &&
+                   TryPingTarget(targetPath))
+            {
+                Thread.Sleep(50);
+            }
+
+            if (TryPingTarget(targetPath))
+                throw new InvalidOperationException("The packaged Host did not stop.");
+
+            Console.WriteLine("Packaged Watchdog Host protocol startup passed.");
+            return 0;
+        }
+
+        private static string? SendToTarget(string targetPath, string command)
+        {
+            var client = new PipeClient(new PipeClientOptions
+            {
+                PipeName = WatchdogController.ResolvePipeNameForTarget(targetPath),
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                RequestTimeout = TimeSpan.FromSeconds(5)
+            });
+            var response = client.SendAsync(command)
+                .GetAwaiter()
+                .GetResult();
+            if (!response.Ok)
+            {
+                return "error=" +
+                    (response.Error == null
+                        ? "unknown"
+                        : response.Error.Code);
+            }
+
+#if NETFRAMEWORK
+            return response.Data?.Value<string>();
+#else
+            return response.Data.HasValue &&
+                   response.Data.Value.ValueKind == JsonValueKind.String
+                ? response.Data.Value.GetString()
+                : null;
+#endif
+        }
+
+        private static bool TryPingTarget(string targetPath)
+        {
+            try
+            {
+                return string.Equals(
+                    SendToTarget(targetPath, "ping"),
+                    "pong",
+                    StringComparison.Ordinal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string GetCurrentExecutablePath()
+        {
             using (var process = Process.GetCurrentProcess())
             {
-                targetPath = process.MainModule?.FileName
+                return process.MainModule?.FileName
                     ?? throw new InvalidOperationException(
                         "Unable to resolve the package consumer executable path.");
             }
+        }
+
+        private static int VerifyMismatch()
+        {
+            var targetPath = GetCurrentExecutablePath();
 
             var pipeName = WatchdogController.ResolvePipeNameForTarget(targetPath);
             using (var server = new PipeServer(new PipeServerOptions
