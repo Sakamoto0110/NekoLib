@@ -26,10 +26,12 @@ initial stable baselines. `IInspectionRecorder.RegisterAction` remains
 explicitly experimental under `NEKOEXP0001`; the other accepted public and
 protected surfaces are stable under the release policy.
 
-This is a release and support-baseline declaration, not evidence of remote
-distribution. No `1.0.0` package was pushed to a remote feed, no Git tag was
-created, and no branch was pushed. Package hashes and qualifying evidence are
-recorded in [`docs/stable-release-1.0.0.md`](docs/stable-release-1.0.0.md).
+The coordinated `1.0.0` package set was materialized locally from clean source
+commit `db63529cafce11690a18a595e4abc6c0610b9b8e` through the complete
+canonical package flow. This is not evidence of remote distribution: no
+`1.0.0` package was pushed to a remote feed, no Git tag was created, and no
+branch was pushed. Package hashes and qualifying evidence are recorded in
+[`docs/stable-release-1.0.0.md`](docs/stable-release-1.0.0.md).
 
 ### Public API
 

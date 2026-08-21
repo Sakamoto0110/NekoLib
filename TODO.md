@@ -871,10 +871,21 @@ NekoLib `1.0.0` is therefore the first stable coordinated family support
 baseline. The accepted compiled manifests and Watchdog Host deployment contract
 at the identified source commit are the initial stable baselines; the one
 `NEKOEXP0001` surface remains explicitly experimental. This declaration is not
-a remote package publication: no stable package was pushed to a feed, no Git
-tag was created, and no branch was pushed. The complete hashes, commands,
+a remote package publication: no stable package was pushed to a remote feed,
+no Git tag was created, and no branch was pushed. The complete hashes, commands,
 attempt history, and evidence boundaries are recorded in the
 [`1.0.0` stable release record](docs/stable-release-1.0.0.md).
+
+**Stable materialization — 2026-08-21.** The complete canonical
+`eng\pack-local.ps1 -PackageVersion 1.0.0` flow then ran from clean source
+commit `db63529cafce11690a18a595e4abc6c0610b9b8e`, again without skipped
+tests or package probes. It passed 1,670 tests, all external PackageReference
+consumers and Host probes, and retained 16 `.nupkg` plus 15 `.snupkg` artifacts
+in the local feed. All nuspecs record version `1.0.0` and that source commit.
+The stable artifact-set aggregate SHA-256 is
+`3E24185B9246BDB20BDE96C188CA67CAD2603209B861BF0C1A4D1889CBD72887`.
+This local materialization did not create a tag, push a branch, or publish to a
+remote package feed.
 
 **Recorded inputs — public-surface changes made before F1.** These are
 historical facts for the first candidate baseline and changelog reconciliation,

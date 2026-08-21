@@ -232,8 +232,10 @@ deployment package are packaged together; tests, runtime scenarios,
 NekoLib `1.0.0` is the first stable coordinated family support baseline. Its
 qualifying immutable local candidate, `1.0.0-local.22`, passed the clean
 canonical package flow from source commit
-`7090e40eed7c6b888ce8da732f21cbe10f1a936c`. This declaration does not claim
-remote publication. See the
+`7090e40eed7c6b888ce8da732f21cbe10f1a936c`. The coordinated `1.0.0` package
+set was then materialized locally from clean source commit
+`db63529cafce11690a18a595e4abc6c0610b9b8e`. This does not claim remote
+publication. See the
 [`1.0.0` stable release record](docs/stable-release-1.0.0.md) for provenance,
 hashes, validation results, and evidence boundaries.
 
@@ -259,8 +261,7 @@ Register the generated folder as a source on a consumer machine:
 
 ```powershell
 dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
-$coordinatedVersion = Read-Host "Enter the coordinated package version"
-dotnet add package NekoLib.Navigation.WinForms --version $coordinatedVersion
+dotnet add package NekoLib.Navigation.WinForms --version 1.0.0
 ```
 
 The same verified `.nupkg` files can be pushed to an authenticated private

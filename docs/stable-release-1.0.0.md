@@ -13,6 +13,11 @@
 
 **Qualifying package candidate:** `1.0.0-local.22`
 
+**Materialized release source commit:**
+`db63529cafce11690a18a595e4abc6c0610b9b8e`
+
+**Materialized package version:** `1.0.0`
+
 ## Declaration
 
 NekoLib `1.0.0` is the first stable coordinated family support baseline. The
@@ -28,6 +33,56 @@ All accepted unmarked public and protected surfaces are stable from `1.0.0`.
 The declaration records a support and compatibility boundary. It does not
 claim remote distribution: no `1.0.0` package was pushed to a remote feed, no
 Git tag was created, and no branch was pushed.
+
+## Materialized stable package evidence
+
+The coordinated stable package set was produced locally from the clean
+materialized release source commit without `-SkipTests`, `-AllowDirty`, or
+skipped package probes:
+
+```powershell
+.\eng\pack-local.ps1 -PackageVersion 1.0.0
+```
+
+| Gate | Result |
+|---|---|
+| Source provenance | Clean commit `db63529cafce11690a18a595e4abc6c0610b9b8e`; all 16 `.nupkg` nuspecs record version `1.0.0` and that repository commit |
+| Build | 202 baseline warning occurrences and 0 errors, matching the qualifying Release rebuild count |
+| Solution tests | 1,670 passed, 0 failed, 0 skipped |
+| Coordinated packages | 16 `.nupkg` and 15 `.snupkg` artifacts retained in the local feed |
+| Watchdog Host payloads | `net481`, `net9.0-windows7.0/win-x86`, and `net9.0-windows7.0/win-x64` present and validated |
+| External consumers | PackageReference-only WinForms and WPF consumers passed on `net481` and `net9.0-windows`; consumer builds emitted 0 warnings and 0 errors |
+| Host negative probe | Unsupported `win-arm64` deployment failed as required |
+| Host runtime probes | Packaged protocol mismatch, startup, and stop probes passed on both target families |
+| Cleanup | Package, Host staging, and consumer-smoke session directories were removed; no repository-owned process remained |
+
+The deterministic aggregate SHA-256 over the sorted UTF-8 sequence
+`filename=SHA256\n` for all 31 retained stable package artifacts is:
+
+```text
+3E24185B9246BDB20BDE96C188CA67CAD2603209B861BF0C1A4D1889CBD72887
+```
+
+### Stable main package hashes
+
+| Package | SHA-256 |
+|---|---|
+| `NekoLib.Core.1.0.0.nupkg` | `0FD3B8300BAFCE13A7AA920FA07C4ED5170B10F1B846E022EB7851662CB907A6` |
+| `NekoLib.Data.1.0.0.nupkg` | `962F4F4F6E47AAEFDD552E97CE718B86B3FDCF62A49293913FB89308B8CCE96A` |
+| `NekoLib.Devices.1.0.0.nupkg` | `52CEAEDE96933EF0C9D63F9117B68B659534ACB020445D9A19F072CFF93A17A3` |
+| `NekoLib.Diagnostics.1.0.0.nupkg` | `8AC403215EBC0F1C465D2B1CC6AE744E6B4B010878DFA5E304E58F049B240F80` |
+| `NekoLib.Diagnostics.Windows.1.0.0.nupkg` | `F59010D2225A6687BE9C0F96AA8167BB0B1E27B3F5E8A6260D966A3F33DAAE59` |
+| `NekoLib.Http.1.0.0.nupkg` | `06824B22FD43EBF68C225F6B89C16903E4572AE654304D3FC4FCFA8DCB603601` |
+| `NekoLib.Inspection.1.0.0.nupkg` | `18664A0D3523CA2AB1DAEE5DE43F6F9E7EADC72B14E283BC564A33DB633CE9B3` |
+| `NekoLib.Logging.1.0.0.nupkg` | `8183024F0130A0917DDBC4936F742F4246B22B62D383461BD2439797655E48BC` |
+| `NekoLib.Mvvm.1.0.0.nupkg` | `AD76F8F1A6F7C09B4F5947643FFC58F7D772EF453CD12C1E1430DF4F5C9B9496` |
+| `NekoLib.Navigation.1.0.0.nupkg` | `BDA72193BCA46B4F6C264D373E4A72B09D5BF00260086F636AF986B176CE4E75` |
+| `NekoLib.Navigation.WinForms.1.0.0.nupkg` | `AEE1948E9163D13FC64DF1014283067BCDCCE8F0E04A24A3B36008E866EE9CED` |
+| `NekoLib.Navigation.Wpf.1.0.0.nupkg` | `C54FC1E66F6D422E0E0665E46BDC3A084C739803F979D6CB29FA5A9D96B44486` |
+| `NekoLib.Pipes.1.0.0.nupkg` | `D147D5142515BAA821512F294F5C6763D0D9494A4FB14AA60DC2AAB12D386B89` |
+| `NekoLib.Telemetry.1.0.0.nupkg` | `CC9720739B4974B26FC1AF6A6B7488BEBC0A328D132ECBB4EA2424A4536158E8` |
+| `NekoLib.Watchdog.1.0.0.nupkg` | `4880C6AFDBC8D4D54A7D3040E35F9DFADD35F88EA3E8B44080A3D86A56BA8FE0` |
+| `NekoLib.Watchdog.Host.1.0.0.nupkg` | `914DD04CC5808BE8E314EE64D4004551F1C9AF26A26E6BAEF69983361BBE7230` |
 
 ## Qualifying package evidence
 
@@ -58,7 +113,7 @@ The deterministic aggregate SHA-256 over the sorted UTF-8 sequence
 15EB21F30EB7D3C4BDDC39F39EE32A6D17536D2973E5C2C36416686234CC425A
 ```
 
-## Main package hashes
+## Qualifying candidate main package hashes
 
 | Package | SHA-256 |
 |---|---|

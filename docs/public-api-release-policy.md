@@ -238,8 +238,15 @@ baseline on 2026-08-21. The qualifying immutable package candidate is
 `1.0.0-local.22`, produced by the canonical clean package flow from source
 commit `7090e40eed7c6b888ce8da732f21cbe10f1a936c`.
 
+The coordinated stable `1.0.0` package set was subsequently materialized in the
+local feed by the same complete canonical flow from clean source commit
+`db63529cafce11690a18a595e4abc6c0610b9b8e`. All package nuspecs record that
+version and source commit. This local materialization is distinct from remote
+distribution.
+
 The 30 accepted compiled API manifests and the accepted Watchdog Host
-deployment contract at that source commit are the initial stable baselines.
+deployment contract at qualifying source commit
+`7090e40eed7c6b888ce8da732f21cbe10f1a936c` are the initial stable baselines.
 From `1.0.0` onward, every accepted unmarked public or protected API follows the
 stable compatibility rules in this policy. The
 `IInspectionRecorder.RegisterAction` extension remains experimental under
