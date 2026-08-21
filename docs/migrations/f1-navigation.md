@@ -4,14 +4,15 @@
 
 **Lifecycle:** current
 
-**Subject:** migration from the initial Navigation candidate surface to the
-accepted F1-NAV core contract
+**Subject:** migration from the initial Navigation candidate family to the
+accepted F1-NAV, F1-NAV-WF, and F1-NAV-WPF contracts
 
 This guide covers the pre-stable `NekoLib.Navigation` correction accepted on
-2026-08-20. The rationale, evidence, and rejected alternatives are preserved in
-the [Navigation public API review](../audit/navigation-public-api-review-2026-08-20.md).
-The WinForms and WPF concrete adapter surfaces have separate F1 reviews; this
-guide covers the shared core package only.
+2026-08-20 and the WinForms/WPF adapter corrections accepted on 2026-08-21. The
+rationale, evidence, and rejected alternatives are preserved in the
+[core review](../audit/navigation-public-api-review-2026-08-20.md),
+[WinForms review](../audit/navigation-winforms-public-api-review-2026-08-21.md),
+and [WPF review](../audit/navigation-wpf-public-api-review-2026-08-21.md).
 
 ## Navigation now accepts a request and returns its outcome
 
@@ -137,6 +138,76 @@ surfaces. Event publication, DTO construction, `NavigationDiagnostics.Emit*`,
 `PageNavBootstrap.UseLogging(...)`, `UseTelemetry(...)`, and passive Inspection
 configuration rather than fabricating framework evidence.
 
+## Adapter nullability now matches runtime values
+
+In both concrete adapter packages, `InteractionDetected` and `Tick` are nullable
+events because an adapter may have no subscriber. The default loading masks now
+declare `OnOverlayOpenedAsync(object?)`, and the protected surface extension
+points now accept nullable payloads:
+
+```csharp
+protected override Task OnShownAsync(object? payload)
+{
+    // Validate or handle the optional payload before using it.
+    return Task.CompletedTask;
+}
+
+protected override void OnShown(object? payload)
+{
+}
+```
+
+`PromptViewBase<TResult>.CompletePrompt` accepts `TResult?`, matching prompt
+teardown and explicit cancellation. Nullable-enabled derived consumers should
+update their override annotations and handle or validate `null`; behavior is
+otherwise unchanged.
+
+## WinForms timer and blocker contracts were narrowed
+
+The `WinFormsTimerAdapter` constructor parameter is now spelled
+`intervalMillis`. Positional calls are unchanged. Update the old misspelled named
+argument:
+
+```csharp
+// Before
+var timer = new WinFormsTimerAdapter(intervalMilis: 5_000);
+
+// After
+var timer = new WinFormsTimerAdapter(intervalMillis: 5_000);
+```
+
+The explicit conversion from `WinFormsInteractionBlocker` to `Control` was
+removed. Retain the native host separately when application code needs it:
+
+```csharp
+Control host = navigationPanel;
+var blocker = new WinFormsInteractionBlocker(host);
+```
+
+The inherited `Name` fallback on WinForms page and surface bases remains the
+simple runtime type name (`GetType().Name`), matching WPF. Consumers that used a
+fully qualified fallback as an identifier should set their own identifier or use
+the registered descriptor name, which remains authoritative for registration and
+history.
+
+## WPF duplicate types and disposal changed before F1
+
+The dead public `NekoLib.Navigation.Wpf.Adapters.InteractionObserver` and
+`EventSubscriptionAdapter` types remain removed. Direct consumers must use
+`WpfInteractionObserver` and `WpfEventSubscriptionAdapter`; normal
+`WpfPlatformAdapter` bootstrap composition already used those replacements.
+
+`Dispose()` is virtual on `DialogViewBase`, `PromptViewBase<TResult>`,
+`PopoverViewBase`, and `ToastViewBase`. Recompile assemblies derived from the
+older non-virtual surface, and call `base.Dispose()` from every override so the
+framework clears callbacks and input subscriptions and marks the view disposed.
+
+After WPF dispatcher shutdown starts, the WPF event dispatcher runs actions
+inline as best-effort teardown. This differs intentionally from a handle-less
+WinForms worker dispatch, which throws rather than running normal lifecycle work
+on the wrong thread. The WPF rule is not permission to invoke normal Navigation
+lifecycle from arbitrary threads.
+
 ## Unchanged contracts
 
 - the static facade, `PageNavBootstrap.Use<TPlatform>()`, `Start()`, terminal
@@ -146,8 +217,8 @@ configuration rather than fabricating framework evidence.
   background-load ownership, and teardown;
 - dialog, prompt, popover, toast, loading-mask, surface, toolkit, and service
   boundaries, including their intentionally asymmetric teardown;
-- `net481`/`net9.0` targets, the `NekoLib.Core` project dependency, package ID,
-  namespaces, compile-time constants, and nullable/implicit-using project
-  settings;
+- core `net481`/`net9.0` targets, adapter `net481`/`net9.0-windows` targets,
+  project dependencies, package IDs, namespaces, compile-time constants, and
+  nullable/implicit-using project settings;
 - passive-only Inspection: no action registration or privileged navigation
   control was added.

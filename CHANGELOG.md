@@ -16,7 +16,7 @@ remain under `docs/history/`.
 
 ### Public API
 
-- **NekoLib.Navigation — breaking, additive, and behavioral pre-stable
+- **NekoLib.Navigation family — breaking, additive, and behavioral pre-stable
   candidate correction for the first `1.0.0` stable family release.** The
   intentional static facade remains, but `SwitchPage` now accepts
   `NavigationArgs?` directly and returns a call-scoped `NavigationResult` for
@@ -29,10 +29,17 @@ remain under `docs/history/`.
   History is a top-first read-only snapshot surface; framework evidence can be
   subscribed to but no longer fabricated through public constructors, emitters,
   or sinks. Optional payload, state, result, event, and platform-factory
-  nullability now matches runtime behavior. Lifecycle ordering, UI dispatch,
-  navigation gate, guard bound, redirect correlation, rollback, caching,
-  surfaces, passive Inspection, targets, and dependencies remain unchanged. See
-  the [F1-NAV migration guide](docs/migrations/f1-navigation.md).
+  nullability now matches runtime behavior. The WinForms and WPF adapter events,
+  default loading masks, protected shown hooks, and typed prompt completion now
+  also declare their nullable runtime values. WinForms renamed the timer named
+  argument from `intervalMilis` to `intervalMillis`, removed the blocker-to-host
+  conversion, and retains the simple runtime type-name fallback introduced before
+  F1. WPF retains the prefixed observer/subscription replacements for two removed
+  dead duplicate types, stabilizes virtual disposal on its four surface bases,
+  and documents its dispatcher-shutdown inline teardown fallback. Lifecycle
+  ordering, the navigation gate, guard bound, redirect correlation, rollback,
+  caching, surface behavior, passive Inspection, targets, and dependencies remain
+  unchanged. See the [F1-NAV migration guide](docs/migrations/f1-navigation.md).
 - **NekoLib.Watchdog.Host — breaking and behavioral pre-stable deployment
   correction for the first `1.0.0` stable family release.** The Host remains a
   separate framework-dependent tools/build package with no compile-time API,

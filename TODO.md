@@ -815,18 +815,37 @@ consumers does not prove that a public member is unused.
     passed. No package, PackageReference campaign, interactive/manual runtime,
     commit, publish, or push evidence is part of this closure; adapter public
     finalization remains under F1-NAV-WF and F1-NAV-WPF.
-15. [ ] **F1-NAV-WF — Navigation.WinForms.** Finalize the adapter, native host,
+15. [x] **F1-NAV-WF — Navigation.WinForms.** Finalize the adapter, native host,
     base-view, dispatcher, timer, interaction, and surface contracts against the
-    accepted Navigation API.
-16. [ ] **F1-NAV-WPF — Navigation.Wpf.** Finalize the matching WPF adapter and
-    base-view contracts, preserving intentional platform differences.
+    accepted Navigation API. **Review accepted and completed 2026-08-21:** all
+    six dispositions in the
+    [`Navigation.WinForms public API review`](docs/audit/navigation-winforms-public-api-review-2026-08-21.md)
+    were explicitly accepted. The implementation retains the adapter family,
+    ownership, designer, dispatcher, timer, focus, z-order, disposal, simple-name
+    fallback, and inert `AllowBackNavigation` contracts; it aligns nullable
+    events and surface hooks, renames the timer parameter to `intervalMillis`,
+    and removes the blocker-to-`Control` conversion. Both target manifests record
+    the exact accepted delta. Release rebuilds passed with 59 `net481` and 91
+    `net9.0-windows` existing warning occurrences, 0 errors, and no new normalized
+    warning identity; Navigation passed 292/292 tests on each target family.
+16. [x] **F1-NAV-WPF — Navigation.Wpf.** Finalize the matching WPF adapter and
+    base-view contracts, preserving intentional platform differences. **Review
+    accepted and completed 2026-08-21:** all six dispositions in the
+    [`Navigation.Wpf public API review`](docs/audit/navigation-wpf-public-api-review-2026-08-21.md)
+    were explicitly accepted. The implementation retains the adapter family,
+    WPF ownership/focus/z-order behavior, virtual disposal, simple-name fallback,
+    inert `AllowBackNavigation`, and dispatcher-shutdown teardown policy while
+    aligning nullable events and surface hooks. Both target manifests record the
+    exact accepted delta. Release rebuilds passed with 53 `net481` and 57
+    `net9.0-windows` existing warning occurrences, 0 errors, and no new normalized
+    warning identity; Navigation passed 292/292 tests on each target family.
 
 #### F1 completion gate
 
-- [ ] Every shipped library package and the Watchdog Host deployment contract
+- [x] Every shipped library package and the Watchdog Host deployment contract
   has an accepted classification, current documentation, and a reviewed API or
   protocol baseline for each supported target.
-- [ ] Every accepted breaking change has a changelog entry, migration guidance,
+- [x] Every accepted breaking change has a changelog entry, migration guidance,
   and coordinated release target; no accidental diff remains.
 - [ ] The final clean package-family candidate passes the canonical package
   flow and external PackageReference consumer probes without `-SkipTests`.

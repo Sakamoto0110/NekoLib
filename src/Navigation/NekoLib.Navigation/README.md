@@ -427,16 +427,32 @@ subclasses skip the wiring.
 | `CreateFocusObserver` | nullable — popovers just will not auto-dismiss |
 | `GetDefaultLoadingMaskType` | nullable |
 
+The concrete adapter events `InteractionDetected` and `Tick` are nullable: an
+adapter with no subscriber is a normal state. Overlay payloads are likewise
+nullable all the way through the default loading masks and the protected
+`OnShownAsync(object?)` / `OnShown(object?)` consumer hooks. A typed prompt base
+accepts `CompletePrompt(TResult?)`, matching the default result used when a
+prompt is closed during teardown.
+
+The WinForms timer constructor parameter is named `intervalMillis`. The
+`WinFormsInteractionBlocker` owns its blocking state but does not expose or
+convert back to the native root; a consumer that needs the host must retain the
+`Control` it supplied. On WPF, `Dispose()` remains virtual on the page and four
+surface bases. Consumer overrides must call `base.Dispose()` to release callbacks
+and input subscriptions and to publish `IsDisposed`.
+
 **UI-thread rule for `CreateEventDispatcher`:** an adapter must decide UI-thread
 identity rather than infer it from a helper that only works once the host is
-realized — `Control.InvokeRequired` answers `false` on every thread while the
-WinForms host has no window handle. When the UI thread cannot be reached at all,
-the action runs inline only if the caller *is* the UI thread; any other thread
-gets an `InvalidOperationException` instead of having navigation work executed on
-it. So navigating from a worker thread before the host window is shown fails
-loudly rather than running page lifecycle off the UI thread, and `DisposeAsync`
-still completes because `ExecuteSafeOnUiAsync` catches that exception and tears
-down inline.
+realized. WinForms captures the constructing thread because
+`Control.InvokeRequired` answers `false` on every thread while the host has no
+window handle. If a WinForms action cannot reach a handle and the caller is not
+that owner thread, dispatch throws instead of running normal Navigation lifecycle
+on a worker. WPF uses `Dispatcher.CheckAccess` while the dispatcher is alive; once
+dispatcher shutdown has started or finished, it runs the action inline only as a
+best-effort teardown fallback. That WPF fallback does not authorize normal page
+lifecycle on arbitrary threads. `DisposeAsync` remains bounded on either platform
+because `ExecuteSafeOnUiAsync` can reclaim resources inline when UI dispatch is no
+longer available.
 
 **Navigation toolkit:** both shipped layered hosts also implement
 `INavigationToolkit`, and `Start()` registers the host under that contract with
