@@ -1,0 +1,105 @@
+name: Publish NuGet release
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_publication:
+        description: Publish the approved NekoLib 1.0.0 package set to NuGet.org
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-nuget-v1.0.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish approved 1.0.0 artifacts
+    runs-on: windows-latest
+    environment: release
+    timeout-minutes: 20
+
+    steps:
+      - name: Enforce the manual release boundary
+        shell: pwsh
+        env:
+          CONFIRM_PUBLICATION: ${{ inputs.confirm_publication }}
+        run: |
+          if ($env:GITHUB_REF -ne "refs/heads/master") {
+              throw "This workflow must be dispatched from master."
+          }
+
+          if ($env:CONFIRM_PUBLICATION -ne "true") {
+              throw "Public NuGet publication was not confirmed."
+          }
+
+      - name: Download the approved package assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/publish | Out-Null
+          gh release download v1.0.0 `
+              --repo $env:GITHUB_REPOSITORY `
+              --dir artifacts/publish `
+              --pattern "NekoLib.*.1.0.0.nupkg" `
+              --pattern "NekoLib.*.1.0.0.snupkg"
+
+      - name: Verify the immutable package set
+        shell: pwsh
+        run: |
+          $expectedAggregate = "3E24185B9246BDB20BDE96C188CA67CAD2603209B861BF0C1A4D1889CBD72887"
+          $files = @(Get-ChildItem -LiteralPath artifacts/publish -File | Sort-Object Name)
+          $mainPackages = @($files | Where-Object { $_.Extension -eq ".nupkg" })
+          $symbolPackages = @($files | Where-Object { $_.Extension -eq ".snupkg" })
+
+          if ($files.Count -ne 31 -or $mainPackages.Count -ne 16 -or $symbolPackages.Count -ne 15) {
+              throw "Expected 16 main packages and 15 symbol packages; found $($mainPackages.Count) and $($symbolPackages.Count)."
+          }
+
+          $manifestLines = foreach ($file in $files) {
+              $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToUpperInvariant()
+              "$($file.Name)=$hash"
+          }
+
+          $manifest = ($manifestLines -join "`n") + "`n"
+          $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($manifest)
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          try {
+              $actualAggregate = ([System.BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace("-", "")
+          }
+          finally {
+              $sha256.Dispose()
+          }
+
+          if ($actualAggregate -ne $expectedAggregate) {
+              throw "Package-set aggregate SHA-256 mismatch. Expected $expectedAggregate; found $actualAggregate."
+          }
+
+          Write-Output "Verified 31 immutable package assets: $actualAggregate"
+
+      - name: Obtain a short-lived NuGet.org credential
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: Nekovih
+
+      - name: Publish packages and symbols
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -LiteralPath artifacts/publish -File -Filter *.nupkg | Sort-Object Name)
+          foreach ($package in $packages) {
+              & dotnet nuget push $package.FullName `
+                  --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" `
+                  --source "https://api.nuget.org/v3/index.json" `
+                  --timeout 300
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "NuGet.org rejected $($package.Name) with exit code $LASTEXITCODE."
+              }
+          }

@@ -14,6 +14,7 @@ whether it can be cited as reproducible repository evidence.
 | `src/Tools/` | Source code for executables maintained by this repository | yes |
 | `tools/` | Locally restored or copied executable payloads; never source authority | no |
 | `eng/` | Build, validation, packaging, and repository-maintenance automation | yes |
+| `.github/workflows/` | Manual remote publication transport; no automatic build or validation trigger | yes |
 | `artifacts/` | Generated, disposable build/package/tool output | no |
 | `.local/` | Machine-only experiments, configuration, private prerequisites, and scratch data | no |
 
@@ -43,6 +44,13 @@ versioned source's behavior.
 The packaging workflow remains separate:
 [`eng/pack-local.ps1`](../eng/pack-local.ps1) owns library and Watchdog Host
 packages under `artifacts/`.
+
+Remote NuGet.org publication is deliberately narrower than packaging.
+`.github/workflows/publish-nuget.yml` runs only through an explicit manual
+dispatch from `master`. It downloads the approved assets attached to the GitHub
+release, verifies their recorded aggregate SHA-256, and then uses NuGet.org
+trusted publishing to obtain a short-lived OIDC credential. It does not rebuild,
+retest, or silently replace the canonical local package evidence.
 
 ## Public API tool
 

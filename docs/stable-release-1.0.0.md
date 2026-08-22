@@ -36,6 +36,21 @@ The declaration records a support and compatibility boundary. The annotated
 pushed to GitHub. No `1.0.0` package has been pushed to a remote package feed,
 and no GitHub Release has been created.
 
+## Remote publication transport
+
+The manual-only `.github/workflows/publish-nuget.yml` workflow is the approved
+transport for this package set. It can run only when explicitly dispatched from
+`master` with publication confirmed, uses the GitHub `release` environment, and
+has no push, pull-request, or scheduled trigger. It downloads the exact package
+assets attached to the `v1.0.0` GitHub release and rejects the set before login
+unless the 16 `.nupkg`, 15 `.snupkg`, and aggregate SHA-256 match this record.
+Only then does it request a short-lived NuGet.org credential through OIDC and
+push the main packages and adjacent symbols.
+
+The workflow and trusted-publishing policy are publication infrastructure, not
+publication evidence. This record must retain the no-remote-package boundary
+until NuGet.org accepts the packages and an external restore verifies them.
+
 ## Materialized stable package evidence
 
 The coordinated stable package set was produced locally from the clean

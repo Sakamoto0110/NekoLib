@@ -894,6 +894,15 @@ hash above. The release branch and `master` history were pushed to GitHub. No
 stable package has been pushed to a remote package feed, and no GitHub Release
 has been created.
 
+**Trusted-publication preparation — 2026-08-21.** The manual-only
+`.github/workflows/publish-nuget.yml` transport is restricted to dispatches from
+`master`, requires the GitHub `release` environment, downloads the approved
+`v1.0.0` release assets, verifies the recorded 31-artifact aggregate SHA-256,
+and obtains a short-lived NuGet.org credential through OIDC immediately before
+publication. It has no push, pull-request, schedule, build, or test trigger.
+Preparing this transport is not remote package evidence; no package is recorded
+as published until NuGet.org accepts it and an external restore verifies it.
+
 **Recorded inputs — public-surface changes made before F1.** These are
 historical facts for the first candidate baseline and changelog reconciliation,
 not new implementation items.

@@ -208,7 +208,7 @@ and package/runtime exceptions are documented in
 | Targets | `net481` and `net9.0` (`net9.0-windows` for the UI and Win32 modules) |
 | Language | C# `latest`; **no `record`** in types shared across targets — net481 lacks `IsExternalInit` |
 | Nullable | Configured per module; preserve the existing setting documented in `AGENTS.md` |
-| Tooling | Visual Studio 2022 or the `dotnet` CLI. No CI/CD — builds are manual |
+| Tooling | Visual Studio 2022 or the `dotnet` CLI. Builds and validation are manual; GitHub Actions is used only for manually dispatched NuGet.org trusted publication |
 | Platform | `net481` and every `-windows` target build on Windows only |
 
 Public API stability, coordinated SemVer, deprecation, compatibility baselines,

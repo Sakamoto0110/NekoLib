@@ -282,9 +282,12 @@ Verify conditional-compilation constants for a TFM:
 dotnet msbuild src/Data/NekoLib.Data/NekoLib.Data.csproj -getProperty:DefineConstants -p:TargetFramework=net481
 ```
 
-**No CI/CD** — builds are manual. `net481` and every `-windows` target build on
-Windows only, so a Linux/container environment cannot validate this repo; say so
-rather than reporting a partial build as green.
+**No automatic CI/CD** — builds and validation remain manual. The only GitHub
+Actions workflow is the manually dispatched NuGet.org trusted-publication
+transport; it downloads the approved release assets and verifies their recorded
+aggregate hash instead of rebuilding them. `net481` and every `-windows` target
+build on Windows only, so a Linux/container environment cannot validate this
+repo; say so rather than reporting a partial build as green.
 
 `src/Tools/BundlerTool/` is not in the solution; build it through
 `.\eng\build-bundler.ps1` so output and provenance stay under `artifacts/`.
