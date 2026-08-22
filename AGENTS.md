@@ -216,8 +216,11 @@ is why — **do not recreate them**:
   commits — `Devices/Com0Com`, `Navigation/WinFormsSmoke`, `Navigation/WpfSmoke`
   and `Watchdog/Supervisor481` — plus `README.md` and `SCENARIO_TEMPLATE.md`.
   Run `git check-ignore -v <path>` before claiming a scenario file is untracked.
-- **`CLAUDE.md`** at the root and under `src/Data/` and `src/Navigation/` —
-  guidance files for the other assistant.
+- **Claude machine state** under `.claude/`, including local permissions,
+  locks, routines, worktrees, checkpoints, and mailboxes. Repository guidance
+  in the root and module `CLAUDE.md` files is versioned as of 2026-08-22; those
+  files remain migration input until the planned current-state audit finalizes
+  their thin routing role.
 
 ## Facts that contradict older material
 

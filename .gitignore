@@ -46,8 +46,19 @@ TestResults/
 packages/
 artifacts/
 
-# Claude context (local only)
-CLAUDE.md
+# Claude repository guidance and skills are versioned. Runtime state and
+# machine-specific permissions remain local.
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+/.claude/scheduled_tasks.json
+/.claude/routines/.state/
+/.claude/worktrees/
+/.claude/checkpoints/
+/.claude/mailbox/
+/.claude/agent-registry.json
+/.claude/agent-memory-local
+/.claude/first-run
+/.claude/assistant-daemon-state.json
 
 # Machine-only experiments and scratch data
 /.local/
@@ -59,3 +70,4 @@ CLAUDE.md
 
 # Machine-local working notes
 /NekoTodo.md
+/TEMP.md
