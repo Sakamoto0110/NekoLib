@@ -870,10 +870,10 @@ identity; all 30 compiled API manifests and documentation verification passed.
 NekoLib `1.0.0` is therefore the first stable coordinated family support
 baseline. The accepted compiled manifests and Watchdog Host deployment contract
 at the identified source commit are the initial stable baselines; the one
-`NEKOEXP0001` surface remains explicitly experimental. This declaration is not
-a remote package publication: no stable package has been pushed to a remote
-package feed. The complete hashes, commands, attempt history, and evidence
-boundaries are recorded in the
+`NEKOEXP0001` surface remains explicitly experimental. The declaration was
+qualified from local package evidence; the later remote publication and its
+independent validation are recorded below. The complete hashes, commands,
+attempt history, and evidence boundaries are recorded in the
 [`1.0.0` stable release record](docs/stable-release-1.0.0.md).
 
 **Stable materialization — 2026-08-21.** The complete canonical
@@ -891,8 +891,8 @@ publish to a remote package feed.
 exactly to materialized package-source commit
 `db63529cafce11690a18a595e4abc6c0610b9b8e` and records the aggregate package
 hash above. The release branch and `master` history were pushed to GitHub. No
-stable package has been pushed to a remote package feed, and no GitHub Release
-has been created.
+stable package had been pushed to a remote package feed, and no GitHub Release
+had been created at that checkpoint.
 
 **Trusted-publication preparation — 2026-08-21.** The manual-only
 `.github/workflows/publish-nuget.yml` transport is restricted to dispatches from
@@ -902,6 +902,19 @@ and obtains a short-lived NuGet.org credential through OIDC immediately before
 publication. It has no push, pull-request, schedule, build, or test trigger.
 Preparing this transport is not remote package evidence; no package is recorded
 as published until NuGet.org accepts it and an external restore verifies it.
+
+**Remote publication record — 2026-08-21.** Trusted-publishing run
+[`32540107660`](https://github.com/Sakamoto0110/NekoLib/actions/runs/32540107660)
+completed with exit 0 from workflow commit
+`2cc46c5acff5919d93b14da02f78bf3c0f221825`: the 31-asset aggregate gate
+passed, OIDC exchange succeeded, and NuGet.org returned `Created` for 16 main
+and 15 symbol packages. All 16 main packages then indexed publicly, passed
+`dotnet nuget verify --all` with a NuGet.org repository signature, and matched
+every approved ZIP entry other than the added `.signature.p7s`. The four
+tracked WinForms/WPF PackageReference consumers restored exclusively from
+NuGet.org and built on `net481` and `net9.0-windows` with 0 warnings and 0
+errors. The public [`v1.0.0` GitHub Release](https://github.com/Sakamoto0110/NekoLib/releases/tag/v1.0.0)
+retains the exact 16 `.nupkg` and 15 `.snupkg` source assets.
 
 **Recorded inputs — public-surface changes made before F1.** These are
 historical facts for the first candidate baseline and changelog reconciliation,

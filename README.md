@@ -222,7 +222,7 @@ dotnet test NekoLib.sln
 .\eng\verify-public-api.ps1
 ```
 
-## Local NuGet packages
+## NuGet packages
 
 Package production is opt-in: the 15 library projects and the Watchdog Host
 deployment package are packaged together; tests, runtime scenarios,
@@ -234,8 +234,8 @@ qualifying immutable local candidate, `1.0.0-local.22`, passed the clean
 canonical package flow from source commit
 `7090e40eed7c6b888ce8da732f21cbe10f1a936c`. The coordinated `1.0.0` package
 set was then materialized locally from clean source commit
-`db63529cafce11690a18a595e4abc6c0610b9b8e`. This does not claim remote
-publication. See the
+`db63529cafce11690a18a595e4abc6c0610b9b8e` and published to NuGet.org through
+the `v1.0.0` GitHub Release and the manual trusted-publication workflow. See the
 [`1.0.0` stable release record](docs/stable-release-1.0.0.md) for provenance,
 hashes, validation results, and evidence boundaries.
 
@@ -257,15 +257,23 @@ a different version for changed bits.
 Use `-AllowDirty` only for a disposable validation version; a package produced
 from uncommitted sources cannot carry exact Git/Source Link provenance.
 
-Register the generated folder as a source on a consumer machine:
+Install the public stable packages directly from NuGet.org:
+
+```powershell
+dotnet add package NekoLib.Navigation.WinForms --version 1.0.0
+```
+
+For unpublished validation versions, register the generated local folder as a
+source on a consumer machine:
 
 ```powershell
 dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
 dotnet add package NekoLib.Navigation.WinForms --version 1.0.0
 ```
 
-The same verified `.nupkg` files can be pushed to an authenticated private
-NuGet v3 feed; no package or consumer project changes are required.
+The same verified package family can also be pushed under a distinct version to
+an authenticated private NuGet v3 feed; no package or consumer project changes
+are required.
 
 Project references become NuGet dependencies, so an application normally
 references only its top-level modules. For example,

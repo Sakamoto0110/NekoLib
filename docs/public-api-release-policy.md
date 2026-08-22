@@ -255,6 +255,8 @@ stable compatibility rules in this policy. The
 The complete candidate provenance, package hashes, validation results, and
 evidence boundaries are recorded in the
 [`1.0.0` stable release record](stable-release-1.0.0.md). The annotated
-`v1.0.0` tag identifies the materialized package-source commit, but the
-declaration does not claim remote package distribution: no stable package has
-been pushed to a remote package feed.
+`v1.0.0` tag identifies the materialized package-source commit. The coordinated
+stable family was subsequently published to NuGet.org through trusted
+publishing and independently restored by the tracked external consumers; that
+remote evidence does not replace the source, API-baseline, or local package
+qualification recorded here.

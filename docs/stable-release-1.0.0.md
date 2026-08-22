@@ -33,8 +33,9 @@ All accepted unmarked public and protected surfaces are stable from `1.0.0`.
 The declaration records a support and compatibility boundary. The annotated
 `v1.0.0` Git tag points exactly to materialized package-source commit
 `db63529cafce11690a18a595e4abc6c0610b9b8e`, and the release history has been
-pushed to GitHub. No `1.0.0` package has been pushed to a remote package feed,
-and no GitHub Release has been created.
+pushed to GitHub. The coordinated package family is published on NuGet.org,
+and the public [`v1.0.0` GitHub Release](https://github.com/Sakamoto0110/NekoLib/releases/tag/v1.0.0)
+retains the exact approved package assets.
 
 ## Remote publication transport
 
@@ -48,8 +49,33 @@ Only then does it request a short-lived NuGet.org credential through OIDC and
 push the main packages and adjacent symbols.
 
 The workflow and trusted-publishing policy are publication infrastructure, not
-publication evidence. This record must retain the no-remote-package boundary
-until NuGet.org accepts the packages and an external restore verifies them.
+publication evidence by themselves. Publication is qualified by the results
+below.
+
+### Remote publication evidence
+
+| Gate | Result |
+|---|---|
+| Trusted publication | [Workflow run `32540107660`](https://github.com/Sakamoto0110/NekoLib/actions/runs/32540107660), source `2cc46c5acff5919d93b14da02f78bf3c0f221825`, exit 0 |
+| Asset gate | 16 `.nupkg` plus 15 `.snupkg`; aggregate SHA-256 matched `3E24185B9246BDB20BDE96C188CA67CAD2603209B861BF0C1A4D1889CBD72887` before OIDC login |
+| NuGet.org acceptance | 16 main and 15 symbol uploads returned `Created` |
+| Public index | All 16 main packages became available from `https://api.nuget.org/v3/index.json` |
+| Repository signatures | `dotnet nuget verify --all` passed for all 16 public packages |
+| Content comparison | Each public package added exactly one `.signature.p7s`; every other ZIP entry matched the approved source asset by name, length, and SHA-256 |
+| External consumers | Tracked WinForms and WPF PackageReference consumers restored only from NuGet.org and built on `net481` and `net9.0-windows`; four builds emitted 0 warnings and 0 errors |
+| GitHub Release | Public `v1.0.0`, 31 assets; GitHub-reported asset names, lengths, and SHA-256 digests matched the approved local set |
+
+NuGet.org repository signing intentionally changes the outer `.nupkg` hash by
+adding `.signature.p7s`; the [repository-signature model](https://learn.microsoft.com/en-us/nuget/reference/signed-packages-reference)
+provides the integrity boundary for the public downloads. The GitHub Release
+assets preserve the original package bytes and aggregate hash recorded below.
+
+Three safe setup attempts preceded the successful run. Run `32539444851`
+stopped while resolving a draft release by tag, run `32539551852` stopped on
+the draft-release permission boundary, and run `32539605437` stopped during
+OIDC exchange because the NuGet.org policy contained a workflow-name typo. In
+all three, the package-push step was skipped. No partial package publication
+occurred before the successful run.
 
 ## Materialized stable package evidence
 

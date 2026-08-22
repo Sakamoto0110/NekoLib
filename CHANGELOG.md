@@ -28,10 +28,11 @@ protected surfaces are stable under the release policy.
 
 The coordinated `1.0.0` package set was materialized locally from clean source
 commit `db63529cafce11690a18a595e4abc6c0610b9b8e` through the complete
-canonical package flow. No `1.0.0` package has been pushed to a remote package
-feed. The annotated `v1.0.0` Git tag points to that package-source commit, and
-the release history has been pushed to GitHub; no GitHub Release has been
-created. Package hashes and qualifying evidence are recorded in
+canonical package flow. The annotated `v1.0.0` Git tag points to that
+package-source commit. The 16 main packages and 15 symbol packages were
+subsequently published to
+NuGet.org through trusted publishing, and the GitHub Release retains the exact
+approved assets. Package hashes and qualifying evidence are recorded in
 [`docs/stable-release-1.0.0.md`](docs/stable-release-1.0.0.md).
 
 ### Public API
