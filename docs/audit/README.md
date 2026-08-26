@@ -6,9 +6,9 @@
 
 **Subject:** audit artifact registry
 
-**Reference date:** 2026-08-25
+**Reference date:** 2026-08-26
 
-**Reference commit:** working tree after `806f0bd`
+**Reference commit:** working tree after `0fa1a321c85c541cc3e32c39e5607de881032b5a`
 
 Audits are point-in-time evidence, not a live issue tracker. Their findings are
 authoritative only for the recorded baseline. Current work, accepted decisions,
@@ -40,6 +40,7 @@ structural move; the moved audit retains its original path and baseline.
 | [`navigation-public-api-review-2026-08-20.md`](navigation-public-api-review-2026-08-20.md) | Navigation F1 public API, facade, registration, lifecycle, history, guard, surface, diagnostics, nullability, target, and package review | historical; all twelve dispositions implemented | 2026-08-20 | `9706a2c165d3bc4bcfac810319a829f42845eb95` | 2026-08-20 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md), [`TODO.md`](../../TODO.md) F1-NAV |
 | [`navigation-winforms-public-api-review-2026-08-21.md`](navigation-winforms-public-api-review-2026-08-21.md) | Navigation.WinForms F1 adapter, host, surface, ownership, disposal, compatibility, and nullability review | historical; all six dispositions implemented | 2026-08-21 | `aefd2b8985f626abe1a02e78094bf48cfdf6494e` | 2026-08-21 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md), [`TODO.md`](../../TODO.md) F1-NAV-WF |
 | [`navigation-wpf-public-api-review-2026-08-21.md`](navigation-wpf-public-api-review-2026-08-21.md) | Navigation.Wpf F1 adapter, host, surface, ownership, disposal, compatibility, and nullability review | historical; all six dispositions implemented | 2026-08-21 | `aefd2b8985f626abe1a02e78094bf48cfdf6494e` | 2026-08-21 | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md), [`TODO.md`](../../TODO.md) F1-NAV-WPF |
+| [`nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | NekoMarketplace E2E evidence intake for the published NekoLib 1.0.0 package family | historical; intake complete, current reconciliation pending | 2026-08-26 | `0fa1a321c85c541cc3e32c39e5607de881032b5a` | none | Evidence intake only; [`TODO.md`](../../TODO.md) unchanged |
 | [`payments-pix-design-review-2026-08-16.md`](payments-pix-design-review-2026-08-16.md) | Payments/Pix product boundary and first provider model | current; review complete, implementation decision pending | 2026-08-16 | `f73ba4a2fd01b66f5df6c172ba15d6d39d01a072` | none | [`TODO.md`](../../TODO.md) Phase G2 |
 | [`pipes-first-pass.md`](pipes-first-pass.md) | Pipes first-pass review | historical | 2026-06-04 | not recorded | 2026-08-01 | [`README.md`](../../README.md), [`TODO.md`](../../TODO.md) |
 | [`pipes-ipc-hardening-review-2026-08-08.md`](pipes-ipc-hardening-review-2026-08-08.md) | Pipes and Watchdog IPC hardening | historical; accepted dispositions promoted to E5 | 2026-08-08 | `941e17e8224dff3b34b7495d7bd0f7cf12c8f4ed` | 2026-08-08 | [`TODO.md`](../../TODO.md) Phase E5 |

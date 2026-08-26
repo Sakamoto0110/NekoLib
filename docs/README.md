@@ -6,9 +6,9 @@
 
 **Subject:** repository documentation governance
 
-**Reference date:** 2026-08-25
+**Reference date:** 2026-08-26
 
-**Reference commit:** working tree after `806f0bd`
+**Reference commit:** working tree after `0fa1a321c85c541cc3e32c39e5607de881032b5a`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -141,6 +141,7 @@ reference commit.
 | [`docs/audit/navigation-public-api-review-2026-08-20.md`](audit/navigation-public-api-review-2026-08-20.md) | audit | historical | F1-NAV code-first core public API review, accepted implementation reconciliation, and residual package/runtime gaps |
 | [`docs/audit/navigation-winforms-public-api-review-2026-08-21.md`](audit/navigation-winforms-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
 | [`docs/audit/navigation-wpf-public-api-review-2026-08-21.md`](audit/navigation-wpf-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WPF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
+| [`docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | audit | historical | NekoMarketplace external-consumer evidence intake for published NekoLib 1.0.0 packages; current reconciliation remains gated |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
 | [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
