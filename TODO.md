@@ -598,7 +598,7 @@ consumers does not prove that a public member is unused.
    `CommandManager` integration, `Convert.ChangeType` coercion, gating `Execute`,
    isolating subscriber exceptions, and a reentrancy guard were all rejected. The
    accepted rationale and rejected alternatives are recorded in
-   [`docs/audit/mvvm-public-api-review-2026-08-17.md`](docs/audit/mvvm-public-api-review-2026-08-17.md).
+   [`docs/modules/Mvvm/audits/public-api-review-2026-08-17.md`](docs/modules/Mvvm/audits/public-api-review-2026-08-17.md).
    **Implementation landed 2026-08-17.** Mvvm passed 34/34
    tests on `net481` and 34/34 on `net9.0-windows`, up from 22 per target, and the
    module rebuilt with **0 warnings**, down from 20 nullable warnings. Both

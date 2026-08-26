@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "schemaId": "nekolib-agent-skills",
+  "verifierPath": "eng/verify-skills.ps1",
+  "description": "Registry of repository-owned agent skills, adapter locations, and intended cross-agent parity.",
+  "authority": "This file owns repository skill identity, adapter topology, and parity intent. Skill entrypoints own procedures, shared contracts own interoperable semantics, and neither this registry nor a skill is product, implementation, roadmap, or evidence authority.",
+  "scope": {
+    "includes": "Repository-owned skill adapters under the registered agent roots.",
+    "excludes": "Personal or globally installed skills, agent runtime state, ignored machine configuration, external marketplaces, and experiments.",
+    "pathStyle": "repository-relative-forward-slashes"
+  },
+  "agentProfiles": {
+    "codex": {
+      "root": ".agents/skills",
+      "entryPoint": "SKILL.md",
+      "optionalMetadata": "agents/openai.yaml"
+    },
+    "claude": {
+      "root": ".claude/skills",
+      "entryPoint": "SKILL.md"
+    }
+  },
+  "parityPolicies": {
+    "single-profile": {
+      "meaning": "Only the listed agent adapters are required. An absent counterpart is intentional and is not a parity defect.",
+      "requiredCommonality": []
+    },
+    "contract-equivalent": {
+      "meaning": "All listed adapters must preserve the same externally observable capability, authority, safety, and output contract, while their modes, sequencing, and procedures may differ.",
+      "requiredCommonality": [
+        "capability",
+        "authority",
+        "authorization-boundary",
+        "safety",
+        "output-contract"
+      ]
+    },
+    "near-mirror": {
+      "meaning": "All listed adapters must expose the same common modes and preserve equivalent scope, authority, authorization, safety, stop conditions, shared output contract, and validation semantics. Differences are limited to registered agent emphasis, tool syntax or metadata, and procedural decomposition.",
+      "requiredCommonality": [
+        "common-modes",
+        "scope",
+        "authority",
+        "authorization-boundary",
+        "safety",
+        "stop-conditions",
+        "output-contract",
+        "validation-semantics"
+      ]
+    }
+  },
+  "reviewPolicy": {
+    "changedAdapters": "Review the affected logical skill and every counterpart required by its parity policy whenever an adapter, shared contract, or registry entry changes.",
+    "fullRegistry": "Run a full review only when explicitly requested.",
+    "mutationBoundary": "Review findings do not authorize automatic fixes, roadmap promotion, staging, commits, or pushes."
+  },
+  "skills": [
+    {
+      "id": "nekolib",
+      "description": "Repository-wide NekoLib workflow router.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib/SKILL.md",
+          "declaredName": "nekolib"
+        }
+      }
+    },
+    {
+      "id": "nekolib-data",
+      "description": "NekoLib.Data implementation, review, documentation, and validation workflow.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-data/SKILL.md",
+          "declaredName": "nekolib-data"
+        }
+      }
+    },
+    {
+      "id": "nekolib-devices",
+      "description": "NekoLib.Devices implementation, review, documentation, and validation workflow.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-devices/SKILL.md",
+          "declaredName": "nekolib-devices"
+        }
+      }
+    },
+    {
+      "id": "nekolib-documentation",
+      "description": "Interoperable module-first documentation authoring and validation workflow.",
+      "parityPolicy": "near-mirror",
+      "requiredProfiles": ["codex", "claude"],
+      "sharedContract": "docs/governance/agent-documentation-contract.md",
+      "commonModes": [
+        "inventory/design",
+        "migrate-structure",
+        "populate-module <boundary>",
+        "validate-module <boundary>"
+      ],
+      "allowedDifferences": [
+        "registered-authoring-profile-emphasis",
+        "tool-specific-syntax-and-metadata",
+        "procedure-and-reference-decomposition",
+        "presentation-within-the-shared-output-contract"
+      ],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-documentation/SKILL.md",
+          "declaredName": "nekolib-documentation"
+        },
+        "claude": {
+          "path": ".claude/skills/nekolib-documentation/SKILL.md",
+          "declaredName": "nekolib-documentation"
+        }
+      }
+    },
+    {
+      "id": "nekolib-navigation",
+      "description": "NekoLib Navigation family implementation, review, documentation, and validation workflow.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-navigation/SKILL.md",
+          "declaredName": "nekolib-navigation"
+        }
+      }
+    },
+    {
+      "id": "nekolib-repository-hygiene",
+      "description": "Cross-cutting repository topology, ownership, and hygiene workflow.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-repository-hygiene/SKILL.md",
+          "declaredName": "nekolib-repository-hygiene"
+        }
+      }
+    },
+    {
+      "id": "repo-file-inventory",
+      "description": "Read-only, Git-aware repository file and topology inventory.",
+      "parityPolicy": "single-profile",
+      "requiredProfiles": ["codex"],
+      "sharedContract": null,
+      "commonModes": [],
+      "allowedDifferences": [],
+      "adapters": {
+        "codex": {
+          "path": ".agents/skills/nekolib-repository-inventory/SKILL.md",
+          "declaredName": "repo-file-inventory"
+        }
+      }
+    }
+  ],
+  "validationRules": [
+    "Every repository-owned skill entrypoint under a registered agent root must have exactly one logical skill entry.",
+    "Every required profile must have exactly one adapter and every adapter profile must be registered.",
+    "Every adapter path, shared contract, and declared name must resolve with exact repository casing.",
+    "A single-profile entry does not require an unlisted counterpart.",
+    "Contract-equivalent and near-mirror entries must satisfy their required commonality without erasing allowed agent-specific differences.",
+    "Optional tool metadata is validated only when present or when a later skill-specific rule explicitly requires it.",
+    "Registry presence proves topology and intent, not semantic correctness or execution evidence."
+  ]
+}

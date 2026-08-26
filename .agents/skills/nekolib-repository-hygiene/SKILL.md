@@ -1,6 +1,6 @@
 ---
 name: nekolib-repository-hygiene
-description: Audit, reorganize, document, and validate NekoLib's cross-cutting repository topology. Use for README, TODO, AGENTS.md, docs governance, solution or project membership, test taxonomy, runtime_tests, src/Tools, tools, eng, artifacts, .local, duplicate or misplaced files, broken paths, clean-clone reproducibility, and TODO Phase C work. Do not use for an ordinary internal refactor already scoped to one feature module.
+description: Audit, reorganize, document, and validate NekoLib's cross-cutting repository topology. Use for README, TODO, AGENTS.md, docs governance, agent skill registry and adapter topology, solution or project membership, test taxonomy, runtime_tests, src/Tools, tools, eng, artifacts, .local, duplicate or misplaced files, broken paths, clean-clone reproducibility, and TODO Phase C work. Do not use for an ordinary internal refactor already scoped to one feature module.
 ---
 
 # Maintain NekoLib Repository Hygiene
@@ -23,10 +23,23 @@ the Phase C checklist or mutable project facts into this skill.
    - use source for implemented behavior and public surface, with executable
      tests as evidence;
    - use the live roadmap for open work, decisions, and freezes;
-   - treat audits as evidence fixed to their audited commit.
+   - treat audits as evidence fixed to their audited commit;
+   - use `docs/README.md` for documentation registration,
+     `docs/governance/` for shared documentation policy,
+     `docs/schemas/` for structural vocabulary, and each migrated boundary
+     manifest for module-documentation topology.
 4. Load the matching sibling module skill when the task verifies or changes
    module-specific technical claims, test placement, or documentation:
    `nekolib-navigation`, `nekolib-data`, or `nekolib-devices`.
+5. Load `../nekolib-documentation/SKILL.md` when the task designs, migrates,
+   populates, or validates the module-first documentation contract. Repository
+   hygiene owns topology mechanics; the documentation skill owns authoring
+   semantics and cross-agent interoperability.
+6. Load `../nekolib-repository-inventory/SKILL.md` when the task needs broad
+   physical-file counts, repeated-basename counts such as `README.md`, Git-state
+   or change-set measurement, skill/documentation topology, or a compact
+   Markdown tree before interpreting repository topology. Inventory is read-only
+   discovery; this skill remains responsible for ownership and change decisions.
 
 Do not turn `AGENTS.md`, the skill, or a historical audit into a competing
 public source of truth.
@@ -47,15 +60,23 @@ public source of truth.
 1. Inventory tracked files with `git ls-files` and search text or paths with
    `rg`. Inspect ignored and untracked paths separately with `git status`,
    `git check-ignore`, or a narrowly scoped filesystem listing.
+   Use the repository-inventory skill when a reusable compact or tree-shaped
+   snapshot is part of the requested outcome.
 2. Classify each relevant item as current source, current documentation,
-   automated verification, shared manual scenario, historical record,
-   reproducible tool payload, generated artifact, or machine-local scratch.
+   repository governance, agent workflow adapter, automated verification,
+   shared manual scenario, historical record, reproducible tool payload,
+   generated artifact, or machine-local scratch.
 3. Treat clean-clone availability as a Git fact. A file merely present on the
    current machine is not shared repository evidence.
 4. Resolve incoming references, solution or project inclusion, packaging
    behavior, and generated-output ownership before moving or removing a file.
 5. Search for identical tracked files first. Distinguish necessary per-assembly
    boilerplate from abandoned copies and inspect ignored outputs separately.
+6. Treat `.claude/` as a mixed-ownership tree, not one ignore category.
+   Registry-listed skills under `.claude/skills/` are repository-owned
+   workflow adapters; runtime state, permissions, locks, worktrees, checkpoints,
+   and mailboxes remain local according to `.gitignore`. Confirm each path with
+   `git ls-files`, `git status`, and `git check-ignore` before classifying it.
 
 ## Apply structural changes
 
@@ -75,6 +96,16 @@ public source of truth.
 6. Keep repository-owned tool source under `src/Tools/`, maintenance
    orchestration under `eng/`, reproducible local payloads under `tools/`, and
    generated output under `artifacts/`.
+7. For module-first documentation topology, keep `docs/README.md`,
+   `docs/modules/README.md`, the shared schema, registered adapter paths, and
+   affected portals synchronized. Load the documentation skill for field
+   meanings, authority, templates, and cross-profile handoff semantics.
+8. Treat `.agents/skills/` and registry-listed `.claude/skills/` as versioned
+   procedure surfaces, never as product or technical-documentation authority.
+   Registration changes must update
+   `docs/schemas/agent-skill-registry.json` and any affected shared contract or
+   domain schema in the same coherent change. Do not infer one-to-one parity;
+   follow the registered parity policy for each logical skill.
 
 Do not:
 
@@ -92,6 +123,13 @@ Do not:
 - For documentation and path-only changes, search for old paths and stale
   claims, run the repository documentation verifier when it exists, and run
   `git diff --check`.
+- When a repository-owned skill adapter, shared skill contract, or
+  `docs/schemas/agent-skill-registry.json` changes, run
+  `eng/verify-skills.ps1`. Treat its result as deterministic topology evidence,
+  not as proof of semantic parity or technical truth.
+- When changing the documentation parser or its path classifications, validate
+  every supported PowerShell host affected by the change and confirm that
+  untracked candidates are not reported as clean-clone evidence.
 - For solution, project, source, or test topology changes, inspect
   `dotnet sln NekoLib.sln list` and run the narrowest relevant build or tests.
 - For full Phase C completion, run the final validation declared by the current

@@ -158,7 +158,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `virtual` is classified binary-breaking by the repository's NAV-009(b) rule and
   requires recompiling an external assembly that derives from `ViewModelBase`;
   measured on both targets, an un-recompiled consumer still loads and runs. See
-  the [F1-MVVM migration guide](docs/migrations/f1-mvvm.md).
+  the [F1-MVVM migration guide](docs/modules/Mvvm/migrations/f1.md).
 - **NekoLib.Http — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Reduced the
   `HttpEndpoint` constructor from `protected` to `private protected`, removing it

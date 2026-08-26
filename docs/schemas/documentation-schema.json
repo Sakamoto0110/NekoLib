@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 1,
+  "schemaId": "nekolib-documentation",
+  "description": "Closed vocabularies and structural rules for NekoLib's module-first Markdown knowledge base.",
+  "authority": "This file defines structure and vocabulary only. Markdown documents remain the authored knowledge surfaces, and source, project files, assemblies, and accepted API baselines retain their existing authority.",
+  "metadata": {
+    "syntax": "bold-label",
+    "valueLayout": "single-physical-line",
+    "requiredForExtendedSchema": [
+      "Document ID",
+      "Schema version",
+      "Kind",
+      "Lifecycle",
+      "Subject",
+      "Surface",
+      "Boundary",
+      "Authority role",
+      "Mutation",
+      "Indexing"
+    ],
+    "fields": {
+      "Kind": [
+        "reference",
+        "guide",
+        "roadmap/status",
+        "audit"
+      ],
+      "Lifecycle": [
+        "current",
+        "frozen",
+        "historical"
+      ],
+      "Surface": [
+        "manifest",
+        "introduction",
+        "technical-reference",
+        "internals",
+        "history",
+        "changelog",
+        "issues",
+        "findings",
+        "backlog",
+        "validation-requirements",
+        "validation-evidence",
+        "audit",
+        "migration",
+        "release-record",
+        "policy",
+        "guide",
+        "roadmap",
+        "portal",
+        "index",
+        "template"
+      ],
+      "Authority role": [
+        "normative",
+        "roadmap",
+        "evidence",
+        "non-normative",
+        "generated-oracle",
+        "portal"
+      ],
+      "Mutation": [
+        "authored",
+        "generated",
+        "append-only",
+        "snapshot"
+      ],
+      "Indexing": [
+        "include",
+        "pointer-only",
+        "exclude"
+      ]
+    },
+    "boundaryPattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)*$",
+    "documentIdPattern": "^[A-Z][A-Z0-9-]*$",
+    "canonicalPathStyle": "repository-relative-forward-slashes",
+    "conditionalRules": [
+      "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
+      "Current technical references do not carry a historical Reference date.",
+      "Migrations are non-normative and require Reference date.",
+      "Historical audits use Mutation snapshot and require Reference date, Reference commit, Last reconciliation, Current state, and Original path after a move."
+    ]
+  },
+  "surfaceRules": {
+    "portal": {
+      "allowedAuthorityRoles": [
+        "portal"
+      ],
+      "requiredIndexing": "pointer-only",
+      "requiredMetadata": [
+        "Canonical"
+      ]
+    },
+    "introduction": {
+      "allowedAuthorityRoles": [
+        "non-normative"
+      ]
+    },
+    "technical-reference": {
+      "allowedAuthorityRoles": [
+        "normative"
+      ],
+      "forbiddenMetadataWhenCurrent": [
+        "Reference date"
+      ]
+    },
+    "migration": {
+      "allowedAuthorityRoles": [
+        "non-normative"
+      ],
+      "requiredMetadata": [
+        "Reference date"
+      ],
+      "requiresManifestBoundary": true
+    },
+    "audit": {
+      "allowedAuthorityRoles": [
+        "evidence"
+      ],
+      "requiredMutationWhenHistorical": "snapshot"
+    }
+  },
+  "manifest": {
+    "requiredFields": [
+      "Projects",
+      "Packages",
+      "Targets",
+      "Project dependencies",
+      "Package dependencies",
+      "Solution membership",
+      "Distribution",
+      "Stability",
+      "Experimental APIs",
+      "API baselines",
+      "Profiles",
+      "Technical reference",
+      "Related boundaries",
+      "Source",
+      "Tests",
+      "Runtime scenarios",
+      "Package evidence"
+    ],
+    "listSeparator": ",",
+    "emptyValue": "none",
+    "solutionMembership": [
+      "included",
+      "excluded"
+    ],
+    "distribution": [
+      "shipped-library",
+      "deployment-package",
+      "unshipped"
+    ],
+    "stability": [
+      "stable",
+      "preview",
+      "experimental",
+      "unshipped"
+    ]
+  },
+  "module": {
+    "requiredSurfaces": [
+      "MANIFEST.md",
+      "README.md",
+      "REFERENCE.md",
+      "HISTORY.md",
+      "CHANGELOG.md",
+      "ISSUES.md",
+      "FINDINGS.md",
+      "BACKLOG.md",
+      "VALIDATION_REQUIREMENTS.md",
+      "VALIDATIONS.md"
+    ],
+    "requiredDirectories": [
+      "audits",
+      "migrations"
+    ],
+    "normativeTechnicalReferenceCount": 1,
+    "profilesOwnerSurface": "manifest"
+  },
+  "agentAuthoring": {
+    "contractPath": "docs/governance/agent-documentation-contract.md",
+    "skillRegistryPath": "docs/schemas/agent-skill-registry.json",
+    "logicalSkillId": "nekolib-documentation",
+    "requiredParityPolicy": "near-mirror",
+    "requiredSkillFields": [
+      "Documentation contract",
+      "Authoring profile"
+    ],
+    "requiredProfiles": [
+      "codex",
+      "claude"
+    ],
+    "interoperabilityRule": "All registered profiles produce documents with the same metadata, vocabulary, authority, lifecycle, provenance, and evidence meanings. Profile variation is limited to authoring emphasis, depth, sequencing, and presentation within the shared surface contract."
+  },
+  "records": {
+    "history": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-HISTORY-[0-9]{3}$",
+      "requiredFields": [
+        "Release",
+        "Evidence"
+      ]
+    },
+    "changelog": {
+      "idPattern": "^(Unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$",
+      "requiredFields": [
+        "Packages",
+        "Compatibility class",
+        "Consumer impact",
+        "Migration"
+      ]
+    },
+    "issues": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-ISSUE-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Severity",
+        "Affected releases",
+        "Symptom",
+        "Trigger",
+        "Evidence",
+        "Workaround",
+        "Intended fix",
+        "Fix release",
+        "Roadmap"
+      ],
+      "statuses": [
+        "confirmed",
+        "fixed",
+        "wont-fix",
+        "superseded"
+      ]
+    },
+    "findings": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-FINDING-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Confidence",
+        "Observation",
+        "Evidence",
+        "Hypothesis",
+        "Disposition",
+        "Outcome link"
+      ],
+      "statuses": [
+        "open",
+        "confirmed",
+        "disproved",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "backlog": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-BACKLOG-[0-9]{3}$",
+      "requiredFields": [
+        "State",
+        "Idea",
+        "Rationale",
+        "Constraints",
+        "Promotion target"
+      ],
+      "statuses": [
+        "idea",
+        "exploring",
+        "rejected",
+        "promoted",
+        "superseded"
+      ]
+    },
+    "validation-requirements": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALREQ-[0-9]{3}$",
+      "requiredFields": [
+        "Classification",
+        "Trigger",
+        "Category",
+        "Boundary",
+        "Targets",
+        "Acceptance criteria",
+        "Required evidence level",
+        "Rationale"
+      ]
+    },
+    "validation-evidence": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALEVID-[0-9]{8}-[0-9]{3}$",
+      "requiredFields": [
+        "Requirement IDs",
+        "Version",
+        "Commit",
+        "Tree state",
+        "Environment",
+        "Targets",
+        "Command or scenario",
+        "Execution",
+        "Evidence level",
+        "Result",
+        "Artifacts",
+        "Gaps",
+        "Supersedes"
+      ]
+    }
+  },
+  "stableIds": {
+    "newIdsAreNeverRenumberedOrReused": true,
+    "historicalAliasesArePreserved": true,
+    "examples": [
+      "MVVM-ISSUE-001",
+      "NAV-FINDING-012",
+      "WDG-VALREQ-004",
+      "DEV-VALEVID-20260825-001"
+    ]
+  },
+  "validation": {
+    "categories": [
+      "build",
+      "focused-regression",
+      "full-regression",
+      "api-compatibility",
+      "package",
+      "package-consumer",
+      "runtime",
+      "interactive-ui",
+      "automated-ui",
+      "protocol",
+      "security",
+      "performance",
+      "soak",
+      "recovery-soak",
+      "chaos-soak"
+    ],
+    "execution": [
+      "automated",
+      "manual"
+    ],
+    "boundaries": [
+      "in-process",
+      "filesystem",
+      "network",
+      "ipc",
+      "process",
+      "database",
+      "hardware",
+      "native-ui",
+      "package-feed",
+      "deployment"
+    ],
+    "evidenceLevels": [
+      "build-only",
+      "automated-runtime",
+      "interactive",
+      "automated-ui"
+    ],
+    "requirementStatuses": [
+      "REQUIRED",
+      "CONDITIONAL",
+      "RECOMMENDED",
+      "NOT_APPLICABLE"
+    ],
+    "evidenceStatuses": [
+      "PASS",
+      "FAIL",
+      "PARTIAL",
+      "NOT_RUN",
+      "BLOCKED",
+      "NOT_APPLICABLE",
+      "SUPERSEDED"
+    ],
+    "profiles": {
+      "standard-library": "Baseline build, focused regression, full regression, API compatibility, package, and package-consumer qualification for shipped libraries.",
+      "stateful-runtime": "Lifecycle, bounded state, concurrency, failure isolation, cleanup, resource stability, runtime, and soak qualification.",
+      "external-provider": "Real-provider behavior, authentication or environment boundaries, cancellation, transport loss, recovery, and provider-specific gaps.",
+      "transport": "Framing or byte-stream behavior, timeout, cancellation, disconnect, malformed input, recovery, security boundary, and resource stability.",
+      "ui-runtime": "Lifecycle plus native UI dispatch, interaction, cleanup, and long-running recovery behavior.",
+      "platform-adapter": "Platform-specific build, native integration, interactive or automated UI, ownership, and cleanup evidence.",
+      "supervisor": "Real child-process supervision, crash and recovery paths, process ownership, protocol, fault injection, and soak behavior.",
+      "deployment-package": "Published payload layout, RID selection, package-only consumption, deployment, startup, protocol, and fatal evidence."
+    },
+    "profileRule": "Profiles may be combined and requirements may be elevated or added. Inherited requirements must not be weakened silently.",
+    "soakEvidenceFields": [
+      "Duration",
+      "Workload",
+      "Targets",
+      "Environment",
+      "Concurrency",
+      "Operations",
+      "Faults injected",
+      "Expected recovery",
+      "Actual recovery",
+      "Resource measurements",
+      "Acceptance criteria",
+      "Crashes",
+      "Deadlocks",
+      "Leaked processes workers or handles",
+      "Unrecovered states",
+      "Memory or resource growth",
+      "Artifacts",
+      "Cleanup"
+    ]
+  }
+}

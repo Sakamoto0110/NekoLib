@@ -6,9 +6,9 @@
 
 **Subject:** repository documentation governance
 
-**Reference date:** 2026-08-20
+**Reference date:** 2026-08-25
 
-**Reference commit:** working tree after `9706a2c`
+**Reference commit:** working tree after `806f0bd`
 
 This index defines where each kind of repository fact is owned. It is not a
 second product overview: use the linked owner when a fact needs detail or an
@@ -26,6 +26,11 @@ the context remains live but cannot be expanded until its stated unfreeze
 condition is met. `historical` means the document describes a dated snapshot
 and must not be read as current state.
 
+Module-first documents add the orthogonal metadata defined by the
+[documentation schema](schemas/documentation-schema.json): stable document ID,
+schema version, surface, boundary, authority role, mutation policy, and indexing
+policy. The original `Kind` and `Lifecycle` vocabularies remain unchanged.
+
 Audit files use these stable metadata fields near the top of the file:
 
 - `Kind`
@@ -35,6 +40,9 @@ Audit files use these stable metadata fields near the top of the file:
 - `Reference commit`
 - `Last reconciliation`
 - `Current state`
+
+A moved audit also records `Original path` so its baseline-relative provenance
+and historical links remain resolvable.
 
 Use `not recorded` when an old audit did not preserve its reference commit. Do
 not infer or fabricate one from the file's first Git appearance.
@@ -56,9 +64,12 @@ not infer or fabricate one from the file's first Git appearance.
 | Watchdog technical contract | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
 | Watchdog Host deployment contract | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | Host source, dual-target tests, package target, and package-only consumers |
 | Navigation technical contract | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | Navigation source and tests |
+| Mvvm technical contract | [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | Mvvm source, focused tests, and compiled public API manifests |
 | Open work, accepted decisions, active freezes, and completion criteria | [`TODO.md`](../TODO.md) | Current implementation and validation |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
-| Agent workflow | [`AGENTS.md`](../AGENTS.md) and `.agents/skills/` | These files do not replace public or technical documentation |
+| Agent documentation authoring | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) and registered skills | Profiles share one output contract and do not replace public or technical documentation |
+| Repository skill identity, adapter paths, and parity intent | [`docs/schemas/agent-skill-registry.json`](schemas/agent-skill-registry.json) | Skill entrypoints and any shared contracts own procedures and interoperable semantics |
+| General agent workflow | [`AGENTS.md`](../AGENTS.md) and `.agents/skills/` | These files do not replace public or technical documentation |
 
 Each mutable fact has one owner. Other documents may summarize it and link to
 the owner, but must not maintain a competing list. In particular, current test,
@@ -77,7 +88,17 @@ reference commit.
 | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](../src/Diagnostics/NekoLib.Diagnostics/README.md) | reference | current | Incident collection, handler installation and disposal, evidence budgets and bounds, redaction boundary, crash-bundle layout, and the Windows crash adapter |
 | [`src/Devices/NekoLib.Devices/README.md`](../src/Devices/NekoLib.Devices/README.md) | reference | current | Hardware engine orchestration, operation boundaries, configuration ownership, transport and protocol contracts, encoding, and disposal |
-| [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Binding helper and command contracts: parameter coercion, notification semantics, threading, exception behavior, and nullability |
+| [`docs/modules/Mvvm/MANIFEST.md`](modules/Mvvm/MANIFEST.md) | reference | current | Mvvm identity, routing, project/package topology, API oracles, and evidence locations |
+| [`docs/modules/Mvvm/README.md`](modules/Mvvm/README.md) | reference | current | Concise Mvvm consumer introduction |
+| [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | reference | current | Binding helper and command contracts: parameter coercion, notification semantics, threading, exception behavior, and nullability |
+| [`docs/modules/Mvvm/HISTORY.md`](modules/Mvvm/HISTORY.md) | reference | current | Append-only factual Mvvm chronology; structural empty state in the pilot |
+| [`docs/modules/Mvvm/CHANGELOG.md`](modules/Mvvm/CHANGELOG.md) | reference | current | Module changelog scaffold routing to the coordinated family changelog until populated |
+| [`docs/modules/Mvvm/ISSUES.md`](modules/Mvvm/ISSUES.md) | reference | current | Confirmed Mvvm issues registry; structural empty state in the pilot |
+| [`docs/modules/Mvvm/FINDINGS.md`](modules/Mvvm/FINDINGS.md) | reference | current | Non-normative Mvvm findings registry; structural empty state in the pilot |
+| [`docs/modules/Mvvm/BACKLOG.md`](modules/Mvvm/BACKLOG.md) | roadmap/status | current | Unpromoted Mvvm ideas; structural empty state in the pilot |
+| [`docs/modules/Mvvm/VALIDATION_REQUIREMENTS.md`](modules/Mvvm/VALIDATION_REQUIREMENTS.md) | reference | current | Mvvm evidence-contract scaffold and inherited validation profile |
+| [`docs/modules/Mvvm/VALIDATIONS.md`](modules/Mvvm/VALIDATIONS.md) | reference | current | Mvvm executed-evidence registry; structural empty state in the pilot |
+| [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Pointer-only source portal to the canonical Mvvm technical reference |
 | [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | reference | current | Named-pipe RPC/events, configuration ownership, lifecycle, framing, metrics, errors, access policy, and target-specific payload contracts |
 | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | reference | current | Watchdog application bootstrap, advanced runtime, configuration, lifecycle, process ownership, control, evidence, security, and package boundary |
 | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | reference | current | Watchdog Host deployment package, payload selection, build/publish behavior, protocol v1, fatal evidence, security, and release validation |
@@ -87,6 +108,11 @@ reference commit.
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Navigation technical contract |
 | [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
+| [`docs/governance/documentation-policy.md`](governance/documentation-policy.md) | reference | current | Module-first authority, lifecycle, conflict, migration, and indexing policy |
+| [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) | reference | current | Interoperable output contract and permitted role variation for documentation skills |
+| [`docs/governance/validation-policy.md`](governance/validation-policy.md) | reference | current | Validation taxonomy, profiles, requirement/evidence separation, and soak records |
+| [`docs/schemas/README.md`](schemas/README.md) | reference | current | Deterministic documentation and agent-skill schema index |
+| [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/stable-release-1.0.0.md`](stable-release-1.0.0.md) | reference | current | First stable family baseline, qualifying package provenance, hashes, validation, and distribution boundaries |
 | [`docs/migrations/f1-core.md`](migrations/f1-core.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
@@ -94,7 +120,7 @@ reference commit.
 | [`docs/migrations/f1-diagnostics.md`](migrations/f1-diagnostics.md) | guide | current | Migration from the initial Diagnostics candidate surface to the accepted F1-DIAG incident-collection, bundle, lifecycle, and ownership contracts |
 | [`docs/migrations/f1-http.md`](migrations/f1-http.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
 | [`docs/migrations/f1-devices.md`](migrations/f1-devices.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
-| [`docs/migrations/f1-mvvm.md`](migrations/f1-mvvm.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
+| [`docs/modules/Mvvm/migrations/f1.md`](modules/Mvvm/migrations/f1.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
 | [`docs/migrations/f1-pipes.md`](migrations/f1-pipes.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
 | [`docs/migrations/f1-watchdog.md`](migrations/f1-watchdog.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
 | [`docs/migrations/f1-watchdog-host.md`](migrations/f1-watchdog-host.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
@@ -111,7 +137,7 @@ reference commit.
 | [`docs/audit/logging-public-api-review-2026-08-17.md`](audit/logging-public-api-review-2026-08-17.md) | audit | historical | F1-LOG compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/audit/inspection-public-api-review-2026-08-17.md`](audit/inspection-public-api-review-2026-08-17.md) | audit | historical | F1-INSP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/http-public-api-review-2026-08-17.md`](audit/http-public-api-review-2026-08-17.md) | audit | historical | F1-HTTP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
-| [`docs/audit/mvvm-public-api-review-2026-08-17.md`](audit/mvvm-public-api-review-2026-08-17.md) | audit | historical | F1-MVVM compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
+| [`docs/modules/Mvvm/audits/public-api-review-2026-08-17.md`](modules/Mvvm/audits/public-api-review-2026-08-17.md) | audit | historical | F1-MVVM compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/navigation-public-api-review-2026-08-20.md`](audit/navigation-public-api-review-2026-08-20.md) | audit | historical | F1-NAV code-first core public API review, accepted implementation reconciliation, and residual package/runtime gaps |
 | [`docs/audit/navigation-winforms-public-api-review-2026-08-21.md`](audit/navigation-winforms-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
 | [`docs/audit/navigation-wpf-public-api-review-2026-08-21.md`](audit/navigation-wpf-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WPF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
@@ -142,14 +168,16 @@ reference commit.
 | [`runtime_tests/Navigation/WinFormsSmoke/README.md`](../runtime_tests/Navigation/WinFormsSmoke/README.md) | guide | current | Navigation WinForms interactive smoke scenario |
 | [`runtime_tests/Navigation/WpfSmoke/README.md`](../runtime_tests/Navigation/WpfSmoke/README.md) | guide | current | Navigation WPF interactive smoke scenario |
 | [`runtime_tests/Watchdog/Supervisor481/README.md`](../runtime_tests/Watchdog/Supervisor481/README.md) | guide | current | Watchdog/Pipes interactive supervisor scenario |
-| [`docs/repository-layout.md`](repository-layout.md) | reference | current | Tool source, automation, generated-artifact, and machine-local ownership |
+| [`docs/repository-layout.md`](repository-layout.md) | reference | current | Documentation infrastructure, agent adapters, tool source, automation, generated-artifact, and machine-local ownership |
 | [`AGENTS.md`](../AGENTS.md) | guide | current | Versioned agent workflow; not public product authority |
 | [`.agents/skills/nekolib/SKILL.md`](../.agents/skills/nekolib/SKILL.md) | guide | current | Repository-wide NekoLib routing |
+| [`.agents/skills/nekolib-documentation/SKILL.md`](../.agents/skills/nekolib-documentation/SKILL.md) | guide | current | Codex documentation adapter with source, architecture, public API, and implementation emphasis |
 | [`.agents/skills/nekolib-data/SKILL.md`](../.agents/skills/nekolib-data/SKILL.md) | guide | current | Data workflow |
 | [`.agents/skills/nekolib-devices/SKILL.md`](../.agents/skills/nekolib-devices/SKILL.md) | guide | current | Devices workflow |
 | [`.agents/skills/nekolib-navigation/SKILL.md`](../.agents/skills/nekolib-navigation/SKILL.md) | guide | current | Navigation workflow |
 | [`.agents/skills/nekolib-repository-hygiene/SKILL.md`](../.agents/skills/nekolib-repository-hygiene/SKILL.md) | guide | current | Repository hygiene workflow |
-| [`.agents/skills/nekolib-repository-inventory/SKILL.md`](../.agents/skills/nekolib-repository-inventory/SKILL.md) | guide | current | Repository file inventory workflow |
+| [`.agents/skills/nekolib-repository-inventory/SKILL.md`](../.agents/skills/nekolib-repository-inventory/SKILL.md) | guide | current | Read-only file distribution, Git state/change sets, documentation and skill topology, and compact Markdown tree views |
+| [`.claude/skills/nekolib-documentation/SKILL.md`](../.claude/skills/nekolib-documentation/SKILL.md) | guide | current | Claude documentation adapter with an additional test and evidence emphasis |
 | [`docs/audit/`](audit/README.md) | audit | historical or explicitly current | Dated review snapshots; each artifact is classified in the audit index |
 
 Local ignored guidance files are outside this registry. They may help a local
@@ -175,7 +203,13 @@ Run the repository documentation and topology checks from the root:
 
 ```powershell
 .\eng\verify-docs.ps1
+.\eng\verify-skills.ps1
 ```
+
+The documentation verifier checks authored document structure and links. The
+skill verifier separately checks repository-owned adapter coverage and the
+deterministic portions of the registered parity contract; semantic parity still
+requires a scoped review of the affected logical skill.
 
 Build the library family and compare every assembly-derived package/target API
 against the accepted candidate snapshots:

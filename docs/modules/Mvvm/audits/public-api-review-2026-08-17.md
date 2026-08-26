@@ -1,24 +1,36 @@
 # Mvvm Public API Review — 2026-08-17
 
+**Document ID:** MVVM-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-MVVM compiled public surface, command construction and parameter
-coercion, `CanExecuteChanged` ownership, `ViewModelBase` equality and
-notification semantics, nullability contract, target parity, and documentation
-ownership
+**Surface:** audit
 
-**Status:** all dispositions implemented, including the optional MVVM-06, with
-one measured correction to MVVM-01's compatibility claim, and package-validated
+**Boundary:** mvvm
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Subject:** F1-MVVM compiled public surface, command construction and parameter coercion, `CanExecuteChanged` ownership, `ViewModelBase` equality and notification semantics, nullability contract, target parity, and documentation ownership
+
+**Status:** all dispositions implemented, including the optional MVVM-06, with one measured correction to MVVM-01's compatibility claim and package validation completed
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `c9c4321e9fe67c0aeadcb7afda36347368fce457`
 
+**Original path:** docs/audit/mvvm-public-api-review-2026-08-17.md
+
 **Last reconciliation:** 2026-08-18 — package gate completed
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-MVVM
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-MVVM
 
 ## Baseline and authority
 
@@ -32,9 +44,9 @@ pushed.
 
 The reviewed authority is the `NekoLib.Mvvm` project, both of its source files,
 its project file, the two assembly-derived manifests under
-[`eng/public-api/NekoLib.Mvvm/`](../../eng/public-api/NekoLib.Mvvm), the
+[`eng/public-api/NekoLib.Mvvm/`](../../../../eng/public-api/NekoLib.Mvvm), the
 dual-target focused tests, and the
-[public API and release policy](../public-api-release-policy.md).
+[public API and release policy](../../../public-api-release-policy.md).
 
 This review changes no product source, test, API baseline, package, changelog,
 migration guide, or roadmap item.
@@ -74,7 +86,7 @@ Excluded:
 `NekoLib.Mvvm` targets `net481;net9.0`, enables `Nullable`, disables
 `ImplicitUsings`, defines `NEKOLIB` plus the conditional symbols, and has **no
 project reference and no package reference at all**
-([`NekoLib.Mvvm.csproj`](../../src/Mvvm/NekoLib.Mvvm/NekoLib.Mvvm.csproj)).
+([`NekoLib.Mvvm.csproj`](../../../../src/Mvvm/NekoLib.Mvvm/NekoLib.Mvvm.csproj)).
 `ICommand` and `INotifyPropertyChanged` come from the platform on both targets.
 There is no conditional compilation, so both targets compile the same text.
 
@@ -185,7 +197,7 @@ needs a migration guide.
 
 **Confirmed, probe-confirmed on both targets.** `TryCoerce` accepts only an
 exact runtime type match plus null for reference and nullable value types
-([`RelayCommand.cs:98`](../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L98)):
+([`RelayCommand.cs:98`](../../../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L98)):
 
 ```text
 RelayCommand<int?>  boxed int 5 -> executes;  null -> executes with null
@@ -229,8 +241,8 @@ No code change: adding an internal `CanExecute` gate would diverge from
 
 **Confirmed, probe-confirmed on both targets.** Neither `RaiseCanExecuteChanged`
 nor `OnPropertyChanged` isolates subscribers
-([`RelayCommand.cs:43`](../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L43),
-[`ViewModelBase.cs:17`](../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L17)).
+([`RelayCommand.cs:43`](../../../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L43),
+[`ViewModelBase.cs:17`](../../../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L17)).
 
 ```text
 throwing CanExecuteChanged subscriber -> propagates to caller;
@@ -255,7 +267,7 @@ a WinForms application sees it as `Application.ThreadException` if
 
 **Confirmed, probe-confirmed on both targets.** `SetProperty` uses
 `EqualityComparer<T>.Default.Equals`
-([`ViewModelBase.cs:30`](../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L30)):
+([`ViewModelBase.cs:30`](../../../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L30)):
 
 ```text
 NaN -> NaN                                   raised once, then suppressed
@@ -279,7 +291,7 @@ equality would break the helper's purpose.
 ### MVVM-06 — `OnPropertyChanged` is not virtual, so there is no single funnel for UI-thread marshalling
 
 **Confirmed.** `OnPropertyChanged` is `protected` and non-virtual
-([`ViewModelBase.cs:17`](../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L17)), and
+([`ViewModelBase.cs:17`](../../../../src/Mvvm/NekoLib.Mvvm/ViewModelBase.cs#L17)), and
 `SetProperty` routes every notification through it. A derived type therefore
 cannot intercept notifications in one place.
 
@@ -304,7 +316,7 @@ and one virtual method lets every consumer write their own in six lines.
 
 **Confirmed.** Neither command touches `CommandManager.RequerySuggested`, and
 `RaiseCanExecuteChanged` raises synchronously on the calling thread
-([`RelayCommand.cs:43`](../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L43)).
+([`RelayCommand.cs:43`](../../../../src/Mvvm/NekoLib.Mvvm/RelayCommand.cs#L43)).
 
 That is the correct consequence of having no WPF dependency, and it is what lets
 the same type serve WinForms. The cost is that a WPF consumer gets no automatic
@@ -354,7 +366,7 @@ attribute, and every probe result was identical on `net481` and `net9.0`.
 
 The library targets `net481;net9.0`; the test project targets
 `net481;net9.0-windows`
-([`NekoLib.Mvvm.Tests.Unit.csproj`](../../tests/NekoLib.Mvvm.Tests/Unit/NekoLib.Mvvm.Tests.Unit.csproj))
+([`NekoLib.Mvvm.Tests.Unit.csproj`](../../../../tests/NekoLib.Mvvm.Tests/Unit/NekoLib.Mvvm.Tests.Unit.csproj))
 without `UseWindowsForms`, `UseWPF`, or any Windows-specific reference. The
 `net9.0` assembly is therefore always exercised through a `net9.0-windows` host —
 compatible, but not the TFM that ships.
@@ -373,7 +385,7 @@ proposed here.
 ### MVVM-11 — Mvvm has no documentation owner
 
 **Confirmed.** There is no `src/Mvvm/NekoLib.Mvvm/README.md`, and
-[`docs/README.md`](../README.md) registers no owner. The module's coverage today
+[`docs/README.md`](../../../README.md) registers no owner. The module's coverage today
 is two rows: a one-line module-map entry and a one-line entry-point row in the
 root README.
 

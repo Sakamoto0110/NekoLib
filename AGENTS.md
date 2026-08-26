@@ -16,7 +16,7 @@ the handoff state and the rules that are easy to get wrong.
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`src/Telemetry/NekoLib.Telemetry/README.md`](src/Telemetry/NekoLib.Telemetry/README.md) |
 | Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](src/Diagnostics/NekoLib.Diagnostics/README.md) |
-| Binding helper coercion, notification semantics, threading, and nullability | [`src/Mvvm/NekoLib.Mvvm/README.md`](src/Mvvm/NekoLib.Mvvm/README.md) |
+| Binding helper coercion, notification semantics, threading, and nullability | [`docs/modules/Mvvm/REFERENCE.md`](docs/modules/Mvvm/REFERENCE.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`src/Devices/NekoLib.Devices/README.md`](src/Devices/NekoLib.Devices/README.md) |
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
 | Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
@@ -25,8 +25,10 @@ the handoff state and the rules that are easy to get wrong.
 | Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
-| Tools, automation, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
+| Documentation infrastructure, agent adapters, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
+| Cross-agent documentation authoring contract | [`docs/governance/agent-documentation-contract.md`](docs/governance/agent-documentation-contract.md) |
+| Agent skill registry and parity intent | [`docs/schemas/agent-skill-registry.json`](docs/schemas/agent-skill-registry.json) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 | Completed roadmap history | [`docs/history/`](docs/history/) |
 
@@ -216,11 +218,12 @@ is why — **do not recreate them**:
   commits — `Devices/Com0Com`, `Navigation/WinFormsSmoke`, `Navigation/WpfSmoke`
   and `Watchdog/Supervisor481` — plus `README.md` and `SCENARIO_TEMPLATE.md`.
   Run `git check-ignore -v <path>` before claiming a scenario file is untracked.
-- **Claude machine state** under `.claude/`, including local permissions,
-  locks, routines, worktrees, checkpoints, and mailboxes. Repository guidance
-  in the root and module `CLAUDE.md` files is versioned as of 2026-08-22; those
-  files remain migration input until the planned current-state audit finalizes
-  their thin routing role.
+- **Claude machine state** under the specifically ignored `.claude/` paths,
+  including local permissions, locks, routines state, worktrees, checkpoints,
+  and mailboxes. Registry-listed adapters under `.claude/skills/` are
+  repository guidance and are intended to be versioned. Root and module
+  `CLAUDE.md` files are also versioned as of 2026-08-22, but remain migration
+  input until the planned current-state audit finalizes their thin routing role.
 
 ## Facts that contradict older material
 
@@ -256,6 +259,10 @@ dotnet test NekoLib.sln
 Validate documentation, links, project topology, and the warning baseline with
 `.\eng\verify-docs.ps1`; pass a captured rebuild log through `-BuildLogPath` to
 compare emitted warning identities.
+
+Validate repository-owned skill registration, adapter identity, parity-policy
+structure, and declared common modes with `.\eng\verify-skills.ps1`. Semantic
+parity remains a review concern.
 
 Create and verify a new immutable local package version:
 

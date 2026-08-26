@@ -1,22 +1,97 @@
 # Repository Operational Layout
 
+**Document ID:** GLOBAL-REPOSITORY-LAYOUT
+
+**Schema version:** 1
+
 **Kind:** reference
 
 **Lifecycle:** current
 
-**Subject:** tools, automation, generated artifacts, and machine-local data
+**Subject:** repository-owned documentation infrastructure, agent adapters, tools, automation, generated artifacts, and machine-local state
+
+**Surface:** guide
+
+**Boundary:** global
+
+**Authority role:** normative
+
+**Mutation:** authored
+
+**Indexing:** include
 
 These directories have distinct ownership. A file's location determines
-whether it can be cited as reproducible repository evidence.
+its default role, but Git state and the governing index determine whether the
+current file is actually clean-clone evidence.
 
 | Path | Owner and lifecycle | Versioned? |
 |---|---|---|
+| `docs/governance/` | Shared documentation authority, lifecycle, validation, and cross-agent authoring policies | yes |
+| `docs/schemas/` | Closed structural vocabulary plus repository skill identity, adapter topology, and parity intent | yes |
+| `docs/templates/` | Canonical shared document structures; examples are not repository evidence | yes |
+| `docs/modules/` | Reviewed module-first boundaries and their manifests, current references, registers, audits, and migrations | yes |
+| `.agents/skills/` | Repository-owned Codex workflow adapters and routing; procedural, not product authority | yes |
+| `.claude/skills/` | Repository-owned Claude workflow adapters registered by the shared skill registry; procedural, not product authority | yes |
 | `src/Tools/` | Source code for executables maintained by this repository | yes |
 | `tools/` | Locally restored or copied executable payloads; never source authority | no |
 | `eng/` | Build, validation, packaging, and repository-maintenance automation | yes |
 | `.github/workflows/` | Manual remote publication transport; no automatic build or validation trigger | yes |
 | `artifacts/` | Generated, disposable build/package/tool output | no |
 | `.local/` | Machine-only experiments, configuration, private prerequisites, and scratch data | no |
+| Selected `.claude/` runtime paths | Machine permissions, locks, routines state, worktrees, checkpoints, mailboxes, and other paths explicitly listed in `.gitignore` | no |
+
+## Documentation and agent adapters
+
+The [documentation index](README.md) registers authored knowledge. The
+[documentation policy](governance/documentation-policy.md) owns authority and
+lifecycle meanings, the [schema](schemas/documentation-schema.json) owns closed
+structural vocabulary, the
+[skill registry](schemas/agent-skill-registry.json) owns repository skill
+identity, adapter paths, and parity intent, and each migrated boundary manifest
+owns its module-documentation routing. This layout document owns only the
+repository path and lifecycle distinction between those areas.
+
+Agent skills are authoring procedures over that shared contract. They do not
+become product, implementation, roadmap, or evidence authority. Codex and
+Claude adapters may emphasize different aspects, but their repository outputs
+remain interoperable under the
+[agent documentation contract](governance/agent-documentation-contract.md).
+
+`.claude/` is deliberately mixed ownership. Registered skills and any explicit
+repository guidance are versioned candidates; machine state is ignored by
+specific `.gitignore` rules. Never infer that the entire directory is versioned
+or ignored. Confirm the exact path through `git ls-files`, `git status`, and
+`git check-ignore`. An untracked, non-ignored adapter is part of the current
+working-tree review but is not available in a clean clone until committed.
+
+## Inventory snapshots
+
+The repository-inventory skill provides two read-only views over one Git-aware
+physical-file enumeration: a compact count grouped by category and repeated
+basename, and a human-friendly Markdown tree grouped by major area. The compact
+view deliberately answers distribution questions such as how many `README.md`
+files exist without implying that same-named documents duplicate meaning.
+
+Over that shared enumeration it can also report scoped topology, clean-clone
+and staged/unstaged state, structural changes from an explicit Git ref,
+module-documentation surface presence, and repository skill/adapter presence.
+Those are inventory observations: `eng/verify-docs.ps1` validates the
+documentation contract, `eng/verify-skills.ps1` validates registry coverage and
+other deterministic skill-topology invariants, and repository hygiene still
+owns change decisions.
+
+The skill registry distinguishes `single-profile`, `contract-equivalent`, and
+`near-mirror` skills. It never requires an undeclared one-to-one Codex/Claude
+mapping. When parity is declared, reviewers compare only the commonality
+required by that policy and preserve its listed agent-specific differences.
+The skill verifier checks declared adapter coverage and literal common-mode
+presence; it does not claim that role-specific procedures are semantically
+equivalent.
+
+Inventory output is baseline-bound discovery, not a live documentation index.
+If a user explicitly requests a saved report, it belongs under
+`artifacts/documentation/` as generated, non-authoritative output and must record
+commit, tree state, scope, and the tracked/untracked/ignored boundary.
 
 Tests and shared documentation must not depend on an opaque executable copied
 manually into `tools/`. A repository-owned executable needs versioned source and
