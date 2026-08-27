@@ -351,12 +351,17 @@ namespace NekoLib.Data.Gateway
 
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
+                ReadTypeAdaptationContext adaptationContext =
+                    CreateReadTypeAdaptationContext(cmd.Connection, Guid.NewGuid());
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
                     while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
                         ct.ThrowIfCancellationRequested();
-                        list.Add(ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode));
+                        list.Add(ReaderDtoMapper.Map<T>(
+                            reader,
+                            ctx.Options.MappingFailureMode,
+                            adaptationContext));
                     }
                 }
 
@@ -423,12 +428,17 @@ namespace NekoLib.Data.Gateway
             ReaderDtoMapper.ValidateTargetType(typeof(T));
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
+                ReadTypeAdaptationContext adaptationContext =
+                    CreateReadTypeAdaptationContext(cmd.Connection, Guid.NewGuid());
                 using(DbDataReader reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false))
                 {
                     while(await ReadSafeAsync(reader, ct).ConfigureAwait(false))
                     {
                         ct.ThrowIfCancellationRequested();
-                        callback(ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode));
+                        callback(ReaderDtoMapper.Map<T>(
+                            reader,
+                            ctx.Options.MappingFailureMode,
+                            adaptationContext));
                     }
                 }
 
@@ -492,6 +502,7 @@ namespace NekoLib.Data.Gateway
             bool ownsConnection = false;
             DbCommand? cmd = null;
             DbDataReader? reader = null;
+            ReadTypeAdaptationContext? adaptationContext = null;
             StreamTerminalState terminal = new StreamTerminalState();
 
             try
@@ -524,6 +535,8 @@ namespace NekoLib.Data.Gateway
                     ctx.RaiseSqlDispatch(dbq.Sql);
 
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
+                    adaptationContext =
+                        CreateReadTypeAdaptationContext(cmd.Connection, Guid.NewGuid());
                 }
                 catch(OperationCanceledException ex)
                 {
@@ -546,7 +559,10 @@ namespace NekoLib.Data.Gateway
                             break;
 
                         ct.ThrowIfCancellationRequested();
-                        item = ReaderDtoMapper.Map<T>(reader, ctx.Options.MappingFailureMode);
+                        item = ReaderDtoMapper.Map<T>(
+                            reader,
+                            ctx.Options.MappingFailureMode,
+                            adaptationContext!);
                     }
                     catch(OperationCanceledException ex)
                     {

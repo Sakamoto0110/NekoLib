@@ -195,13 +195,15 @@ profile falls back to `PRAGMA table_info` for the already-structured table
 identity. Unknown providers may execute exact or field-explicit operations but
 cannot authorize automatic schema-based promotion.
 
-`OnTypeAdaptation` reports each completed logical write promotion or decay
-once, even when an OleDb placeholder occurs multiple times physically. Events
-contain structural type, provider, strategy, loss, reason, provenance, attempt,
-formatter/culture, and correlation evidence; they never contain input/converted values, SQL,
-parameters, connection strings, credentials, or raw inner errors. Subscribers
-are synchronous and isolated and cannot authorize an adaptation. Configure
-options and rule collections before concurrent gateway use.
+`OnTypeAdaptation` reports each completed logical write promotion/decay and
+each DTO-property temporal materialization once, even when an OleDb placeholder
+occurs multiple times physically. Events contain structural type, provider,
+strategy, loss, reason, provenance, attempt, formatter/culture, property or
+parameter identity, and correlation evidence; they never contain
+input/converted values, SQL, parameter collections, connection strings,
+credentials, or raw inner errors. Subscribers are synchronous and isolated and
+cannot authorize an adaptation. Configure options and rule collections before
+concurrent gateway use.
 
 Raw-SQL dictionaries and `DbParameterSpec` remain explicit binding escape
 hatches and do not trigger schema inference. The gateway never dispatches one
@@ -220,16 +222,39 @@ invariant conversion matrix. `DataMappingFailureMode.Strict` throws a
 `DataMappingException` containing column/property/type evidence without the
 source value. `Lenient` leaves the affected property unchanged and continues.
 
+Temporal conversions are explicit policy surfaces. Lossless built-in rules
+cover round-trip `"O"` text and UTC `DateTime` to `DateTimeOffset`; each actual
+conversion raises a value-free `Read`/`Materialization` adaptation event.
+Potentially lossy conversions require both a rule scoped to the DTO property
+and `TypeLossPolicy.AllowExplicitAndReport`:
+
+```csharp
+var options = new DatabaseGatewayOptions
+{
+    TypeLossPolicy = TypeLossPolicy.AllowExplicitAndReport
+};
+
+options.ReadTypeAdaptationRules.Add(
+    ReadTypeAdaptationRule.For<EventRow>(
+        nameof(EventRow.OccurredAt),
+        TypeMaterializations.DateTimeOffsetToUtcDateTime));
+```
+
+That rule preserves the instant but discards the original offset, so the event
+is classified `PotentiallyLossy`. Custom textual formats use
+`CreateStringToDateTime(...)`, `CreateStringToDateTimeOffset(...)`,
+`CreateDateTimeToString(...)`, or `CreateDateTimeOffsetToString(...)`; their
+default classification is also `PotentiallyLossy`. Missing authorization and
+missing temporal rules fail through a value-free `TypeAdaptationException`
+available as `DataMappingException.AdaptationFailure`.
+`DataMappingFailureMode.Lenient` does not bypass either policy failure.
+
 `RecordItem` deliberately stores invariant text and cannot preserve database
 nulls, binary values, provider-specific precision, or every original type.
 `DataMapper` is a compatibility bridge from that lossy representation to a
-DTO; direct `GetDto`/`ReadDto` mapping retains more source fidelity.
-
-The new promotion, decay, schema, and hook policies currently govern builder
-parameters on the write/command path. Existing DTO read materialization remains
-owned by `DataMappingFailureMode`; read-side temporal adaptation reporting and
-per-field loss authorization remain open work and must not be inferred from the
-public `TypeAdaptationDirection.Read` vocabulary.
+DTO; it does not have a gateway/provider hook and retains its legacy textual
+conversion behavior. Direct `GetDto`, `ReadDto`, and `StreamDto` mapping retain
+provider values and enforce the gateway read-adaptation policy.
 
 Dynamic reads default to the AOT-safe Expando-backed `DynamicRow`. Reflection
 Emit is explicit through `DynamicMode.IL`, process-wide, bounded by the first

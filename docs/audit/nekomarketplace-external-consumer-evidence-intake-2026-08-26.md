@@ -26,9 +26,9 @@
 
 **Reference commit:** `0fa1a321c85c541cc3e32c39e5607de881032b5a`
 
-**Last reconciliation:** 2026-08-26
+**Last reconciliation:** 2026-08-27
 
-**Current state:** P-001 and F-003/NOTE-012/NOTE-013 are promoted to [`TODO.md`](../../TODO.md) Phase G3; every other record remains historical and unpromoted
+**Current state:** P-001 and F-003/NOTE-012/NOTE-013 are implemented and reconciled through the completed Data decision; every other record remains historical and unpromoted
 
 ## Purpose and authority
 

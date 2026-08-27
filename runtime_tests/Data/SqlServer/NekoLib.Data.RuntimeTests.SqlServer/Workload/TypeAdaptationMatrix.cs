@@ -9,17 +9,17 @@ using NekoLib.Data.Query;
 namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
 {
     /// <summary>
-    /// Proves that schema-validated write promotion is active against the real
-    /// SQL Server provider and that its structural hook reports exactly one
-    /// logical adaptation without exposing the value.
+    /// Proves schema-validated write promotion and explicit lossy DTO
+    /// materialization against the real SQL Server provider. Each structural
+    /// hook reports one logical adaptation without exposing the value.
     /// </summary>
     internal static class TypeAdaptationMatrix
     {
         private const string Phase = "type-adaptation";
 
-        public static Task RunAsync(PhaseContext context)
+        public static async Task RunAsync(PhaseContext context)
         {
-            return context.Runner.RunAsync(
+            await context.Runner.RunAsync(
                 Phase,
                 "schema-validated-string-to-int",
                 "lazy schema discovery authorizes one lossless string-to-int write promotion",
@@ -96,7 +96,76 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         gateway.OnTypeAdaptation -= observer;
                         gateway.ClearSchemaCache();
                     }
-                });
+                }).ConfigureAwait(false);
+
+            await context.Runner.RunAsync(
+                Phase,
+                "explicit-lossy-datetime-read",
+                "a DTO-property rule authorizes and reports DateTime to DateTimeOffset materialization",
+                async check =>
+                {
+                    DatabaseGateway gateway = (DatabaseGateway)context.Workspace.Gateway;
+                    var adaptations = new List<TypeAdaptationEventArgs>();
+                    Action<TypeAdaptationEventArgs> observer = adaptations.Add;
+                    TypeLossPolicy previousLossPolicy = context.Workspace.Options.TypeLossPolicy;
+                    ReadTypeAdaptationRule binding =
+                        ReadTypeAdaptationRule.For<TemporalReadRow>(
+                            nameof(TemporalReadRow.UpdatedAt),
+                            TypeMaterializations.DateTimeToDateTimeOffsetUsingKind);
+
+                    context.Workspace.Options.ReadTypeAdaptationRules.Add(binding);
+                    gateway.OnTypeAdaptation += observer;
+                    try
+                    {
+                        context.Workspace.Options.TypeLossPolicy =
+                            TypeLossPolicy.AllowExplicitAndReport;
+
+                        List<TemporalReadRow> rows = await gateway.GetDto<TemporalReadRow>(
+                            new QueryBuilder()
+                                .Select("UpdatedAt")
+                                .From("Part")
+                                .WhereTrusted("Id = @p1", 1),
+                            context.Ct).ConfigureAwait(false);
+
+                        check.Equal(1, rows.Count, "rows for the temporal read probe");
+                        check.That(
+                            rows[0].UpdatedAt != default(DateTimeOffset),
+                            "DateTimeOffset materialized");
+                        check.Equal(1, adaptations.Count, "read adaptations reported");
+
+                        TypeAdaptationEventArgs adaptation = adaptations[0];
+                        check.That(
+                            adaptation.Direction == TypeAdaptationDirection.Read,
+                            "direction is Read");
+                        check.That(
+                            adaptation.Kind == TypeAdaptationKind.Materialization,
+                            "kind is Materialization");
+                        check.That(
+                            adaptation.ReasonCode == TypeAdaptationReasonCode.ExplicitRule,
+                            "reason is ExplicitRule");
+                        check.That(
+                            adaptation.Loss == TypeAdaptationLoss.PotentiallyLossy,
+                            "loss classification is PotentiallyLossy");
+                        check.That(
+                            adaptation.PropertyName == nameof(TemporalReadRow.UpdatedAt),
+                            "property identity is reported");
+                        check.Note(
+                            adaptation.SourceType.Name + "->" + adaptation.TargetType.Name +
+                            " / " + adaptation.ReasonCode);
+                        context.Counters.Success();
+                    }
+                    finally
+                    {
+                        context.Workspace.Options.TypeLossPolicy = previousLossPolicy;
+                        context.Workspace.Options.ReadTypeAdaptationRules.Remove(binding);
+                        gateway.OnTypeAdaptation -= observer;
+                    }
+                }).ConfigureAwait(false);
+        }
+
+        private sealed class TemporalReadRow
+        {
+            public DateTimeOffset UpdatedAt { get; set; }
         }
     }
 }

@@ -25,7 +25,7 @@ remain under `docs/history/`.
   `Obsolete(error: false)` and may be removed only in `2.0.0` or later. Named
   and positional binding behavior is unchanged. See the
   [QueryBuilder migration guide](docs/migrations/querybuilder-structured-api.md).
-- **NekoLib.Data — additive write-side type adaptation.** Structured logical
+- **NekoLib.Data — explicit write and DTO temporal type adaptation.** Structured logical
   parameters now support exact promotion and decay rules. Gateway options add
   default `ExplicitOnly` promotion, strict-or-fallback decay, explicit lossy
   authorization, and disabled/lazy/preload schema discovery. The concrete
@@ -35,8 +35,11 @@ remain under `docs/history/`.
   and positional binders, supports ordered representation fallbacks ending in
   an explicitly formatted temporal string, never infers raw-SQL schema, and
   never retries a mutation after provider failure. Hook attempts include the
-  selected formatter and culture but never the value. Read-side materialization
-  policy is not changed by this slice. See the
+  selected formatter and culture but never the value. DTO gateway reads now
+  report lossless temporal conversions and require a DTO-property rule plus
+  `AllowExplicitAndReport` before discarding an offset, precision, kind, or
+  formatting intent. Exact DTO types and non-temporal mapping remain unchanged;
+  arbitrary temporal parsing is no longer inferred. See the
   [Data type-adaptation migration guide](docs/migrations/data-type-adaptation.md).
 
 ## 1.0.0 — stable baseline declared 2026-08-21

@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using NekoLib.Data.Mapping;
 using NekoLib.Data.Query;
 
 namespace NekoLib.Data.Gateway
@@ -27,10 +28,24 @@ namespace NekoLib.Data.Gateway
             new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Reports completed logical promotions and representation decays.
+        /// Reports completed logical promotions, representation decays, and
+        /// DTO materializations.
         /// Subscribers cannot authorize adaptation and their failures are isolated.
         /// </summary>
         public event Action<TypeAdaptationEventArgs>? OnTypeAdaptation;
+
+        private ReadTypeAdaptationContext CreateReadTypeAdaptationContext(
+            DbConnection? connection,
+            Guid correlationId)
+        {
+            ctx.Options.Validate();
+            ProviderProfile profile = ProviderProfile.Resolve(connection, ctx.Translator);
+            return new ReadTypeAdaptationContext(
+                ctx.Options,
+                profile.Identity,
+                correlationId,
+                NotifyTypeAdaptation);
+        }
 
         /// <summary>Loads selected column metadata into this gateway's cache.</summary>
         public async Task PreloadSchemaAsync(
@@ -387,6 +402,7 @@ namespace NekoLib.Data.Gateway
                     logical.Table,
                     logical.Column,
                     logical.Name,
+                    null,
                     decayRule.StrategyId,
                     decayRule.Loss,
                     TypeAdaptationReasonCode.ProviderFallback,
@@ -445,6 +461,7 @@ namespace NekoLib.Data.Gateway
                 logical.Table,
                 logical.Column,
                 logical.Name,
+                null,
                 rule.StrategyId,
                 rule.Loss,
                 reasonCode,

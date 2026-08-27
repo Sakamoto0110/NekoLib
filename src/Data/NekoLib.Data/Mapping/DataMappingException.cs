@@ -36,11 +36,13 @@ namespace NekoLib.Data.Mapping
             PropertyName = propertyName ?? throw new ArgumentNullException(nameof(propertyName));
             SourceType = sourceType ?? throw new ArgumentNullException(nameof(sourceType));
             TargetType = targetType ?? throw new ArgumentNullException(nameof(targetType));
+            AdaptationFailure = innerException as TypeAdaptationException;
         }
 
         public string ColumnName { get; }
         public string PropertyName { get; }
         public Type SourceType { get; }
         public Type TargetType { get; }
+        public TypeAdaptationException? AdaptationFailure { get; }
     }
 }

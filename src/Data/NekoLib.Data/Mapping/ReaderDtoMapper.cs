@@ -40,13 +40,30 @@ namespace NekoLib.Data.Mapping
 
         public static T Map<T>(DbDataReader reader, DataMappingFailureMode failureMode)
         {
-            return (T)Map(reader, typeof(T), failureMode);
+            return (T)Map(reader, typeof(T), failureMode, null);
+        }
+
+        public static T Map<T>(
+            DbDataReader reader,
+            DataMappingFailureMode failureMode,
+            ReadTypeAdaptationContext adaptationContext)
+        {
+            return (T)Map(reader, typeof(T), failureMode, adaptationContext);
         }
 
         public static object Map(
             DbDataReader reader,
             Type targetType,
             DataMappingFailureMode failureMode)
+        {
+            return Map(reader, targetType, failureMode, null);
+        }
+
+        public static object Map(
+            DbDataReader reader,
+            Type targetType,
+            DataMappingFailureMode failureMode,
+            ReadTypeAdaptationContext? adaptationContext)
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
@@ -57,7 +74,7 @@ namespace NekoLib.Data.Mapping
             ReaderBindingPlan plan = Plans.GetOrAdd(
                 key,
                 _ => CreatePlan(reader, targetType));
-            return plan.Map(reader, failureMode);
+            return plan.Map(reader, failureMode, adaptationContext);
         }
 
         private static ReaderBindingPlan CreatePlan(DbDataReader reader, Type targetType)
@@ -154,7 +171,10 @@ namespace NekoLib.Data.Mapping
                 _bindings = bindings;
             }
 
-            public object Map(DbDataReader reader, DataMappingFailureMode failureMode)
+            public object Map(
+                DbDataReader reader,
+                DataMappingFailureMode failureMode,
+                ReadTypeAdaptationContext? adaptationContext)
             {
                 object? instance = Activator.CreateInstance(_targetType);
                 if (instance == null)
@@ -169,19 +189,33 @@ namespace NekoLib.Data.Mapping
                     try
                     {
                         object rawValue = reader.GetValue(binding.Ordinal);
+                        TypeAdaptationEventArgs? completedAdaptation;
                         object? converted = DataValueConverter.ConvertValue(
                             rawValue,
-                            binding.Property.PropertyType);
+                            binding.Property.PropertyType,
+                            adaptationContext,
+                            _targetType,
+                            binding.Property.Name,
+                            binding.ColumnName,
+                            out completedAdaptation);
                         binding.Property.SetValue(instance, converted, null);
+                        if (completedAdaptation != null)
+                            adaptationContext!.Report(completedAdaptation);
                     }
                     catch (Exception ex)
                     {
-                        if (failureMode == DataMappingFailureMode.Lenient)
-                            continue;
-
                         Exception cause = ex is TargetInvocationException && ex.InnerException != null
                             ? ex.InnerException
                             : ex;
+                        TypeAdaptationException? adaptationFailure = cause as TypeAdaptationException;
+                        bool policyFailure = adaptationFailure != null &&
+                            (adaptationFailure.ReasonCode ==
+                                TypeAdaptationReasonCode.LossyAdaptationNotAuthorized ||
+                             adaptationFailure.ReasonCode ==
+                                TypeAdaptationReasonCode.MaterializationRuleMissing);
+                        if (failureMode == DataMappingFailureMode.Lenient && !policyFailure)
+                            continue;
+
                         Type sourceType = GetSourceType(reader, binding);
                         throw new DataMappingException(
                             binding.ColumnName,

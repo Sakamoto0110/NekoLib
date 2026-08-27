@@ -80,9 +80,13 @@ triggered, and Windows is required for full dual-target validation.
 
 ### Promoted horizon
 
-The Data type-adaptation and QueryBuilder API normalization design is accepted
-as promoted work. Its implementation scope and gate are owned by
-[`TODO.md`](TODO.md#data-type-adaptation-and-querybuilder-api-normalization).
+No implementation is currently promoted. [`TODO.md`](TODO.md) remains the only
+work scheduler and admission gate.
+
+The Data type-adaptation and QueryBuilder API normalization work completed on
+2026-08-27. Its accepted decisions and closure evidence are preserved in the
+historical
+[`Data review`](docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md).
 
 ### Decision horizon
 
@@ -163,6 +167,7 @@ Watchdog, or fleet-control plane.
 - Phase E: [confidence stabilization completion](docs/history/phase-e-confidence-stabilization-2026-08-12.md).
 - Phase G1: [typed HTTP integration completion](docs/history/phase-g1-http-integration-2026-08-16.md).
 - Phase F1: [public API and release stability completion](docs/history/phase-f1-public-api-release-stability-2026-08-21.md).
+- Data type adaptation and QueryBuilder normalization: [accepted decision and completion evidence](docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md).
 - Stable family baseline: [`NekoLib 1.0.0`](docs/stable-release-1.0.0.md).
 
 Historical test counts, hashes, package results, and implementation narratives

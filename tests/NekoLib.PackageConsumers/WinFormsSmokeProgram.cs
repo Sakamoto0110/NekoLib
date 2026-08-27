@@ -17,6 +17,8 @@ namespace NekoLib.PackageConsumers
                 typeof(NekoLib.Data.Gateway.DatabaseGateway),
                 typeof(NekoLib.Data.Gateway.IDatabaseGateway),
                 typeof(NekoLib.Data.TypePromotionPolicy),
+                typeof(NekoLib.Data.TypeMaterializationRule),
+                typeof(NekoLib.Data.ReadTypeAdaptationRule),
                 typeof(NekoLib.Data.TypeAdaptationEventArgs),
                 typeof(NekoLib.Inspection.InspectionRuntime),
                 typeof(NekoLib.Devices.Core.Abstractions.SerialConfig),
@@ -110,15 +112,27 @@ namespace NekoLib.PackageConsumers
         {
             gateway.OnTypeAdaptation += adaptation =>
                 Console.WriteLine(
-                    "{0}:{1}:{2}",
+                    "{0}:{1}:{2}:{3}",
                     adaptation.Kind,
                     adaptation.ReasonCode,
-                    adaptation.Loss);
+                    adaptation.Loss,
+                    adaptation.PropertyName);
 
             NekoLib.Data.TypeDecayRule formattedFallback =
                 NekoLib.Data.TypeDecays.CreateDateTimeOffsetToString(
                     "yyyy/MM/dd HH:mm:ss:fff",
                     System.Globalization.CultureInfo.InvariantCulture);
+            NekoLib.Data.ReadTypeAdaptationRule readFallback =
+                NekoLib.Data.ReadTypeAdaptationRule.For<PackageDataRow>(
+                    nameof(PackageDataRow.OccurredAt),
+                    NekoLib.Data.TypeMaterializations.DateTimeOffsetToUtcDateTime);
+            NekoLib.Data.DatabaseGatewayOptions readOptions =
+                new NekoLib.Data.DatabaseGatewayOptions
+                {
+                    TypeLossPolicy = NekoLib.Data.TypeLossPolicy.AllowExplicitAndReport
+                };
+            readOptions.ReadTypeAdaptationRules.Add(readFallback);
+            _ = readOptions.AutomaticMaterializationRules.Count;
 
             _ = gateway.PreloadSchemaAsync(
                 "Rows",
@@ -171,6 +185,7 @@ namespace NekoLib.PackageConsumers
         private sealed class PackageDataRow
         {
             public int Id { get; set; }
+            public DateTime OccurredAt { get; set; }
         }
     }
 }

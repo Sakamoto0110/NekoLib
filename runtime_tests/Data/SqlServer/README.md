@@ -13,9 +13,10 @@ and the SA password in `NEKOLIB_SQLSERVER_PASSWORD`. See below.
 
 **Last verification:** 2026-08-27 — **automated runtime.** `--smoke` passed with
 exit code 0 on both targets against SQL Server 16.0.4265.3 Developer Edition in
-the pinned container. The new write-adaptation phase used lazy schema discovery
-to promote `String` to `Int32`, required one lossless `SchemaValidatedRule`
-hook, and confirmed the stored quantity was unchanged. The last full recovery
+the pinned container. The type-adaptation phase used lazy schema discovery to
+promote `String` to `Int32`, then materialized the provider's `DateTime` as a
+DTO `DateTimeOffset` only after explicit lossy-read authorization. Both paths
+raised one sanitized hook. The last full recovery
 rehearsal remains the 82-minute `net9.0` run from 2026-08-08, inside the suite's
 specified 60–90 minute window, with all seven fault handlers passing and no
 unexpected failures.
@@ -205,6 +206,7 @@ second press ends it immediately.
 |---|---|
 | connection | repeated open/dispose; context-owned versus external factory ownership; session affinity refusal; use after dispose; sequential pool reuse; bounded concurrency at the pool limit |
 | read | every read shape agreeing on one query; the type round-trip against a direct provider read; the builder clauses; failing callback and abandoned stream |
+| type-adaptation | schema-validated lossless `String` to `Int32` write promotion; explicit potentially-lossy `DateTime` to `DateTimeOffset` DTO materialization; one sanitized hook per logical adaptation |
 | transaction | parameterized insert/update/delete; commit; explicit rollback; engine-rejected statement; dispose without commit; a new transaction after commit; provider error propagation |
 | cancellation | the pre-cancelled token matrix, then mid-flight cancellation of raw, typed, dynamic, callback, streaming and transaction-bound paths |
 | dynamic | `DynamicMode.IL` below, at and beyond the process-wide schema cap |
@@ -436,7 +438,7 @@ cheap, and this is the first evidence in the repository that it does.
 
 | Date | Target | Result |
 |---|---|---|
-| 2026-08-27 | both TFMs | **Write-side type-adaptation smoke, exit 0.** A dedicated check passed against the real `Microsoft.Data.SqlClient` provider and SQL Server engine. Lazy schema discovery resolved `Part.Quantity` to `Int32`; the gateway promoted the same stored quantity from `String`, raised exactly one lossless `SchemaValidatedRule` hook, dispatched once, and verified the stored value was unchanged. `net9.0` finished 30/30 checks; `net481` finished 29 passed, 0 failed, with only the existing streaming check skipped. Cleanup dropped each temporary database and restored the adopted container to `exited`. |
+| 2026-08-27 | both TFMs | **Read/write type-adaptation smoke, exit 0.** Two dedicated checks passed against the real `Microsoft.Data.SqlClient` provider and SQL Server engine. Lazy schema discovery resolved `Part.Quantity` to `Int32`; the gateway promoted the same stored quantity from `String`, raised exactly one lossless `SchemaValidatedRule` hook, dispatched once, and verified the stored value was unchanged. A DTO-property rule then materialized SQL Server's `DateTime` as `DateTimeOffset` under `AllowExplicitAndReport` and raised exactly one `Read` / `Materialization` / `ExplicitRule` / `PotentiallyLossy` hook identifying the property. `net9.0` finished 31/31 checks; `net481` finished 30 passed, 0 failed, with only the existing streaming check skipped. Cleanup dropped each temporary database and restored the adopted container to `exited`. |
 | 2026-08-08 | `net481` and `net9.0` | **Build only, zero warnings.** The command-line contract was exercised: no mode returns 2 with usage, and a missing `NEKOLIB_SQLSERVER_PASSWORD` returns 3 with a message naming the variable. `container.json` is copied next to both executables. |
 | 2026-08-08 | preflight | **`setup.ps1` run against the real machine.** It found engine 29.6.2, container `nekolib-sqlserver` in status `exited`, the pinned image and its digest `sha256:ba4c…e457c89`, `HostIp` empty, no mounts, and `NEKOLIB_SQLSERVER_PASSWORD` unset. Both setup gaps above come from that run. |
 | 2026-08-08 | `net9.0` | **Smoke, exit 0.** 28 checks, 0 failed, in 7s against SQL Server 16.0.4265.3 Developer Edition (RTM), image digest `sha256:ba4c…e457c89`, `Microsoft.Data.SqlClient 6.1.6`, x64. 18 read shapes agreed on 6 rows with an identical summed quantity of 924; 24 sequential calls used one server session and 32 concurrent against a pool of 8 used exactly 8; every mid-flight path was cancelled after the server confirmed execution; the IL cap emitted 12 types, rejected the 13th shape, and fell back to Expando for a context that allowed it. Cleanup dropped the database and returned the container to `exited`. Counters: 192 operations, 174 successes, 6 expected failures, **0 unexpected failures**, 12 cancellations. |

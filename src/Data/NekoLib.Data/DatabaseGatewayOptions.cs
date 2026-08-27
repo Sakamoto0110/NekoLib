@@ -148,6 +148,20 @@ namespace NekoLib.Data
             new List<TypeDecayRule>(TypeDecays.BuiltInRules);
 
         /// <summary>
+        /// Gets the lossless temporal conversions available automatically while
+        /// materializing provider rows into DTO properties.
+        /// </summary>
+        public IList<TypeMaterializationRule> AutomaticMaterializationRules { get; } =
+            new List<TypeMaterializationRule>(TypeMaterializations.BuiltInRules);
+
+        /// <summary>
+        /// Gets explicit, DTO-property-scoped read adaptations. Potentially
+        /// lossy rules additionally require <see cref="TypeLossPolicy.AllowExplicitAndReport"/>.
+        /// </summary>
+        public IList<ReadTypeAdaptationRule> ReadTypeAdaptationRules { get; } =
+            new List<ReadTypeAdaptationRule>();
+
+        /// <summary>
         /// Gets or sets the explicit opt-in for providers that do not support
         /// native asynchronous open, execute, or read operations.
         /// </summary>
@@ -183,6 +197,8 @@ namespace NekoLib.Data
 
             ValidateRuleCollection(AutomaticPromotionRules, nameof(AutomaticPromotionRules));
             ValidateRuleCollection(AutomaticDecayRules, nameof(AutomaticDecayRules));
+            ValidateMaterializationRules();
+            ValidateReadTypeAdaptationRules();
         }
 
         private static void ValidateRuleCollection<T>(IList<T> rules, string parameterName)
@@ -209,6 +225,88 @@ namespace NekoLib.Data
                     throw new ArgumentException(
                         "Adaptation rule strategy identifiers must be unique.",
                         parameterName);
+                }
+            }
+        }
+
+        private void ValidateMaterializationRules()
+        {
+            if (AutomaticMaterializationRules == null)
+                throw new ArgumentNullException(nameof(AutomaticMaterializationRules));
+
+            HashSet<string> strategyIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < AutomaticMaterializationRules.Count; index++)
+            {
+                TypeMaterializationRule? rule = AutomaticMaterializationRules[index];
+                if (rule == null)
+                {
+                    throw new ArgumentException(
+                        "Automatic materialization rules cannot contain null.",
+                        nameof(AutomaticMaterializationRules));
+                }
+                if (rule.Loss != TypeAdaptationLoss.Lossless)
+                {
+                    throw new ArgumentException(
+                        "Automatic materialization rules must be lossless.",
+                        nameof(AutomaticMaterializationRules));
+                }
+                if (!strategyIds.Add(rule.StrategyId))
+                {
+                    throw new ArgumentException(
+                        "Automatic materialization strategy identifiers must be unique.",
+                        nameof(AutomaticMaterializationRules));
+                }
+            }
+        }
+
+        private void ValidateReadTypeAdaptationRules()
+        {
+            if (ReadTypeAdaptationRules == null)
+                throw new ArgumentNullException(nameof(ReadTypeAdaptationRules));
+
+            HashSet<string> bindings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int index = 0; index < ReadTypeAdaptationRules.Count; index++)
+            {
+                ReadTypeAdaptationRule? binding = ReadTypeAdaptationRules[index];
+                if (binding == null)
+                {
+                    throw new ArgumentException(
+                        "Read adaptation rules cannot contain null.",
+                        nameof(ReadTypeAdaptationRules));
+                }
+
+                System.Reflection.PropertyInfo? property = binding.DtoType.GetProperty(
+                    binding.PropertyName,
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.Instance);
+                if (property == null ||
+                    !property.CanWrite ||
+                    property.GetIndexParameters().Length != 0)
+                {
+                    throw new ArgumentException(
+                        "A read adaptation must target a public writable non-indexed DTO property.",
+                        nameof(ReadTypeAdaptationRules));
+                }
+
+                Type propertyType = Nullable.GetUnderlyingType(property.PropertyType) ??
+                    property.PropertyType;
+                if (propertyType != binding.Adaptation.TargetType)
+                {
+                    throw new ArgumentException(
+                        "A read adaptation target must match the DTO property type.",
+                        nameof(ReadTypeAdaptationRules));
+                }
+
+                string key = (binding.DtoType.AssemblyQualifiedName ?? binding.DtoType.FullName) +
+                    "|" + binding.PropertyName +
+                    "|" + (binding.ColumnName ?? "*") +
+                    "|" + (binding.Adaptation.SourceType.AssemblyQualifiedName ??
+                            binding.Adaptation.SourceType.FullName);
+                if (!bindings.Add(key))
+                {
+                    throw new ArgumentException(
+                        "Read adaptation bindings must be unique per DTO property, column, and source type.",
+                        nameof(ReadTypeAdaptationRules));
                 }
             }
         }

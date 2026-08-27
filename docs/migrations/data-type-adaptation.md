@@ -5,7 +5,7 @@
 **Lifecycle:** current
 
 **Subject:** adopting explicit input promotion, provider representation decay,
-schema discovery, and sanitized adaptation reporting
+DTO temporal materialization, schema discovery, and sanitized adaptation reporting
 
 **Affected package:** `NekoLib.Data`
 
@@ -13,10 +13,13 @@ schema discovery, and sanitized adaptation reporting
 
 **Indexing:** include
 
-The type-adaptation surface is additive. Existing QueryBuilder values continue
+The public type-adaptation surface is additive. Existing QueryBuilder values continue
 to bind with their supplied CLR types under the default
 `TypePromotionPolicy.ExplicitOnly`; no automatic promotion is enabled merely by
-upgrading the package.
+upgrading the package. DTO properties whose provider value already has the
+target CLR type are unchanged. Temporal cross-type conversions are deliberately
+hardened: the gateway no longer guesses arbitrary date/time text or silently
+discards offsets without a field-scoped rule.
 
 ## Explicit promotion
 
@@ -128,6 +131,58 @@ as `PotentiallyLossy` by default; it therefore requires
 `AllowExplicitAndReport`. Use the built-in round-trip `"O"` rule when the text
 must preserve the full temporal representation.
 
+## DTO temporal materialization
+
+`GetDto`, `ReadDto`, and `StreamDto` apply the same temporal policy. Exact
+provider-to-property types need no rule or event. Registered lossless built-ins
+handle round-trip `"O"` text and UTC `DateTime` to `DateTimeOffset`, reporting
+each conversion through `OnTypeAdaptation` with `Direction = Read` and
+`Kind = Materialization`.
+
+Conversions that can lose an offset, precision, `DateTimeKind`, or formatting
+intent require a rule scoped to the DTO property plus the gateway loss opt-in:
+
+```csharp
+var options = new DatabaseGatewayOptions
+{
+    TypeLossPolicy = TypeLossPolicy.AllowExplicitAndReport
+};
+
+options.ReadTypeAdaptationRules.Add(
+    ReadTypeAdaptationRule.For<EventRow>(
+        nameof(EventRow.OccurredAt),
+        TypeMaterializations.DateTimeOffsetToUtcDateTime));
+```
+
+The optional `columnName` argument narrows a binding when a projection aliases
+or reuses a property. Rules otherwise match the DTO type, exact property name,
+runtime source type, and property target type. An exact column binding takes
+precedence over a property-wide binding regardless of registration order.
+
+Custom database text must name its parser instead of relying on current-culture
+or broad `DateTime.Parse` behavior:
+
+```csharp
+options.ReadTypeAdaptationRules.Add(
+    ReadTypeAdaptationRule.For<EventRow>(
+        nameof(EventRow.OccurredAt),
+        TypeMaterializations.CreateStringToDateTime(
+            "yyyy/MM/dd HH:mm:ss:fff",
+            CultureInfo.InvariantCulture)));
+```
+
+Custom format rules default to `PotentiallyLossy`. Use
+`AllowExplicitAndReport` unless the consumer can prove the chosen representation
+is lossless and passes `TypeAdaptationLoss.Lossless` deliberately. Missing rules
+and denied loss are policy failures: `DataMappingFailureMode.Lenient` cannot
+suppress them. `DataMappingException.AdaptationFailure` exposes the sanitized
+`TypeAdaptationException`; neither exception retains the source value.
+
+The standalone `DataMapper` consumes the already textual, fidelity-limited
+`RecordItem` compatibility model. It has no gateway/provider hook and therefore
+retains its legacy conversion behavior; use the DTO gateway APIs when temporal
+policy and reporting are required.
+
 ## Observing adaptation safely
 
 Subscribe on the concrete gateway instance:
@@ -136,6 +191,7 @@ Subscribe on the concrete gateway instance:
 gateway.OnTypeAdaptation += adaptation =>
 {
     metrics.Record(
+        adaptation.Direction,
         adaptation.Kind,
         adaptation.ReasonCode,
         adaptation.Loss,
@@ -147,11 +203,12 @@ gateway.OnTypeAdaptation += adaptation =>
 
 The synchronous hook is notification only. Throwing from a subscriber neither
 changes the database outcome nor prevents later subscribers from running. One
-logical adaptation raises one event even when a positional binder creates
-several physical parameters. Event data is deliberately value-free: do not
-expect SQL, values, parameter collections, connection strings, credentials, or
-raw inner exceptions. `Attempts` records rejected candidates in order and the
-selected formatter, including its non-secret format and culture metadata.
+logical write adaptation raises one event even when a positional binder creates
+several physical parameters. One read event identifies the DTO property and
+provider column. Event data is deliberately value-free: do not expect SQL,
+values, parameter collections, connection strings, credentials, or raw inner
+exceptions. `Attempts` records the selected read rule or rejected write
+candidates in order, including non-secret format and culture metadata.
 
 Final local failures use `TypeAdaptationException` with source/target types,
 provider and strategy identity, loss class, and a stable reason code. The
@@ -159,7 +216,8 @@ exception does not retain an inner conversion exception that could echo input.
 
 ## Current boundary
 
-This release activates promotion, decay, schema discovery, and hooks for
-structured QueryBuilder command parameters on both target frameworks. Existing
-DTO read materialization remains governed by `DataMappingFailureMode`; read-side
-temporal reporting and per-field loss authorization are not part of this slice.
+This release activates promotion, decay, schema discovery, write hooks, and DTO
+temporal materialization policy/reporting on both target frameworks. Raw and
+dynamic reads preserve their provider-owned shapes and do not invent DTO
+semantics. Non-temporal DTO conversion and ordinary conversion failures remain
+governed by `DataMappingFailureMode`.

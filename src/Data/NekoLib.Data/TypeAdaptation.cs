@@ -53,7 +53,8 @@ namespace NekoLib.Data
     public enum TypeAdaptationKind
     {
         Promotion = 0,
-        Decay = 1
+        Decay = 1,
+        Materialization = 2
     }
 
     /// <summary>Stable, value-free reason codes for adaptation outcomes.</summary>
@@ -73,7 +74,9 @@ namespace NekoLib.Data
         ProviderRepresentationUnsupported = 11,
         LossyAdaptationNotAuthorized = 12,
         StrictDecayRejected = 13,
-        UnknownProvider = 14
+        UnknownProvider = 14,
+        BuiltInRule = 15,
+        MaterializationRuleMissing = 16
     }
 
     /// <summary>Converts one semantic value without receiving SQL or credentials.</summary>
@@ -169,6 +172,89 @@ namespace NekoLib.Data
         internal object? Convert(object value)
         {
             return _converter(value);
+        }
+    }
+
+    /// <summary>Describes one exact provider-value to DTO-value conversion.</summary>
+    public sealed class TypeMaterializationRule
+    {
+        private readonly TypeValueConverter _converter;
+
+        public TypeMaterializationRule(
+            string strategyId,
+            Type sourceType,
+            Type targetType,
+            TypeValueConverter converter,
+            TypeAdaptationLoss loss,
+            string? format = null,
+            string? cultureName = null)
+        {
+            if (strategyId == null) throw new ArgumentNullException(nameof(strategyId));
+            if (string.IsNullOrWhiteSpace(strategyId))
+                throw new ArgumentException("A strategy identifier is required.", nameof(strategyId));
+            if (strategyId.Length > 128)
+                throw new ArgumentException("A strategy identifier cannot exceed 128 characters.", nameof(strategyId));
+            SourceType = sourceType ?? throw new ArgumentNullException(nameof(sourceType));
+            TargetType = targetType ?? throw new ArgumentNullException(nameof(targetType));
+            _converter = converter ?? throw new ArgumentNullException(nameof(converter));
+            if (!Enum.IsDefined(typeof(TypeAdaptationLoss), loss))
+                throw new ArgumentOutOfRangeException(nameof(loss));
+
+            StrategyId = strategyId;
+            Loss = loss;
+            Format = format;
+            CultureName = cultureName;
+        }
+
+        public string StrategyId { get; }
+        public Type SourceType { get; }
+        public Type TargetType { get; }
+        public TypeAdaptationLoss Loss { get; }
+        public string? Format { get; }
+        public string? CultureName { get; }
+
+        internal object? Convert(object value)
+        {
+            return _converter(value);
+        }
+    }
+
+    /// <summary>Binds an explicit read adaptation to one DTO property.</summary>
+    public sealed class ReadTypeAdaptationRule
+    {
+        public ReadTypeAdaptationRule(
+            Type dtoType,
+            string propertyName,
+            TypeMaterializationRule adaptation,
+            string? columnName = null)
+        {
+            DtoType = dtoType ?? throw new ArgumentNullException(nameof(dtoType));
+            if (propertyName == null) throw new ArgumentNullException(nameof(propertyName));
+            if (string.IsNullOrWhiteSpace(propertyName))
+                throw new ArgumentException("A DTO property name is required.", nameof(propertyName));
+            if (columnName != null && string.IsNullOrWhiteSpace(columnName))
+                throw new ArgumentException("A column name cannot be empty.", nameof(columnName));
+
+            PropertyName = propertyName;
+            ColumnName = columnName;
+            Adaptation = adaptation ?? throw new ArgumentNullException(nameof(adaptation));
+        }
+
+        public Type DtoType { get; }
+        public string PropertyName { get; }
+        public string? ColumnName { get; }
+        public TypeMaterializationRule Adaptation { get; }
+
+        public static ReadTypeAdaptationRule For<TDto>(
+            string propertyName,
+            TypeMaterializationRule adaptation,
+            string? columnName = null)
+        {
+            return new ReadTypeAdaptationRule(
+                typeof(TDto),
+                propertyName,
+                adaptation,
+                columnName);
         }
     }
 
@@ -392,6 +478,167 @@ namespace NekoLib.Data
         }
     }
 
+    /// <summary>Provider-neutral temporal rules for DTO materialization.</summary>
+    public static class TypeMaterializations
+    {
+        public static TypeMaterializationRule StringToDateTimeRoundTrip { get; } =
+            CreateStringToDateTime(
+                "O",
+                CultureInfo.InvariantCulture,
+                TypeAdaptationLoss.Lossless);
+
+        public static TypeMaterializationRule StringToDateTimeOffsetRoundTrip { get; } =
+            CreateStringToDateTimeOffset(
+                "O",
+                CultureInfo.InvariantCulture,
+                TypeAdaptationLoss.Lossless);
+
+        public static TypeMaterializationRule DateTimeToRoundTripString { get; } =
+            CreateDateTimeToString(
+                "O",
+                CultureInfo.InvariantCulture,
+                TypeAdaptationLoss.Lossless);
+
+        public static TypeMaterializationRule DateTimeOffsetToRoundTripString { get; } =
+            CreateDateTimeOffsetToString(
+                "O",
+                CultureInfo.InvariantCulture,
+                TypeAdaptationLoss.Lossless);
+
+        public static TypeMaterializationRule DateTimeUtcToDateTimeOffset { get; } =
+            new TypeMaterializationRule(
+                "read-datetime-utc-to-datetimeoffset",
+                typeof(DateTime),
+                typeof(DateTimeOffset),
+                value =>
+                {
+                    DateTime dateTime = (DateTime)value;
+                    if (dateTime.Kind != DateTimeKind.Utc)
+                        throw new InvalidCastException("The DateTime value is not UTC.");
+                    return new DateTimeOffset(dateTime);
+                },
+                TypeAdaptationLoss.Lossless);
+
+        /// <summary>
+        /// Uses <see cref="DateTime.Kind"/>; an Unspecified value is interpreted
+        /// with the machine-local offset and is therefore potentially lossy.
+        /// </summary>
+        public static TypeMaterializationRule DateTimeToDateTimeOffsetUsingKind { get; } =
+            new TypeMaterializationRule(
+                "read-datetime-to-datetimeoffset-using-kind",
+                typeof(DateTime),
+                typeof(DateTimeOffset),
+                value => new DateTimeOffset((DateTime)value),
+                TypeAdaptationLoss.PotentiallyLossy);
+
+        public static TypeMaterializationRule DateTimeOffsetToUtcDateTime { get; } =
+            new TypeMaterializationRule(
+                "read-datetimeoffset-to-utc-datetime",
+                typeof(DateTimeOffset),
+                typeof(DateTime),
+                value => ((DateTimeOffset)value).UtcDateTime,
+                TypeAdaptationLoss.PotentiallyLossy);
+
+        public static TypeMaterializationRule CreateStringToDateTime(
+            string format,
+            CultureInfo culture,
+            TypeAdaptationLoss loss = TypeAdaptationLoss.PotentiallyLossy)
+        {
+            RequireFormatter(format, culture, loss);
+            string cultureName = culture.Name;
+            return new TypeMaterializationRule(
+                "read-string-to-datetime:" + cultureName + ":" + format,
+                typeof(string),
+                typeof(DateTime),
+                value => DateTime.ParseExact(
+                    (string)value,
+                    format,
+                    culture,
+                    DateTimeStyles.RoundtripKind),
+                loss,
+                format,
+                cultureName);
+        }
+
+        public static TypeMaterializationRule CreateStringToDateTimeOffset(
+            string format,
+            CultureInfo culture,
+            TypeAdaptationLoss loss = TypeAdaptationLoss.PotentiallyLossy)
+        {
+            RequireFormatter(format, culture, loss);
+            string cultureName = culture.Name;
+            return new TypeMaterializationRule(
+                "read-string-to-datetimeoffset:" + cultureName + ":" + format,
+                typeof(string),
+                typeof(DateTimeOffset),
+                value => DateTimeOffset.ParseExact(
+                    (string)value,
+                    format,
+                    culture,
+                    DateTimeStyles.None),
+                loss,
+                format,
+                cultureName);
+        }
+
+        public static TypeMaterializationRule CreateDateTimeToString(
+            string format,
+            CultureInfo culture,
+            TypeAdaptationLoss loss = TypeAdaptationLoss.PotentiallyLossy)
+        {
+            RequireFormatter(format, culture, loss);
+            string cultureName = culture.Name;
+            return new TypeMaterializationRule(
+                "read-datetime-to-string:" + cultureName + ":" + format,
+                typeof(DateTime),
+                typeof(string),
+                value => ((DateTime)value).ToString(format, culture),
+                loss,
+                format,
+                cultureName);
+        }
+
+        public static TypeMaterializationRule CreateDateTimeOffsetToString(
+            string format,
+            CultureInfo culture,
+            TypeAdaptationLoss loss = TypeAdaptationLoss.PotentiallyLossy)
+        {
+            RequireFormatter(format, culture, loss);
+            string cultureName = culture.Name;
+            return new TypeMaterializationRule(
+                "read-datetimeoffset-to-string:" + cultureName + ":" + format,
+                typeof(DateTimeOffset),
+                typeof(string),
+                value => ((DateTimeOffset)value).ToString(format, culture),
+                loss,
+                format,
+                cultureName);
+        }
+
+        internal static IReadOnlyList<TypeMaterializationRule> BuiltInRules { get; } =
+            new ReadOnlyCollection<TypeMaterializationRule>(new[]
+            {
+                StringToDateTimeRoundTrip,
+                StringToDateTimeOffsetRoundTrip,
+                DateTimeToRoundTripString,
+                DateTimeOffsetToRoundTripString,
+                DateTimeUtcToDateTimeOffset
+            });
+
+        private static void RequireFormatter(
+            string format,
+            CultureInfo culture,
+            TypeAdaptationLoss loss)
+        {
+            if (format == null) throw new ArgumentNullException(nameof(format));
+            if (string.IsNullOrWhiteSpace(format))
+                throw new ArgumentException("A non-empty format is required.", nameof(format));
+            if (culture == null) throw new ArgumentNullException(nameof(culture));
+            if (!Enum.IsDefined(typeof(TypeAdaptationLoss), loss))
+                throw new ArgumentOutOfRangeException(nameof(loss));
+        }
+    }
+
     /// <summary>One value-free attempt in a bounded adaptation report.</summary>
     public sealed class TypeAdaptationAttempt
     {
@@ -431,7 +678,8 @@ namespace NekoLib.Data
             string bindingRepresentation,
             string? table,
             string? column,
-            string parameterName,
+            string? parameterName,
+            string? propertyName,
             string strategyId,
             TypeAdaptationLoss loss,
             TypeAdaptationReasonCode reasonCode,
@@ -449,6 +697,7 @@ namespace NekoLib.Data
             Table = table;
             Column = column;
             ParameterName = parameterName;
+            PropertyName = propertyName;
             StrategyId = strategyId;
             Loss = loss;
             ReasonCode = reasonCode;
@@ -466,7 +715,8 @@ namespace NekoLib.Data
         public string BindingRepresentation { get; }
         public string? Table { get; }
         public string? Column { get; }
-        public string ParameterName { get; }
+        public string? ParameterName { get; }
+        public string? PropertyName { get; }
         public string StrategyId { get; }
         public TypeAdaptationLoss Loss { get; }
         public TypeAdaptationReasonCode ReasonCode { get; }
@@ -476,7 +726,7 @@ namespace NekoLib.Data
         public Guid CorrelationId { get; }
     }
 
-    /// <summary>A sanitized local failure raised before database dispatch.</summary>
+    /// <summary>A sanitized local adaptation failure.</summary>
     public sealed class TypeAdaptationException : InvalidOperationException
     {
         internal TypeAdaptationException(

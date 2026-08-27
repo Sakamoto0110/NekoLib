@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Status:** design accepted; implementation gated
+**Status:** design accepted; implementation and validation complete
 
 **Reference date:** 2026-08-26
 
@@ -28,7 +28,7 @@
 
 **Last reconciliation:** 2026-08-27
 
-**Current state:** accepted implementation work is owned by [`TODO.md`](../../TODO.md) Phase G3; QueryBuilder and write-side adaptation reconciliations appear below
+**Current state:** `DATA-ADAPT-QB-001` complete; QueryBuilder, write adaptation, provider validation, and DTO temporal materialization reconciliations appear below
 
 ## Outcome
 
@@ -543,3 +543,41 @@ to fall through to a formatter-backed string rule, and reports all rejected
 candidates plus the selected rule once. Formatter rules carry format, culture,
 and loss classification; custom temporal formats default to potentially lossy,
 while the built-in `"O"` rules remain the lossless round-trip choices.
+
+## Implementation reconciliation — DTO temporal materialization, 2026-08-27
+
+The owner then authorized completion of every remaining Data dependency before
+commit and push. The only live item was the read-side temporal policy. Gateway
+DTO reads now distinguish exact assignment, registered lossless temporal
+materialization, and potentially lossy field-explicit conversion.
+
+`GetDto`, `ReadDto`, and `StreamDto` share one policy. Round-trip `"O"` text and
+UTC `DateTime` to `DateTimeOffset` are registered lossless rules and report one
+sanitized `Read`/`Materialization` event whenever conversion occurs. A rule
+bound by `ReadTypeAdaptationRule` to one DTO property is mandatory before a
+potentially lossy conversion can run; the gateway must also select
+`TypeLossPolicy.AllowExplicitAndReport`. `DataMappingFailureMode.Lenient` cannot
+bypass a missing-rule or denied-loss decision.
+
+Custom temporal parsers and formatters carry format, culture, and loss class.
+They default to `PotentiallyLossy`; no global current-culture or broad temporal
+parse is inferred. Failures remain value-free through
+`DataMappingException.AdaptationFailure` and `TypeAdaptationException`.
+The textual `RecordItem`/`DataMapper` compatibility bridge has no provider or
+gateway hook and deliberately retains its legacy conversion boundary.
+
+Focused DTO mapping tests pass 16/16 on `net9.0` and 13/13 on `net481`. The full
+Data suite passes 186/186 on `net9.0` and 177/177 on `net481`; both Release
+builds are warning-free and both compiled public API baselines match. This
+closes `DATA-ADAPT-QB-001`; no Data implementation remains promoted in
+`TODO.md`.
+
+The real SQL Server smoke also exercises the read boundary through
+`Microsoft.Data.SqlClient` 6.1.6 and SQL Server 16.0.4265.3. On both targets the
+provider returned `datetime2` as `DateTime`; an explicit DTO-property rule plus
+`AllowExplicitAndReport` materialized it as `DateTimeOffset` and emitted one
+sanitized `Read` / `Materialization` / `ExplicitRule` / `PotentiallyLossy`
+event. The complete smoke finished 31/31 on `net9.0` and 30/30 on `net481`,
+where the sole streaming skip is the pre-existing target boundary. Each
+temporary database was dropped and the adopted container returned to its prior
+`exited` state.

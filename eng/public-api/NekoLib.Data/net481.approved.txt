@@ -26,6 +26,7 @@ namespace NekoLib.Data
         public DatabaseGatewayOptions() { }
         public bool AllowExpandoFallback { get; set; }
         public System.Collections.Generic.IList<NekoLib.Data.TypeDecayRule> AutomaticDecayRules { get; }
+        public System.Collections.Generic.IList<NekoLib.Data.TypeMaterializationRule> AutomaticMaterializationRules { get; }
         public System.Collections.Generic.IList<NekoLib.Data.TypePromotionRule> AutomaticPromotionRules { get; }
         public bool ClearEventsOnContextDispose { get; set; }
         public int? DefaultCommandTimeoutSeconds { get; set; }
@@ -37,6 +38,7 @@ namespace NekoLib.Data
         public int MaxDynamicSchemas { get; set; }
         public int MaxObserverFailures { get; set; }
         public NekoLib.Data.DbParameterBindingMode ParameterBindingMode { get; set; }
+        public System.Collections.Generic.IList<NekoLib.Data.ReadTypeAdaptationRule> ReadTypeAdaptationRules { get; }
         public NekoLib.Data.SchemaDiscoveryMode SchemaDiscoveryMode { get; set; }
         public NekoLib.Data.DbSynchronousFallbackMode SynchronousFallbackMode { get; set; }
         public NekoLib.Data.TypeDecayPolicy TypeDecayPolicy { get; set; }
@@ -88,6 +90,15 @@ namespace NekoLib.Data
         Expando = 2,
         Disabled = 4,
     }
+    public sealed class ReadTypeAdaptationRule
+    {
+        public ReadTypeAdaptationRule(System.Type dtoType, string propertyName, NekoLib.Data.TypeMaterializationRule adaptation, string? columnName = null) { }
+        public NekoLib.Data.TypeMaterializationRule Adaptation { get; }
+        public string? ColumnName { get; }
+        public System.Type DtoType { get; }
+        public string PropertyName { get; }
+        public static NekoLib.Data.ReadTypeAdaptationRule For<TDto>(string propertyName, NekoLib.Data.TypeMaterializationRule adaptation, string? columnName = null) { }
+    }
     public sealed class RecordItem
     {
         public string Name;
@@ -135,7 +146,8 @@ namespace NekoLib.Data
         public string? Format { get; }
         public NekoLib.Data.TypeAdaptationKind Kind { get; }
         public NekoLib.Data.TypeAdaptationLoss Loss { get; }
-        public string ParameterName { get; }
+        public string? ParameterName { get; }
+        public string? PropertyName { get; }
         public string ProviderIdentity { get; }
         public NekoLib.Data.TypeAdaptationReasonCode ReasonCode { get; }
         public System.Type SourceType { get; }
@@ -157,6 +169,7 @@ namespace NekoLib.Data
     {
         Promotion = 0,
         Decay = 1,
+        Materialization = 2,
     }
     public enum TypeAdaptationLoss
     {
@@ -180,6 +193,8 @@ namespace NekoLib.Data
         LossyAdaptationNotAuthorized = 12,
         StrictDecayRejected = 13,
         UnknownProvider = 14,
+        BuiltInRule = 15,
+        MaterializationRuleMissing = 16,
     }
     public enum TypeDecayPolicy
     {
@@ -209,6 +224,30 @@ namespace NekoLib.Data
     {
         RejectPotentialLoss = 0,
         AllowExplicitAndReport = 1,
+    }
+    public sealed class TypeMaterializationRule
+    {
+        public TypeMaterializationRule(string strategyId, System.Type sourceType, System.Type targetType, NekoLib.Data.TypeValueConverter converter, NekoLib.Data.TypeAdaptationLoss loss, string? format = null, string? cultureName = null) { }
+        public string? CultureName { get; }
+        public string? Format { get; }
+        public NekoLib.Data.TypeAdaptationLoss Loss { get; }
+        public System.Type SourceType { get; }
+        public string StrategyId { get; }
+        public System.Type TargetType { get; }
+    }
+    public static class TypeMaterializations
+    {
+        public static NekoLib.Data.TypeMaterializationRule DateTimeOffsetToRoundTripString { get; }
+        public static NekoLib.Data.TypeMaterializationRule DateTimeOffsetToUtcDateTime { get; }
+        public static NekoLib.Data.TypeMaterializationRule DateTimeToDateTimeOffsetUsingKind { get; }
+        public static NekoLib.Data.TypeMaterializationRule DateTimeToRoundTripString { get; }
+        public static NekoLib.Data.TypeMaterializationRule DateTimeUtcToDateTimeOffset { get; }
+        public static NekoLib.Data.TypeMaterializationRule StringToDateTimeOffsetRoundTrip { get; }
+        public static NekoLib.Data.TypeMaterializationRule StringToDateTimeRoundTrip { get; }
+        public static NekoLib.Data.TypeMaterializationRule CreateDateTimeOffsetToString(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
+        public static NekoLib.Data.TypeMaterializationRule CreateDateTimeToString(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
+        public static NekoLib.Data.TypeMaterializationRule CreateStringToDateTime(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
+        public static NekoLib.Data.TypeMaterializationRule CreateStringToDateTimeOffset(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
     }
     public enum TypePromotionPolicy
     {
@@ -390,6 +429,7 @@ namespace NekoLib.Data.Mapping
     public sealed class DataMappingException : System.InvalidOperationException
     {
         public DataMappingException(string columnName, string propertyName, System.Type sourceType, System.Type targetType, System.Exception innerException) { }
+        public NekoLib.Data.TypeAdaptationException? AdaptationFailure { get; }
         public string ColumnName { get; }
         public string PropertyName { get; }
         public System.Type SourceType { get; }
