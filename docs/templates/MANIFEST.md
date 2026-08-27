@@ -46,7 +46,7 @@ Package evidence: repository-relative release or package evidence paths, comma-s
 ```
 
 The body must route the consumer introduction, technical reference, optional
-internals, history, changelog, issues, findings, backlog, validation
-requirements, validation evidence, audits, migrations, source, tests, runtime
-scenarios, release evidence, and related boundaries. Do not reproduce the public
-symbol inventory.
+internals, history, changelog, issues, findings, relevant global proposals,
+validation requirements, validation evidence, audits, migrations, source, tests,
+runtime scenarios, release evidence, and related boundaries. Do not reproduce
+the public symbol inventory.

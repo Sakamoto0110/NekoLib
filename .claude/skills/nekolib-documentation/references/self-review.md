@@ -34,7 +34,7 @@ Before declaring a module complete, verify all of the following:
 - historical documents remain historical, retain provenance, and declare
   `Mutation: snapshot` when their surface is an audit;
 - findings are not presented as facts;
-- backlog is not presented as roadmap;
+- proposals are not presented as roadmap direction or promoted `TODO.md` work;
 - validation evidence is not presented as contract;
 - compiled public API is referenced, not manually duplicated;
 - current technical claims match source and project files;

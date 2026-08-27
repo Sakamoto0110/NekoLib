@@ -100,7 +100,8 @@ namespace NekoLib.Data.Gateway
             Dictionary<string, object?>? parameters,
             CancellationToken ct,
             DbSession? session,
-            DbCommandPolicy? commandPolicy = null)
+            DbCommandPolicy? commandPolicy = null,
+            IReadOnlyList<LogicalParameter>? logicalParameters = null)
         {
             return WithCommandAsync(
                 sql,
@@ -108,7 +109,8 @@ namespace NekoLib.Data.Gateway
                 cmd => ExecuteNonQuerySafeAsync(cmd, ct),
                 ct,
                 session,
-                commandPolicy);
+                commandPolicy,
+                logicalParameters);
         }
 
 #if NET6_0_OR_GREATER

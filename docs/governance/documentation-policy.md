@@ -35,10 +35,11 @@ It extends the classification model in the [documentation index](../README.md).
 | Accepted public API baseline | Assembly-derived manifests under `eng/public-api/` |
 | Current module technical contract | `docs/modules/<Boundary>/REFERENCE.md` |
 | Module routing and identity | `docs/modules/<Boundary>/MANIFEST.md` |
-| Accepted work, ordering, freezes, and completion | Root `TODO.md` |
+| Product direction, intentions, planning horizons, guardrails, and freezes | Root `ROADMAP.md` |
+| Formally promoted work, execution order, gates, and completion criteria | Root `TODO.md` |
 | Confirmed defects | Module `ISSUES.md`; scheduling still requires explicit promotion to `TODO.md` |
 | Unconfirmed observations | Module `FINDINGS.md` |
-| Unpromoted ideas | Module `BACKLOG.md` |
+| Unpromoted proposals | One concise record per file under `docs/proposals/` |
 | Evidence requirements | Module `VALIDATION_REQUIREMENTS.md` |
 | Executed evidence | Module `VALIDATIONS.md`, tests, scenarios, and artifacts |
 | Historical rationale | Dated audits at their recorded baseline |
@@ -46,6 +47,11 @@ It extends the classification model in the [documentation index](../README.md).
 
 Supporting documents may summarize and link to an owner. They must not maintain
 a competing mutable list.
+
+`ROADMAP.md` states direction but does not authorize implementation. `TODO.md`
+is the sole promoted-work scheduler. A proposal is a lightweight non-normative
+idea record, not a required promotion stage: formalized findings, issues,
+audits, external evidence, or direct owner decisions may also be promoted.
 
 ## Module surfaces
 
@@ -58,8 +64,9 @@ a competing mutable list.
 - `HISTORY.md` is a factual chronological append-only timeline.
 - `CHANGELOG.md` owns detailed consumer-visible module evolution once populated;
   the root changelog remains the coordinated family summary.
-- `ISSUES.md`, `FINDINGS.md`, and `BACKLOG.md` keep confirmed defects,
-  uncertain knowledge, and unpromoted ideas separate.
+- `ISSUES.md` and `FINDINGS.md` keep confirmed defects and uncertain knowledge
+  separate. Cross-repository proposal files carry a `Boundary` so a module can
+  discover relevant unpromoted ideas without maintaining a duplicate backlog.
 - `VALIDATION_REQUIREMENTS.md` defines the evidence contract;
   `VALIDATIONS.md` records executed evidence.
 - `audits/` and `migrations/` preserve module rationale and consumer transition.
@@ -113,7 +120,7 @@ a filename beside the current document.
   `Canonical` form one combined contract. Such portals contain only routing
   metadata and one canonical link.
 - Empty registries state their baseline explicitly. An empty scaffold is not
-  evidence that no issue, finding, history, backlog, or validation exists.
+  evidence that no issue, finding, history, proposal, or validation exists.
 
 Document IDs and record IDs are stable. Existing identifiers such as `F1-NAV`,
 `DATA-016`, or `NEKOEXP0001` remain valid aliases and are never renumbered.
@@ -127,8 +134,9 @@ Document IDs and record IDs are stable. Existing identifiers such as `F1-NAV`,
 - Audits remain true only for their recorded baseline.
 - Evidence demonstrates claims but does not define behavior.
 - A finding becomes an issue only after verification.
-- An issue or backlog entry becomes scheduled work only through explicit
-  promotion to `TODO.md`.
+- A proposal, issue, finding, audit, external-evidence record, or direct owner
+  decision becomes scheduled work only through explicit, formalized promotion
+  to `TODO.md`. `docs/proposals/` is not an exclusive source queue.
 
 ## Structural migration
 

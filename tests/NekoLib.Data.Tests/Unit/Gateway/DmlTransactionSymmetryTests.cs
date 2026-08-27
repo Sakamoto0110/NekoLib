@@ -28,7 +28,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                     int result = await dml.Delete(
                         new QueryBuilder()
                             .DeleteFrom("Ledger")
-                            .Where("Id = @p1", 7),
+                            .Where("Id", QueryOperator.Equal, 7),
                         session);
 
                     Assert.Equal(1, result);
@@ -54,9 +54,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                     DbTransaction transaction = session.Transaction;
 
                     int result = await gateway.Insert(
-                        new QueryBuilder().InsertInto(
-                            "Ledger",
-                            new Dictionary<string, object> { { "Amount", 10 } }),
+                        new QueryBuilder()
+                            .InsertInto("Ledger")
+                            .Value("Amount", 10),
                         session);
 
                     Assert.Equal(1, result);
@@ -84,10 +84,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                     session.BeginTransaction();
                     DbTransaction transaction = session.Transaction;
                     QueryBuilder builder = new QueryBuilder()
-                        .Update(
-                            "Ledger",
-                            new Dictionary<string, object> { { "Amount", 11 } })
-                        .Where("Id = @p1", 7);
+                        .Update("Ledger")
+                        .Set("Amount", 11)
+                        .Where("Id", QueryOperator.Equal, 7);
 
                     int result = await dml.Update(builder, session);
 

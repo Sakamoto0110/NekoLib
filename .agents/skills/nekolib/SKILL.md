@@ -71,8 +71,8 @@ and changes it.
 
 Route to `nekolib-repository-hygiene` for:
 
-- repository-level `README.md`, `TODO.md`, `AGENTS.md`, `.gitignore`, or
-  `NekoLib.sln` governance
+- repository-level `README.md`, `ROADMAP.md`, `TODO.md`, `AGENTS.md`,
+  `.gitignore`, or `NekoLib.sln` governance
 - `.agents/skills/`, `.claude/skills/`, the agent skill registry, adapter
   registration, or cross-agent parity intent
 - `docs/`, `runtime_tests/`, `src/Tools/`, `tools/`, `eng/`, `artifacts/`, or

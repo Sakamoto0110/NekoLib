@@ -26,9 +26,12 @@ current file is actually clean-clone evidence.
 
 | Path | Owner and lifecycle | Versioned? |
 |---|---|---|
+| `ROADMAP.md` | Current product direction, intentions, guardrails, freezes, and planning horizons; not implementation authorization | yes |
+| `TODO.md` | Formally promoted work, execution gates, ordering, and completion criteria | yes |
 | `docs/governance/` | Shared documentation authority, lifecycle, validation, and cross-agent authoring policies | yes |
 | `docs/schemas/` | Closed structural vocabulary plus repository skill identity, adapter topology, and parity intent | yes |
 | `docs/templates/` | Canonical shared document structures; examples are not repository evidence | yes |
+| `docs/proposals/` | Concise one-file unpromoted ideas; non-normative and not an exclusive promotion source | yes |
 | `docs/modules/` | Reviewed module-first boundaries and their manifests, current references, registers, audits, and migrations | yes |
 | `.agents/skills/` | Repository-owned Codex workflow adapters and routing; procedural, not product authority | yes |
 | `.claude/skills/` | Repository-owned Claude workflow adapters registered by the shared skill registry; procedural, not product authority | yes |

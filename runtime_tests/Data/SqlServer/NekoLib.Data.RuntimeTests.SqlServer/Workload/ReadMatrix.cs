@@ -45,7 +45,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                 .Select("Id", "WarehouseId", "Sku", "Description", "Quantity",
                         "UnitPrice", "Weight", "Serial", "Discontinued", "UpdatedAt")
                 .From("Part")
-                .Where("WarehouseId = @p1", TargetWarehouse);
+                .Where("WarehouseId", QueryOperator.Equal, TargetWarehouse);
         }
 
         private static Dictionary<string, object?> Parameters()
@@ -282,8 +282,8 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         new QueryBuilder()
                             .Select("p.Sku AS Sku", "w.City AS City", "p.Quantity AS Quantity")
                             .From("Part p")
-                            .Join("Warehouse w", "w.Id = p.WarehouseId")
-                            .Where("w.Active = @p1", true)
+                            .JoinOn("Warehouse w", "w.Id", "p.WarehouseId")
+                            .Where("w.Active", QueryOperator.Equal, true)
                             .OrderBy("p.Id"),
                         context.Ct).ConfigureAwait(false);
 
@@ -330,13 +330,13 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     QueryBuilder subquery = new QueryBuilder()
                         .Select("1")
                         .From("Warehouse w")
-                        .Where("w.Id = Part.WarehouseId AND w.City = @p1", "Curitiba");
+                        .WhereTrusted("w.Id = Part.WarehouseId AND w.City = @p1", "Curitiba");
 
                     List<Dictionary<string, RecordItem>> exists = await gateway.GetRaw(
                         new QueryBuilder()
                             .Select("Id")
                             .From("Part")
-                            .Where("Quantity > @p1", 0)
+                            .Where("Quantity", QueryOperator.GreaterThan, 0)
                             .WhereExists(subquery),
                         context.Ct).ConfigureAwait(false);
 

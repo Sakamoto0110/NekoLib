@@ -47,7 +47,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             new QueryBuilder()
                 .Select("[Id]", "[Name]", "[Category]", "[Unit]", "[Quantity]", "[UnitPrice]")
                 .From("[Products]")
-                .Where("[Quantity] > @p1", ShapeThreshold);
+                .Where("[Quantity]", QueryOperator.GreaterThan, ShapeThreshold);
 
         private static Dictionary<string, object?> ShapeParameters() =>
             new Dictionary<string, object?> { ["@p1"] = ShapeThreshold };

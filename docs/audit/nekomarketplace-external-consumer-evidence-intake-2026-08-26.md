@@ -20,15 +20,15 @@
 
 **Indexing:** include
 
-**Status:** intake complete; current-source reconciliation not started
+**Status:** intake complete; P-001 and QueryBuilder correction reconciled, remaining records pending
 
 **Reference date:** 2026-08-26
 
 **Reference commit:** `0fa1a321c85c541cc3e32c39e5607de881032b5a`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-26
 
-**Current state:** historical external-consumer evidence only; no record is confirmed current, scheduled, or promoted
+**Current state:** P-001 and F-003/NOTE-012/NOTE-013 are promoted to [`TODO.md`](../../TODO.md) Phase G3; every other record remains historical and unpromoted
 
 ## Purpose and authority
 
@@ -610,3 +610,49 @@ requires explicit promotion to [`TODO.md`](../../TODO.md).
 Until that work occurs, this document is the sole repository intake snapshot
 for the NekoMarketplace corpus and every external record remains historical,
 baseline-bound evidence.
+
+## Reconciliation — 2026-08-26 — P-001 and QueryBuilder correction
+
+This dated reconciliation preserves the original intake body above. It covers
+only `P-001` and the `F-003` / `NOTE-012` / `NOTE-013` QueryBuilder chain against
+current NekoLib.Data source at
+`fc10319a439edc4943a1226fc66d0cf4ee2d2e2a`.
+
+### P-001 disposition
+
+The owner clarified that **decay** means representation fallback when the
+preferred semantic/provider representation is incompatible. It does not mean
+expiration or scheduling, and `dd/MM` was only one formatter illustration.
+The accepted boundary is NekoLib.Data, initially covering `DateTime` and
+`DateTimeOffset` on read and write while allowing the architecture to support
+other registered type families.
+
+Promotion permission, provider adaptation/decay, loss authorization, schema
+discovery, provider profiles, sanitized failure evidence, and an observational
+adaptation hook are now separated explicitly in the
+[`Data type-adaptation and QueryBuilder API review`](data-type-adaptation-querybuilder-api-review-2026-08-26.md).
+The accepted implementation work is promoted to [`TODO.md`](../../TODO.md)
+Phase G3. This resolves the owner-intent dispute recorded in the original
+`P-001` section without rewriting that historical section.
+
+### QueryBuilder disposition
+
+Current source confirms the material shape difference described by `F-003`:
+condition-template `Where`, dictionary-at-start `InsertInto`/`Update`, and raw
+expression `Join` coexist with field/value-oriented fluent methods. The owner
+accepted one canonical structured fluent convention centered on `Value`, `Set`,
+structured predicates, and a structured join path.
+
+The replaced stable overloads will remain temporarily as compatibility shims,
+delegate to the same logical model, and carry warning-only
+`Obsolete(..., error: false)` markers whose messages name the replacement and
+state next-major removal. They must remain through at least one released minor
+version and may be removed only in `2.0.0` or later. This disposition is also
+owned by Phase G3.
+
+### Remaining boundary
+
+No other external finding, validation record, or proposal in this intake is
+reconciled or promoted by this section. No product source, compiled API
+baseline, test, package, provider, runtime, or release evidence was changed or
+executed as part of this design decision.

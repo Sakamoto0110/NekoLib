@@ -2,22 +2,21 @@
 
 **Kind:** audit
 
-**Lifecycle:** current
+**Lifecycle:** historical
 
 **Subject:** code-first Phase G2 review of the payment-module boundary, Pix
 immediate-charge scope, HTTP ownership, provider selection, security,
 reconciliation, and executable evidence
 
-**Status:** review complete; implementation decision pending
+**Status:** review complete; implementation remains unpromoted
 
 **Reference date:** 2026-08-16
 
 **Reference commit:** `f73ba4a2fd01b66f5df6c172ba15d6d39d01a072`
 
-**Last reconciliation:** none
+**Last reconciliation:** 2026-08-26
 
-**Current state:** [`TODO.md`](../../TODO.md) Phase G2 is the sole authority for
-promotion and implementation status
+**Current state:** [`payments-pix.md`](../proposals/payments-pix.md) is the concise unpromoted proposal; no implementation is present in [`TODO.md`](../../TODO.md)
 
 ## Baseline and authority
 
@@ -280,3 +279,12 @@ Accessed 2026-08-16:
   <https://sejaefi.com.br/efi-bank>
 - Mercado Pago, Pix test flow for Orders:
   <https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/integration-test/pix>
+
+## Reconciliation — 2026-08-26
+
+The repository separated direction, promoted work, and unpromoted ideas.
+Payments/Pix remains unpromoted. Its current concise idea record is
+[`docs/proposals/payments-pix.md`](../proposals/payments-pix.md); this review is
+preserved as dated investigation and decision input. Promotion does not require
+another proposal-specific gate, but it still requires an explicit formalized
+owner decision and admission to [`TODO.md`](../../TODO.md).

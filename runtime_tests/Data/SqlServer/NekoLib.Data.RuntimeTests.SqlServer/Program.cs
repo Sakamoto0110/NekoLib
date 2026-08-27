@@ -338,6 +338,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer
         {
             await ConnectionMatrix.RunAsync(context).ConfigureAwait(false);
             await ReadMatrix.RunAsync(context).ConfigureAwait(false);
+            await TypeAdaptationMatrix.RunAsync(context).ConfigureAwait(false);
             await TransactionMatrix.RunAsync(context).ConfigureAwait(false);
             await CancellationMatrix.RunAsync(context).ConfigureAwait(false);
 

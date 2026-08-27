@@ -15,22 +15,27 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         private readonly bool _useSynchronousOpenFallback;
         private readonly Action _beforeOpenAsyncNotSupported;
         private readonly Exception _openException;
+        private readonly Func<string, string[], DataTable> _schemaFactory;
+        private int _schemaCalls;
 
         public FakeNonQueryConnectionFactory(
             Func<FakeNonQueryCommand> commandFactory,
             bool useSynchronousOpenFallback = false,
             Action beforeOpenAsyncNotSupported = null,
-            Exception openException = null)
+            Exception openException = null,
+            Func<string, string[], DataTable> schemaFactory = null)
         {
             _commandFactory = commandFactory;
             _useSynchronousOpenFallback = useSynchronousOpenFallback;
             _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
             _openException = openException;
+            _schemaFactory = schemaFactory;
         }
 
         public FakeNonQueryConnection LastConnection { get; private set; }
         public int CreateCalls { get; private set; }
         public int DisposeCalls { get; private set; }
+        public int SchemaCalls => Volatile.Read(ref _schemaCalls);
         public bool WasDisposed { get; private set; }
 
         public Task<DbConnection> Create()
@@ -40,7 +45,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 _commandFactory,
                 _useSynchronousOpenFallback,
                 _beforeOpenAsyncNotSupported,
-                _openException);
+                _openException,
+                _schemaFactory,
+                () => Interlocked.Increment(ref _schemaCalls));
             return Task.FromResult<DbConnection>(LastConnection);
         }
 
@@ -57,18 +64,24 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         private readonly bool _useSynchronousOpenFallback;
         private readonly Action _beforeOpenAsyncNotSupported;
         private readonly Exception _openException;
+        private readonly Func<string, string[], DataTable> _schemaFactory;
+        private readonly Action _onSchemaCall;
         private ConnectionState _state;
 
         public FakeNonQueryConnection(
             Func<FakeNonQueryCommand> commandFactory,
             bool useSynchronousOpenFallback = false,
             Action beforeOpenAsyncNotSupported = null,
-            Exception openException = null)
+            Exception openException = null,
+            Func<string, string[], DataTable> schemaFactory = null,
+            Action onSchemaCall = null)
         {
             _commandFactory = commandFactory;
             _useSynchronousOpenFallback = useSynchronousOpenFallback;
             _beforeOpenAsyncNotSupported = beforeOpenAsyncNotSupported;
             _openException = openException;
+            _schemaFactory = schemaFactory;
+            _onSchemaCall = onSchemaCall;
         }
 
         public FakeNonQueryConnection(string connectionString)
@@ -120,6 +133,19 @@ namespace NekoLib.Data.Tests.Unit.Gateway
 
         public override void ChangeDatabase(string databaseName)
         {
+        }
+
+        public override DataTable GetSchema(string collectionName)
+        {
+            return GetSchema(collectionName, null);
+        }
+
+        public override DataTable GetSchema(string collectionName, string[] restrictionValues)
+        {
+            _onSchemaCall?.Invoke();
+            if (_schemaFactory == null)
+                throw new NotSupportedException("Schema discovery is not configured for this fake connection.");
+            return _schemaFactory(collectionName, restrictionValues);
         }
 
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)

@@ -210,9 +210,8 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
         }
 
         /// <summary>
-        /// A fresh <see cref="QueryBuilder"/> per insert, deliberately. Reusing one
-        /// after <c>Build()</c> accumulates parameters - the builder is not idempotent
-        /// for DML.
+        /// A fresh <see cref="QueryBuilder"/> per insert keeps each statement's
+        /// values local even though repeated <c>Build()</c> calls are idempotent.
         /// </summary>
         private Task<int> InsertRowAsync(
             string table,
@@ -220,7 +219,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             CancellationToken ct,
             DbSession? session = null)
         {
-            var builder = new QueryBuilder().InsertInto(table, values);
+            var builder = new QueryBuilder().InsertInto(table);
+            foreach (KeyValuePair<string, object?> value in values)
+                builder.Value(value.Key, value.Value);
             return session == null
                 ? Gateway.Insert(builder, ct)
                 : Gateway.Insert(builder, session, ct);
@@ -267,6 +268,82 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
             QueryBuilder builder,
             CancellationToken ct = default) =>
             Gateway.GetRaw(builder, ct);
+
+        /// <summary>
+        /// Proves schema-authorized string-to-integer promotion against the
+        /// selected real provider without changing the stored value.
+        /// </summary>
+        public async Task<string> ProbeWriteTypeAdaptationAsync(
+            CancellationToken ct = default)
+        {
+            List<Dictionary<string, RecordItem>> before = await Gateway.GetRaw(
+                new QueryBuilder()
+                    .Select("[Quantity]")
+                    .From("[Products]")
+                    .WhereTrusted("[Id] = @p1", 1),
+                ct).ConfigureAwait(false);
+            if (before.Count != 1 || !before[0].ContainsKey("Quantity"))
+                throw new InvalidOperationException("The adaptation probe could not read Product 1.");
+
+            string originalQuantity = before[0]["Quantity"].Value;
+            var adaptations = new List<TypeAdaptationEventArgs>();
+            Action<TypeAdaptationEventArgs> observer = adaptations.Add;
+            TypePromotionPolicy previousPolicy = _ctx.Options.TypePromotionPolicy;
+            _gateway.OnTypeAdaptation += observer;
+            try
+            {
+                _ctx.Options.TypePromotionPolicy = TypePromotionPolicy.SchemaValidated;
+                _gateway.ClearSchemaCache();
+
+                int affected = await _gateway.Update(
+                    new QueryBuilder()
+                        .Update("[Products]")
+                        .Set("[Quantity]", originalQuantity)
+                        .WhereTrusted("[Id] = @p1", 1),
+                    ct).ConfigureAwait(false);
+                if (affected != 1)
+                    throw new InvalidOperationException("The adaptation probe did not update exactly one row.");
+
+                TypeAdaptationEventArgs adaptation = adaptations.Count == 1
+                    ? adaptations[0]
+                    : throw new InvalidOperationException(
+                        "The adaptation probe did not report exactly one logical adaptation.");
+                if (adaptation.Direction != TypeAdaptationDirection.Write ||
+                    adaptation.Kind != TypeAdaptationKind.Promotion ||
+                    adaptation.ReasonCode != TypeAdaptationReasonCode.SchemaValidatedRule ||
+                    adaptation.Loss != TypeAdaptationLoss.Lossless)
+                {
+                    throw new InvalidOperationException(
+                        "The adaptation probe reported an unexpected structural outcome.");
+                }
+
+                List<Dictionary<string, RecordItem>> after = await Gateway.GetRaw(
+                    new QueryBuilder()
+                        .Select("[Quantity]")
+                        .From("[Products]")
+                        .WhereTrusted("[Id] = @p1", 1),
+                    ct).ConfigureAwait(false);
+                if (after.Count != 1 ||
+                    !string.Equals(
+                        originalQuantity,
+                        after[0]["Quantity"].Value,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "The adaptation probe changed the stored quantity representation.");
+                }
+
+                return adaptation.SourceType.Name + "->" +
+                       adaptation.TargetType.Name + " / " +
+                       adaptation.ReasonCode;
+            }
+            finally
+            {
+                _ctx.Options.TypePromotionPolicy = previousPolicy;
+                _gateway.OnTypeAdaptation -= observer;
+                _gateway.ClearSchemaCache();
+            }
+        }
 
         private async Task<DataTable> ReadIntoTableAsync(QueryBuilder builder, CancellationToken ct)
         {
@@ -421,8 +498,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 try
                 {
                     var update = new QueryBuilder()
-                        .Update("Products", new Dictionary<string, object?> { ["Quantity"] = updated })
-                        .Where("[Id] = @p1", product.Id);
+                        .Update("Products")
+                        .Set("Quantity", updated)
+                        .Where("[Id]", QueryOperator.Equal, product.Id);
 
                     await Gateway.Update(update, session, ct).ConfigureAwait(false);
 
@@ -505,8 +583,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     }
 
                     var bump = new QueryBuilder()
-                        .Update("TagSequence", new Dictionary<string, object?> { ["LastNumber"] = next })
-                        .Where("[Prefix] = @p1", prefix);
+                        .Update("TagSequence")
+                        .Set("LastNumber", next)
+                        .Where("[Prefix]", QueryOperator.Equal, prefix);
 
                     await Gateway.Update(bump, session, ct).ConfigureAwait(false);
 
@@ -624,7 +703,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                     await Gateway.Delete(
                         new QueryBuilder()
                             .DeleteFrom("[Animals]")
-                            .Where("[Id] = @p1", animal.Id),
+                            .Where("[Id]", QueryOperator.Equal, animal.Id),
                         session,
                         ct).ConfigureAwait(false);
 

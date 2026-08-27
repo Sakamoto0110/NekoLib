@@ -100,7 +100,7 @@ raises `OnSqlGenerated` before command dispatch:
 await gateway.Delete(
     new QueryBuilder()
         .DeleteFrom("Rows")
-        .Where("Id = @p1", id),
+        .Where("Id", QueryOperator.Equal, id),
     cancellationToken);
 ```
 

@@ -22,8 +22,9 @@
 
 [`documentation-schema.json`](documentation-schema.json) is the structural
 contract for document metadata, module manifests, stable record IDs, validation
-taxonomy, validation profiles, and soak evidence. It identifies the logical
-documentation skill but does not duplicate its adapter paths.
+taxonomy, validation profiles, soak evidence, and the one-record-per-file
+proposal directory. It identifies the logical documentation skill but does not
+duplicate its adapter paths.
 
 [`agent-skill-registry.json`](agent-skill-registry.json) owns repository skill
 identity, Codex and Claude adapter paths, and intended parity. A

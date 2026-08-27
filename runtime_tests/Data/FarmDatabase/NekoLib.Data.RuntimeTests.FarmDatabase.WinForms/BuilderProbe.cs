@@ -81,6 +81,23 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
                 Console.WriteLine();
             }
 
+            workspace.ClearTrace();
+            try
+            {
+                string adaptation = await db.ProbeWriteTypeAdaptationAsync()
+                    .ConfigureAwait(false);
+                Console.WriteLine("type-adaptation " + adaptation);
+                string sql = LastDispatched(workspace);
+                if (sql != null)
+                    Console.WriteLine("                " + sql);
+                Console.WriteLine();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("type-adaptation RECUSADO      " + Flatten(ex.Message));
+                return 3;
+            }
+
             return 0;
         }
 
@@ -113,7 +130,7 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             yield return new Case("join",
                 new QueryBuilder().Select("e.[Name]", "r.[Title]")
                     .From("[Employees] e")
-                    .Join("[Roles] r", "e.[RoleId] = r.[Id]"));
+                    .JoinOn("[Roles] r", "e.[RoleId]", "r.[Id]"));
 
             yield return new Case("groupby",
                 new QueryBuilder().Select("[Category]").From("[Products]")
@@ -140,9 +157,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             // source and never executed.
             yield return new Case("whereexists",
                 new QueryBuilder().Select("[Name]").From("[Products]")
-                    .Where("[Quantity] > @p1", 40)
+                    .Where("[Quantity]", QueryOperator.GreaterThan, 40)
                     .WhereExists(new QueryBuilder().Select("[Id]").From("[Animals]")
-                        .Where("[Species] = @p1", "Vaca")));
+                        .Where("[Species]", QueryOperator.Equal, "Vaca")));
 
             // Same query, clauses swapped, so the subquery's parameter comes first in
             // the text. If the engine binds by textual position this changes nothing;
@@ -151,30 +168,30 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.WinForms
             yield return new Case("exists-antes",
                 new QueryBuilder().Select("[Name]").From("[Products]")
                     .WhereExists(new QueryBuilder().Select("[Id]").From("[Animals]")
-                        .Where("[Species] = @p1", "Vaca"))
-                    .Where("[Quantity] > @p1", 40));
+                        .Where("[Species]", QueryOperator.Equal, "Vaca"))
+                    .Where("[Quantity]", QueryOperator.GreaterThan, 40));
 
             // Two parameters outside the subquery instead of one. If the engine simply
             // takes the subquery's placeholder first and then the rest in text order,
             // the second form works and the first does not.
             yield return new Case("dois-fora",
                 new QueryBuilder().Select("[Name]").From("[Products]")
-                    .Where("[Quantity] > @p1", 40)
-                    .Where("[Category] = @p1", "Legume")
+                    .Where("[Quantity]", QueryOperator.GreaterThan, 40)
+                    .Where("[Category]", QueryOperator.Equal, "Legume")
                     .WhereExists(new QueryBuilder().Select("[Id]").From("[Animals]")
-                        .Where("[Species] = @p1", "Vaca")));
+                        .Where("[Species]", QueryOperator.Equal, "Vaca")));
 
             yield return new Case("dois-fora-rev",
                 new QueryBuilder().Select("[Name]").From("[Products]")
                     .WhereExists(new QueryBuilder().Select("[Id]").From("[Animals]")
-                        .Where("[Species] = @p1", "Vaca"))
-                    .Where("[Quantity] > @p1", 40)
-                    .Where("[Category] = @p1", "Legume"));
+                        .Where("[Species]", QueryOperator.Equal, "Vaca"))
+                    .Where("[Quantity]", QueryOperator.GreaterThan, 40)
+                    .Where("[Category]", QueryOperator.Equal, "Legume"));
 
             yield return new Case("wherenotexists",
                 new QueryBuilder().Select("[Name]").From("[Products]")
                     .WhereNotExists(new QueryBuilder().Select("[Id]").From("[Animals]")
-                        .Where("[Species] = @p1", "Dragao")));
+                        .Where("[Species]", QueryOperator.Equal, "Dragao")));
         }
 
         /// <summary>

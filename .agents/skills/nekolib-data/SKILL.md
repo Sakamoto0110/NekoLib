@@ -51,8 +51,9 @@ wrapper when the shared core owns the behavior.
 - Preserve error propagation and avoid duplicate dispatch, success, or error
   events.
 - Avoid `record` for types shared with `net481`.
-- Read the current Inspection instrumentation freeze in `../../../TODO.md`
-  before adding Core dependencies or module instrumentation.
+- Read the current Inspection instrumentation freeze in `../../../ROADMAP.md`
+  and any promoted Data work in `../../../TODO.md` before adding Core
+  dependencies or module instrumentation.
 
 ## Add or update tests
 

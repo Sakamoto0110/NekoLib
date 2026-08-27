@@ -14,7 +14,30 @@ remain under `docs/history/`.
 
 ## Unreleased
 
-No consumer-visible changes are recorded after the first stable baseline.
+### Public API
+
+- **NekoLib.Data — additive stable API with warning-only deprecations, targeting
+  the next compatible minor after `1.0.0`.** `QueryBuilder` now provides the
+  canonical `InsertInto(...).Value(...)`, `Update(...).Set(...)`, structured
+  `Where(...)`, `JoinOn(...)`, `WhereTrusted(...)`, and `JoinTrusted(...)`
+  surface with `QueryOperator` and `QueryJoinType`. The replaced dictionary,
+  condition-template, and raw-join overloads remain available with
+  `Obsolete(error: false)` and may be removed only in `2.0.0` or later. Named
+  and positional binding behavior is unchanged. See the
+  [QueryBuilder migration guide](docs/migrations/querybuilder-structured-api.md).
+- **NekoLib.Data — additive write-side type adaptation.** Structured logical
+  parameters now support exact promotion and decay rules. Gateway options add
+  default `ExplicitOnly` promotion, strict-or-fallback decay, explicit lossy
+  authorization, and disabled/lazy/preload schema discovery. The concrete
+  gateway provides single-flight schema preload/refresh/clear controls and a
+  sanitized, instance-scoped `OnTypeAdaptation` hook. Adaptation completes
+  before one database dispatch, reports once per logical parameter across named
+  and positional binders, supports ordered representation fallbacks ending in
+  an explicitly formatted temporal string, never infers raw-SQL schema, and
+  never retries a mutation after provider failure. Hook attempts include the
+  selected formatter and culture but never the value. Read-side materialization
+  policy is not changed by this slice. See the
+  [Data type-adaptation migration guide](docs/migrations/data-type-adaptation.md).
 
 ## 1.0.0 — stable baseline declared 2026-08-21
 

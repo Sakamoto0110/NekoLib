@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,12 @@ namespace NekoLib.Data.Query
         public IReadOnlyDictionary<string, object?> Parameters { get; }
 
         /// <summary>
+        /// Gets immutable logical parameter identities and structured
+        /// provenance. Physical provider parameters are created later.
+        /// </summary>
+        public IReadOnlyList<LogicalParameter> LogicalParameters { get; }
+
+        /// <summary>
         /// Gets the requested row limit, interpreted by the provider translator.
         /// </summary>
         public int? Top { get; }
@@ -36,15 +43,77 @@ namespace NekoLib.Data.Query
             Dictionary<string, object?> Parameters,
             int? Top = null,
             DbCommandPolicy? CommandPolicy = null)
+            : this(
+                Sql,
+                Parameters,
+                CreateUnscopedParameters(Parameters),
+                Top,
+                CommandPolicy)
+        {
+        }
+
+        internal QueryModel(
+            string Sql,
+            Dictionary<string, object?> Parameters,
+            IEnumerable<LogicalParameter> logicalParameters,
+            int? Top = null,
+            DbCommandPolicy? CommandPolicy = null)
         {
             if (Sql == null) throw new ArgumentNullException(nameof(Sql));
             if (Parameters == null) throw new ArgumentNullException(nameof(Parameters));
+            if (logicalParameters == null) throw new ArgumentNullException(nameof(logicalParameters));
 
             this.Sql = Sql;
             this.Parameters = new Dictionary<string, object?>(Parameters);
+            LogicalParameters = new ReadOnlyCollection<LogicalParameter>(
+                ValidateAndCopyLogicalParameters(Parameters, logicalParameters));
             this.Top = Top;
             this.CommandPolicy = CommandPolicy?.Copy() ?? new DbCommandPolicy();
             this.CommandPolicy.Validate(nameof(CommandPolicy));
+        }
+
+        private static IEnumerable<LogicalParameter> CreateUnscopedParameters(
+            Dictionary<string, object?>? parameters)
+        {
+            if (parameters == null)
+                return Array.Empty<LogicalParameter>();
+
+            List<LogicalParameter> logical = new List<LogicalParameter>();
+            foreach (KeyValuePair<string, object?> parameter in parameters)
+            {
+                logical.Add(new LogicalParameter(
+                    parameter.Key,
+                    parameter.Value,
+                    null,
+                    null,
+                    parameter.Value?.GetType(),
+                    null,
+                    Array.Empty<TypeDecayRule>()));
+            }
+            return logical;
+        }
+
+        private static List<LogicalParameter> ValidateAndCopyLogicalParameters(
+            Dictionary<string, object?> parameters,
+            IEnumerable<LogicalParameter> logicalParameters)
+        {
+            Dictionary<string, LogicalParameter> byName =
+                new Dictionary<string, LogicalParameter>(StringComparer.Ordinal);
+            foreach (LogicalParameter parameter in logicalParameters)
+            {
+                if (parameter == null)
+                    throw new ArgumentException("Logical parameters cannot contain null.", nameof(logicalParameters));
+                if (!parameters.ContainsKey(parameter.Name))
+                    throw new ArgumentException("Every logical parameter must have a matching value.", nameof(logicalParameters));
+                if (byName.ContainsKey(parameter.Name))
+                    throw new ArgumentException("Logical parameter names must be unique.", nameof(logicalParameters));
+                byName.Add(parameter.Name, parameter);
+            }
+
+            if (byName.Count != parameters.Count)
+                throw new ArgumentException("Every parameter value must have a logical descriptor.", nameof(logicalParameters));
+
+            return new List<LogicalParameter>(byName.Values);
         }
     }
 

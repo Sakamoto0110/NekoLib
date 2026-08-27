@@ -13,16 +13,18 @@ the Phase C checklist or mutable project facts into this skill.
 1. Run `git status --short` and inspect relevant diffs before drawing
    conclusions or changing files. Preserve unrelated tracked, untracked, and
    ignored work.
-2. Read `../../../AGENTS.md`, the relevant section of `../../../TODO.md`, and
-   the affected README, `.gitignore`, solution, project, packaging, or
-   documentation files. Read all of Phase C when the request invokes it.
+2. Read `../../../AGENTS.md`, the relevant sections of `../../../ROADMAP.md`
+   and `../../../TODO.md`, and the affected README, `.gitignore`, solution,
+   project, packaging, or documentation files. Read all of Phase C when the
+   request invokes it.
 3. Determine authority by the kind of fact:
    - use project and `Directory.Build.*` files for targets, references, and
      build or package properties;
    - use `NekoLib.sln` for solution membership;
    - use source for implemented behavior and public surface, with executable
      tests as evidence;
-   - use the live roadmap for open work, decisions, and freezes;
+   - use `ROADMAP.md` for direction, intentions, and freezes, and `TODO.md` for
+     formally promoted work, execution gates, and completion criteria;
    - treat audits as evidence fixed to their audited commit;
    - use `docs/README.md` for documentation registration,
      `docs/governance/` for shared documentation policy,

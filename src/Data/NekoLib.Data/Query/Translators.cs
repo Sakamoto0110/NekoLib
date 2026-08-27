@@ -36,7 +36,7 @@ namespace NekoLib.Data.Query
             }
 
             Dictionary<string, object?> parameters = new Dictionary<string, object?>(Model.Parameters.ToDictionary(k=>k.Key,k=>k.Value));
-            return new DatabaseQuery(sql, parameters, Model.CommandPolicy);
+            return new DatabaseQuery(sql, parameters, Model.LogicalParameters, Model.CommandPolicy);
         }
     }
 
@@ -72,7 +72,7 @@ namespace NekoLib.Data.Query
             }
 
             Dictionary<string, object?> parameters = new Dictionary<string, object?>(Model.Parameters.ToDictionary(k => k.Key, k => k.Value));
-            return new DatabaseQuery(sql, parameters, Model.CommandPolicy);
+            return new DatabaseQuery(sql, parameters, Model.LogicalParameters, Model.CommandPolicy);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace NekoLib.Data.Query
             }
 
             Dictionary<string, object?> parameters = new Dictionary<string, object?>(Model.Parameters.ToDictionary(k => k.Key, k => k.Value));
-            return new DatabaseQuery(sql, parameters, Model.CommandPolicy);
+            return new DatabaseQuery(sql, parameters, Model.LogicalParameters, Model.CommandPolicy);
         }
     }
 }

@@ -41,10 +41,14 @@ namespace NekoLib.Data.Query
         private readonly List<string> _orderByColumns = new List<string>();
         private readonly List<string> _joins = new List<string>();
 
-        private readonly Dictionary<string, object?> _insertValues = new Dictionary<string, object?>();
-        private readonly Dictionary<string, object?> _updateValues = new Dictionary<string, object?>();
+        private readonly Dictionary<string, PendingLogicalValue> _insertValues =
+            new Dictionary<string, PendingLogicalValue>();
+        private readonly Dictionary<string, PendingLogicalValue> _updateValues =
+            new Dictionary<string, PendingLogicalValue>();
 
         private readonly Dictionary<string, object?> _parameters = new Dictionary<string, object?>();
+        private readonly Dictionary<string, LogicalParameter> _logicalParameters =
+            new Dictionary<string, LogicalParameter>();
         private int _paramIndex;
 
         /// <summary>
@@ -77,6 +81,7 @@ namespace NekoLib.Data.Query
             _insertValues.Clear();
             _updateValues.Clear();
             _parameters.Clear();
+            _logicalParameters.Clear();
             _paramIndex = 0;
             _top = null;
             _commandTimeoutSeconds = null;
@@ -239,12 +244,72 @@ namespace NekoLib.Data.Query
         }
 
         /// <summary>
+        /// Adds a structured equality join using trusted table and column fragments.
+        /// </summary>
+        public QueryBuilder JoinOn(
+            string Table,
+            string LeftColumn,
+            string RightColumn,
+            QueryJoinType Type = QueryJoinType.Inner)
+        {
+            return JoinOn(Table, LeftColumn, QueryOperator.Equal, RightColumn, Type);
+        }
+
+        /// <summary>
+        /// Adds a structured join using trusted table and column fragments.
+        /// </summary>
+        public QueryBuilder JoinOn(
+            string Table,
+            string LeftColumn,
+            QueryOperator Operator,
+            string RightColumn,
+            QueryJoinType Type = QueryJoinType.Inner)
+        {
+            RequireQueryType(QueryType.Select, nameof(JoinOn));
+            RequireFragment(Table, nameof(Table), "A join requires a table fragment.");
+            RequireFragment(LeftColumn, nameof(LeftColumn), "A join requires a left column fragment.");
+            RequireFragment(RightColumn, nameof(RightColumn), "A join requires a right column fragment.");
+
+            return AddTrustedJoin(
+                Table,
+                LeftColumn + " " + GetSqlOperator(Operator) + " " + RightColumn,
+                GetSqlJoinType(Type));
+        }
+
+        /// <summary>
+        /// Adds a join from an explicitly trusted ON-expression.
+        /// </summary>
+        /// <remarks>
+        /// The table and ON-expression are emitted as SQL fragments. Do not pass
+        /// untrusted input to this method.
+        /// </remarks>
+        public QueryBuilder JoinTrusted(
+            string Table,
+            string OnExpression,
+            QueryJoinType Type = QueryJoinType.Inner)
+        {
+            RequireQueryType(QueryType.Select, nameof(JoinTrusted));
+            RequireFragment(Table, nameof(Table), "A join requires a table fragment.");
+            RequireFragment(OnExpression, nameof(OnExpression), "A trusted join requires an ON-expression.");
+            return AddTrustedJoin(Table, OnExpression, GetSqlJoinType(Type));
+        }
+
+        /// <summary>
         /// Adds a join assembled from trusted table, ON-expression, and join-type fragments.
         /// </summary>
+        [Obsolete(
+            "This overload is retained for compatibility and will be removed in the next major version. Use JoinOn(string, string, string, QueryJoinType) or JoinTrusted(string, string, QueryJoinType) instead.",
+            error: false)]
         public QueryBuilder Join(string Table, string OnExpression, string Type = "INNER")
         {
             RequireQueryType(QueryType.Select, nameof(Join));
-            _joins.Add(Type + " JOIN " + Table + " ON " + OnExpression);
+            AddTrustedJoin(Table, OnExpression, Type);
+            return this;
+        }
+
+        private QueryBuilder AddTrustedJoin(string table, string onExpression, string type)
+        {
+            _joins.Add(type + " JOIN " + table + " ON " + onExpression);
             return this;
         }
 
@@ -256,9 +321,79 @@ namespace NekoLib.Data.Query
         /// Adds a trusted condition template and parameterizes only canonical
         /// <c>@p1</c>, <c>@p2</c>, ... placeholders outside literals and comments.
         /// </summary>
+        [Obsolete(
+            "This overload is retained for compatibility and will be removed in the next major version. Use Where(string, QueryOperator, object) or WhereTrusted(string, params object[]) instead.",
+            error: false)]
         public QueryBuilder Where(string Condition, params object[] Values)
         {
+            return WhereTrusted(Condition, Values);
+        }
+
+        /// <summary>
+        /// Adds a structured predicate for a trusted column fragment and a
+        /// parameterized value.
+        /// </summary>
+        /// <remarks>
+        /// Equality and inequality comparisons against <see langword="null"/>
+        /// emit <c>IS NULL</c> and <c>IS NOT NULL</c>, respectively. Other null
+        /// comparisons are rejected.
+        /// </remarks>
+        public QueryBuilder Where(string Column, QueryOperator Operator, object? Value)
+        {
+            return Where(Column, Operator, Value, null);
+        }
+
+        /// <summary>
+        /// Adds a structured predicate and neutral adaptation intent for its
+        /// logical parameter.
+        /// </summary>
+        public QueryBuilder Where(
+            string Column,
+            QueryOperator Operator,
+            object? Value,
+            Action<LogicalParameterOptions>? Configure)
+        {
             RequirePredicateQuery(nameof(Where));
+            RequireFragment(Column, nameof(Column), "A structured predicate requires a column fragment.");
+            string sqlOperator = GetSqlOperator(Operator);
+
+            if (Value == null)
+            {
+                if (Operator == QueryOperator.Equal)
+                {
+                    _conditions.Add(Column + " IS NULL");
+                    return this;
+                }
+
+                if (Operator == QueryOperator.NotEqual)
+                {
+                    _conditions.Add(Column + " IS NOT NULL");
+                    return this;
+                }
+
+                throw new ArgumentException(
+                    "Only Equal and NotEqual can compare a structured predicate with null.",
+                    nameof(Value));
+            }
+
+            string parameterName = NewParamName();
+            AddLogicalParameter(parameterName, Value, _table, Column, Configure);
+            _conditions.Add(Column + " " + sqlOperator + " " + parameterName);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds an explicitly trusted condition template and parameterizes only
+        /// canonical <c>@p1</c>, <c>@p2</c>, ... placeholders outside literals
+        /// and comments.
+        /// </summary>
+        /// <remarks>
+        /// The condition is emitted as a SQL fragment. Do not pass untrusted input
+        /// to the condition template.
+        /// </remarks>
+        public QueryBuilder WhereTrusted(string Condition, params object[] Values)
+        {
+            RequirePredicateQuery(nameof(WhereTrusted));
             object[] conditionValues = Values ?? Array.Empty<object>();
             int valueCount = conditionValues.Length;
             if (string.IsNullOrWhiteSpace(Condition))
@@ -276,7 +411,12 @@ namespace NekoLib.Data.Query
             {
                 string parameterName = NewParamName();
                 replacements[index] = parameterName;
-                _parameters[parameterName] = conditionValues[index - 1];
+                AddLogicalParameter(
+                    parameterName,
+                    conditionValues[index - 1],
+                    _table,
+                    null,
+                    null);
             }
 
             _conditions.Add(RewriteParameterTokens(
@@ -368,7 +508,7 @@ namespace NekoLib.Data.Query
             {
                 string paramName = NewParamName();
                 prmNames.Add(paramName);
-                _parameters[paramName] = value;
+                AddLogicalParameter(paramName, value, _table, column, null);
             }
 
             string keyword = negated ? " NOT IN (" : " IN (";
@@ -385,8 +525,8 @@ namespace NekoLib.Data.Query
             string p1 = NewParamName();
             string p2 = NewParamName();
 
-            _parameters[p1] = Start;
-            _parameters[p2] = End;
+            AddLogicalParameter(p1, Start, _table, Column, null);
+            AddLogicalParameter(p2, End, _table, Column, null);
 
             _conditions.Add(Column + " BETWEEN " + p1 + " AND " + p2);
             return this;
@@ -399,7 +539,7 @@ namespace NekoLib.Data.Query
         {
             RequirePredicateQuery(nameof(WhereLike));
             string p = NewParamName();
-            _parameters[p] = Pattern;
+            AddLogicalParameter(p, Pattern, _table, Column, null);
             _conditions.Add(Column + " LIKE " + p);
             return this;
         }
@@ -433,11 +573,13 @@ namespace NekoLib.Data.Query
 
             string sql = model.Sql;
 
-            foreach (KeyValuePair<string, object?> kv in model.Parameters)
+            foreach (LogicalParameter parameter in model.LogicalParameters)
             {
                 string newName = NewParamName();
-                sql = ReplaceParameterName(sql, kv.Key, newName);
-                _parameters[newName] = kv.Value;
+                sql = ReplaceParameterName(sql, parameter.Name, newName);
+                LogicalParameter renamed = parameter.WithName(newName);
+                _parameters[newName] = renamed.Value;
+                _logicalParameters[newName] = renamed;
             }
 
             _subQueryConditions.Add(_conditions.Count);
@@ -549,20 +691,92 @@ namespace NekoLib.Data.Query
         #region INSERT / UPDATE / DELETE
 
         /// <summary>
-        /// Starts an INSERT statement with trusted table and column names and
-        /// parameterized values.
+        /// Starts an INSERT statement for a trusted table fragment.
         /// </summary>
-        public QueryBuilder InsertInto(string Table, Dictionary<string, object?> Values)
+        public QueryBuilder InsertInto(string Table)
         {
             StartStatement(QueryType.Insert);
             _table = Table;
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a trusted column and parameterized value to the active INSERT statement.
+        /// </summary>
+        public QueryBuilder Value(string Column, object? Value)
+        {
+            return this.Value(Column, Value, null);
+        }
+
+        /// <summary>
+        /// Adds an INSERT value and neutral adaptation intent for its logical
+        /// parameter.
+        /// </summary>
+        public QueryBuilder Value(
+            string Column,
+            object? Value,
+            Action<LogicalParameterOptions>? Configure)
+        {
+            RequireQueryType(QueryType.Insert, nameof(Value));
+            RequireFragment(Column, nameof(Column), "An INSERT value requires a column fragment.");
+            _insertValues[Column] = new PendingLogicalValue(
+                Value,
+                CreateLogicalParameterOptions(Value, Configure));
+            return this;
+        }
+
+        /// <summary>
+        /// Starts an INSERT statement with trusted table and column names and
+        /// parameterized values.
+        /// </summary>
+        [Obsolete(
+            "This overload is retained for compatibility and will be removed in the next major version. Use InsertInto(string).Value(string, object) instead.",
+            error: false)]
+        public QueryBuilder InsertInto(string Table, Dictionary<string, object?> Values)
+        {
+            InsertInto(Table);
 
             if (Values != null)
             {
                 foreach (KeyValuePair<string, object?> kv in Values)
-                    _insertValues[kv.Key] = kv.Value;
+                    Value(kv.Key, kv.Value);
             }
 
+            return this;
+        }
+
+        /// <summary>
+        /// Starts an UPDATE statement for a trusted table fragment.
+        /// </summary>
+        public QueryBuilder Update(string Table)
+        {
+            StartStatement(QueryType.Update);
+            _table = Table;
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a trusted column and parameterized value to the active UPDATE statement.
+        /// </summary>
+        public QueryBuilder Set(string Column, object? Value)
+        {
+            return Set(Column, Value, null);
+        }
+
+        /// <summary>
+        /// Adds an UPDATE assignment and neutral adaptation intent for its
+        /// logical parameter.
+        /// </summary>
+        public QueryBuilder Set(
+            string Column,
+            object? Value,
+            Action<LogicalParameterOptions>? Configure)
+        {
+            RequireQueryType(QueryType.Update, nameof(Set));
+            RequireFragment(Column, nameof(Column), "An UPDATE assignment requires a column fragment.");
+            _updateValues[Column] = new PendingLogicalValue(
+                Value,
+                CreateLogicalParameterOptions(Value, Configure));
             return this;
         }
 
@@ -570,15 +784,17 @@ namespace NekoLib.Data.Query
         /// Starts an UPDATE statement with trusted table and column names and
         /// parameterized values.
         /// </summary>
+        [Obsolete(
+            "This overload is retained for compatibility and will be removed in the next major version. Use Update(string).Set(string, object) instead.",
+            error: false)]
         public QueryBuilder Update(string Table, Dictionary<string, object?> Values)
         {
-            StartStatement(QueryType.Update);
-            _table = Table;
+            Update(Table);
 
             if (Values != null)
             {
                 foreach (KeyValuePair<string, object?> kv in Values)
-                    _updateValues[kv.Key] = kv.Value;
+                    Set(kv.Key, kv.Value);
             }
 
             return this;
@@ -603,8 +819,7 @@ namespace NekoLib.Data.Query
         /// </summary>
         /// <remarks>
         /// This opt-in applies only to the current UPDATE state and is cleared
-        /// when <see cref="Update(string, Dictionary{string, object?})"/> is
-        /// called again.
+        /// when <see cref="Update(string)"/> is called again.
         /// </remarks>
         public QueryBuilder AllowAllRowsUpdate()
         {
@@ -640,6 +855,8 @@ namespace NekoLib.Data.Query
         {
             string sql;
             Dictionary<string, object?> parameters = new Dictionary<string, object?>(_parameters);
+            List<LogicalParameter> logicalParameters =
+                new List<LogicalParameter>(_logicalParameters.Values);
             int buildParamIndex = _paramIndex;
 
             switch (_queryType)
@@ -649,11 +866,11 @@ namespace NekoLib.Data.Query
                     break;
 
                 case QueryType.Insert:
-                    sql = BuildInsert(parameters, ref buildParamIndex);
+                    sql = BuildInsert(parameters, logicalParameters, ref buildParamIndex);
                     break;
 
                 case QueryType.Update:
-                    sql = BuildUpdate(parameters, ref buildParamIndex);
+                    sql = BuildUpdate(parameters, logicalParameters, ref buildParamIndex);
                     break;
 
                 case QueryType.Delete:
@@ -667,6 +884,7 @@ namespace NekoLib.Data.Query
             return new QueryModel(
                 sql,
                 parameters,
+                logicalParameters,
                 _top,
                 new DbCommandPolicy { TimeoutSeconds = _commandTimeoutSeconds });
         }
@@ -719,7 +937,10 @@ namespace NekoLib.Data.Query
             return sb.ToString();
         }
 
-        private string BuildInsert(Dictionary<string, object?> parameters, ref int buildParamIndex)
+        private string BuildInsert(
+            Dictionary<string, object?> parameters,
+            List<LogicalParameter> logicalParameters,
+            ref int buildParamIndex)
         {
             if (string.IsNullOrEmpty(_table))
                 throw new InvalidOperationException("INSERT table not specified.");
@@ -734,8 +955,15 @@ namespace NekoLib.Data.Query
             {
                 string column = cols[i];
                 string paramName = NewParamName(ref buildParamIndex);
+                PendingLogicalValue pending = _insertValues[column];
                 paramNames.Add(paramName);
-                parameters[paramName] = _insertValues[column];
+                parameters[paramName] = pending.Value;
+                logicalParameters.Add(CreateLogicalParameter(
+                    paramName,
+                    pending.Value,
+                    _table,
+                    column,
+                    pending.Options));
             }
 
             string sql = "INSERT INTO " + _table +
@@ -745,7 +973,10 @@ namespace NekoLib.Data.Query
             return sql;
         }
 
-        private string BuildUpdate(Dictionary<string, object?> parameters, ref int buildParamIndex)
+        private string BuildUpdate(
+            Dictionary<string, object?> parameters,
+            List<LogicalParameter> logicalParameters,
+            ref int buildParamIndex)
         {
             if (string.IsNullOrEmpty(_table))
                 throw new InvalidOperationException("UPDATE table not specified.");
@@ -761,11 +992,17 @@ namespace NekoLib.Data.Query
 
             List<string> sets = new List<string>();
 
-            foreach (KeyValuePair<string, object?> kv in _updateValues)
+            foreach (KeyValuePair<string, PendingLogicalValue> kv in _updateValues)
             {
                 string paramName = NewParamName(ref buildParamIndex);
                 sets.Add(kv.Key + " = " + paramName);
-                parameters[paramName] = kv.Value;
+                parameters[paramName] = kv.Value.Value;
+                logicalParameters.Add(CreateLogicalParameter(
+                    paramName,
+                    kv.Value.Value,
+                    _table,
+                    kv.Key,
+                    kv.Value.Options));
             }
 
             StringBuilder sb = new StringBuilder();
@@ -795,6 +1032,97 @@ namespace NekoLib.Data.Query
                 sb.Append(" WHERE ").Append(string.Join(" AND ", OrderedConditions()));
 
             return sb.ToString();
+        }
+
+        private static void RequireFragment(string value, string parameterName, string message)
+        {
+            if (value == null)
+                throw new ArgumentNullException(parameterName);
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException(message, parameterName);
+        }
+
+        private void AddLogicalParameter(
+            string name,
+            object? value,
+            string? table,
+            string? column,
+            Action<LogicalParameterOptions>? configure)
+        {
+            LogicalParameterOptions options = CreateLogicalParameterOptions(value, configure);
+            LogicalParameter parameter = CreateLogicalParameter(
+                name,
+                value,
+                table,
+                column,
+                options);
+            _parameters[name] = value;
+            _logicalParameters[name] = parameter;
+        }
+
+        private static LogicalParameterOptions CreateLogicalParameterOptions(
+            object? value,
+            Action<LogicalParameterOptions>? configure)
+        {
+            LogicalParameterOptions options = new LogicalParameterOptions();
+            configure?.Invoke(options);
+            options.Validate(value);
+            return options.Copy();
+        }
+
+        private static LogicalParameter CreateLogicalParameter(
+            string name,
+            object? value,
+            string? table,
+            string? column,
+            LogicalParameterOptions options)
+        {
+            return new LogicalParameter(
+                name,
+                value,
+                table,
+                column,
+                options.SemanticTypeValue,
+                options.PromotionRuleValue,
+                options.DecayRulesValue);
+        }
+
+        private static string GetSqlOperator(QueryOperator queryOperator)
+        {
+            switch (queryOperator)
+            {
+                case QueryOperator.Equal:
+                    return "=";
+                case QueryOperator.NotEqual:
+                    return "<>";
+                case QueryOperator.GreaterThan:
+                    return ">";
+                case QueryOperator.GreaterThanOrEqual:
+                    return ">=";
+                case QueryOperator.LessThan:
+                    return "<";
+                case QueryOperator.LessThanOrEqual:
+                    return "<=";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(queryOperator));
+            }
+        }
+
+        private static string GetSqlJoinType(QueryJoinType joinType)
+        {
+            switch (joinType)
+            {
+                case QueryJoinType.Inner:
+                    return "INNER";
+                case QueryJoinType.Left:
+                    return "LEFT";
+                case QueryJoinType.Right:
+                    return "RIGHT";
+                case QueryJoinType.Full:
+                    return "FULL";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(joinType));
+            }
         }
 
         #endregion

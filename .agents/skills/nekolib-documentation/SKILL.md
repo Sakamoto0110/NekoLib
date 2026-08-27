@@ -69,7 +69,8 @@ Stop at the requested module boundary.
 
 ## Required starting checks
 
-1. Read `../../../AGENTS.md`, `../../../docs/README.md`, the affected
+1. Read `../../../AGENTS.md`, `../../../ROADMAP.md`, `../../../TODO.md`,
+   `../../../docs/README.md`, the affected
    `MANIFEST.md`, the shared authoring contract, the
    [documentation policy](../../../docs/governance/documentation-policy.md),
    the [validation policy](../../../docs/governance/validation-policy.md), and
@@ -89,11 +90,14 @@ Use each source only for the facts it owns:
 1. source and project files for implementation and topology;
 2. compiled assemblies and accepted manifests for actual and reviewed API;
 3. current policies and the module reference for documented contract;
-4. `TODO.md` for accepted work, ordering, freezes, and gates;
-5. tests, scenarios, package probes, and evidence records for bounded evidence;
-6. migrations and changelogs for consumer transition;
-7. audits and history for baseline-bound rationale;
-8. findings, backlog, and historical agent guidance only as non-normative leads.
+4. `ROADMAP.md` for direction, intentions, guardrails, freezes, and planning
+   horizons;
+5. `TODO.md` for formally promoted work, execution order, gates, and completion;
+6. tests, scenarios, package probes, and evidence records for bounded evidence;
+7. migrations and changelogs for consumer transition;
+8. audits and history for baseline-bound rationale;
+9. findings, proposals, and historical agent guidance only as non-normative
+   leads.
 
 If current source and a normative reference conflict, record the exact conflict
 and stop for disposition. If compiled API and an accepted manifest conflict,
@@ -107,9 +111,11 @@ stop as an API mismatch. Never update a baseline automatically.
   symbols.
 - `README.md` stays concise; `REFERENCE.md` owns the normative technical
   contract.
-- `TODO.md` remains the only accepted and promoted scheduler.
-- Findings remain non-normative, issues require evidence, and backlog remains
-  unpromoted.
+- `ROADMAP.md` owns direction and intent; `TODO.md` remains the only accepted
+  and promoted scheduler.
+- Findings remain non-normative, issues require evidence, and one-file
+  proposals remain unpromoted. Promotion may originate elsewhere when the
+  decision is formalized and accepted.
 - Requirements are derived from architecture and risk; evidence records only
   what actually ran.
 - Historical documents retain their baseline, body, chronology, and original

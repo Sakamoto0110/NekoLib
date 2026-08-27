@@ -22,7 +22,9 @@ the handoff state and the rules that are easy to get wrong.
 | Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](src/Watchdog/NekoLib.Watchdog.Host/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
-| Live roadmap and the current Inspection freeze | [`TODO.md`](TODO.md) |
+| Product direction, intentions, and current freezes | [`ROADMAP.md`](ROADMAP.md) |
+| Formally promoted work and execution gates | [`TODO.md`](TODO.md) |
+| Unpromoted one-file ideas | [`docs/proposals/`](docs/proposals/README.md) |
 | Verification taxonomy and canonical commands | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
 | Documentation infrastructure, agent adapters, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
@@ -50,9 +52,9 @@ the handoff state and the rules that are easy to get wrong.
 - `NekoLib.Http` is an opt-in typed endpoint catalog. It owns no `HttpClient`,
   credentials, retry policy or process-wide registry; consumers configure those
   boundaries explicitly.
-- The source and the `*.csproj` files are authoritative. `TODO.md` and the audit
-  files preserve decision/history context and may describe findings that were
-  fixed later.
+- The source and the `*.csproj` files are authoritative. `ROADMAP.md` owns
+  direction and freezes, `TODO.md` owns promoted work, and audit files preserve
+  dated decision/evidence context that may describe findings fixed later.
 
 ---
 
@@ -157,7 +159,7 @@ Do not extend observability without an explicit decision to unfreeze.
 
 ## What is deliberately incomplete (the freeze)
 
-Recorded in full in the freeze section of [`TODO.md`](TODO.md). Summary:
+Recorded in the freeze section of [`ROADMAP.md`](ROADMAP.md). Summary:
 
 1. **B4 was never done.** Only Navigation emits. `Data`, `Pipes`, `Watchdog`,
    `Devices` and `Diagnostics` do not reference `IDebugUtils` at all. **Trap:**
@@ -391,11 +393,13 @@ without an explicit shim. Use ordinary classes for multi-target data types.
   and validation. The review is a snapshot, never the live issue tracker.
 - Use this promotion flow:
   **review/audit → accepted decisions → `TODO.md` → implementation → current
-  technical documentation**. During investigation, `TODO.md` may track the
-  review itself, but must not list speculative fixes as confirmed work.
+  technical documentation**. Investigation remains in proposals, findings,
+  issues, or audits; `TODO.md` must not list speculative fixes as promoted work.
 - Promote a finding to `TODO.md` only after the code confirms it, a direction is
   chosen and the work is actually intended. Keep rejected alternatives and
-  their rationale in the review; keep open work authoritative in one roadmap.
+  their rationale in the review; keep promoted work authoritative in one
+  scheduler. A proposal file is not required when another formalized source
+  establishes the accepted decision.
 - Once a review is complete, mark it historical and preserve its original
   findings. Record later outcomes in a short reconciliation section or index
   instead of rewriting the snapshot as though it knew later fixes.

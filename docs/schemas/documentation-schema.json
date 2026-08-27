@@ -39,7 +39,7 @@
         "changelog",
         "issues",
         "findings",
-        "backlog",
+        "proposal",
         "validation-requirements",
         "validation-evidence",
         "audit",
@@ -48,6 +48,7 @@
         "policy",
         "guide",
         "roadmap",
+        "work-scheduler",
         "portal",
         "index",
         "template"
@@ -55,6 +56,7 @@
       "Authority role": [
         "normative",
         "roadmap",
+        "scheduler",
         "evidence",
         "non-normative",
         "generated-oracle",
@@ -119,6 +121,11 @@
         "evidence"
       ],
       "requiredMutationWhenHistorical": "snapshot"
+    },
+    "work-scheduler": {
+      "allowedAuthorityRoles": [
+        "scheduler"
+      ]
     }
   },
   "manifest": {
@@ -168,7 +175,6 @@
       "CHANGELOG.md",
       "ISSUES.md",
       "FINDINGS.md",
-      "BACKLOG.md",
       "VALIDATION_REQUIREMENTS.md",
       "VALIDATIONS.md"
     ],
@@ -178,6 +184,16 @@
     ],
     "normativeTechnicalReferenceCount": 1,
     "profilesOwnerSurface": "manifest"
+  },
+  "proposals": {
+    "directory": "docs/proposals",
+    "index": "docs/proposals/README.md",
+    "template": "docs/templates/PROPOSAL.md",
+    "recordSurface": "proposal",
+    "oneRecordPerFile": true,
+    "promotionAuthority": "TODO.md",
+    "promotionSourceExclusive": false,
+    "rule": "Proposal files are concise non-normative idea records. Promotion may also originate from findings, issues, audits, external evidence, or a direct owner decision when the accepted direction is formalized in TODO.md."
   },
   "agentAuthoring": {
     "contractPath": "docs/governance/agent-documentation-contract.md",
@@ -251,8 +267,8 @@
         "superseded"
       ]
     },
-    "backlog": {
-      "idPattern": "^[A-Z][A-Z0-9.]*-BACKLOG-[0-9]{3}$",
+    "proposal": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-PROPOSAL-[0-9]{3}$",
       "requiredFields": [
         "State",
         "Idea",

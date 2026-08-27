@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NekoLib.Data.Query;
 using Xunit;
 
@@ -29,8 +30,8 @@ namespace NekoLib.Data.Tests.Unit.Query
                 .SelectDistinct("Region")
                 .From("Customers")
                 .Top(5)
-                .Join("Orders", "Orders.CustomerId = Customers.Id")
-                .Where("Customers.Active = @p1", true)
+                .JoinOn("Orders", "Orders.CustomerId", "Customers.Id")
+                .Where("Customers.Active", QueryOperator.Equal, true)
                 .GroupBy("Region")
                 .OrderBy("Region");
 
@@ -50,7 +51,7 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryModel model = new QueryBuilder()
                 .SelectDistinct("Region")
                 .From("Customers")
-                .Where("Active = @p1", true)
+                .Where("Active", QueryOperator.Equal, true)
                 .Count("Id")
                 .From("Orders")
                 .Build();
@@ -65,10 +66,9 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder builder = new QueryBuilder()
                 .Select("Id")
                 .From("Customers")
-                .Where("Active = @p1", true)
-                .Update(
-                    "Customers",
-                    new Dictionary<string, object> { { "Active", false } });
+                .Where("Active", QueryOperator.Equal, true)
+                .Update("Customers")
+                .Set("Active", false);
 
             Assert.Empty(builder.Parameters);
             Assert.Throws<InvalidOperationException>(() => builder.Build());
@@ -78,9 +78,8 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Select_AfterUpdate_DoesNotRetainUpdateState()
         {
             QueryModel model = new QueryBuilder()
-                .Update(
-                    "Customers",
-                    new Dictionary<string, object> { { "Active", false } })
+                .Update("Customers")
+                .Set("Active", false)
                 .AllowAllRowsUpdate()
                 .Select("Id")
                 .From("Archive")
@@ -107,60 +106,60 @@ namespace NekoLib.Data.Tests.Unit.Query
         [Fact]
         public void Where_DuringInsert_ThrowsInvalidOperationException()
         {
-            QueryBuilder builder = new QueryBuilder().InsertInto(
-                "Customers",
-                new Dictionary<string, object> { { "Id", 1 } });
+            QueryBuilder builder = new QueryBuilder()
+                .InsertInto("Customers")
+                .Value("Id", 1);
 
             Assert.Throws<InvalidOperationException>(() =>
-                builder.Where("Id = @p1", 1));
+                builder.Where("Id", QueryOperator.Equal, 1));
         }
 
         [Fact]
-        public void Where_MissingPlaceholderValue_ThrowsBeforeMutatingParameters()
+        public void WhereTrusted_MissingPlaceholderValue_ThrowsBeforeMutatingParameters()
         {
             QueryBuilder builder = new QueryBuilder().Select().From("Customers");
 
             Assert.Throws<ArgumentException>(() =>
-                builder.Where("Id = @p1 AND Region = @p2", 7));
+                builder.WhereTrusted("Id = @p1 AND Region = @p2", 7));
             Assert.Empty(builder.Parameters);
         }
 
         [Fact]
-        public void Where_UnusedValue_ThrowsBeforeMutatingParameters()
+        public void WhereTrusted_UnusedValue_ThrowsBeforeMutatingParameters()
         {
             QueryBuilder builder = new QueryBuilder().Select().From("Customers");
 
             Assert.Throws<ArgumentException>(() =>
-                builder.Where("Id = @p1", 7, "north"));
+                builder.WhereTrusted("Id = @p1", 7, "north"));
             Assert.Empty(builder.Parameters);
         }
 
         [Fact]
-        public void Where_PlaceholderGap_ThrowsArgumentException()
+        public void WhereTrusted_PlaceholderGap_ThrowsArgumentException()
         {
             QueryBuilder builder = new QueryBuilder().Select().From("Customers");
 
             Assert.Throws<ArgumentException>(() =>
-                builder.Where("Id = @p2", 7));
+                builder.WhereTrusted("Id = @p2", 7));
         }
 
         [Theory]
         [InlineData("Id = @p0")]
         [InlineData("Id = @p01")]
-        public void Where_NonCanonicalPlaceholder_ThrowsArgumentException(string condition)
+        public void WhereTrusted_NonCanonicalPlaceholder_ThrowsArgumentException(string condition)
         {
             QueryBuilder builder = new QueryBuilder().Select().From("Customers");
 
-            Assert.Throws<ArgumentException>(() => builder.Where(condition, 7));
+            Assert.Throws<ArgumentException>(() => builder.WhereTrusted(condition, 7));
         }
 
         [Fact]
-        public void Where_RepeatedPlaceholder_ReusesOneGeneratedParameter()
+        public void WhereTrusted_RepeatedPlaceholder_ReusesOneGeneratedParameter()
         {
             QueryModel model = new QueryBuilder()
                 .Select()
                 .From("Customers")
-                .Where("PrimaryId = @p1 OR BackupId = @p1", 7)
+                .WhereTrusted("PrimaryId = @p1 OR BackupId = @p1", 7)
                 .Build();
 
             Assert.Equal(
@@ -171,12 +170,12 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
-        public void Where_QuotedAndCommentedPlaceholderText_IsNotTokenized()
+        public void WhereTrusted_QuotedAndCommentedPlaceholderText_IsNotTokenized()
         {
             QueryModel model = new QueryBuilder()
                 .Select()
                 .From("Customers")
-                .Where(
+                .WhereTrusted(
                     "Id = @p1 AND Note = '@p2' /* @p3 */ -- @p4\r\nAND Active = 1",
                     7)
                 .Build();
@@ -188,12 +187,12 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
-        public void Where_PlaceholderPrefixCollision_IsTreatedAsTrustedRawText()
+        public void WhereTrusted_PlaceholderPrefixCollision_IsTreatedAsTrustedRawText()
         {
             QueryModel model = new QueryBuilder()
                 .Select()
                 .From("Customers")
-                .Where("ProviderVariable = @p1suffix")
+                .WhereTrusted("ProviderVariable = @p1suffix")
                 .Build();
 
             Assert.Contains("@p1suffix", model.Sql);
@@ -201,11 +200,11 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
-        public void Where_ValuesWithoutCondition_ThrowsArgumentException()
+        public void WhereTrusted_ValuesWithoutCondition_ThrowsArgumentException()
         {
             QueryBuilder builder = new QueryBuilder().Select().From("Customers");
 
-            Assert.Throws<ArgumentException>(() => builder.Where(" ", 7));
+            Assert.Throws<ArgumentException>(() => builder.WhereTrusted(" ", 7));
         }
 
         [Theory]
@@ -220,7 +219,7 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder parent = new QueryBuilder()
                 .Select()
                 .From("Customers")
-                .Where("Active = @p1", true);
+                .Where("Active", QueryOperator.Equal, true);
 
             NotSupportedException exception = Assert.Throws<NotSupportedException>(() =>
             {
@@ -242,11 +241,11 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryModel model = new QueryBuilder()
                 .Select("Customers.DisplayName AS UnsafeAlias")
                 .From("Customers /* trusted table fragment */")
-                .Join(
+                .JoinTrusted(
                     "Orders /* trusted join fragment */",
                     "Orders.CustomerId = Customers.Id",
-                    "LEFT")
-                .Where("Customers.Region = @p1 /* trusted condition fragment */", "north")
+                    QueryJoinType.Left)
+                .WhereTrusted("Customers.Region = @p1 /* trusted condition fragment */", "north")
                 .GroupBy("Customers.DisplayName /* trusted grouping fragment */")
                 .OrderBy("UnsafeAlias DESC /* trusted ordering fragment */")
                 .Build();
@@ -259,6 +258,187 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Contains("trusted ordering fragment", model.Sql);
             Assert.DoesNotContain("north", model.Sql);
             Assert.Equal("north", model.Parameters["@p1"]);
+        }
+
+        [Fact]
+        public void InsertInto_Value_EmitsStructuredInsert()
+        {
+            QueryModel model = new QueryBuilder()
+                .InsertInto("Inventory")
+                .Value("Name", "Neko")
+                .Value("Quantity", 54)
+                .Build();
+
+            Assert.Equal(
+                "INSERT INTO Inventory (Name, Quantity) VALUES (@p1, @p2)",
+                model.Sql);
+            Assert.Equal("Neko", model.Parameters["@p1"]);
+            Assert.Equal(54, model.Parameters["@p2"]);
+        }
+
+        [Fact]
+        public void Update_Set_EmitsStructuredUpdateWithoutChangingPredicateOwnership()
+        {
+            QueryModel model = new QueryBuilder()
+                .Update("Inventory")
+                .Set("Quantity", 54)
+                .Where("Id", QueryOperator.Equal, 7)
+                .Build();
+
+            Assert.Equal(
+                "UPDATE Inventory SET Quantity = @p2 WHERE Id = @p1",
+                model.Sql);
+            Assert.Equal(7, model.Parameters["@p1"]);
+            Assert.Equal(54, model.Parameters["@p2"]);
+        }
+
+        [Theory]
+        [InlineData(QueryOperator.Equal, "=")]
+        [InlineData(QueryOperator.NotEqual, "<>")]
+        [InlineData(QueryOperator.GreaterThan, ">")]
+        [InlineData(QueryOperator.GreaterThanOrEqual, ">=")]
+        [InlineData(QueryOperator.LessThan, "<")]
+        [InlineData(QueryOperator.LessThanOrEqual, "<=")]
+        public void Where_Operator_EmitsStructuredParameterizedPredicate(
+            QueryOperator queryOperator,
+            string expectedSqlOperator)
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Inventory")
+                .Where("Quantity", queryOperator, 54)
+                .Build();
+
+            Assert.Equal(
+                "SELECT * FROM Inventory WHERE Quantity " + expectedSqlOperator + " @p1",
+                model.Sql);
+            Assert.Equal(54, model.Parameters["@p1"]);
+        }
+
+        [Theory]
+        [InlineData(QueryOperator.Equal, "IS NULL")]
+        [InlineData(QueryOperator.NotEqual, "IS NOT NULL")]
+        public void Where_EqualityWithNull_EmitsNullPredicateWithoutParameter(
+            QueryOperator queryOperator,
+            string expectedPredicate)
+        {
+            QueryModel model = new QueryBuilder()
+                .Select()
+                .From("Inventory")
+                .Where("ArchivedAt", queryOperator, null)
+                .Build();
+
+            Assert.Equal(
+                "SELECT * FROM Inventory WHERE ArchivedAt " + expectedPredicate,
+                model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void Where_NonEqualityWithNull_ThrowsBeforeMutatingParameters()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Inventory");
+
+            Assert.Throws<ArgumentException>(() =>
+                builder.Where("Quantity", QueryOperator.GreaterThan, null));
+
+            Assert.Empty(builder.Parameters);
+        }
+
+        [Fact]
+        public void Where_UnknownOperator_ThrowsBeforeMutatingParameters()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Inventory");
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                builder.Where("Quantity", (QueryOperator)999, 54));
+
+            Assert.Empty(builder.Parameters);
+        }
+
+        [Fact]
+        public void Where_UnknownOperatorWithNull_ThrowsBeforeMutatingParameters()
+        {
+            QueryBuilder builder = new QueryBuilder().Select().From("Inventory");
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                builder.Where("Quantity", (QueryOperator)999, null));
+
+            Assert.Empty(builder.Parameters);
+        }
+
+        [Fact]
+        public void JoinOn_ColumnsAndOperator_EmitStructuredJoin()
+        {
+            QueryModel model = new QueryBuilder()
+                .Select("Inventory.Id")
+                .From("Inventory")
+                .JoinOn(
+                    "Thresholds",
+                    "Inventory.Quantity",
+                    QueryOperator.GreaterThanOrEqual,
+                    "Thresholds.Minimum",
+                    QueryJoinType.Left)
+                .Build();
+
+            Assert.Equal(
+                "SELECT Inventory.Id FROM Inventory LEFT JOIN Thresholds ON Inventory.Quantity >= Thresholds.Minimum",
+                model.Sql);
+            Assert.Empty(model.Parameters);
+        }
+
+        [Fact]
+        public void CompatibilityOverloads_DelegateToCanonicalBehavior()
+        {
+#pragma warning disable CS0618
+            QueryModel insert = new QueryBuilder()
+                .InsertInto(
+                    "Inventory",
+                    new Dictionary<string, object> { { "Quantity", 54 } })
+                .Build();
+            QueryModel update = new QueryBuilder()
+                .Update(
+                    "Inventory",
+                    new Dictionary<string, object> { { "Quantity", 55 } })
+                .Where("Id = @p1", 7)
+                .Build();
+            QueryModel select = new QueryBuilder()
+                .Select()
+                .From("Inventory")
+                .Join("Warehouses", "Warehouses.Id = Inventory.WarehouseId")
+                .Build();
+#pragma warning restore CS0618
+
+            Assert.Equal(
+                "INSERT INTO Inventory (Quantity) VALUES (@p1)",
+                insert.Sql);
+            Assert.Equal(
+                "UPDATE Inventory SET Quantity = @p2 WHERE Id = @p1",
+                update.Sql);
+            Assert.Equal(
+                "SELECT * FROM Inventory INNER JOIN Warehouses ON Warehouses.Id = Inventory.WarehouseId",
+                select.Sql);
+        }
+
+        [Fact]
+        public void CompatibilityOverloads_AreWarningOnlyAndNameConcreteReplacements()
+        {
+            AssertWarningOnlyObsolete(
+                "InsertInto",
+                new[] { typeof(string), typeof(Dictionary<string, object>) },
+                "InsertInto(string).Value(string, object)");
+            AssertWarningOnlyObsolete(
+                "Update",
+                new[] { typeof(string), typeof(Dictionary<string, object>) },
+                "Update(string).Set(string, object)");
+            AssertWarningOnlyObsolete(
+                "Where",
+                new[] { typeof(string), typeof(object[]) },
+                "WhereTrusted(string, params object[])");
+            AssertWarningOnlyObsolete(
+                "Join",
+                new[] { typeof(string), typeof(string), typeof(string) },
+                "JoinOn(string, string, string, QueryJoinType)");
         }
 
         [Fact]
@@ -345,9 +525,9 @@ namespace NekoLib.Data.Tests.Unit.Query
         [Fact]
         public void Build_UpdateWithoutPredicate_ThrowsInvalidOperationException()
         {
-            QueryBuilder builder = new QueryBuilder().Update(
-                "Customers",
-                new Dictionary<string, object> { { "Active", false } });
+            QueryBuilder builder = new QueryBuilder()
+                .Update("Customers")
+                .Set("Active", false);
 
             InvalidOperationException exception =
                 Assert.Throws<InvalidOperationException>(() => builder.Build());
@@ -359,9 +539,8 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Build_UpdateWithAllRowsOptIn_EmitsUpdateWithoutWhereClause()
         {
             QueryModel model = new QueryBuilder()
-                .Update(
-                    "Customers",
-                    new Dictionary<string, object> { { "Active", false } })
+                .Update("Customers")
+                .Set("Active", false)
                 .AllowAllRowsUpdate()
                 .Build();
 
@@ -374,7 +553,7 @@ namespace NekoLib.Data.Tests.Unit.Query
         {
             QueryModel model = new QueryBuilder()
                 .DeleteFrom("Customers")
-                .Where("Id = @p1", 7)
+                .Where("Id", QueryOperator.Equal, 7)
                 .Build();
 
             Assert.Equal("DELETE FROM Customers WHERE Id = @p1", model.Sql);
@@ -433,12 +612,12 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder sub = new QueryBuilder()
                 .Select("1")
                 .From("Orders")
-                .Where("CustomerId = @p1", 42);
+                .Where("CustomerId", QueryOperator.Equal, 42);
 
             QueryBuilder parent = new QueryBuilder()
                 .Select("*")
                 .From("Customers")
-                .Where("Active = @p1", true)
+                .Where("Active", QueryOperator.Equal, true)
                 .WhereExists(sub);
 
             QueryModel model = parent.Build();
@@ -461,12 +640,12 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder sub = new QueryBuilder()
                 .Select("1")
                 .From("Orders")
-                .Where("CustomerId = @p1", 7);
+                .Where("CustomerId", QueryOperator.Equal, 7);
 
             QueryBuilder parent = new QueryBuilder()
                 .Select("*")
                 .From("Customers")
-                .Where("Active = @p1", true)
+                .Where("Active", QueryOperator.Equal, true)
                 .WhereExists(sub);
 
             QueryModel model = parent.Build();
@@ -489,12 +668,12 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder sub = new QueryBuilder()
                 .Select("1")
                 .From("Returns")
-                .Where("Reason = @p1", "fraud");
+                .Where("Reason", QueryOperator.Equal, "fraud");
 
             QueryBuilder parent = new QueryBuilder()
                 .Select("*")
                 .From("Customers")
-                .Where("Region = @p1", "NA")
+                .Where("Region", QueryOperator.Equal, "NA")
                 .WhereNotExists(sub);
 
             QueryModel model = parent.Build();
@@ -511,12 +690,12 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder sub = new QueryBuilder()
                 .Select("1")
                 .From("Animals")
-                .Where("Species = @p1", "cow");
+                .Where("Species", QueryOperator.Equal, "cow");
 
             QueryModel model = new QueryBuilder()
                 .Select("Name")
                 .From("Products")
-                .Where("Quantity > @p1", 10)
+                .Where("Quantity", QueryOperator.GreaterThan, 10)
                 .WhereExists(sub)
                 .Build();
 
@@ -542,11 +721,9 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Build_Insert_IsIdempotent_AcrossMultipleCalls()
         {
             QueryBuilder qb = new QueryBuilder()
-                .InsertInto("Customers", new Dictionary<string, object>
-                {
-                    { "Id", 1 },
-                    { "Name", "Alice" }
-                });
+                .InsertInto("Customers")
+                .Value("Id", 1)
+                .Value("Name", "Alice");
 
             QueryModel first = qb.Build();
             QueryModel second = qb.Build();
@@ -564,12 +741,10 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Build_Update_IsIdempotent_AcrossMultipleCalls()
         {
             QueryBuilder qb = new QueryBuilder()
-                .Update("Customers", new Dictionary<string, object>
-                {
-                    { "Name", "Bob" },
-                    { "Active", true }
-                })
-                .Where("Id = @p1", 99);
+                .Update("Customers")
+                .Set("Name", "Bob")
+                .Set("Active", true)
+                .Where("Id", QueryOperator.Equal, 99);
 
             QueryModel first = qb.Build();
             QueryModel second = qb.Build();
@@ -588,7 +763,7 @@ namespace NekoLib.Data.Tests.Unit.Query
         {
             QueryBuilder builder = new QueryBuilder()
                 .DeleteFrom("Customers")
-                .Where("Id = @p1", 7);
+                .Where("Id", QueryOperator.Equal, 7);
 
             QueryModel first = builder.Build();
             QueryModel second = builder.Build();
@@ -602,7 +777,8 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Build_Insert_DoesNotMutateBuilderParameters()
         {
             QueryBuilder qb = new QueryBuilder()
-                .InsertInto("T", new Dictionary<string, object> { { "X", 1 } });
+                .InsertInto("T")
+                .Value("X", 1);
 
             int countBefore = qb.Parameters.Count;
             qb.Build();
@@ -618,8 +794,9 @@ namespace NekoLib.Data.Tests.Unit.Query
         public void Build_Update_DoesNotMutateBuilderParameters()
         {
             QueryBuilder qb = new QueryBuilder()
-                .Update("T", new Dictionary<string, object> { { "X", 1 } })
-                .Where("Y = @p1", 2);
+                .Update("T")
+                .Set("X", 1)
+                .Where("Y", QueryOperator.Equal, 2);
 
             int countBefore = qb.Parameters.Count;
             qb.Build();
@@ -636,13 +813,27 @@ namespace NekoLib.Data.Tests.Unit.Query
             QueryBuilder qb = new QueryBuilder()
                 .Select("Id", "Name")
                 .From("Customers")
-                .Where("Active = @p1", true);
+                .Where("Active", QueryOperator.Equal, true);
 
             QueryModel first = qb.Build();
             QueryModel second = qb.Build();
 
             Assert.Equal(first.Sql, second.Sql);
             Assert.Equal(first.Parameters.Count, second.Parameters.Count);
+        }
+
+        private static void AssertWarningOnlyObsolete(
+            string methodName,
+            Type[] parameterTypes,
+            string expectedReplacement)
+        {
+            MethodInfo method = typeof(QueryBuilder).GetMethod(methodName, parameterTypes);
+            Assert.NotNull(method);
+
+            ObsoleteAttribute attribute = method.GetCustomAttribute<ObsoleteAttribute>();
+            Assert.NotNull(attribute);
+            Assert.False(attribute.IsError);
+            Assert.Contains(expectedReplacement, attribute.Message);
         }
     }
 }

@@ -11,10 +11,13 @@
 **Prerequisites:** Microsoft Access Database Engine 2016 Redistributable (ACE OLEDB),
 x64. SQLite needs nothing beyond the restored packages.
 
-**Last verification:** 2026-08-08 — the `--builder` probe passed with exit code 0
-on both target frameworks against both providers, using scenario source `4186e48`
-and Data fix `865d90f`. The last interactive pass was 2026-08-06: `net481`
-against both providers, all seven steps each, and `net9.0-windows` with SQLite.
+**Last verification:** 2026-08-27 — the `--builder` probe passed with exit code 0
+on both target frameworks against both providers. Its write-adaptation phase
+used lazy schema discovery to promote a string to SQLite `Int64` or Access
+`Int32`, reported one lossless `SchemaValidatedRule` hook, and verified that the
+stored quantity did not change. The last interactive pass was 2026-08-06:
+`net481` against both providers, all seven steps each, and `net9.0-windows` with
+SQLite.
 
 ## Purpose
 
@@ -416,6 +419,7 @@ in any NekoLib module.
 
 | Date | Target | Provider | Result |
 |---|---|---|---|
+| 2026-08-27 | both TFMs | both | **Write-side type adaptation, exit 0 in all four runs.** The builder probe used the same structured `Set` call with the quantity represented as a string. Lazy discovery resolved SQLite `INTEGER` to `Int64` and the Access OleDb column code to `Int32`; each run required exactly one lossless `SchemaValidatedRule` hook and confirmed the persisted value was unchanged. |
 | 2026-08-08 | both TFMs | both | **Committed-source revalidation.** The `--builder` probe ran from scenario source `4186e48` against Data fix `865d90f`; all four target/provider pairs exited 0. SQLite and Access returned matching fingerprints for every ordered query, `whereexists` and `exists-antes` both returned 14 rows, the compatible two-predicate variants both returned 6, and Access translated `DistinctCount` to the aliased distinct subquery while returning the same value, `3`. |
 | 2026-08-05 | `net9.0-windows` | SQLite | **Interactive pass.** Steps 1–6 driven. Stock movement 240→230 and animal `BV-003` removed, both transactional; log showed both with reasons. |
 | 2026-08-05 | `net9.0-windows` | Access (ACE 12.0) | **Interactive pass, core paths.** Steps 1, 2 and 4 driven: `.accdb` created through ADOX and seeded, catalog read from the OleDb schema rowset, `SELECT TOP n` rendered, stock movement 240→250 transactional with positional binding. Steps 3, 5 and 6 not repeated on this provider. |

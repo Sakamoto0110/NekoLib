@@ -136,6 +136,53 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             }
         }
 
+        [Fact]
+        public async Task Update_StructuredBuilder_BindsByFinalSqlOccurrence()
+        {
+            FakeNonQueryConnectionFactory factory = CreateFactory();
+            using (QueryExecutionContext context = CreateContext(
+                factory,
+                DbParameterBindingMode.Positional))
+            {
+                DatabaseGateway gateway = new DatabaseGateway(context);
+                QueryBuilder builder = new QueryBuilder()
+                    .Update("T")
+                    .Set("A", "set-value")
+                    .Where("B", QueryOperator.Equal, "where-value");
+
+                await gateway.Update(builder);
+
+                FakeNonQueryCommand command = factory.LastConnection.LastCommand;
+                Assert.Equal("UPDATE T SET A = ? WHERE B = ?", command.CommandText);
+                Assert.Equal(
+                    new object[] { "set-value", "where-value" },
+                    ParameterValues(command));
+            }
+        }
+
+        [Fact]
+        public async Task Update_StructuredBuilder_NamedBindingPreservesLogicalIdentity()
+        {
+            FakeNonQueryConnectionFactory factory = CreateFactory();
+            using (QueryExecutionContext context = CreateContext(
+                factory,
+                DbParameterBindingMode.Named))
+            {
+                DatabaseGateway gateway = new DatabaseGateway(context);
+                QueryBuilder builder = new QueryBuilder()
+                    .Update("T")
+                    .Set("A", "set-value")
+                    .Where("B", QueryOperator.Equal, "where-value");
+
+                await gateway.Update(builder);
+
+                FakeNonQueryCommand command = factory.LastConnection.LastCommand;
+                Assert.Equal("UPDATE T SET A = @p2 WHERE B = @p1", command.CommandText);
+                Assert.Equal("where-value", ParameterValue(command, "@p1"));
+                Assert.Equal("set-value", ParameterValue(command, "@p2"));
+            }
+        }
+
         private static FakeNonQueryConnectionFactory CreateFactory()
         {
             return new FakeNonQueryConnectionFactory(
@@ -143,14 +190,15 @@ namespace NekoLib.Data.Tests.Unit.Gateway
         }
 
         private static QueryExecutionContext CreateContext(
-            FakeNonQueryConnectionFactory factory)
+            FakeNonQueryConnectionFactory factory,
+            DbParameterBindingMode bindingMode = DbParameterBindingMode.Positional)
         {
             return new QueryExecutionContext(
                 factory,
                 new SqliteQueryTranslator(),
                 new DatabaseGatewayOptions
                 {
-                    ParameterBindingMode = DbParameterBindingMode.Positional
+                    ParameterBindingMode = bindingMode
                 });
         }
 
@@ -160,6 +208,16 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 .Cast<DbParameter>()
                 .Select(parameter => parameter.Value)
                 .ToArray();
+        }
+
+        private static object ParameterValue(
+            FakeNonQueryCommand command,
+            string parameterName)
+        {
+            return command.Parameters
+                .Cast<DbParameter>()
+                .Single(parameter => parameter.ParameterName == parameterName)
+                .Value;
         }
     }
 }

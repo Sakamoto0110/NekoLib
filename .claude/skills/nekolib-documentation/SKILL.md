@@ -67,7 +67,8 @@ Stop at the requested module boundary.
 
 ## Required starting checks
 
-1. Read `AGENTS.md`, `docs/README.md`, the module `MANIFEST.md`, the shared
+1. Read `AGENTS.md`, `ROADMAP.md`, `TODO.md`, `docs/README.md`, the module
+   `MANIFEST.md`, the shared
    authoring contract, the
    [documentation policy](../../../docs/governance/documentation-policy.md), and
    the [validation policy](../../../docs/governance/validation-policy.md), plus
@@ -92,7 +93,7 @@ Use progressive discovery from the manifest, then apply
 4. tests and relevant runtime scenarios;
 5. audits and history;
 6. migrations and global/module changelogs;
-7. issues, findings, backlog, and validation evidence;
+7. issues, findings, proposals, and validation evidence;
 8. historical artifacts only when they are relevant and authorized.
 
 Reuse, move, normalize, cross-link, reconcile against current source, and then
@@ -105,9 +106,11 @@ replacement.
   symbols.
 - `README.md` stays concise; `REFERENCE.md` owns the normative technical
   contract.
-- `TODO.md` remains the only accepted/promoted work scheduler.
-- Findings remain non-normative, issues require evidence, and backlog remains
-  unpromoted.
+- `ROADMAP.md` owns direction and intent; `TODO.md` remains the only
+  accepted/promoted work scheduler.
+- Findings remain non-normative, issues require evidence, and one-file
+  proposals remain unpromoted. Promotion may originate elsewhere when the
+  decision is formalized and accepted.
 - Validation requirements are derived from architecture and risk, not from
   existing coverage alone. Evidence is recorded separately.
 - Apply the Claude evidence lens to every surface where it adds useful

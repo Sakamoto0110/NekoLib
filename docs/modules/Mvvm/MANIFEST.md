@@ -68,7 +68,7 @@ the stable public API oracle.
 | Consumer-visible module evolution | [`CHANGELOG.md`](CHANGELOG.md) |
 | Confirmed issues | [`ISSUES.md`](ISSUES.md) |
 | Unconfirmed findings | [`FINDINGS.md`](FINDINGS.md) |
-| Unpromoted ideas | [`BACKLOG.md`](BACKLOG.md) |
+| Unpromoted ideas | [`docs/proposals/`](../../proposals/README.md), filtered by `Boundary: mvvm` |
 | Evidence requirements | [`VALIDATION_REQUIREMENTS.md`](VALIDATION_REQUIREMENTS.md) |
 | Executed evidence | [`VALIDATIONS.md`](VALIDATIONS.md) |
 | Historical audits | [`audits/`](audits/) |
@@ -83,7 +83,8 @@ the stable public API oracle.
 - Cross-boundary consumer scenario owned by Data runtime tests:
   [`FarmDatabase`](../../../runtime_tests/Data/FarmDatabase/README.md)
 - Coordinated changelog: [`CHANGELOG.md`](../../../CHANGELOG.md)
-- Accepted work and freezes: [`TODO.md`](../../../TODO.md)
+- Product direction and freezes: [`ROADMAP.md`](../../../ROADMAP.md)
+- Promoted work: [`TODO.md`](../../../TODO.md)
 - Stable release provenance: [`stable-release-1.0.0.md`](../../stable-release-1.0.0.md)
 - Public API and release policy: [`public-api-release-policy.md`](../../public-api-release-policy.md)
 

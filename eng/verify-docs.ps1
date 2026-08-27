@@ -318,7 +318,9 @@ Push-Location $repoRoot
 try {
     Test-DocumentationParserPrimitives
 
-    $trackedPaths = @(& git ls-files | ForEach-Object { $_.Replace('\', '/') })
+    $trackedPaths = @(& git ls-files |
+        ForEach-Object { $_.Replace('\', '/') } |
+        Where-Object { Test-Path -LiteralPath $_ })
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to enumerate tracked repository files."
     }
@@ -470,7 +472,8 @@ try {
         'docs/README.md',
         'docs/audit/README.md',
         'docs/history/README.md',
-        'docs/modules/README.md')
+        'docs/modules/README.md',
+        'docs/proposals/README.md')
     $registered = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($registryFile in $registryFiles) {
         if (-not (Test-Path -LiteralPath $registryFile)) { continue }
@@ -504,6 +507,7 @@ try {
         $usesExtendedSchema = [bool]$schemaVersion -or
             $markdownFile.StartsWith('docs/modules/') -or
             $markdownFile.StartsWith('docs/governance/') -or
+            $markdownFile.StartsWith('docs/proposals/') -or
             $markdownFile.StartsWith('docs/schemas/') -or
             $markdownFile.StartsWith('docs/templates/') -or
             $markdownFile.StartsWith('.agents/skills/nekolib-documentation/') -or
@@ -644,7 +648,7 @@ try {
                 Add-VerificationError "$markdownFile declares Profiles outside the manifest owner surface."
             }
 
-            if ($surface -in @('issues', 'findings', 'backlog', 'validation-requirements', 'validation-evidence') -and
+            if ($surface -in @('issues', 'findings', 'proposal', 'validation-requirements', 'validation-evidence') -and
                 -not $markdownFile.StartsWith('docs/templates/')) {
                 $recordSchema = $documentationSchema.records.PSObject.Properties[$surface].Value
                 foreach ($block in Get-HeadingBlocks $text) {
@@ -666,7 +670,7 @@ try {
                         }
                     }
 
-                    $statusField = if ($surface -eq 'backlog') { 'State' } else { 'Status' }
+                    $statusField = if ($surface -eq 'proposal') { 'State' } else { 'Status' }
                     $status = Get-MetadataValue $block.Text $statusField
                     if ($status -and $recordSchema.statuses -and $status -notin @($recordSchema.statuses)) {
                         Add-VerificationError "$markdownFile record '$($block.Heading)' has unsupported $statusField '$status'."
@@ -705,6 +709,21 @@ try {
                             Add-VerificationError "$markdownFile evidence '$($block.Heading)' embeds a requirement Classification."
                         }
                     }
+                }
+            }
+
+            $proposalDirectory = ([string]$documentationSchema.proposals.directory).TrimEnd('/') + '/'
+            $proposalIndex = [string]$documentationSchema.proposals.index
+            if ($markdownFile.StartsWith($proposalDirectory) -and $markdownFile -cne $proposalIndex) {
+                if ($surface -cne [string]$documentationSchema.proposals.recordSurface) {
+                    Add-VerificationError "$markdownFile proposal must use Surface '$($documentationSchema.proposals.recordSurface)'."
+                }
+                $proposalBlocks = @(Get-HeadingBlocks $text | Where-Object { -not $_.Heading.StartsWith('Empty state') })
+                if ([bool]$documentationSchema.proposals.oneRecordPerFile -and $proposalBlocks.Count -ne 1) {
+                    Add-VerificationError "$markdownFile proposal must contain exactly one level-two proposal record."
+                }
+                if (-not $registered.Contains($markdownFile)) {
+                    Add-VerificationError "$markdownFile proposal is absent from '$proposalIndex'."
                 }
             }
 

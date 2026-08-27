@@ -334,10 +334,24 @@ namespace NekoLib.Data.Gateway
             DatabaseQuery dbq = translator.Translate(model);
             ctx.RaiseSqlGenerated(dbq.Sql);
 
-            await ReadDynamicFromSql(dbq.Sql, dbq.Parameters, Callback, Ct, session, dbq.CommandPolicy).ConfigureAwait(false);
+            await ReadDynamicFromSql(
+                dbq.Sql,
+                dbq.Parameters,
+                Callback,
+                Ct,
+                session,
+                dbq.CommandPolicy,
+                dbq.LogicalParameters).ConfigureAwait(false);
         }
 
-        private async Task ReadDynamicFromSql(string sql, Dictionary<string, object?>? parameters, Action<DynamicRow> callback, CancellationToken ct = default, DbSession? session = null, DbCommandPolicy? commandPolicy = null)
+        private async Task ReadDynamicFromSql(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            Action<DynamicRow> callback,
+            CancellationToken ct = default,
+            DbSession? session = null,
+            DbCommandPolicy? commandPolicy = null,
+            IReadOnlyList<LogicalParameter>? logicalParameters = null)
         {
             await WithCommandAsync(sql, parameters, async delegate (DbCommand cmd)
             {
@@ -359,7 +373,7 @@ namespace NekoLib.Data.Gateway
                 }
 
                 return 0;
-            }, ct, session, commandPolicy).ConfigureAwait(false);
+            }, ct, session, commandPolicy, logicalParameters).ConfigureAwait(false);
         }
 
 
@@ -428,8 +442,15 @@ namespace NekoLib.Data.Gateway
                     ApplyCommandPolicy(cmd, dbq.CommandPolicy);
                     if(session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
+                    Dictionary<string, object?> effectiveParameters =
+                        await PrepareLogicalParametersAsync(
+                            cmd,
+                            dbq.Parameters,
+                            dbq.LogicalParameters,
+                            session,
+                            ct).ConfigureAwait(false);
+                    ApplyParameters(cmd, effectiveParameters);
                     ctx.RaiseSqlDispatch(dbq.Sql);
-                    ApplyParameters(cmd, dbq.Parameters);
 
                     reader = await ExecuteReaderSafeAsync(cmd, ct).ConfigureAwait(false);
                     schema = ExtractSchema(reader);

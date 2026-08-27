@@ -290,7 +290,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         session.BeginTransaction();
 
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", new Dictionary<string, object?>
+                            QueryBuilderFactory.InsertInto("Movement", new Dictionary<string, object?>
                             {
                                 ["PartId"] = 1,
                                 ["OccurredAt"] = new DateTime(2026, 6, 2, 9, 0, 0, DateTimeKind.Utc),
@@ -472,7 +472,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
             return new QueryBuilder()
                 .Select("Id", "Sku", "Quantity")
                 .From("Part /*" + marker + "*/")
-                .Where("Id = @p1", BlockingLock.LockedPartId);
+                .Where("Id", QueryOperator.Equal, BlockingLock.LockedPartId);
         }
 
         private static QueryBuilder SelectParts()
@@ -501,7 +501,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
             return context.Workspace.Gateway.Delete(
                 new QueryBuilder()
                     .DeleteFrom("Movement")
-                    .Where("Note = @p1", note),
+                    .Where("Note", QueryOperator.Equal, note),
                 context.Ct);
         }
     }

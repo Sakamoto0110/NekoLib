@@ -61,7 +61,8 @@ for disposing the factory.
 
 The concrete gateway exposes the same capability methods publicly. Consumers
 may use either the composite interface, a narrower capability interface, or the
-concrete instance; operation availability does not depend on that choice.
+concrete instance for database operations. Schema-cache control and the
+instance-scoped type-adaptation hook are concrete-gateway controls.
 
 The former universal family is not supported. Select an explicit result shape:
 `GetDto`/`ReadDto`, `GetDynamic`/`ReadDynamic`, `GetRaw`/`ReadRaw`, or the
@@ -87,17 +88,126 @@ be processed without buffering the whole result.
 by the context converts it to a provider-specific `DatabaseQuery`. Built-in
 translators cover SQL Server, SQLite, and Access/OleDb.
 
-The builder parameterizes values. Table names, column names, join expressions,
-ordering, grouping, and raw condition templates remain trusted SQL fragments;
-the module does not quote or validate caller-controlled identifiers. Empty
-`IN` and `NOT IN`, statement reuse, subquery parameter isolation, and
-unconstrained updates and deletes follow the fail-closed rules enforced by the
-builder. `AllowAllRowsUpdate()` and `AllowAllRowsDelete()` both default to
-disabled, apply only to the current statement, and are cleared on builder reuse.
+The canonical fluent convention is `InsertInto(table).Value(column, value)`,
+`Update(table).Set(column, value)`, structured
+`Where(column, QueryOperator, value)`, and `JoinOn(...)`. Use `WhereTrusted(...)`
+or `JoinTrusted(...)` only when a structured call cannot represent the required
+SQL. The former dictionary-based `InsertInto`/`Update`, condition-template
+`Where`, and raw-expression `Join` overloads remain warning-only compatibility
+shims until a future major release; current code should use the canonical APIs.
+
+```csharp
+var insert = new QueryBuilder()
+    .InsertInto("Inventory")
+    .Value("Sku", sku)
+    .Value("Quantity", quantity);
+
+var update = new QueryBuilder()
+    .Update("Inventory")
+    .Set("Quantity", quantity)
+    .Where("Id", QueryOperator.Equal, id);
+```
+
+The builder parameterizes values. Table names, column names, projections,
+ordering, grouping, and explicitly trusted fragments remain trusted SQL; the
+module does not quote or validate caller-controlled identifiers. Empty `IN` and
+`NOT IN`, statement reuse, subquery parameter isolation, and unconstrained
+updates and deletes follow the fail-closed rules enforced by the builder.
+`AllowAllRowsUpdate()` and `AllowAllRowsDelete()` both default to disabled,
+apply only to the current statement, and are cleared on builder reuse. See the
+[structured QueryBuilder migration guide](../../../docs/migrations/querybuilder-structured-api.md)
+for replacements and the compatibility window.
 
 OleDb binds by occurrence order, not parameter name. Automatic binding selects
 the positional binder for OleDb and named binding elsewhere. Do not reorder
 generated placeholders independently of their parameters.
+
+## Write-side type adaptation
+
+Builder parameters carry provider-neutral logical identity, table/column
+provenance, semantic target, and optional exact adaptation rules. The builder
+does not open a connection, discover schema, choose a provider representation,
+or raise adaptation events. The gateway resolves each logical value once before
+the binder creates named or positional provider parameters.
+
+Promotion converts consumer input to its authorized semantic type. The default
+`TypePromotionPolicy.ExplicitOnly` requires a rule on the individual value:
+
+```csharp
+var insert = new QueryBuilder()
+    .InsertInto("Inventory")
+    .Value("Quantity", "54", parameter =>
+        parameter.AllowPromotion(TypePromotions.StringToInt32));
+
+await database.Insert(insert, cancellationToken);
+```
+
+`Disabled` rejects even a field-explicit promotion. `SchemaValidated` may also
+select a registered lossless rule when structured table/column metadata proves
+the target type and a known provider profile confirms the binding. It never
+uses unrestricted `Convert.ChangeType`, current-culture guessing, raw SQL
+parsing, or a failed database call as authorization. Invalid text and overflow
+fail locally through `TypeAdaptationException`; the command is not dispatched.
+
+Provider adaptation first retains the exact semantic representation. A decay
+rule is considered only when the known provider profile rejects that preferred
+representation. `TypeDecayPolicy.Strict` stops there.
+`AllowFallback` permits ordered registered candidates. Configure the primary
+candidate with `AllowDecay(...)` and append later alternatives with
+`AllowDecayFallback(...)`; every candidate converts from the original semantic
+value. The gateway records rejected representations and emits one event for the
+candidate finally selected.
+
+Potentially lossy adaptation remains rejected unless the logical value
+supplies the exact rule and `TypeLossPolicy.AllowExplicitAndReport` is enabled.
+For example, converting `DateTimeOffset` to UTC `DateTime` discards the original
+offset and therefore requires both opt-ins. The last candidate may be a string
+formatter created with `CreateDateTimeToString(...)` or
+`CreateDateTimeOffsetToString(...)`. There is no canonical presentation format:
+the rule carries the exact .NET format, culture, and loss classification.
+Custom formatters default to `PotentiallyLossy`; the built-in round-trip `"O"`
+rules and the shipped `Guid` string rule are classified lossless.
+
+Schema discovery is gateway-local and keyed by provider, data source/database,
+schema, table, and column. `Lazy` is the default and performs one thread-safe,
+single-flight load on first schema-dependent structured use. It will not begin
+discovery after a session transaction has started. `Preload` requires the
+consumer to load the selected columns first; `Disabled` performs no automatic
+lookup. Migrations can refresh selected columns or clear the cache:
+
+```csharp
+await gateway.PreloadSchemaAsync(
+    "dbo.Inventory",
+    new[] { "Quantity", "OccurredAt" },
+    cancellationToken);
+
+await gateway.RefreshSchemaAsync(
+    "dbo.Inventory",
+    new[] { "Quantity" },
+    cancellationToken);
+
+gateway.ClearSchemaCache();
+```
+
+SQL Server and Access/OleDb use their ADO.NET schema collections. Because
+`Microsoft.Data.Sqlite` does not implement `DbConnection.GetSchema`, the SQLite
+profile falls back to `PRAGMA table_info` for the already-structured table
+identity. Unknown providers may execute exact or field-explicit operations but
+cannot authorize automatic schema-based promotion.
+
+`OnTypeAdaptation` reports each completed logical write promotion or decay
+once, even when an OleDb placeholder occurs multiple times physically. Events
+contain structural type, provider, strategy, loss, reason, provenance, attempt,
+formatter/culture, and correlation evidence; they never contain input/converted values, SQL,
+parameters, connection strings, credentials, or raw inner errors. Subscribers
+are synchronous and isolated and cannot authorize an adaptation. Configure
+options and rule collections before concurrent gateway use.
+
+Raw-SQL dictionaries and `DbParameterSpec` remain explicit binding escape
+hatches and do not trigger schema inference. The gateway never dispatches one
+representation and retries a mutation with another. See the
+[type-adaptation migration guide](../../../docs/migrations/data-type-adaptation.md)
+for policy selection and examples.
 
 ## Reads and mapping
 
@@ -114,6 +224,12 @@ source value. `Lenient` leaves the affected property unchanged and continues.
 nulls, binary values, provider-specific precision, or every original type.
 `DataMapper` is a compatibility bridge from that lossy representation to a
 DTO; direct `GetDto`/`ReadDto` mapping retains more source fidelity.
+
+The new promotion, decay, schema, and hook policies currently govern builder
+parameters on the write/command path. Existing DTO read materialization remains
+owned by `DataMappingFailureMode`; read-side temporal adaptation reporting and
+per-field loss authorization remain open work and must not be inferred from the
+public `TypeAdaptationDirection.Read` vocabulary.
 
 Dynamic reads default to the AOT-safe Expando-backed `DynamicRow`. Reflection
 Emit is explicit through `DynamicMode.IL`, process-wide, bounded by the first
@@ -135,7 +251,7 @@ the generated SQL passes through the context translator, and
 await database.Delete(
     new QueryBuilder()
         .DeleteFrom("Orders")
-        .Where("Id = @p1", orderId),
+        .Where("Id", QueryOperator.Equal, orderId),
     cancellationToken);
 ```
 
@@ -211,7 +327,9 @@ None. The current public surface is a stable-release candidate under the
 
 The F1-DATA candidate correction is documented in the
 [F1-DATA migration guide](../../../docs/migrations/f1-data.md). The compiled
-surface is checked separately for both targets:
+surface is checked separately for both targets. QueryBuilder and type-
+adaptation migration guidance are maintained independently so consumers can
+adopt either additive surface deliberately:
 
 ```powershell
 .\eng\verify-public-api.ps1 -PackageId NekoLib.Data

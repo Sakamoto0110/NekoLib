@@ -65,7 +65,9 @@ not infer or fabricate one from the file's first Git appearance.
 | Watchdog Host deployment contract | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | Host source, dual-target tests, package target, and package-only consumers |
 | Navigation technical contract | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | Navigation source and tests |
 | Mvvm technical contract | [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | Mvvm source, focused tests, and compiled public API manifests |
-| Open work, accepted decisions, active freezes, and completion criteria | [`TODO.md`](../TODO.md) | Current implementation and validation |
+| Product direction, intentions, planning horizons, guardrails, and freezes | [`ROADMAP.md`](../ROADMAP.md) | Current implementation, accepted boundaries, and owner direction |
+| Formally promoted work, execution gates, and completion criteria | [`TODO.md`](../TODO.md) | Accepted decisions, current implementation, and validation |
+| Unpromoted proposal records | [`docs/proposals/`](proposals/README.md) | Linked investigations, findings, audits, issues, and owner decisions |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
 | Agent documentation authoring | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) and registered skills | Profiles share one output contract and do not replace public or technical documentation |
 | Repository skill identity, adapter paths, and parity intent | [`docs/schemas/agent-skill-registry.json`](schemas/agent-skill-registry.json) | Skill entrypoints and any shared contracts own procedures and interoperable semantics |
@@ -82,8 +84,10 @@ reference commit.
 | Document | Kind | Lifecycle | Subject / owner |
 |---|---|---|---|
 | [`README.md`](../README.md) | reference | current | Product overview, compatibility, module map, and package entry points |
-| [`TODO.md`](../TODO.md) | roadmap/status | current | Open work, accepted decisions, freezes, and completion criteria |
+| [`ROADMAP.md`](../ROADMAP.md) | roadmap/status | current | Product direction, intentions, planning horizons, guardrails, freezes, and completed-milestone routing |
+| [`TODO.md`](../TODO.md) | roadmap/status | current | Formally promoted work, execution order, gates, and completion criteria |
 | [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
+| [`docs/proposals/README.md`](proposals/README.md) | reference | current | One-file unpromoted proposal index and non-exclusive promotion rule |
 | [`src/Core/NekoLib.Core/README.md`](../src/Core/NekoLib.Core/README.md) | reference | current | Core capability contracts, ownership, snapshots, null objects, and experimental action marker |
 | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](../src/Diagnostics/NekoLib.Diagnostics/README.md) | reference | current | Incident collection, handler installation and disposal, evidence budgets and bounds, redaction boundary, crash-bundle layout, and the Windows crash adapter |
@@ -95,7 +99,6 @@ reference commit.
 | [`docs/modules/Mvvm/CHANGELOG.md`](modules/Mvvm/CHANGELOG.md) | reference | current | Module changelog scaffold routing to the coordinated family changelog until populated |
 | [`docs/modules/Mvvm/ISSUES.md`](modules/Mvvm/ISSUES.md) | reference | current | Confirmed Mvvm issues registry; structural empty state in the pilot |
 | [`docs/modules/Mvvm/FINDINGS.md`](modules/Mvvm/FINDINGS.md) | reference | current | Non-normative Mvvm findings registry; structural empty state in the pilot |
-| [`docs/modules/Mvvm/BACKLOG.md`](modules/Mvvm/BACKLOG.md) | roadmap/status | current | Unpromoted Mvvm ideas; structural empty state in the pilot |
 | [`docs/modules/Mvvm/VALIDATION_REQUIREMENTS.md`](modules/Mvvm/VALIDATION_REQUIREMENTS.md) | reference | current | Mvvm evidence-contract scaffold and inherited validation profile |
 | [`docs/modules/Mvvm/VALIDATIONS.md`](modules/Mvvm/VALIDATIONS.md) | reference | current | Mvvm executed-evidence registry; structural empty state in the pilot |
 | [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Pointer-only source portal to the canonical Mvvm technical reference |
@@ -117,6 +120,8 @@ reference commit.
 | [`docs/stable-release-1.0.0.md`](stable-release-1.0.0.md) | reference | current | First stable family baseline, qualifying package provenance, hashes, validation, and distribution boundaries |
 | [`docs/migrations/f1-core.md`](migrations/f1-core.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
 | [`docs/migrations/f1-data.md`](migrations/f1-data.md) | guide | current | Migration from the initial Data candidate surface to the accepted F1-DATA gateway contract |
+| [`docs/migrations/querybuilder-structured-api.md`](migrations/querybuilder-structured-api.md) | guide | current | Migration to the canonical structured QueryBuilder API and its warning-only compatibility window |
+| [`docs/migrations/data-type-adaptation.md`](migrations/data-type-adaptation.md) | guide | current | Adoption of explicit input promotion, provider decay/loss policies, schema discovery, and sanitized adaptation hooks |
 | [`docs/migrations/f1-diagnostics.md`](migrations/f1-diagnostics.md) | guide | current | Migration from the initial Diagnostics candidate surface to the accepted F1-DIAG incident-collection, bundle, lifecycle, and ownership contracts |
 | [`docs/migrations/f1-http.md`](migrations/f1-http.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
 | [`docs/migrations/f1-devices.md`](migrations/f1-devices.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
@@ -131,6 +136,7 @@ reference commit.
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/audit/core-public-api-review-2026-08-17.md`](audit/core-public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | historical | F1-DATA compiled-surface review, accepted decisions, and implementation reconciliation |
+| [`docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md`](audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md) | audit | historical | Accepted Data type-adaptation policy and QueryBuilder API design with QueryBuilder and write-side adaptation reconciliation |
 | [`docs/audit/devices-public-api-review-2026-08-17.md`](audit/devices-public-api-review-2026-08-17.md) | audit | historical | F1-DEV compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/diagnostics-public-api-review-2026-08-17.md`](audit/diagnostics-public-api-review-2026-08-17.md) | audit | historical | F1-DIAG compiled-surface review, accepted implementation reconciliation, final lifecycle correction, and immutable package evidence |
 | [`docs/audit/diagnostics-windows-public-api-review-2026-08-17.md`](audit/diagnostics-windows-public-api-review-2026-08-17.md) | audit | historical | F1-WIN compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
@@ -141,8 +147,8 @@ reference commit.
 | [`docs/audit/navigation-public-api-review-2026-08-20.md`](audit/navigation-public-api-review-2026-08-20.md) | audit | historical | F1-NAV code-first core public API review, accepted implementation reconciliation, and residual package/runtime gaps |
 | [`docs/audit/navigation-winforms-public-api-review-2026-08-21.md`](audit/navigation-winforms-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
 | [`docs/audit/navigation-wpf-public-api-review-2026-08-21.md`](audit/navigation-wpf-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WPF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
-| [`docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | audit | historical | NekoMarketplace external-consumer evidence intake for published NekoLib 1.0.0 packages; current reconciliation remains gated |
-| [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | current | Phase G2 code-first design review for a bounded Pix payment module and Efí sandbox model; implementation remains gated |
+| [`docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | audit | historical | NekoMarketplace external-consumer evidence intake; P-001 and the QueryBuilder correction are reconciled into Phase G3 while remaining records stay historical |
+| [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | historical | Phase G2 code-first design review preserved as dated input to the unpromoted Payments/Pix proposal |
 | [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | historical | F1-WDOG compiled public surface, accepted decisions, implementation reconciliation, and residual Host/release-evidence gaps |
@@ -152,6 +158,7 @@ reference commit.
 | [`docs/history/phase-c-repository-hygiene-2026-08-01.md`](history/phase-c-repository-hygiene-2026-08-01.md) | roadmap/status | historical | Phase C completion, commit-bound validation, and residual gaps |
 | [`docs/history/phase-e-confidence-stabilization-2026-08-12.md`](history/phase-e-confidence-stabilization-2026-08-12.md) | roadmap/status | historical | Complete Phase E work log, outcome-first evidence boundaries, residual confidence, and final commit-bound validation |
 | [`docs/history/phase-g1-http-integration-2026-08-16.md`](history/phase-g1-http-integration-2026-08-16.md) | roadmap/status | historical | Phase G1 typed HTTP catalog completion, deterministic and package evidence, and the optional provider-evidence boundary |
+| [`docs/history/phase-f1-public-api-release-stability-2026-08-21.md`](history/phase-f1-public-api-release-stability-2026-08-21.md) | roadmap/status | historical | Phase F1 public API finalization and first stable coordinated package-family completion |
 | [`tests/README.md`](../tests/README.md) | reference | current | Automated verification taxonomy and canonical entry points |
 | [`runtime_tests/README.md`](../runtime_tests/README.md) | guide | current | Shared manual runtime-scenario contract and inventory |
 | [`runtime_tests/SCENARIO_TEMPLATE.md`](../runtime_tests/SCENARIO_TEMPLATE.md) | guide | current | Required metadata and procedure template for new scenarios |
@@ -190,8 +197,18 @@ contain them.
 Durable architecture work follows this sequence:
 
 ```text
-review or audit -> accepted decision -> TODO.md -> implementation -> current technical documentation
+proposal, finding, issue, audit, external evidence, or owner decision
+    -> investigation and formalized accepted decision
+    -> TODO.md
+    -> implementation
+    -> current technical documentation and evidence
+    -> history when complete
 ```
+
+`ROADMAP.md` supplies direction and guardrails around this flow but does not
+authorize implementation. `docs/proposals/` is one possible input, not a
+mandatory queue: any listed source may be promoted after formalization and
+owner acceptance.
 
 When an audit is complete, preserve its original evidence and mark it
 historical. Record later outcomes in a short reconciliation section or in the

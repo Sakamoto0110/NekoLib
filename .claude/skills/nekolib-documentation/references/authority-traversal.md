@@ -28,14 +28,16 @@ Use each source only for the facts it owns:
    `eng/public-api/` establish the reviewed stable baseline.
 3. Current module `REFERENCE.md` and global policies establish the intended
    documented contract.
-4. Root `TODO.md` establishes accepted work, order, freezes, and gates;
-   confirmed issues establish defect status but not scheduling.
-5. Tests, runtime scenarios, package probes, and evidence records demonstrate
+4. Root `ROADMAP.md` establishes direction, intentions, guardrails, freezes,
+   and planning horizons.
+5. Root `TODO.md` establishes formally promoted work, order, gates, and
+   completion; confirmed issues establish defect status but not scheduling.
+6. Tests, runtime scenarios, package probes, and evidence records demonstrate
    bounded claims. They do not define behavior.
-6. Migrations and changelogs describe consumer transition and evolution.
-7. History and audits preserve chronology and rationale at their recorded
+7. Migrations and changelogs describe consumer transition and evolution.
+8. History and audits preserve chronology and rationale at their recorded
    baselines.
-8. Findings, backlog, and historical agent guidance are non-normative leads.
+9. Findings, proposals, and historical agent guidance are non-normative leads.
 
 Use full-source inspection to correct stale historical assumptions in the new
 current model, but do not rewrite historical snapshots. If current source and a

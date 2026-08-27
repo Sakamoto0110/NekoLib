@@ -80,7 +80,13 @@ namespace NekoLib.Data.Gateway
             var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
             return new DbSession(conn, ctx.SessionAffinityToken);
         }
-        private async Task<T> WithCommandAsync<T>(string Sql, Dictionary<string, object?>? Parameters, Func<DbCommand, Task<T>> work, CancellationToken Ct, DbCommandPolicy? commandPolicy = null)
+        private async Task<T> WithCommandAsync<T>(
+            string Sql,
+            Dictionary<string, object?>? Parameters,
+            Func<DbCommand, Task<T>> work,
+            CancellationToken Ct,
+            DbCommandPolicy? commandPolicy = null,
+            IReadOnlyList<LogicalParameter>? logicalParameters = null)
         {
             if(Sql == null) throw new ArgumentNullException(nameof(Sql));
             if(work == null) throw new ArgumentNullException(nameof(work));
@@ -92,7 +98,14 @@ namespace NekoLib.Data.Gateway
                     cmd.CommandType = CommandType.Text;
 
                     ApplyCommandPolicy(cmd, commandPolicy);
-                    ApplyParameters(cmd, Parameters);
+                    Dictionary<string, object?> effectiveParameters =
+                        await PrepareLogicalParametersAsync(
+                            cmd,
+                            Parameters,
+                            logicalParameters,
+                            null,
+                            Ct).ConfigureAwait(false);
+                    ApplyParameters(cmd, effectiveParameters);
                     try
                     {
                         
@@ -112,7 +125,14 @@ namespace NekoLib.Data.Gateway
            return WithCommandAsync(Sql, null, work, Ct);
         }
 
-        private async Task<T> WithCommandAsync<T>(string sql, Dictionary<string, object?>? parameters, Func<DbCommand, Task<T>> work, CancellationToken ct, DbSession? session, DbCommandPolicy? commandPolicy = null)
+        private async Task<T> WithCommandAsync<T>(
+            string sql,
+            Dictionary<string, object?>? parameters,
+            Func<DbCommand, Task<T>> work,
+            CancellationToken ct,
+            DbSession? session,
+            DbCommandPolicy? commandPolicy = null,
+            IReadOnlyList<LogicalParameter>? logicalParameters = null)
         {
             DbConnection conn;
             bool ownsConnection = false;
@@ -138,7 +158,14 @@ namespace NekoLib.Data.Gateway
                     if (session?.Transaction != null)
                         cmd.Transaction = session.Transaction;
 
-                    ApplyParameters(cmd, parameters);
+                    Dictionary<string, object?> effectiveParameters =
+                        await PrepareLogicalParametersAsync(
+                            cmd,
+                            parameters,
+                            logicalParameters,
+                            session,
+                            ct).ConfigureAwait(false);
+                    ApplyParameters(cmd, effectiveParameters);
 
                     ctx.RaiseSqlDispatch(sql);
                     var result = await work(cmd).ConfigureAwait(false);

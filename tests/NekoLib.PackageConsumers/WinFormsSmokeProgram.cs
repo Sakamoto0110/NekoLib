@@ -16,6 +16,8 @@ namespace NekoLib.PackageConsumers
                 typeof(NekoLib.Data.Query.DatabaseQuery),
                 typeof(NekoLib.Data.Gateway.DatabaseGateway),
                 typeof(NekoLib.Data.Gateway.IDatabaseGateway),
+                typeof(NekoLib.Data.TypePromotionPolicy),
+                typeof(NekoLib.Data.TypeAdaptationEventArgs),
                 typeof(NekoLib.Inspection.InspectionRuntime),
                 typeof(NekoLib.Devices.Core.Abstractions.SerialConfig),
                 typeof(NekoLib.Diagnostics.CrashHandler),
@@ -72,7 +74,10 @@ namespace NekoLib.PackageConsumers
             var query = new NekoLib.Data.Query.QueryBuilder()
                 .Select("Id")
                 .From("Rows")
-                .Where("Id = @p1", 1);
+                .Where(
+                    "Id",
+                    NekoLib.Data.Query.QueryOperator.Equal,
+                    1);
 
             _ = gateway.ContainsData(
                 "SELECT Id FROM Rows WHERE Id = @p1",
@@ -87,7 +92,10 @@ namespace NekoLib.PackageConsumers
             _ = gateway.Delete(
                 new NekoLib.Data.Query.QueryBuilder()
                     .DeleteFrom("Rows")
-                    .Where("Id = @p1", 1),
+                    .Where(
+                        "Id",
+                        NekoLib.Data.Query.QueryOperator.Equal,
+                        1),
                 session,
                 cancellationToken);
 
@@ -95,6 +103,70 @@ namespace NekoLib.PackageConsumers
             _ = gateway.StreamDto<PackageDataRow>(query, session, cancellationToken);
 #endif
         }
+
+        private static void CompileDataAdaptationSurface(
+            NekoLib.Data.Gateway.DatabaseGateway gateway,
+            System.Threading.CancellationToken cancellationToken)
+        {
+            gateway.OnTypeAdaptation += adaptation =>
+                Console.WriteLine(
+                    "{0}:{1}:{2}",
+                    adaptation.Kind,
+                    adaptation.ReasonCode,
+                    adaptation.Loss);
+
+            NekoLib.Data.TypeDecayRule formattedFallback =
+                NekoLib.Data.TypeDecays.CreateDateTimeOffsetToString(
+                    "yyyy/MM/dd HH:mm:ss:fff",
+                    System.Globalization.CultureInfo.InvariantCulture);
+
+            _ = gateway.PreloadSchemaAsync(
+                "Rows",
+                new[] { "Id", "OccurredAt" },
+                cancellationToken);
+            _ = gateway.RefreshSchemaAsync(
+                "Rows",
+                new[] { "Id" },
+                cancellationToken);
+            gateway.ClearSchemaCache();
+
+            _ = new NekoLib.Data.Query.QueryBuilder()
+                .InsertInto("Rows")
+                .Value(
+                    "Id",
+                    "54",
+                    parameter => parameter.AllowPromotion(
+                        NekoLib.Data.TypePromotions.StringToInt32))
+                .Value(
+                    "OccurredAt",
+                    DateTimeOffset.UtcNow,
+                    parameter => parameter
+                        .AllowDecay(NekoLib.Data.TypeDecays.DateTimeOffsetToUtcDateTime)
+                        .AllowDecayFallback(formattedFallback));
+        }
+
+#pragma warning disable CS0618
+        private static void CompileDeprecatedDataSurface()
+        {
+            _ = new NekoLib.Data.Query.QueryBuilder().InsertInto(
+                "Rows",
+                new System.Collections.Generic.Dictionary<string, object?>
+                {
+                    { "Id", 1 }
+                });
+            _ = new NekoLib.Data.Query.QueryBuilder().Update(
+                "Rows",
+                new System.Collections.Generic.Dictionary<string, object?>
+                {
+                    { "Id", 1 }
+                });
+            _ = new NekoLib.Data.Query.QueryBuilder()
+                .Select("Id")
+                .From("Rows")
+                .Join("OtherRows", "OtherRows.Id = Rows.Id")
+                .Where("Rows.Id = @p1", 1);
+        }
+#pragma warning restore CS0618
 
         private sealed class PackageDataRow
         {

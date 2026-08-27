@@ -59,9 +59,10 @@ as a permanent prohibition.
 - When changing the dependency graph, update the relevant `*.csproj`, package
   documentation, package-consumer probes, and tests together.
 
-For observability work, read the current freeze in `../../../TODO.md`. Surface
-the architectural tradeoff when the request does not clearly authorize an
-unfreeze; do not silently reject Core as an invalid dependency.
+For observability work, read the current freeze in `../../../ROADMAP.md` and any
+promoted Devices work in `../../../TODO.md`. Surface the architectural tradeoff
+when the request does not clearly authorize an unfreeze; do not silently reject
+Core as an invalid dependency.
 
 ## Preserve Devices invariants
 

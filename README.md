@@ -376,7 +376,9 @@ cycles.
 | Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Pipes technical reference | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
 | Watchdog technical reference | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
-| Live roadmap and the Inspection instrumentation freeze | [`TODO.md`](TODO.md) |
+| Product direction, intentions, and the Inspection instrumentation freeze | [`ROADMAP.md`](ROADMAP.md) |
+| Formally promoted work and execution gates | [`TODO.md`](TODO.md) |
+| Unpromoted ideas | [`docs/proposals/`](docs/proposals/README.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |

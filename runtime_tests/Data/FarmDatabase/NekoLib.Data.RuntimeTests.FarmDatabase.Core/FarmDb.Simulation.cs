@@ -274,15 +274,13 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 try
                 {
                     var state = new QueryBuilder()
-                        .Update("SimState", new Dictionary<string, object?>
-                        {
-                            ["Tick"] = snapshot.State.Tick,
-                            ["Gold"] = snapshot.State.Gold,
-                            ["Terrains"] = snapshot.State.Terrains,
-                            ["Slots"] = snapshot.State.Slots,
-                            ["Workers"] = snapshot.State.Workers
-                        })
-                        .Where("[Id] = @p1", SimStateId);
+                        .Update("SimState")
+                        .Set("Tick", snapshot.State.Tick)
+                        .Set("Gold", snapshot.State.Gold)
+                        .Set("Terrains", snapshot.State.Terrains)
+                        .Set("Slots", snapshot.State.Slots)
+                        .Set("Workers", snapshot.State.Workers)
+                        .Where("[Id]", QueryOperator.Equal, SimStateId);
 
                     await Gateway.Update(state, session, ct).ConfigureAwait(false);
 
@@ -336,14 +334,12 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 if (!tile.IsDirty) continue;
 
                 var update = new QueryBuilder()
-                    .Update("SimTiles", new Dictionary<string, object?>
-                    {
-                        ["Crop"] = tile.Crop,
-                        ["PlantedAtTick"] = tile.PlantedAtTick,
-                        ["HasWorker"] = tile.HasWorker ? 1 : 0,
-                        ["NextActionTick"] = tile.NextActionTick
-                    })
-                    .Where("[Id] = @p1", tile.Id);
+                    .Update("SimTiles")
+                    .Set("Crop", tile.Crop)
+                    .Set("PlantedAtTick", tile.PlantedAtTick)
+                    .Set("HasWorker", tile.HasWorker ? 1 : 0)
+                    .Set("NextActionTick", tile.NextActionTick)
+                    .Where("[Id]", QueryOperator.Equal, tile.Id);
 
                 await Gateway.Update(update, session, ct).ConfigureAwait(false);
             }
@@ -353,11 +349,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 if (!entry.IsDirty) continue;
 
                 var update = new QueryBuilder()
-                    .Update("SimMarket", new Dictionary<string, object?>
-                    {
-                        ["Quantity"] = entry.Quantity
-                    })
-                    .Where("[Crop] = @p1", entry.Crop);
+                    .Update("SimMarket")
+                    .Set("Quantity", entry.Quantity)
+                    .Where("[Crop]", QueryOperator.Equal, entry.Crop);
 
                 await Gateway.Update(update, session, ct).ConfigureAwait(false);
             }
@@ -367,11 +361,9 @@ namespace NekoLib.Data.RuntimeTests.FarmDatabase.Core
                 if (!entry.IsDirty) continue;
 
                 var update = new QueryBuilder()
-                    .Update("SimInventory", new Dictionary<string, object?>
-                    {
-                        ["Quantity"] = entry.Quantity
-                    })
-                    .Where("[Crop] = @p1", entry.Crop);
+                    .Update("SimInventory")
+                    .Set("Quantity", entry.Quantity)
+                    .Where("[Crop]", QueryOperator.Equal, entry.Crop);
 
                 await Gateway.Update(update, session, ct).ConfigureAwait(false);
             }

@@ -14,8 +14,9 @@ smallest change that satisfies the request.
 2. Read `../../../src/Navigation/NekoLib.Navigation/README.md` completely before
    changing Navigation.
 3. Inspect the affected source, tests, and every relevant `*.csproj`.
-4. Treat source and project files as authoritative. Treat `TODO.md` and audit
-   files as historical context that must be reverified.
+4. Treat source and project files as authoritative. Use `ROADMAP.md` for current
+   direction and freezes, `TODO.md` for promoted work, and audit files as
+   baseline-bound context that must be reverified.
 
 ## Classify the change
 

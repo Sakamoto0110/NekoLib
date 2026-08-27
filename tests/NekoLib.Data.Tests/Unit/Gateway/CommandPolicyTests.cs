@@ -72,7 +72,8 @@ namespace NekoLib.Data.Tests.Unit.Gateway
             {
                 DatabaseGateway gateway = new DatabaseGateway(context);
                 QueryBuilder builder = new QueryBuilder()
-                    .InsertInto("Ledger", new Dictionary<string, object> { { "Amount", 10 } })
+                    .InsertInto("Ledger")
+                    .Value("Amount", 10)
                     .CommandTimeout(31);
 
                 await gateway.Insert(builder);

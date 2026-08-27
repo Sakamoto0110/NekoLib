@@ -215,7 +215,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         session.BeginTransaction();
 
                         await context.Workspace.Gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", new Dictionary<string, object?>
+                            QueryBuilderFactory.InsertInto("Movement", new Dictionary<string, object?>
                             {
                                 ["PartId"] = 1,
                                 ["OccurredAt"] = new DateTime(2026, 6, 3, 8, 0, 0, DateTimeKind.Utc),

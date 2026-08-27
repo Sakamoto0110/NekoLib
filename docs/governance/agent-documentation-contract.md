@@ -51,6 +51,9 @@ Every agent-authored document must:
   memory, hidden state, or knowledge of which model authored it;
 - distinguish implemented behavior, intended contract, historical rationale,
   findings, accepted work, requirements, and executed evidence;
+- keep `ROADMAP.md` direction, `TODO.md` promoted work, and concise
+  `docs/proposals/` ideas distinct, without requiring a proposal file as the
+  origin of every promotion;
 - preserve source, build, test, API, runtime, interactive, package, and release
   evidence as separate claims;
 - expose uncertainty, exclusions, conflicts, and validation gaps explicitly;

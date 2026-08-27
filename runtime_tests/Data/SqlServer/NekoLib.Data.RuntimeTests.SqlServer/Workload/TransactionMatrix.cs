@@ -74,7 +74,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     var gateway = context.Workspace.Gateway;
 
                     int inserted = await gateway.Insert(
-                        new QueryBuilder().InsertInto("Movement", Movement(1, 7, Marker)),
+                        QueryBuilderFactory.InsertInto("Movement", Movement(1, 7, Marker)),
                         context.Ct).ConfigureAwait(false);
 
                     check.Equal(1, inserted, "rows reported by INSERT");
@@ -100,7 +100,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     int deleted = await gateway.Delete(
                         new QueryBuilder()
                             .DeleteFrom("Movement")
-                            .Where("Note = @p1", Marker),
+                            .Where("Note", QueryOperator.Equal, Marker),
                         context.Ct).ConfigureAwait(false);
 
                     check.Equal(1, deleted, "rows reported by DELETE");
@@ -122,7 +122,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     {
                         session.BeginTransaction();
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", Movement(2, 3, Marker + "-commit")),
+                            QueryBuilderFactory.InsertInto("Movement", Movement(2, 3, Marker + "-commit")),
                             session,
                             context.Ct).ConfigureAwait(false);
                         session.Commit();
@@ -136,7 +136,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     {
                         session.BeginTransaction();
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", Movement(2, 3, Marker + "-rollback")),
+                            QueryBuilderFactory.InsertInto("Movement", Movement(2, 3, Marker + "-rollback")),
                             session,
                             context.Ct).ConfigureAwait(false);
                         session.Rollback();
@@ -165,7 +165,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                         try
                         {
                             await gateway.Insert(
-                                new QueryBuilder().InsertInto("Movement", Movement(3, 5, Marker + "-fault")),
+                                QueryBuilderFactory.InsertInto("Movement", Movement(3, 5, Marker + "-fault")),
                                 session,
                                 context.Ct).ConfigureAwait(false);
 
@@ -178,7 +178,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                             broken["Kind"] = null;
 
                             await gateway.Insert(
-                                new QueryBuilder().InsertInto("Movement", broken),
+                                QueryBuilderFactory.InsertInto("Movement", broken),
                                 session,
                                 context.Ct).ConfigureAwait(false);
 
@@ -224,7 +224,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     {
                         session.BeginTransaction();
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", Movement(4, 2, Marker + "-abandoned")),
+                            QueryBuilderFactory.InsertInto("Movement", Movement(4, 2, Marker + "-abandoned")),
                             session,
                             context.Ct).ConfigureAwait(false);
                         context.Counters.Success();
@@ -248,14 +248,14 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
                     {
                         session.BeginTransaction();
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", Movement(5, 1, Marker + "-first")),
+                            QueryBuilderFactory.InsertInto("Movement", Movement(5, 1, Marker + "-first")),
                             session,
                             context.Ct).ConfigureAwait(false);
                         session.Commit();
 
                         session.BeginTransaction();
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", Movement(5, 1, Marker + "-second")),
+                            QueryBuilderFactory.InsertInto("Movement", Movement(5, 1, Marker + "-second")),
                             session,
                             context.Ct).ConfigureAwait(false);
                         session.Rollback();
@@ -331,7 +331,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Workload
             await context.Workspace.Gateway.Delete(
                 new QueryBuilder()
                     .DeleteFrom("Movement")
-                    .Where("Note = @p1", note),
+                    .Where("Note", QueryOperator.Equal, note),
                 context.Ct).ConfigureAwait(false);
         }
 

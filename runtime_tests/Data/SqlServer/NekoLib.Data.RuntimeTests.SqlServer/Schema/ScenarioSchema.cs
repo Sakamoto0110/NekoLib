@@ -138,7 +138,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Schema
                         };
 
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Warehouse", values),
+                            QueryBuilderFactory.InsertInto("Warehouse", values),
                             session,
                             ct).ConfigureAwait(false);
                     }
@@ -165,7 +165,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Schema
                         };
 
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Part", values),
+                            QueryBuilderFactory.InsertInto("Part", values),
                             session,
                             ct).ConfigureAwait(false);
                     }
@@ -182,7 +182,7 @@ namespace NekoLib.Data.RuntimeTests.SqlServer.Schema
                         };
 
                         await gateway.Insert(
-                            new QueryBuilder().InsertInto("Movement", values),
+                            QueryBuilderFactory.InsertInto("Movement", values),
                             session,
                             ct).ConfigureAwait(false);
                     }

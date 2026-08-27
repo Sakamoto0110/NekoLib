@@ -28,7 +28,7 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 int result = await gateway.Delete(
                     new QueryBuilder()
                         .DeleteFrom("Customers")
-                        .Where("Id = @p1", 7));
+                        .Where("Id", QueryOperator.Equal, 7));
 
                 Assert.Equal(1, result);
                 Assert.Equal(new[] { "generated", "dispatch", "success" }, notifications);
@@ -75,9 +75,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 };
 
                 int result = await gateway.Insert(
-                    new QueryBuilder().InsertInto(
-                        "Customers",
-                        new Dictionary<string, object> { { "Name", "Alice" } }));
+                    new QueryBuilder()
+                        .InsertInto("Customers")
+                        .Value("Name", "Alice"));
 
                 Assert.Equal(3, result);
                 Assert.Equal(
@@ -152,9 +152,9 @@ namespace NekoLib.Data.Tests.Unit.Gateway
                 context.OnSqlGenerated += _ => throw new InvalidOperationException("second");
                 context.OnSqlGenerated += _ => throw new InvalidOperationException("third");
 
-                await gateway.Insert(new QueryBuilder().InsertInto(
-                    "Customers",
-                    new Dictionary<string, object> { { "Name", "Alice" } }));
+                await gateway.Insert(new QueryBuilder()
+                    .InsertInto("Customers")
+                    .Value("Name", "Alice"));
 
                 IReadOnlyList<DbQueryObserverFailure> failures = context.GetObserverFailures();
                 Assert.Equal(2, failures.Count);

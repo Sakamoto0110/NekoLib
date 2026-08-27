@@ -27,7 +27,8 @@ Stop, preserve evidence, and request disposition when any of these occurs:
 - the requested documentation outcome requires a product or public API change;
 - the work would cross an active freeze or require an unfreeze;
 - a finding lacks enough evidence to become a confirmed issue;
-- an issue or backlog item would be promoted automatically;
+- a finding, issue, proposal, audit, external-evidence record, or owner decision
+  would be promoted without formalization and acceptance;
 - project, package, target, or boundary ownership cannot be established;
 - the next action would leave the requested module or approved migration map;
 - pre-existing dirty work overlaps the files being changed;

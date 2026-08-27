@@ -110,6 +110,44 @@ namespace NekoLib.Data
             DbParameterBindingMode.Automatic;
 
         /// <summary>
+        /// Controls whether consumer values may be promoted before dispatch.
+        /// </summary>
+        public TypePromotionPolicy TypePromotionPolicy { get; set; } =
+            TypePromotionPolicy.ExplicitOnly;
+
+        /// <summary>
+        /// Controls provider-representation fallback. Potentially lossy decay
+        /// additionally requires an explicit logical-parameter rule.
+        /// </summary>
+        public TypeDecayPolicy TypeDecayPolicy { get; set; } =
+            TypeDecayPolicy.AllowFallback;
+
+        /// <summary>
+        /// Controls potentially lossy adaptation. The opt-in still requires an
+        /// explicit rule on each affected logical parameter and always reports.
+        /// </summary>
+        public TypeLossPolicy TypeLossPolicy { get; set; } =
+            TypeLossPolicy.RejectPotentialLoss;
+
+        /// <summary>Controls automatic schema discovery for structured parameters.</summary>
+        public SchemaDiscoveryMode SchemaDiscoveryMode { get; set; } =
+            SchemaDiscoveryMode.Lazy;
+
+        /// <summary>
+        /// Gets the registered loss-classified rules available to
+        /// <see cref="TypePromotionPolicy.SchemaValidated"/>.
+        /// </summary>
+        public IList<TypePromotionRule> AutomaticPromotionRules { get; } =
+            new List<TypePromotionRule>(TypePromotions.BuiltInRules);
+
+        /// <summary>
+        /// Gets the registered lossless representation fallbacks available to
+        /// known provider profiles.
+        /// </summary>
+        public IList<TypeDecayRule> AutomaticDecayRules { get; } =
+            new List<TypeDecayRule>(TypeDecays.BuiltInRules);
+
+        /// <summary>
         /// Gets or sets the explicit opt-in for providers that do not support
         /// native asynchronous open, execute, or read operations.
         /// </summary>
@@ -132,8 +170,47 @@ namespace NekoLib.Data
             }
             if (!Enum.IsDefined(typeof(DbParameterBindingMode), ParameterBindingMode))
                 throw new ArgumentOutOfRangeException(nameof(ParameterBindingMode));
+            if (!Enum.IsDefined(typeof(TypePromotionPolicy), TypePromotionPolicy))
+                throw new ArgumentOutOfRangeException(nameof(TypePromotionPolicy));
+            if (!Enum.IsDefined(typeof(TypeDecayPolicy), TypeDecayPolicy))
+                throw new ArgumentOutOfRangeException(nameof(TypeDecayPolicy));
+            if (!Enum.IsDefined(typeof(TypeLossPolicy), TypeLossPolicy))
+                throw new ArgumentOutOfRangeException(nameof(TypeLossPolicy));
+            if (!Enum.IsDefined(typeof(SchemaDiscoveryMode), SchemaDiscoveryMode))
+                throw new ArgumentOutOfRangeException(nameof(SchemaDiscoveryMode));
             if (!Enum.IsDefined(typeof(DbSynchronousFallbackMode), SynchronousFallbackMode))
                 throw new ArgumentOutOfRangeException(nameof(SynchronousFallbackMode));
+
+            ValidateRuleCollection(AutomaticPromotionRules, nameof(AutomaticPromotionRules));
+            ValidateRuleCollection(AutomaticDecayRules, nameof(AutomaticDecayRules));
+        }
+
+        private static void ValidateRuleCollection<T>(IList<T> rules, string parameterName)
+        {
+            if (rules == null)
+                throw new ArgumentNullException(parameterName);
+
+            HashSet<string> strategyIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < rules.Count; index++)
+            {
+                object? rule = rules[index];
+                if (rule == null)
+                    throw new ArgumentException("Adaptation rule collections cannot contain null.", parameterName);
+
+                string strategyId;
+                TypePromotionRule? promotionRule = rule as TypePromotionRule;
+                if (promotionRule != null)
+                    strategyId = promotionRule.StrategyId;
+                else
+                    strategyId = ((TypeDecayRule)rule).StrategyId;
+
+                if (!strategyIds.Add(strategyId))
+                {
+                    throw new ArgumentException(
+                        "Adaptation rule strategy identifiers must be unique.",
+                        parameterName);
+                }
+            }
         }
     }
 }

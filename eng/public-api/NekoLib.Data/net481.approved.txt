@@ -25,6 +25,8 @@ namespace NekoLib.Data
     {
         public DatabaseGatewayOptions() { }
         public bool AllowExpandoFallback { get; set; }
+        public System.Collections.Generic.IList<NekoLib.Data.TypeDecayRule> AutomaticDecayRules { get; }
+        public System.Collections.Generic.IList<NekoLib.Data.TypePromotionRule> AutomaticPromotionRules { get; }
         public bool ClearEventsOnContextDispose { get; set; }
         public int? DefaultCommandTimeoutSeconds { get; set; }
         public NekoLib.Data.DynamicMode DynamicMode { get; set; }
@@ -35,7 +37,11 @@ namespace NekoLib.Data
         public int MaxDynamicSchemas { get; set; }
         public int MaxObserverFailures { get; set; }
         public NekoLib.Data.DbParameterBindingMode ParameterBindingMode { get; set; }
+        public NekoLib.Data.SchemaDiscoveryMode SchemaDiscoveryMode { get; set; }
         public NekoLib.Data.DbSynchronousFallbackMode SynchronousFallbackMode { get; set; }
+        public NekoLib.Data.TypeDecayPolicy TypeDecayPolicy { get; set; }
+        public NekoLib.Data.TypeLossPolicy TypeLossPolicy { get; set; }
+        public NekoLib.Data.TypePromotionPolicy TypePromotionPolicy { get; set; }
         public void Validate() { }
     }
     public sealed class DbCommandPolicy
@@ -98,6 +104,143 @@ namespace NekoLib.Data
         public static double op_Explicit(NekoLib.Data.RecordItem Item) { }
         public static string op_Implicit(NekoLib.Data.RecordItem Item) { }
     }
+    public enum SchemaDiscoveryMode
+    {
+        Disabled = 0,
+        Lazy = 1,
+        Preload = 2,
+    }
+    public sealed class TypeAdaptationAttempt
+    {
+        public string? CultureName { get; }
+        public string? Format { get; }
+        public NekoLib.Data.TypeAdaptationLoss Loss { get; }
+        public NekoLib.Data.TypeAdaptationReasonCode ReasonCode { get; }
+        public string StrategyId { get; }
+        public System.Type TargetType { get; }
+    }
+    public enum TypeAdaptationDirection
+    {
+        Read = 0,
+        Write = 1,
+    }
+    public sealed class TypeAdaptationEventArgs : System.EventArgs
+    {
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.TypeAdaptationAttempt> Attempts { get; }
+        public string BindingRepresentation { get; }
+        public string? Column { get; }
+        public System.Guid CorrelationId { get; }
+        public string? CultureName { get; }
+        public NekoLib.Data.TypeAdaptationDirection Direction { get; }
+        public string? Format { get; }
+        public NekoLib.Data.TypeAdaptationKind Kind { get; }
+        public NekoLib.Data.TypeAdaptationLoss Loss { get; }
+        public string ParameterName { get; }
+        public string ProviderIdentity { get; }
+        public NekoLib.Data.TypeAdaptationReasonCode ReasonCode { get; }
+        public System.Type SourceType { get; }
+        public string StrategyId { get; }
+        public string? Table { get; }
+        public System.Type TargetType { get; }
+    }
+    public sealed class TypeAdaptationException : System.InvalidOperationException
+    {
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.TypeAdaptationAttempt> Attempts { get; }
+        public NekoLib.Data.TypeAdaptationLoss? Loss { get; }
+        public string ProviderIdentity { get; }
+        public NekoLib.Data.TypeAdaptationReasonCode ReasonCode { get; }
+        public System.Type SourceType { get; }
+        public string? StrategyId { get; }
+        public System.Type? TargetType { get; }
+    }
+    public enum TypeAdaptationKind
+    {
+        Promotion = 0,
+        Decay = 1,
+    }
+    public enum TypeAdaptationLoss
+    {
+        Lossless = 0,
+        PotentiallyLossy = 1,
+    }
+    public enum TypeAdaptationReasonCode
+    {
+        ExplicitRule = 0,
+        SchemaValidatedRule = 1,
+        ProviderFallback = 2,
+        PromotionDisabled = 3,
+        PromotionRuleMissing = 4,
+        SourceTypeMismatch = 5,
+        ConversionRejected = 6,
+        Overflow = 7,
+        SchemaUnavailable = 8,
+        SchemaNotPreloaded = 9,
+        SchemaRequiredBeforeTransaction = 10,
+        ProviderRepresentationUnsupported = 11,
+        LossyAdaptationNotAuthorized = 12,
+        StrictDecayRejected = 13,
+        UnknownProvider = 14,
+    }
+    public enum TypeDecayPolicy
+    {
+        Strict = 0,
+        AllowFallback = 1,
+    }
+    public sealed class TypeDecayRule
+    {
+        public TypeDecayRule(string strategyId, System.Type sourceType, System.Type targetType, NekoLib.Data.TypeValueConverter converter, NekoLib.Data.TypeAdaptationLoss loss, string? format = null, string? cultureName = null) { }
+        public string? CultureName { get; }
+        public string? Format { get; }
+        public NekoLib.Data.TypeAdaptationLoss Loss { get; }
+        public System.Type SourceType { get; }
+        public string StrategyId { get; }
+        public System.Type TargetType { get; }
+    }
+    public static class TypeDecays
+    {
+        public static NekoLib.Data.TypeDecayRule DateTimeOffsetToRoundTripString { get; }
+        public static NekoLib.Data.TypeDecayRule DateTimeOffsetToUtcDateTime { get; }
+        public static NekoLib.Data.TypeDecayRule DateTimeToRoundTripString { get; }
+        public static NekoLib.Data.TypeDecayRule GuidToString { get; }
+        public static NekoLib.Data.TypeDecayRule CreateDateTimeOffsetToString(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
+        public static NekoLib.Data.TypeDecayRule CreateDateTimeToString(string format, System.Globalization.CultureInfo culture, NekoLib.Data.TypeAdaptationLoss loss = 1) { }
+    }
+    public enum TypeLossPolicy
+    {
+        RejectPotentialLoss = 0,
+        AllowExplicitAndReport = 1,
+    }
+    public enum TypePromotionPolicy
+    {
+        Disabled = 0,
+        ExplicitOnly = 1,
+        SchemaValidated = 2,
+    }
+    public sealed class TypePromotionRule
+    {
+        public TypePromotionRule(string strategyId, System.Type sourceType, System.Type targetType, NekoLib.Data.TypeValueConverter converter, NekoLib.Data.TypeAdaptationLoss loss = 0, string? format = null, string? cultureName = null) { }
+        public string? CultureName { get; }
+        public string? Format { get; }
+        public NekoLib.Data.TypeAdaptationLoss Loss { get; }
+        public System.Type SourceType { get; }
+        public string StrategyId { get; }
+        public System.Type TargetType { get; }
+    }
+    public static class TypePromotions
+    {
+        public static NekoLib.Data.TypePromotionRule StringToBoolean { get; }
+        public static NekoLib.Data.TypePromotionRule StringToDateTimeIso8601 { get; }
+        public static NekoLib.Data.TypePromotionRule StringToDateTimeOffsetIso8601 { get; }
+        public static NekoLib.Data.TypePromotionRule StringToDecimal { get; }
+        public static NekoLib.Data.TypePromotionRule StringToDouble { get; }
+        public static NekoLib.Data.TypePromotionRule StringToGuid { get; }
+        public static NekoLib.Data.TypePromotionRule StringToInt16 { get; }
+        public static NekoLib.Data.TypePromotionRule StringToInt32 { get; }
+        public static NekoLib.Data.TypePromotionRule StringToInt64 { get; }
+        public static NekoLib.Data.TypePromotionRule CreateStringToDateTime(string format, System.Globalization.CultureInfo culture) { }
+        public static NekoLib.Data.TypePromotionRule CreateStringToDateTimeOffset(string format, System.Globalization.CultureInfo culture) { }
+    }
+    public delegate object? TypeValueConverter(object value);
 }
 namespace NekoLib.Data.Dynamic
 {
@@ -125,6 +268,8 @@ namespace NekoLib.Data.Gateway
     public sealed class DatabaseGateway : NekoLib.Data.Gateway.IDatabaseGateway, NekoLib.Data.Gateway.IDmlGateway, NekoLib.Data.Gateway.IDqlGateway, NekoLib.Data.Gateway.IDtoQueryGateway, NekoLib.Data.Gateway.IDynamicQueryGateway, NekoLib.Data.Gateway.IRawQueryGateway, NekoLib.Data.Gateway.ITclGateway
     {
         public DatabaseGateway(NekoLib.Data.Query.QueryExecutionContext context) { }
+        public event System.Action<NekoLib.Data.TypeAdaptationEventArgs>? OnTypeAdaptation;
+        public void ClearSchemaCache() { }
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<bool> ContainsData(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Threading.CancellationToken Ct = default) { }
@@ -153,6 +298,7 @@ namespace NekoLib.Data.Gateway
         public System.Threading.Tasks.Task<int> Insert(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<int> Insert(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters, NekoLib.Data.DbSession session, System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<NekoLib.Data.DbSession> OpenSessionAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task PreloadSchemaAsync(string table, System.Collections.Generic.IEnumerable<string> columns, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.Task ReadDto<T>(NekoLib.Data.Query.QueryBuilder Builder, System.Action<T> Callback, System.Threading.CancellationToken Ct = default)
             where T : new() { }
         public System.Threading.Tasks.Task ReadDto<T>(NekoLib.Data.Query.QueryBuilder Builder, System.Action<T> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default)
@@ -164,6 +310,7 @@ namespace NekoLib.Data.Gateway
         public System.Threading.Tasks.Task ReadRaw(NekoLib.Data.Query.QueryBuilder Builder, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task ReadRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task ReadRaw(string Sql, System.Collections.Generic.Dictionary<string, object?>? Parameters, System.Action<System.Collections.Generic.Dictionary<string, NekoLib.Data.RecordItem>> Callback, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
+        public System.Threading.Tasks.Task RefreshSchemaAsync(string table, System.Collections.Generic.IEnumerable<string> columns, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder Builder, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<int> Update(NekoLib.Data.Query.QueryBuilder Builder, NekoLib.Data.DbSession session, System.Threading.CancellationToken Ct = default) { }
         public System.Threading.Tasks.Task<int> Update(string sql, System.Collections.Generic.Dictionary<string, object?>? parameters = null, System.Threading.CancellationToken ct = default) { }
@@ -265,8 +412,10 @@ namespace NekoLib.Data.Query
     {
         public DatabaseQuery(string sql, System.Collections.Generic.Dictionary<string, object?> parameters, NekoLib.Data.DbCommandPolicy? commandPolicy = null) { }
         public NekoLib.Data.DbCommandPolicy CommandPolicy { get; }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.Query.LogicalParameter> LogicalParameters { get; }
         public System.Collections.Generic.Dictionary<string, object?> Parameters { get; }
         public string Sql { get; }
+        public static NekoLib.Data.Query.DatabaseQuery FromLogicalParameters(string sql, System.Collections.Generic.IEnumerable<NekoLib.Data.Query.LogicalParameter> logicalParameters, NekoLib.Data.DbCommandPolicy? commandPolicy = null) { }
     }
     public class DbQueryEventArgs : System.EventArgs
     {
@@ -318,6 +467,26 @@ namespace NekoLib.Data.Query
     {
         NekoLib.Data.Query.DatabaseQuery Translate(NekoLib.Data.Query.QueryModel Model);
     }
+    public sealed class LogicalParameter
+    {
+        public string? Column { get; }
+        public NekoLib.Data.TypeDecayRule? DecayRule { get; }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.TypeDecayRule> DecayRules { get; }
+        public string Name { get; }
+        public NekoLib.Data.TypePromotionRule? PromotionRule { get; }
+        public System.Type? SemanticType { get; }
+        public string? Table { get; }
+        public object? Value { get; }
+    }
+    public sealed class LogicalParameterOptions
+    {
+        public LogicalParameterOptions() { }
+        public NekoLib.Data.Query.LogicalParameterOptions AllowDecay(NekoLib.Data.TypeDecayRule rule) { }
+        public NekoLib.Data.Query.LogicalParameterOptions AllowDecayFallback(NekoLib.Data.TypeDecayRule rule) { }
+        public NekoLib.Data.Query.LogicalParameterOptions AllowPromotion(NekoLib.Data.TypePromotionRule rule) { }
+        public NekoLib.Data.Query.LogicalParameterOptions As(System.Type semanticType) { }
+        public NekoLib.Data.Query.LogicalParameterOptions As<T>() { }
+    }
     public sealed class QueryBuilder
     {
         public QueryBuilder() { }
@@ -333,20 +502,42 @@ namespace NekoLib.Data.Query
         public NekoLib.Data.Query.QueryBuilder DistinctCount(string Column) { }
         public NekoLib.Data.Query.QueryBuilder From(string Table) { }
         public NekoLib.Data.Query.QueryBuilder GroupBy(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder InsertInto(string Table) { }
+        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
+            " version. Use InsertInto(string).Value(string, object) instead.", false)]
         public NekoLib.Data.Query.QueryBuilder InsertInto(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
+        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
+            " version. Use JoinOn(string, string, string, QueryJoinType) or JoinTrusted(strin" +
+            "g, string, QueryJoinType) instead.", false)]
         public NekoLib.Data.Query.QueryBuilder Join(string Table, string OnExpression, string Type = "INNER") { }
+        public NekoLib.Data.Query.QueryBuilder JoinOn(string Table, string LeftColumn, string RightColumn, NekoLib.Data.Query.QueryJoinType Type = 0) { }
+        public NekoLib.Data.Query.QueryBuilder JoinOn(string Table, string LeftColumn, NekoLib.Data.Query.QueryOperator Operator, string RightColumn, NekoLib.Data.Query.QueryJoinType Type = 0) { }
+        public NekoLib.Data.Query.QueryBuilder JoinTrusted(string Table, string OnExpression, NekoLib.Data.Query.QueryJoinType Type = 0) { }
         public NekoLib.Data.Query.QueryBuilder OrderBy(params string[] Columns) { }
         public NekoLib.Data.Query.QueryBuilder Select(params string[] Columns) { }
         public NekoLib.Data.Query.QueryBuilder SelectDistinct(params string[] Columns) { }
+        public NekoLib.Data.Query.QueryBuilder Set(string Column, object? Value) { }
+        public NekoLib.Data.Query.QueryBuilder Set(string Column, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
         public NekoLib.Data.Query.QueryBuilder Top(int N) { }
+        public NekoLib.Data.Query.QueryBuilder Update(string Table) { }
+        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
+            " version. Use Update(string).Set(string, object) instead.", false)]
         public NekoLib.Data.Query.QueryBuilder Update(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
+        public NekoLib.Data.Query.QueryBuilder Value(string Column, object? Value) { }
+        public NekoLib.Data.Query.QueryBuilder Value(string Column, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
+        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
+            " version. Use Where(string, QueryOperator, object) or WhereTrusted(string, param" +
+            "s object[]) instead.", false)]
         public NekoLib.Data.Query.QueryBuilder Where(string Condition, params object[] Values) { }
+        public NekoLib.Data.Query.QueryBuilder Where(string Column, NekoLib.Data.Query.QueryOperator Operator, object? Value) { }
+        public NekoLib.Data.Query.QueryBuilder Where(string Column, NekoLib.Data.Query.QueryOperator Operator, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
         public NekoLib.Data.Query.QueryBuilder WhereBetween(string Column, object Start, object End) { }
         public NekoLib.Data.Query.QueryBuilder WhereExists(NekoLib.Data.Query.QueryBuilder SubQuery) { }
         public NekoLib.Data.Query.QueryBuilder WhereIn(string Column, System.Collections.Generic.IEnumerable<object> Values) { }
         public NekoLib.Data.Query.QueryBuilder WhereLike(string Column, string Pattern) { }
         public NekoLib.Data.Query.QueryBuilder WhereNotExists(NekoLib.Data.Query.QueryBuilder SubQuery) { }
         public NekoLib.Data.Query.QueryBuilder WhereNotIn(string Column, System.Collections.Generic.IEnumerable<object> Values) { }
+        public NekoLib.Data.Query.QueryBuilder WhereTrusted(string Condition, params object[] Values) { }
     }
     public sealed class QueryExecutionContext : System.IDisposable
     {
@@ -363,13 +554,30 @@ namespace NekoLib.Data.Query
         public void Dispose() { }
         public System.Collections.Generic.IReadOnlyList<NekoLib.Data.Query.DbQueryObserverFailure> GetObserverFailures() { }
     }
+    public enum QueryJoinType
+    {
+        Inner = 0,
+        Left = 1,
+        Right = 2,
+        Full = 3,
+    }
     public sealed class QueryModel
     {
         public QueryModel(string Sql, System.Collections.Generic.Dictionary<string, object?> Parameters, int? Top = default, NekoLib.Data.DbCommandPolicy? CommandPolicy = null) { }
         public NekoLib.Data.DbCommandPolicy CommandPolicy { get; }
+        public System.Collections.Generic.IReadOnlyList<NekoLib.Data.Query.LogicalParameter> LogicalParameters { get; }
         public System.Collections.Generic.IReadOnlyDictionary<string, object?> Parameters { get; }
         public string Sql { get; }
         public int? Top { get; }
+    }
+    public enum QueryOperator
+    {
+        Equal = 0,
+        NotEqual = 1,
+        GreaterThan = 2,
+        GreaterThanOrEqual = 3,
+        LessThan = 4,
+        LessThanOrEqual = 5,
     }
     public sealed class SqlServerQueryTranslator : NekoLib.Data.Query.IDbQueryTranslator
     {
