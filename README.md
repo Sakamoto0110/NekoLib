@@ -64,7 +64,7 @@ public sealed class AdminPage : PageView { }
 ```
 
 **→ Full technical reference:
-[`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md)**
+[`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md)**
 — lifecycle order, guards, reuse policies, load modes, overlays, platform
 adapters, logging, telemetry, Inspection, and the stability-sensitive components.
 
@@ -187,7 +187,7 @@ technical manual.
 | [Devices](src/Devices/NekoLib.Devices/README.md) | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; a timed-out operation leaves an indeterminate receive state unless `CloseTransportOnNoResponse` is enabled; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
 
 Navigation and its adapters use their
-[dedicated technical reference](src/Navigation/NekoLib.Navigation/README.md).
+[dedicated technical reference](docs/modules/Navigation/REFERENCE.md).
 Pipes returns stable protocol errors to clients and reports handler exception
 details only to the configured local metrics/diagnostics surface.
 Run a focused suite with:
@@ -373,7 +373,7 @@ cycles.
 
 | | |
 |---|---|
-| Navigation technical reference | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
+| Navigation technical reference | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Pipes technical reference | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
 | Watchdog technical reference | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |

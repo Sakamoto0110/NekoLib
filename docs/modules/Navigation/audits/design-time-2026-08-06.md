@@ -1,22 +1,34 @@
 # Navigation Design-Time Loadability — 2026-08-06
 
+**Document ID:** NAV-AUDIT-DESIGN-TIME-20260806
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** current
 
-**Subject:** whether a consuming application can lay Navigation pages and overlay
-surfaces out in the Visual Studio WinForms designer, and what had to change in
-`NekoLib.Navigation.WinForms` and `NekoLib.Navigation.Wpf` for that to hold
+**Subject:** whether a consuming application can lay Navigation pages and overlay surfaces out in the Visual Studio WinForms designer, and what had to change in `NekoLib.Navigation.WinForms` and `NekoLib.Navigation.Wpf` for that to hold
+
+**Surface:** audit
+
+**Boundary:** navigation
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Reference date:** 2026-08-06
 
 **Reference commit:** `5418cb27f8da669a060ac382fa277c59d2322769`
 
+**Original path:** docs/audit/navigation-design-time-2026-08-06.md
+
 **Last reconciliation:** not yet reconciled
 
-**Current state:** both accepted findings are implemented and locked by
-`SurfaceBaseDesignTimeTests`; one deliberate residual gap remains and is not
-scheduled — see the residual-gaps section
+**Current state:** both accepted findings are implemented and locked by `SurfaceBaseDesignTimeTests`; one deliberate residual gap remains and is not scheduled — see the residual-gaps section
 
 ## How this review was produced
 
@@ -27,7 +39,7 @@ defects below are invisible to a compiler, to the test suite as it stood, and to
 anyone reading the source without a designer open.
 
 This is a continuation of a concern this repository has recorded before.
-[`navigation-audit.md`](navigation-audit.md) closes with a *Designer-split restore —
+[`initial-audit.md`](initial-audit.md) closes with a *Designer-split restore —
 HYGIENE* section: during Pass 5 the demo pages could not be opened in the designer
 because they lacked the `partial class` + `*.Designer.cs` split. That was fixed for
 the demo pages. Nobody checked the framework's own base classes, and the base classes
@@ -172,7 +184,7 @@ ten by name.
 
 The `FarmDatabase` scenario that produced these findings was itself driven before the
 review, and its own results are recorded in
-[`runtime_tests/Data/FarmDatabase/README.md`](../../runtime_tests/Data/FarmDatabase/README.md).
+[`runtime_tests/Data/FarmDatabase/README.md`](../../../../runtime_tests/Data/FarmDatabase/README.md).
 The part relevant here is that the overlay path was exercised end to end: removing an
 animal opened the prompt, blocked background interaction, refused to complete without
 a reason, and committed the delete and its audit row in one transaction. That is the

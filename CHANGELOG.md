@@ -86,7 +86,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   and documents its dispatcher-shutdown inline teardown fallback. Lifecycle
   ordering, the navigation gate, guard bound, redirect correlation, rollback,
   caching, surface behavior, passive Inspection, targets, and dependencies remain
-  unchanged. See the [F1-NAV migration guide](docs/migrations/f1-navigation.md).
+  unchanged. See the [F1-NAV migration guide](docs/modules/Navigation/migrations/f1.md).
 - **NekoLib.Watchdog.Host — breaking and behavioral pre-stable deployment
   correction for the first `1.0.0` stable family release.** The Host remains a
   separate framework-dependent tools/build package with no compile-time API,

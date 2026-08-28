@@ -1,18 +1,34 @@
 # NekoLib.Navigation — Historical Audit (Passes 1–6)
 
+**Document ID:** NAV-AUDIT-INITIAL
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
 **Subject:** Navigation audit passes 1-6
 
+**Surface:** audit
+
+**Boundary:** navigation
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
 **Reference date:** 2026-05-28 to 2026-06-03
 
 **Reference commit:** not recorded
 
+**Original path:** docs/audit/navigation-audit.md
+
 **Last reconciliation:** 2026-08-01
 
-**Current state:** [Navigation technical reference](../../src/Navigation/NekoLib.Navigation/README.md) and [`TODO.md`](../../TODO.md)
+**Current state:** [Navigation technical reference](../REFERENCE.md) and [`TODO.md`](../../../../TODO.md)
 
 **Auditor:** Claude (Sonnet 4.6, later Opus 4.7/4.8)
 **Started:** 2026-05-28 · **Last updated:** 2026-06-03

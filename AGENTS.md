@@ -21,7 +21,7 @@ the handoff state and the rules that are easy to get wrong.
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
 | Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](src/Watchdog/NekoLib.Watchdog.Host/README.md) |
-| Navigation internals — lifecycle, guards, adapters, APIs | [`src/Navigation/NekoLib.Navigation/README.md`](src/Navigation/NekoLib.Navigation/README.md) |
+| Navigation internals — lifecycle, guards, adapters, APIs | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Product direction, intentions, and current freezes | [`ROADMAP.md`](ROADMAP.md) |
 | Formally promoted work and execution gates | [`TODO.md`](TODO.md) |
 | Unpromoted one-file ideas | [`docs/proposals/`](docs/proposals/README.md) |
@@ -187,7 +187,7 @@ before making a change.
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The versioned com0com runtime scenario now passes on both target families; physical UART/electrical behavior remains outside that evidence. | `docs/audit/devices-first-pass.md` |
 | Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |
-| Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/audit/navigation-audit.md` |
+| Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/modules/Navigation/audits/initial-audit.md` |
 
 ## Deleted on 2026-07-26 — do not resurrect
 

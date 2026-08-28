@@ -36,7 +36,7 @@ the [global documentation index](../README.md).
 | Http | Not migrated | Current source-adjacent reference |
 | Inspection | Not migrated | Current source-adjacent reference |
 | Logging | Not migrated | Current source-adjacent reference |
-| Navigation / WinForms / Wpf | Not migrated | Current source-adjacent reference |
+| Navigation / WinForms / Wpf | Populated module-first boundary | [`Navigation/MANIFEST.md`](Navigation/MANIFEST.md) |
 | Pipes | Not migrated | Current source-adjacent reference |
 | Telemetry | Not migrated | Current source-adjacent reference |
 | Watchdog / Host | Not migrated | Current source-adjacent references |

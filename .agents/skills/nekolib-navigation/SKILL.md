@@ -11,7 +11,7 @@ smallest change that satisfies the request.
 ## Establish current truth
 
 1. Read `../../../AGENTS.md`.
-2. Read `../../../src/Navigation/NekoLib.Navigation/README.md` completely before
+2. Read `../../../docs/modules/Navigation/REFERENCE.md` completely before
    changing Navigation.
 3. Inspect the affected source, tests, and every relevant `*.csproj`.
 4. Treat source and project files as authoritative. Use `ROADMAP.md` for current

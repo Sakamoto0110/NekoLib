@@ -52,9 +52,9 @@ become current API or package authority.
 | F1-PIPE | [`pipes-public-api-review-2026-08-18.md`](../audit/pipes-public-api-review-2026-08-18.md) | [Pipes reference](../../src/Pipes/NekoLib.Pipes/README.md) |
 | F1-WDOG | [`watchdog-public-api-review-2026-08-18.md`](../audit/watchdog-public-api-review-2026-08-18.md) | [Watchdog reference](../../src/Watchdog/NekoLib.Watchdog/README.md) |
 | F1-WDOG-HOST | [`watchdog-host-contract-review-2026-08-20.md`](../audit/watchdog-host-contract-review-2026-08-20.md) | [Watchdog Host reference](../../src/Watchdog/NekoLib.Watchdog.Host/README.md) |
-| F1-NAV | [`navigation-public-api-review-2026-08-20.md`](../audit/navigation-public-api-review-2026-08-20.md) | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md) |
-| F1-NAV-WF | [`navigation-winforms-public-api-review-2026-08-21.md`](../audit/navigation-winforms-public-api-review-2026-08-21.md) | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md) |
-| F1-NAV-WPF | [`navigation-wpf-public-api-review-2026-08-21.md`](../audit/navigation-wpf-public-api-review-2026-08-21.md) | [Navigation reference](../../src/Navigation/NekoLib.Navigation/README.md) |
+| F1-NAV | [`public-api-review-2026-08-20.md`](../modules/Navigation/audits/public-api-review-2026-08-20.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |
+| F1-NAV-WF | [`winforms-public-api-review-2026-08-21.md`](../modules/Navigation/audits/winforms-public-api-review-2026-08-21.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |
+| F1-NAV-WPF | [`wpf-public-api-review-2026-08-21.md`](../modules/Navigation/audits/wpf-public-api-review-2026-08-21.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |
 
 ## Stable family closure
 

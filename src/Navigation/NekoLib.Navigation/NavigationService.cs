@@ -42,18 +42,22 @@ namespace NekoLib.Navigation
         /// view-models; role/auth guards see the change immediately on the next
         /// navigation.
         /// </summary>
+        /// <exception cref="InvalidOperationException">No context is currently mounted.</exception>
         public static NavigationSession Session => EnsureContext().Session;
 
         /// <summary>Back/forward stacks for the active context.</summary>
+        /// <exception cref="InvalidOperationException">No context is currently mounted.</exception>
         public static NavigationHistory History => EnsureContext().History;
 
         /// <summary>True when there is at least one entry on the back-stack.</summary>
+        /// <exception cref="InvalidOperationException">No context is currently mounted.</exception>
         public static bool CanGoBack => EnsureContext().History.CanGoBack;
 
         /// <summary>
         /// Navigation diagnostics hub (NavigationLogged / GuardDenied). Use this
         /// instead of holding a reference to the NavigationContext just to subscribe.
         /// </summary>
+        /// <exception cref="InvalidOperationException">No context is currently mounted.</exception>
         public static NavigationEventHub Events => EnsureContext().Events;
 
         private static NavigationContext EnsureContext()

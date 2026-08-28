@@ -1,12 +1,24 @@
 # Navigation Public API Review — 2026-08-20
 
+**Document ID:** NAV-AUDIT-PUBLIC-API-20260820
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-NAV compiled public surface, facade, registration, lifecycle,
-history, guards, session, page and platform contracts, surfaces, diagnostics,
-nullability, target parity, and package boundary
+**Subject:** F1-NAV compiled public surface, facade, registration, lifecycle, history, guards, session, page and platform contracts, surfaces, diagnostics, nullability, target parity, and package boundary
+
+**Surface:** audit
+
+**Boundary:** navigation
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all twelve dispositions accepted and implemented
 
@@ -14,11 +26,11 @@ nullability, target parity, and package boundary
 
 **Reference commit:** `9706a2c165d3bc4bcfac810319a829f42845eb95`
 
+**Original path:** docs/audit/navigation-public-api-review-2026-08-20.md
+
 **Last reconciliation:** 2026-08-20
 
-**Current state:** the [Navigation technical reference](../../src/Navigation/NekoLib.Navigation/README.md)
-owns the implemented core contract; [`TODO.md`](../../TODO.md) records F1-NAV
-as complete while F1-NAV-WF and F1-NAV-WPF retain adapter finalization.
+**Current state:** the [Navigation technical reference](../REFERENCE.md) owns the implemented core contract; [`TODO.md`](../../../../TODO.md) records F1-NAV as complete while F1-NAV-WF and F1-NAV-WPF retain adapter finalization.
 
 ## Baseline and authority
 
@@ -192,8 +204,8 @@ captures an explicit adapter. By contrast, `UseRegistered(object)` creates a
 bootstrap with no platform adapter and no registry can supply one; `Start()`
 then deterministically throws "No platform adapter registered. Call
 Use<TPlatform>(nativeHost)."
-([`PageNavBootstrap.cs:83`](../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs#L83),
-[`PageNavBootstrap.cs:327`](../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs#L327)).
+([`PageNavBootstrap.cs:83`](../../../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs#L83),
+[`PageNavBootstrap.cs:327`](../../../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs#L327)).
 
 **Recommended disposition.** Keep the static facade, `Use<TPlatform>`, fluent
 configuration, `Start`, `Shutdown`, `ResetAsync`, service access, current page,
@@ -216,7 +228,7 @@ history, diagnostics, and session). Consumers cannot mount such a context
 because the facade context-install operation is internal. Normal contexts are
 created only by bootstrap. Public getters remain useful to advanced observers
 and services
-([`NavigationContext.cs:20`](../../src/Navigation/NekoLib.Navigation/Runtime/Core/NavigationContext.cs#L20)).
+([`NavigationContext.cs:20`](../../../../src/Navigation/NekoLib.Navigation/Runtime/Core/NavigationContext.cs#L20)).
 
 **Recommended disposition.** Retain `NavigationContext` and its read-only
 properties, but make its constructor internal. This requires an explicit,
@@ -242,9 +254,9 @@ correlation is not reachable through the supported facade. `Transient` and
 `Background` request modes are overwritten by descriptor metadata. Public
 `Back` lets a caller forge `IsBackNavigation`, which skips normal history
 recording and attempts state restoration without a history transition
-([`NavigationService.cs:309`](../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L309),
-[`NavigationArgs.cs:75`](../../src/Navigation/NekoLib.Navigation/Metadata/NavigationArgs.cs#L75),
-[`NavigationArgs.cs:98`](../../src/Navigation/NekoLib.Navigation/Metadata/NavigationArgs.cs#L98)).
+([`NavigationService.cs:309`](../../../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L309),
+[`NavigationArgs.cs:75`](../../../../src/Navigation/NekoLib.Navigation/Metadata/NavigationArgs.cs#L75),
+[`NavigationArgs.cs:98`](../../../../src/Navigation/NekoLib.Navigation/Metadata/NavigationArgs.cs#L98)).
 
 The current `Task` return completes normally for success, guard denial, and
 redirect, while operational/lifecycle failures throw. A caller cannot
@@ -296,8 +308,8 @@ list with `AsReadOnly`; a consumer that captures the builder can mutate an
 already-built descriptor. Public constructors on `PageMetadataBuilder`,
 `PageBuilderConfigurator`, and `PageDescriptorBuilder` create detached builders
 that cannot register into a mounted runtime
-([`PageMetadataBuilder.cs:77`](../../src/Navigation/NekoLib.Navigation/Bootstrap/PageMetadataBuilder.cs#L77),
-[`PageDescriptorBuilder.cs:76`](../../src/Navigation/NekoLib.Navigation/Metadata/PageDescriptorBuilder.cs#L76)).
+([`PageMetadataBuilder.cs:77`](../../../../src/Navigation/NekoLib.Navigation/Bootstrap/PageMetadataBuilder.cs#L77),
+[`PageDescriptorBuilder.cs:76`](../../../../src/Navigation/NekoLib.Navigation/Metadata/PageDescriptorBuilder.cs#L76)).
 
 **Recommended disposition.** Compose repeated rules in declaration order,
 defensively copy descriptor collections at build, validate null types/callbacks,
@@ -321,8 +333,8 @@ never branches on it; it is copied only into metadata/diagnostics. The active F7
 direction explicitly keeps surface regions out of page presentation enums.
 `PageRole.TimeoutTarget` is unused; idle timeout behavior is owned by the
 `Idle` role and descriptor timeout
-([`PagePresentationMode.cs:6`](../../src/Navigation/NekoLib.Navigation/Metadata/PagePresentationMode.cs#L6),
-[`PageRole.cs:32`](../../src/Navigation/NekoLib.Navigation/Metadata/PageRole.cs#L32)).
+([`PagePresentationMode.cs:6`](../../../../src/Navigation/NekoLib.Navigation/Metadata/PagePresentationMode.cs#L6),
+[`PageRole.cs:32`](../../../../src/Navigation/NekoLib.Navigation/Metadata/PageRole.cs#L32)).
 
 **Recommended disposition.** Remove `PagePresentationMode` and all associated
 `Presentation` properties/parameters/diagnostic fields. Remove
@@ -347,9 +359,9 @@ combinators silently ignore a legal named argument; `RequirePermissionAttribute`
 instead requires a separate redirect constructor. Parameter arrays and inputs
 are not consistently validated or copied. `DefaultUserContext` is unused,
 always unauthenticated, and exposes a `UserId` member absent from `IUserContext`
-([`GuardAttribute.cs:9`](../../src/Navigation/NekoLib.Navigation/Metadata/Attributes/GuardAttribute.cs#L9),
-[`RequireRoleAttribute.cs:18`](../../src/Navigation/NekoLib.Navigation/Metadata/Attributes/RequireRoleAttribute.cs#L18),
-[`DefaultUserContext.cs:5`](../../src/Navigation/NekoLib.Navigation/Contracts/Guards/DefaultUserContext.cs#L5)).
+([`GuardAttribute.cs:9`](../../../../src/Navigation/NekoLib.Navigation/Metadata/Attributes/GuardAttribute.cs#L9),
+[`RequireRoleAttribute.cs:18`](../../../../src/Navigation/NekoLib.Navigation/Metadata/Attributes/RequireRoleAttribute.cs#L18),
+[`DefaultUserContext.cs:5`](../../../../src/Navigation/NekoLib.Navigation/Contracts/Guards/DefaultUserContext.cs#L5)).
 
 **Recommended disposition.** Retain `IGuard`, `IUserContext`, `GuardContext`,
 `GuardResult`, `NavigationSession`, guard composition, all built-in guard types,
@@ -380,9 +392,9 @@ have no runtime or tracked consumer. Platform event subscription is registered
 as an optional service and implemented by both adapters even though the core
 runtime does not directly consume it. The platform interface documents several
 nullable returns but exposes them as non-nullable
-([`IPageResources.cs:11`](../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageResources.cs#L11),
-[`IPageInteraction.cs:8`](../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageInteraction.cs#L8),
-[`IPlatformAdapter.cs:24`](../../src/Navigation/NekoLib.Navigation/Contracts/Platform/IPlatformAdapter.cs#L24)).
+([`IPageResources.cs:11`](../../../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageResources.cs#L11),
+[`IPageInteraction.cs:8`](../../../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageInteraction.cs#L8),
+[`IPlatformAdapter.cs:24`](../../../../src/Navigation/NekoLib.Navigation/Contracts/Platform/IPlatformAdapter.cs#L24)).
 
 **Recommended disposition.** Retain all exercised page contracts and all
 platform adapter contracts. Remove `IPageResources` and `IPageInteraction`.
@@ -413,9 +425,9 @@ its own transition. `BackStackSnapshot` and `ForwardStackSnapshot` reverse the
 stack while documenting index zero as the top; the existing `HistoryBack` and
 `HistoryForward` properties already expose snapshots. `Dump()` produces little
 useful information because entries do not override `ToString()`
-([`NavigationHistory.cs:24`](../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.cs#L24),
-[`NavigationHistory.Debug.cs:13`](../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.Debug.cs#L13),
-[`NavigationHistory.Dump.cs:8`](../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.Dump.cs#L8)).
+([`NavigationHistory.cs:24`](../../../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.cs#L24),
+[`NavigationHistory.Debug.cs:13`](../../../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.Debug.cs#L13),
+[`NavigationHistory.Dump.cs:8`](../../../../src/Navigation/NekoLib.Navigation/Runtime/History/NavigationHistory.Dump.cs#L8)).
 
 **Recommended disposition.** Keep `NavigationHistory` public as a read-only
 view with `CanGoBack`, `CanGoForward`, `HasHistory`, `HistoryBack`, and
@@ -441,8 +453,8 @@ contracts are exercised through real runtime/adapters and encode intentional
 differences. `ServiceLocator` is locked after bootstrap and provides the
 advanced extension/read path. Surface regions are opt-in and separate from page
 presentation
-([`NavigationRuntime.cs:805`](../../src/Navigation/NekoLib.Navigation/Runtime/Core/NavigationRuntime.cs#L805),
-[`NavigationService.cs:366`](../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L366)).
+([`NavigationRuntime.cs:805`](../../../../src/Navigation/NekoLib.Navigation/Runtime/Core/NavigationRuntime.cs#L805),
+[`NavigationService.cs:366`](../../../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L366)).
 
 **Recommended disposition.** Retain all five service interfaces, their four
 concrete implementations, `ServiceLocator`, `INavigationSurface`,
@@ -466,9 +478,9 @@ However `NavigationEventHub.Publish`, public diagnostic DTO constructors,
 `INavigationDiagnosticsSink`/`LoggingNavigationSink` let consumers fabricate
 framework-owned navigation evidence. Bootstrap already provides `UseLogging`,
 `UseTelemetry`, and passive Inspection configuration
-([`NavigationEventHub.cs:49`](../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationEventHub.cs#L49),
-[`NavigationDiagnostics.cs:126`](../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationDiagnostics.cs#L126),
-[`INavigationDiagnosticsSink.cs:8`](../../src/Navigation/NekoLib.Navigation/Diagnostics/INavigationDiagnosticsSink.cs#L8)).
+([`NavigationEventHub.cs:49`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationEventHub.cs#L49),
+[`NavigationDiagnostics.cs:126`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationDiagnostics.cs#L126),
+[`INavigationDiagnosticsSink.cs:8`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/INavigationDiagnosticsSink.cs#L8)).
 
 **Recommended disposition.** Retain the event hub and its subscription events,
 read-only DTO properties, `NavigationDiagnostics.Hub`,
@@ -500,8 +512,8 @@ results; and page state capture/restore that explicitly documents null. A clean
 dual-target rebuild currently succeeds with 198 warning occurrences and no
 errors, dominated by `CS8618` and `CS8625`. These are baseline warnings, not
 introduced by this review
-([`NavigationService.cs:36`](../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L36),
-[`IPageStateful.cs:20`](../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageStateful.cs#L20)).
+([`NavigationService.cs:36`](../../../../src/Navigation/NekoLib.Navigation/NavigationService.cs#L36),
+[`IPageStateful.cs:20`](../../../../src/Navigation/NekoLib.Navigation/Contracts/Pages/IPageStateful.cs#L20)).
 
 **Recommended disposition.** Correct public annotations to observed runtime
 behavior across the accepted surface. Mark actual optional values nullable,
@@ -529,7 +541,7 @@ consumer-visible changes: removal of dead WPF `InteractionObserver` and
 from full to simple type name, and virtual `Dispose` on four WPF surface bases.
 Those changes are visible in current source/manifests but have not yet passed
 the F1 adapter decision/migration gate
-([`navigation-adapter-review-2026-08-03.md:216`](navigation-adapter-review-2026-08-03.md#L216)).
+([`adapter-review-2026-08-03.md:216`](adapter-review-2026-08-03.md#L216)).
 
 **Recommended disposition.** Keep the core targets, dependencies, constants,
 and target-parallel public surface. Record the three historical adapter changes

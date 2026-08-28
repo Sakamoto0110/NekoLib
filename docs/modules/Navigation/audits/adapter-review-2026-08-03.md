@@ -1,22 +1,34 @@
 # Navigation WinForms/WPF Adapter Review — 2026-08-03
 
+**Document ID:** NAV-AUDIT-ADAPTER-20260803
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** code-first review of the WinForms and WPF Navigation platform
-adapters — UI-thread dispatch, host and view lifecycle, overlay surfaces, focus
-and light dismissal, idle integration, DPI, and bootstrap wiring
+**Subject:** code-first review of the WinForms and WPF Navigation platform adapters — UI-thread dispatch, host and view lifecycle, overlay surfaces, focus and light dismissal, idle integration, DPI, and bootstrap wiring
+
+**Surface:** audit
+
+**Boundary:** navigation
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Reference date:** 2026-08-03
 
 **Reference commit:** `ae1781086b3858cdc9cb025473ed18e3445ee1eb`
 
-**Last reconciliation:** 2026-08-04 — NAV-001's native repeat closed the last
-open finding; see the residual-gaps section
+**Original path:** docs/audit/navigation-adapter-review-2026-08-03.md
 
-**Current state:** every accepted finding is implemented; the authoritative
-active-work list remains [`TODO.md`](../../TODO.md) Phase E2
+**Last reconciliation:** 2026-08-04 — NAV-001's native repeat closed the last open finding; see the residual-gaps section
+
+**Current state:** every accepted finding is implemented; the authoritative active-work list remains [`TODO.md`](../../../../TODO.md) Phase E2
 
 **Reviewed baseline:** the `NekoLib.Navigation.WinForms` and
 `NekoLib.Navigation.Wpf` product files, their shared `NekoLib.Navigation`

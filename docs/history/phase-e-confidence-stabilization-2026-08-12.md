@@ -384,7 +384,7 @@ dual-target coverage.
   `PageRegistry`, or `PageFactory`.
 
   **→ The complete record is
-  [`docs/audit/navigation-adapter-review-2026-08-03.md`](../audit/navigation-adapter-review-2026-08-03.md).**
+  [`docs/modules/Navigation/audits/adapter-review-2026-08-03.md`](../modules/Navigation/audits/adapter-review-2026-08-03.md).**
   It holds the reviewed baseline, all eleven findings with their evidence and
   accepted dispositions, the commit that implemented each, the rejected
   alternatives, the automated / build-only / interactive evidence split, the
@@ -435,7 +435,7 @@ WPF scope:
 **Confirmed design-time finding — 2026-08-06, reconciled 2026-08-08:** the
 `designer/runtime interaction` item above is delivered for the WinForms overlay
 bases. The
-[`Navigation design-time loadability`](../audit/navigation-design-time-2026-08-06.md)
+[`Navigation design-time loadability`](../modules/Navigation/audits/design-time-2026-08-06.md)
 review found two defects that no compiler, and no test as the suite then stood,
 could see: every surface base was `abstract`, which the WinForms designer cannot
 instantiate, and the bases scheduled work through `BeginInvoke` before a handle

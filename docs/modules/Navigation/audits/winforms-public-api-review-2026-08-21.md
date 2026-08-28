@@ -1,14 +1,30 @@
 # Navigation.WinForms Public API Review
 
+**Document ID:** NAV-AUDIT-WINFORMS-PUBLIC-API-20260821
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
 **Subject:** F1-NAV-WF code-first public API finalization review
 
+**Surface:** audit
+
+**Boundary:** navigation
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
 **Reference date:** 2026-08-21
 
 **Reference commit:** `aefd2b8985f626abe1a02e78094bf48cfdf6494e`
+
+**Original path:** docs/audit/navigation-winforms-public-api-review-2026-08-21.md
 
 **Last reconciliation:** 2026-08-21
 
