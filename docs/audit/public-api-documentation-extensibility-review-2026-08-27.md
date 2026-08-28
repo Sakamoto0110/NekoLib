@@ -541,3 +541,68 @@ the XML assets exist in build output, but package contents and PackageReference
 delivery have not been validated. All family prerequisites are now satisfied;
 the final immutable-package gate remains separate and closed pending explicit
 authorization.
+
+## Reconciliation — `NEKOMKT-F009` package closure — 2026-08-28
+
+The owner explicitly opened the final integrated package gate after all five
+family subtasks had completed. The first immutable candidate,
+`1.1.0-local.7`, was built from documentation commit
+`8eea9440391c96a4537edb569d46ef350dc83c37`. Its ordinary build, test, package,
+and consumer smoke checks passed, but direct ZIP inspection found that all 15
+managed `.nupkg` files contained their target assemblies without the matching
+XML documentation. The 16 `.nupkg` and 15 `.snupkg` artifacts for that version
+remain immutable local negative evidence; they are not valid `DOC-002` or
+`NEKOMKT-F009` completion evidence.
+
+Commit `9a573c81939537a7a3bde8c1848ea8f88199a5ae` enabled XML documentation early
+in SDK property evaluation for exactly the 15 packageable managed libraries,
+kept the tools/deployment-only `NekoLib.Watchdog.Host` package outside that
+boundary, and added a permanent package-content guard. The guard opens every
+managed `.nupkg`, discovers each package-owned `lib/<tfm>/<PackageId>.dll`, and
+requires its sibling `<PackageId>.xml` before any package is admitted to the
+consumer smoke gate or local feed. It rejects `1.1.0-local.7` and accepts a
+corrected package probe.
+
+The first `1.1.0-local.8` attempt then stopped before packing or publication
+when two pre-existing net481 timing tests failed. The Logging failure reproduced
+in isolation and exposed a sub-millisecond timeout-admission hole: an exhausted
+sink task could return before the stopwatch crossed the nominal boundary and
+allow the next sink to start. Commit
+`d6f2efdbe99f4a827293cdf4e8ed27c4096d134a` distinguishes sink failure from
+budget exhaustion and stops later admission only for the latter, matching the
+existing documented contract without changing the public API. The regression
+then passed 30 consecutive net481 runs and the complete dual-target Logging
+suite. The Watchdog failure did not reproduce across five complete net481 suite
+runs or the focused test on either target, so no Watchdog change was made.
+
+The canonical command
+`eng\pack-local.ps1 -PackageVersion 1.1.0-local.8` then completed from the clean
+`d6f2efdbe99f4a827293cdf4e8ed27c4096d134a` source commit with this evidence:
+
+- the Release solution build completed with 202 known warnings and zero errors;
+- all 1,787 solution tests passed across their `net481` and
+  `net9.0`/`net9.0-windows` targets, with zero failures and zero skips;
+- 16 `.nupkg` and 15 `.snupkg` artifacts were published to the local feed;
+- every one of the 15 managed packages contained two package-owned target
+  assemblies and both matching XML files, for 30 verified DLL/XML pairs and
+  zero missing pairs;
+- clean isolated `PackageReference` restores of the WinForms and WPF consumers
+  extracted those same 30 DLL/XML pairs into the NuGet global-packages cache,
+  proving delivery from packages rather than repository build output;
+- the canonical WinForms, WPF, multi-target, wrapper/transitive, deployment,
+  cleanup, unsupported-RID, and Watchdog Host protocol probes passed; and
+- the SHA-256 of the UTF-8 manifest formed by sorting all 31 published artifact
+  names, appending one lowercase SHA-256 per line, and retaining a final newline
+  is `b56451a1ee8eb7ef4de0d32de143f9488b09f00b25fc300572bcbeb2ee34e9f2`.
+
+Final repository validation after recording the closure reproduced 202 warning
+occurrences and zero errors in a serial Release rebuild. `eng\verify-docs.ps1`
+accepted every emitted warning identity against the baseline and passed all
+documentation, metadata, and link checks; `eng\verify-skills.ps1` passed;
+`eng\verify-public-api.ps1 -NoBuild` verified all 30 accepted managed-library
+baselines; and `git diff --check` passed. No baseline was updated.
+
+This closes `DOC-002` and completes `NEKOMKT-F009`. The active scheduler now
+retains only the historical completion pointer. This package evidence does not
+claim interactive UI coverage, a long-running soak, external provider
+validation, a public NuGet.org release, or a Git push.
