@@ -22,6 +22,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Invoke-DotNet {
     param(
@@ -59,6 +60,53 @@ function Get-VerifiedChildPath {
     return $childFullPath
 }
 
+function Assert-ManagedPackageDocumentation {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PackagePath,
+
+        [Parameter(Mandatory)]
+        [string]$PackageId
+    )
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($PackagePath)
+    try {
+        $entryNames = [System.Collections.Generic.HashSet[string]]::new(
+            [StringComparer]::OrdinalIgnoreCase
+        )
+        foreach ($entry in $archive.Entries) {
+            [void]$entryNames.Add($entry.FullName)
+        }
+
+        $assemblySuffix = "/$PackageId.dll"
+        $assemblyEntries = @(
+            $archive.Entries | Where-Object {
+                $_.FullName.StartsWith("lib/", [StringComparison]::OrdinalIgnoreCase) -and
+                $_.FullName.EndsWith($assemblySuffix, [StringComparison]::OrdinalIgnoreCase)
+            }
+        )
+
+        if ($assemblyEntries.Count -eq 0) {
+            throw "Managed package $PackageId contains no target-framework assembly."
+        }
+
+        foreach ($assemblyEntry in $assemblyEntries) {
+            $xmlEntryName = $assemblyEntry.FullName.Substring(
+                0,
+                $assemblyEntry.FullName.Length - ".dll".Length
+            ) + ".xml"
+            if (-not $entryNames.Contains($xmlEntryName)) {
+                throw "Managed package $PackageId is missing XML documentation beside $($assemblyEntry.FullName)."
+            }
+        }
+
+        Write-Host "Verified XML API documentation for $PackageId in $($assemblyEntries.Count) target(s)."
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $solution = Join-Path $repoRoot "NekoLib.sln"
 $hostProject = Join-Path $repoRoot "src\Watchdog\NekoLib.Watchdog.Host\NekoLib.Watchdog.Host.csproj"
@@ -84,6 +132,7 @@ $packageIds = @(
     "NekoLib.Watchdog",
     "NekoLib.Watchdog.Host"
 )
+$managedPackageIds = @($packageIds | Where-Object { $_ -ne "NekoLib.Watchdog.Host" })
 
 if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
     throw "PackageVersion cannot be empty."
@@ -228,6 +277,12 @@ $unexpectedArtifacts = @(
 )
 if ($unexpectedArtifacts.Count -gt 0) {
     throw "Unexpected package artifacts were generated: $($unexpectedArtifacts -join ', ')"
+}
+
+foreach ($packageId in $managedPackageIds) {
+    Assert-ManagedPackageDocumentation `
+        -PackagePath (Join-Path $packageOutput "$packageId.$PackageVersion.nupkg") `
+        -PackageId $packageId
 }
 
 if (-not $SkipPackageSmokeTests) {

@@ -26,4 +26,14 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src'))
+                            and $([System.String]::Copy('$(MSBuildProjectName)').StartsWith('NekoLib.'))
+                            and '$(MSBuildProjectName)' != 'NekoLib.Watchdog.Host'">
+    <!-- Generate the managed library XML early enough for the SDK's standard
+         documentation output group to place it beside each packaged assembly.
+         The Watchdog Host is a tools/deployment package, not a managed public
+         API package. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
 </Project>

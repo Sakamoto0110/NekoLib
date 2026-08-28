@@ -248,8 +248,9 @@ $packageVersion = Read-Host "Enter a new immutable package version"
 
 The command requires a clean Git worktree, builds and tests the solution,
 publishes the Watchdog Host payloads, packs the whole family, validates package
-structure and cross-TFM compatibility, restores clean PackageReference-only
-consumers, and finally copies the verified artifacts to
+structure, matching XML API documentation for every managed target assembly,
+and cross-TFM compatibility, restores clean PackageReference-only consumers,
+and finally copies the verified artifacts to
 `artifacts/local-feed/`. Main packages and `.snupkg` symbol packages are
 retained. Package versions are immutable: after publishing any version, choose
 a different version for changed bits.
