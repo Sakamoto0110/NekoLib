@@ -17,6 +17,9 @@ namespace NekoLib.Logging.Sinks
     /// </summary>
     public sealed class DebugLogSink : ILogSink
     {
+        /// <summary>Formats and writes one entry to <see cref="Trace"/>; trace-listener failures are isolated.</summary>
+        /// <param name="entry">Entry to write.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <c>null</c>.</exception>
         public void Write(LogEntry entry)
         {
             if (entry == null)

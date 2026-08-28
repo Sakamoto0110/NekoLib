@@ -39,6 +39,10 @@ namespace NekoLib.Navigation.Runtime.Services
         private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
         private bool _blockerReferenceHeld;
 
+        /// <summary>Initializes a prompt service for one host and page factory.</summary>
+        /// <param name="viewHost">Host that owns native prompt views.</param>
+        /// <param name="factory">Factory used to create prompt view instances.</param>
+        /// <param name="interactionBlocker">Optional blocker shared by modal surfaces.</param>
         public PromptService(
             IViewHost viewHost,
             PageFactory factory,
@@ -51,6 +55,7 @@ namespace NekoLib.Navigation.Runtime.Services
                 interactionBlocker as IPageAwareInteractionBlocker;
         }
 
+        /// <inheritdoc />
         public async Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
             object? payload = null)
             where TPrompt : class, IPromptView<TResult>
@@ -133,6 +138,7 @@ namespace NekoLib.Navigation.Runtime.Services
             return await tcs.Task;
         }
 
+        /// <inheritdoc />
         public void CloseAll()
             => CloseAll(NavigationTraceCloseReasons.ClosedByService);
 

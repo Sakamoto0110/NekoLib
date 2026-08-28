@@ -5,11 +5,15 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Guards
 {
+    /// <summary>Requires one named permission and optionally redirects when it is absent.</summary>
     public sealed class RequirePermissionGuard : IGuard
     {
         private readonly string _permission;
         private readonly Type? _redirect;
 
+        /// <summary>Initializes the permission requirement.</summary>
+        /// <param name="permission">Non-empty permission name.</param>
+        /// <param name="redirect">Optional concrete <see cref="Contracts.Pages.IPageView"/> redirect type.</param>
         public RequirePermissionGuard(string permission, Type? redirect = null)
         {
             _permission = GuardContractValidation.RequireName(
@@ -21,6 +25,7 @@ namespace NekoLib.Navigation.Runtime.Guards
             _redirect = redirect;
         }
 
+        /// <inheritdoc />
         public Task<GuardResult> EvaluateAsync(GuardContext context)
         {
             if (context?.User?.Permissions == null)

@@ -26,12 +26,16 @@ namespace NekoLib.Navigation.Wpf.Hosting
     {
         private Action _dismissCallback;
 
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public bool IsDisposed { get; private set; }
 
+        /// <summary>Gets whether the control is running inside the WPF designer.</summary>
         public bool DesignMode =>
             base.GetValue(DesignerProperties.IsInDesignModeProperty) is bool b && b;
 
+        /// <summary>Initializes a designer-safe anchored toast surface.</summary>
         protected ToastViewBase()
         {
             Name = GetType().Name;

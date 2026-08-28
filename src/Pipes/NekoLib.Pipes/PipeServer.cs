@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Pipes
 {
+    /// <summary>
+    /// Hosts instance-owned local named-pipe RPC handlers and an optional event
+    /// hub. The server is one-shot: shutdown or disposal is terminal.
+    /// </summary>
     public sealed class PipeServer : IDisposable
 #if NET9
         , IAsyncDisposable
@@ -41,8 +45,14 @@ namespace NekoLib.Pipes
         private int _resourcesDisposed;
         private Task _shutdownCompletion = Task.CompletedTask;
 
+        /// <summary>
+        /// Gets the owned event hub after <see cref="Start"/> when events are
+        /// enabled; otherwise null. The server shuts this hub down and disposes
+        /// its resources.
+        /// </summary>
         public PipeEventHub? Events { get; private set; }
 
+        /// <summary>Gets the captured operating-system access policy used by RPC and event endpoints.</summary>
         public PipeAccessPolicy AccessPolicy => _accessPolicy;
 
         internal int ActiveClientOperationCount => _clientOperations.Count;
@@ -56,6 +66,17 @@ namespace NekoLib.Pipes
             }
         }
 
+        /// <summary>
+        /// Initializes a server and captures a validated snapshot of all options.
+        /// The supplied options and metrics sink remain caller-owned.
+        /// </summary>
+        /// <param name="options">Server and optional event-hub configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+        /// <exception cref="ArgumentException">The configured pipe name is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// A count, timeout, frame limit, access policy, or overflow policy is unsupported.
+        /// All event settings are validated even when events are disabled.
+        /// </exception>
         public PipeServer(PipeServerOptions options)
         {
             if (options == null)
@@ -88,6 +109,25 @@ namespace NekoLib.Pipes
             _clientLimiter = new SemaphoreSlim(_maxClients);
         }
 
+        /// <summary>
+        /// Adds or replaces the asynchronous handler for an operation name. The
+        /// handler receives the request envelope and a token cancelled by server
+        /// shutdown; client idle timeout is paused during handler execution.
+        /// </summary>
+        /// <param name="name">Nonblank operation name used for exact lookup.</param>
+        /// <param name="handler">
+        /// Handler invoked concurrently for independent clients. Its returned
+        /// envelope is normalized to the request ID, <c>res</c> type, and operation name.
+        /// </param>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="handler"/> is null.</exception>
+        /// <exception cref="ObjectDisposedException">Shutdown has begun.</exception>
+        /// <remarks>
+        /// Handler exceptions are converted to a sanitized
+        /// <see cref="PipeErrorCodes.Exception"/> response; the original exception
+        /// is supplied only to local metrics. The server does not marshal handlers
+        /// to a synchronization context.
+        /// </remarks>
         public void Map(
             string name,
             Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler)
@@ -104,6 +144,9 @@ namespace NekoLib.Pipes
             }
         }
 
+        /// <summary>Starts the RPC accept loop and, when enabled, the owned event hub.</summary>
+        /// <exception cref="InvalidOperationException">The server was already started.</exception>
+        /// <exception cref="ObjectDisposedException">Shutdown or disposal has begun.</exception>
         public void Start()
         {
             lock (_lifecycleGate)
@@ -354,9 +397,22 @@ namespace NekoLib.Pipes
         /// Enters terminal shutdown, closes transports, and asynchronously waits
         /// for all admitted server and event-hub work to finish.
         /// </summary>
+        /// <returns>
+        /// An idempotent completion task for the accept loop, admitted client
+        /// operations, event hub, and owned resource cleanup.
+        /// </returns>
+        /// <remarks>
+        /// A handler may initiate shutdown, but must not await this task from
+        /// inside that same handler because the task includes the handler.
+        /// </remarks>
         public Task ShutdownAsync()
             => BeginShutdown();
 
+        /// <summary>
+        /// Initiates terminal shutdown and waits synchronously for at most two
+        /// seconds. User handlers that ignore cancellation may outlive this call;
+        /// use <see cref="ShutdownAsync"/> for definitive completion.
+        /// </summary>
         public void Dispose()
         {
             var completion = BeginShutdown();
@@ -364,6 +420,8 @@ namespace NekoLib.Pipes
         }
 
 #if NET9
+        /// <summary>Initiates terminal shutdown and asynchronously waits for definitive completion.</summary>
+        /// <returns>A value task representing the full shutdown operation.</returns>
         public async ValueTask DisposeAsync()
         {
             await ShutdownAsync().ConfigureAwait(false);

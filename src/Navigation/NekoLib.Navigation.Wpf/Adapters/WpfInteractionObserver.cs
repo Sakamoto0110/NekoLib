@@ -17,6 +17,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
         private readonly KeyEventHandler _keyDown;
         private readonly TextCompositionEventHandler _textInput;
 
+        /// <inheritdoc />
         public event Action? InteractionDetected;
 
         event Action? IInteractionObserverService.InteractionDetected
@@ -25,6 +26,8 @@ namespace NekoLib.Navigation.Wpf.Adapters
             remove { if (value != null) InteractionDetected -= value; }
         }
 
+        /// <summary>Initializes input observation for one WPF root.</summary>
+        /// <param name="root">Root element whose routed input events are observed.</param>
         public WpfInteractionObserver(UIElement root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
@@ -38,6 +41,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             _root.PreviewTextInput += _textInput;
         }
 
+        /// <summary>Removes every routed input handler installed by this observer.</summary>
         public void Dispose()
         {
             try { _root.PreviewMouseDown -= _mouseDown; } catch { }

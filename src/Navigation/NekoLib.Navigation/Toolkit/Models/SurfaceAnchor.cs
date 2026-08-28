@@ -7,8 +7,23 @@ namespace NekoLib.Navigation.Toolkit.Models
     /// </summary>
     public enum SurfaceAnchor
     {
-        TopLeft, TopCenter, TopRight,
-        CenterLeft, Center, CenterRight,
-        BottomLeft, BottomCenter, BottomRight
+        /// <summary>Top-left corner.</summary>
+        TopLeft,
+        /// <summary>Horizontal center of the top edge.</summary>
+        TopCenter,
+        /// <summary>Top-right corner.</summary>
+        TopRight,
+        /// <summary>Vertical center of the left edge.</summary>
+        CenterLeft,
+        /// <summary>Center of the surface.</summary>
+        Center,
+        /// <summary>Vertical center of the right edge.</summary>
+        CenterRight,
+        /// <summary>Bottom-left corner.</summary>
+        BottomLeft,
+        /// <summary>Horizontal center of the bottom edge.</summary>
+        BottomCenter,
+        /// <summary>Bottom-right corner.</summary>
+        BottomRight
     }
 }

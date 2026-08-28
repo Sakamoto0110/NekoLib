@@ -10,6 +10,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// </summary>
     public sealed class WpfEventSubscriptionAdapter : IEventSubscriptionAdapter
     {
+        /// <inheritdoc />
         public void Attach<THandler>(object receiver, string eventName, THandler handler)
             where THandler : Delegate
         {
@@ -23,6 +24,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             ev.AddEventHandler(receiver, handler);
         }
 
+        /// <inheritdoc />
         public void Detach<THandler>(object receiver, string eventName, THandler handler)
             where THandler : Delegate
         {

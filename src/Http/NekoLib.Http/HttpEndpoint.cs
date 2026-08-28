@@ -25,18 +25,30 @@ namespace NekoLib.Http
             ResponseType = responseType ?? throw new ArgumentNullException(nameof(responseType));
         }
 
+        /// <summary>Gets the non-blank catalog identity, compared case-insensitively during registration.</summary>
         public string Name { get; }
 
+        /// <summary>Gets the HTTP method used to construct requests.</summary>
         public HttpMethod Method { get; }
 
+        /// <summary>Gets the declared request type, or <see cref="HttpNoRequest"/> for a fixed endpoint.</summary>
         public Type RequestType { get; }
 
+        /// <summary>Gets the declared typed-success response type.</summary>
         public Type ResponseType { get; }
 
         internal abstract HttpRequestMessage CreateRequest(
             object? request,
             IHttpBodySerializer serializer);
 
+        /// <summary>Creates a fixed relative GET endpoint with no request value or body.</summary>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="uri">Fixed relative URI.</param>
+        /// <param name="configureRequest">Optional callback invoked after message construction; it may override headers or the URI.</param>
+        /// <returns>An immutable endpoint instance that must be registered and sent by instance identity.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TResponse> Get<TResponse>(
             string name,
             RelativeUri uri,
@@ -47,6 +59,15 @@ namespace NekoLib.Http
                 uri,
                 configureRequest);
 
+        /// <summary>Creates a typed GET endpoint whose relative URI is derived per request and which sends no body.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="configureRequest">Optional callback invoked after message construction.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Get<TRequest, TResponse>(
             string name,
             Func<TRequest, RelativeUri> createUri,
@@ -58,6 +79,16 @@ namespace NekoLib.Http
                 null,
                 configureRequest);
 
+        /// <summary>Creates a typed POST endpoint whose request, or selected projection, is serialized as the body.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="selectBody">Optional body projection; when omitted, the request itself is serialized.</param>
+        /// <param name="configureRequest">Optional callback invoked after body assignment.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Post<TRequest, TResponse>(
             string name,
             Func<TRequest, RelativeUri> createUri,
@@ -70,6 +101,16 @@ namespace NekoLib.Http
                 selectBody,
                 configureRequest);
 
+        /// <summary>Creates a typed PUT endpoint whose request, or selected projection, is serialized as the body.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="selectBody">Optional body projection; when omitted, the request itself is serialized.</param>
+        /// <param name="configureRequest">Optional callback invoked after body assignment.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Put<TRequest, TResponse>(
             string name,
             Func<TRequest, RelativeUri> createUri,
@@ -82,6 +123,16 @@ namespace NekoLib.Http
                 selectBody,
                 configureRequest);
 
+        /// <summary>Creates a typed PATCH endpoint whose request, or selected projection, is serialized as the body.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="selectBody">Optional body projection; when omitted, the request itself is serialized.</param>
+        /// <param name="configureRequest">Optional callback invoked after body assignment.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Patch<TRequest, TResponse>(
             string name,
             Func<TRequest, RelativeUri> createUri,
@@ -94,6 +145,15 @@ namespace NekoLib.Http
                 selectBody,
                 configureRequest);
 
+        /// <summary>Creates a typed DELETE endpoint with a typed success response and no request body.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="configureRequest">Optional callback invoked after message construction.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Delete<TRequest, TResponse>(
             string name,
             Func<TRequest, RelativeUri> createUri,
@@ -105,12 +165,35 @@ namespace NekoLib.Http
                 null,
                 configureRequest);
 
+        /// <summary>Creates a typed DELETE endpoint whose success value is <see cref="HttpNoContent.Value"/>.</summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="configureRequest">Optional callback invoked after message construction.</param>
+        /// <returns>An immutable endpoint with <see cref="HttpNoContent"/> as its response type.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, HttpNoContent> Delete<TRequest>(
             string name,
             Func<TRequest, RelativeUri> createUri,
             Action<HttpRequestMessage, TRequest>? configureRequest = null)
             => Delete<TRequest, HttpNoContent>(name, createUri, configureRequest);
 
+        /// <summary>
+        /// Creates a typed endpoint for an explicit method and optional body
+        /// projection. Unlike the dedicated body factories, a null
+        /// <paramref name="selectBody"/> sends no body.
+        /// </summary>
+        /// <typeparam name="TRequest">Request value type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="name">Non-blank catalog identity.</param>
+        /// <param name="method">HTTP method.</param>
+        /// <param name="createUri">Required per-request relative URI factory.</param>
+        /// <param name="selectBody">Optional body projection; null means no body.</param>
+        /// <param name="configureRequest">Optional callback invoked after any body assignment.</param>
+        /// <returns>An immutable typed endpoint.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="method"/> or <paramref name="createUri"/> is <c>null</c>.</exception>
         public static HttpEndpoint<TRequest, TResponse> Create<TRequest, TResponse>(
             string name,
             HttpMethod method,
@@ -150,6 +233,7 @@ namespace NekoLib.Http
     }
 
     /// <summary>An endpoint with a fixed relative URI and no request value.</summary>
+    /// <typeparam name="TResponse">Successful response type.</typeparam>
     public sealed class HttpEndpoint<TResponse> : HttpEndpoint
     {
         private readonly RelativeUri _uri;
@@ -177,6 +261,8 @@ namespace NekoLib.Http
     }
 
     /// <summary>An endpoint whose URI and optional body are derived from a typed request.</summary>
+    /// <typeparam name="TRequest">Request value type.</typeparam>
+    /// <typeparam name="TResponse">Successful response type.</typeparam>
     public sealed class HttpEndpoint<TRequest, TResponse> : HttpEndpoint
     {
         private readonly Func<TRequest, RelativeUri> _createUri;
@@ -240,6 +326,7 @@ namespace NekoLib.Http
         {
         }
 
+        /// <summary>Gets the shared typed marker returned for every successful no-content endpoint.</summary>
         public static HttpNoContent Value { get; } = new HttpNoContent();
     }
 }

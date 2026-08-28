@@ -22,11 +22,15 @@ namespace NekoLib.Navigation.Runtime.Session
 
         internal event Action? Changed;
 
+        /// <inheritdoc />
         public bool IsAuthenticated { get; private set; }
+        /// <inheritdoc />
         public IReadOnlyCollection<string> Roles { get; private set; } = Empty;
+        /// <inheritdoc />
         public IReadOnlyCollection<string> Permissions { get; private set; } = Empty;
 
-        /// <summary>Mark the session authenticated with the given roles.</summary>
+        /// <summary>Marks the session authenticated with the given roles and clears permissions.</summary>
+        /// <param name="roles">Role names copied and validated immediately.</param>
         public void SignIn(params string[] roles)
         {
             var copiedRoles = GuardContractValidation.CopyNames(roles, nameof(roles), "role");
@@ -39,7 +43,9 @@ namespace NekoLib.Navigation.Runtime.Session
             RaiseChanged();
         }
 
-        /// <summary>Mark the session authenticated with explicit roles + permissions.</summary>
+        /// <summary>Marks the session authenticated with explicit roles and permissions.</summary>
+        /// <param name="roles">Role names copied and validated immediately.</param>
+        /// <param name="permissions">Permission names copied and validated immediately.</param>
         public void SignIn(IEnumerable<string> roles, IEnumerable<string> permissions)
         {
             var copiedRoles = GuardContractValidation.CopyNames(roles, nameof(roles), "role");

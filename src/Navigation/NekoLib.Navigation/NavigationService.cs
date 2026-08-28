@@ -33,6 +33,7 @@ namespace NekoLib.Navigation
         // PUBLIC STATE
         // -------------------------------------------------------------------------
 
+        /// <summary>Gets the current page, or <see langword="null"/> before mounting or after teardown.</summary>
         public static IPageView? Current => _runtime?.Current;
 
         /// <summary>
@@ -74,13 +75,38 @@ namespace NekoLib.Navigation
         // unsubscribe when they no longer need the events, but a missed unsubscribe
         // will not leak past the next Shutdown() call.
 
+        /// <summary>
+        /// Raised on the UI thread after target resolution and before guard
+        /// evaluation. Arguments contain descriptor-effective metadata.
+        /// Subscriber exceptions are isolated.
+        /// </summary>
         public static event Action<IPageView?, Type, NavigationArgs>? Navigating;
+
+        /// <summary>
+        /// Raised on the UI thread after the target completes its synchronous
+        /// navigation lifecycle. Subscriber exceptions are isolated.
+        /// </summary>
         public static event Action<IPageView?, IPageView, NavigationArgs>? Navigated;
+
+        /// <summary>
+        /// Raised for navigation exceptions after diagnostics capture. Guard
+        /// denials and normal redirects are outcomes, not failures.
+        /// </summary>
         public static event Action<IPageView?, Type, Exception>? NavigationFailed;
+
+        /// <summary>Raised after the current page reference changes; the value may be <see langword="null"/> during teardown.</summary>
         public static event Action<IPageView?>? CurrentChanged;
+
+        /// <summary>Raised after a committed change to the active context's history stacks.</summary>
         public static event Action? HistoryChanged;
+
+        /// <summary>Raised when the first native page view becomes attached to an empty host.</summary>
         public static event Action<IPageView>? OnFirstPageAttached;
+
+        /// <summary>Raised when no page views remain attached to the host.</summary>
         public static event Action? OnNoPageAttached;
+
+        /// <summary>Raised when attached page views exist but none is visible.</summary>
         public static event Action? OnNoPageVisible;
 
         // -------------------------------------------------------------------------
@@ -153,6 +179,12 @@ namespace NekoLib.Navigation
             throw mountError;
         }
      
+        /// <summary>
+        /// Stops admission, waits for admitted operations, tears down the runtime,
+        /// releases composition lifetimes, and clears every static subscriber.
+        /// Concurrent callers receive the same task.
+        /// </summary>
+        /// <returns>A task that completes when the static facade is fully unmounted.</returns>
         public static Task Shutdown()
         {
             TaskCompletionSource<bool> completion;

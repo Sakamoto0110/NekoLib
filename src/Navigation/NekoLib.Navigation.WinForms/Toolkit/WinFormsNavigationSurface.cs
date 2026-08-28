@@ -15,11 +15,14 @@ namespace NekoLib.Navigation.WinForms.Toolkit
     {
         private readonly Control _host;
 
+        /// <summary>Initializes a surface projection over one WinForms control.</summary>
+        /// <param name="host">Native navigation root.</param>
         public WinFormsNavigationSurface(Control host)
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
         }
 
+        /// <inheritdoc />
         public Rectangle ClientBounds => _host.ClientRectangle;
 
         /// <summary>
@@ -38,8 +41,10 @@ namespace NekoLib.Navigation.WinForms.Toolkit
         /// </summary>
         public float Scale => _host.DeviceDpi / 96f;
 
+        /// <inheritdoc />
         public bool IsActive => _host.Visible && _host.Enabled;
 
+        /// <inheritdoc />
         public Point ResolveAnchor(SurfaceAnchor anchor)
         {
             var r = _host.ClientRectangle;

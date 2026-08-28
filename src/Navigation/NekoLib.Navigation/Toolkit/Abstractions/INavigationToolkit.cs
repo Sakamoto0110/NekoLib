@@ -9,7 +9,9 @@ namespace NekoLib.Navigation.Toolkit.Abstractions
     /// </summary>
     public interface INavigationToolkit
     {
+        /// <summary>Gets the read-only navigation surface description.</summary>
         INavigationSurface Surface { get; }
+        /// <summary>Requests focus for the native navigation root.</summary>
         void FocusSurface();
     }
 }

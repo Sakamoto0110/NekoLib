@@ -164,6 +164,63 @@ devices from one process:
 Disposal is terminal and takes the transport's gate: it does not race an
 in-flight operation.
 
+## Extending Devices
+
+`IHardwareProtocol` is the supported device-specific extension seam. Implement
+it when framing or reply interpretation differs from the shipped raw protocol:
+
+```csharp
+public sealed class AcmeProtocol : IHardwareProtocol
+{
+    public ControllerModel Model => ControllerModel.ControllerRaw;
+
+    public SerialConfig PortConfig { get; } = new SerialConfig
+    {
+        PortName = "tcp://127.0.0.1:9000",
+        NewLine = "\r\n"
+    };
+
+    public byte[] BuildCommand(HardwareOperation operation)
+    {
+        if (operation == null) throw new ArgumentNullException(nameof(operation));
+        return Encoding.ASCII.GetBytes(operation.Operation + "\r\n");
+    }
+
+    public HardwareResponse ParseResponse(byte[]? reply, HardwareOperation operation)
+    {
+        if (operation == null) throw new ArgumentNullException(nameof(operation));
+
+        return new HardwareResponse
+        {
+            Success = reply != null,
+            Status = reply == null ? "NoResponse" : "Ok",
+            RawBytes = reply ?? Array.Empty<byte>(),
+            RawText = reply == null ? string.Empty : Encoding.ASCII.GetString(reply),
+            Request = operation,
+            PrettyText = reply == null ? "No response" : Encoding.ASCII.GetString(reply)
+        };
+    }
+}
+```
+
+Return the complete frame from `BuildCommand`; do not open the transport or own
+retry policy there. `ParseResponse` receives `null` for a timeout and should
+normally represent device/protocol outcomes in `HardwareResponse` instead of
+throwing. If requests can overlap with unsolicited or late data, put the
+correlation rule in the protocol.
+
+For a new byte-stream transport, normally derive from `StreamCommTransport` and
+implement only endpoint normalization and connected-stream creation. The base
+class owns buffering, the receive pump, timeouts, cancellation, and stream
+disposal. A direct `ICommTransport` implementation must reproduce those public
+semantics itself, and its concrete type must provide a disposal mechanism
+because the interface does not.
+
+`IProtocolWithLogging` is only an opt-in logging capability, not discovery or
+activation. `HardwareLogHandler`, `SerialConfig`, `HardwareOperation`, and
+`HardwareResponse` are composition/data contracts; none defines a plug-in
+loader or reflection-based extension model.
+
 ## Encoding and raw bytes
 
 Binary payloads are preserved exactly. `HardwareResponse.RawBytes` is the reply

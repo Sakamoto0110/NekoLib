@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Status:** intake complete; P-001 and QueryBuilder correction reconciled, remaining records pending
+**Status:** intake complete; P-001/F-003 implemented, F-009/F-026 promoted, F-022 decision active, remaining records pending
 
 **Reference date:** 2026-08-26
 
@@ -28,7 +28,7 @@
 
 **Last reconciliation:** 2026-08-27
 
-**Current state:** P-001 and F-003/NOTE-012/NOTE-013 are implemented and reconciled through the completed Data decision; every other record remains historical and unpromoted
+**Current state:** P-001 and F-003 are implemented through the completed Data decision; F-009 and F-026 are promoted in TODO behind explicit gates; F-022 is active in the ROADMAP decision horizon; every other record remains historical and unpromoted
 
 ## Purpose and authority
 
@@ -656,3 +656,60 @@ No other external finding, validation record, or proposal in this intake is
 reconciled or promoted by this section. No product source, compiled API
 baseline, test, package, provider, runtime, or release evidence was changed or
 executed as part of this design decision.
+
+## Reconciliation — 2026-08-27 — F-009, F-022, and F-026 promotion
+
+This dated reconciliation preserves the original intake body and the earlier
+P-001/F-003 reconciliation. It records the owner's direct instruction to
+promote `F-009`, `F-022`, and `F-026`, after a current read-only reconciliation
+against `78d8ce0061b9e8cfab87ab88db5c8ed1832eb4bd`.
+
+### F-009 disposition
+
+Current build configuration still defines no `GenerateDocumentationFile`
+property in `Directory.Build.props`, `Directory.Build.targets`, or the project
+files. The external package measurement therefore remains a current
+build-configuration concern rather than only a historical package observation.
+
+The owner promoted bounded work to generate and package XML API documentation
+for managed-library assets. [`TODO.md`](../../TODO.md) owns the accepted scope,
+warning treatment gate, immutable-package validation, and completion criteria as
+`NEKOMKT-F009`. This reconciliation does not edit build configuration or claim a
+new package result.
+
+### F-022 disposition
+
+Current Diagnostics documentation states that `Redact` filters persisted crash
+text and that larger dumps place more sensitive process memory on disk.
+`WindowsCrash.UseMiniDump()` still installs the native dump writer without a
+combined statement that `Redact` does not govern dump contents. The external
+observation of an exception secret in `MiniDumpNormal` therefore remains
+material security evidence, while the consumer's ACL restriction remains a
+consumer mitigation rather than a framework resolution.
+
+The owner promoted the boundary to the
+[`ROADMAP.md`](../../ROADMAP.md) decision horizon as `NEKOMKT-F022`. The roadmap
+must decide whether explicit contract documentation is sufficient or whether
+the dump, storage, or access-control boundary changes. No Diagnostics or
+Diagnostics.Windows implementation is promoted by this reconciliation.
+
+### F-026 disposition
+
+Current Data source no longer leaves the SQL-inverted overload as the only join
+path. `JoinOn(...)` and `JoinTrusted(...)` are canonical, tested replacements;
+the legacy `Join(string, string, string)` overload delegates to the shared join
+implementation and carries a warning-only `Obsolete` marker. The accepted Data
+decision and migration guide require that compatibility overload to remain for
+at least one released minor version and permit removal only in `2.0.0` or later.
+
+The owner promoted that deferred removal as `NEKOMKT-F026` in
+[`TODO.md`](../../TODO.md). Its release and implementation gates remain closed;
+the promotion does not reopen the completed QueryBuilder normalization or
+authorize an early breaking change.
+
+### Remaining boundary
+
+No other external finding is reconciled or promoted by this section. The two
+TODO entries and one roadmap decision are the only active-governance outcomes;
+no product source, tests, compiled API baseline, package, runtime, or release
+evidence changed in this promotion task.

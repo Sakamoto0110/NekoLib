@@ -23,6 +23,11 @@ using Newtonsoft.Json.Linq;
 
 namespace NekoLib.Watchdog
 {
+    /// <summary>
+    /// Advanced one-shot Windows process supervisor. It owns the current target
+    /// process handle, local IPC endpoints, instance semaphore, and runtime
+    /// threads, but never disposes caller-supplied sinks or telemetry.
+    /// </summary>
     public sealed class WatchdogRuntime : IDisposable
     {
         private readonly object _childLock = new object();
@@ -97,6 +102,14 @@ namespace NekoLib.Watchdog
             Stopped
         }
 
+        /// <summary>
+        /// Validates, normalizes, and captures configuration without starting
+        /// supervision or mutating the caller's options object.
+        /// </summary>
+        /// <param name="options">Required runtime configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Required target or attach configuration is missing or invalid.</exception>
+        /// <exception cref="FileNotFoundException">The target executable does not exist.</exception>
         public WatchdogRuntime(WatchdogOptions options)
         {
             _o = WatchdogRuntimeOptions.Capture(options);
@@ -118,6 +131,12 @@ namespace NekoLib.Watchdog
         // START
         // ============================================================
 
+        /// <summary>
+        /// Starts the one-shot runtime, claims the per-target instance slot,
+        /// attaches or launches the initial process, and starts current-user IPC
+        /// and owned worker threads. A failed start performs terminal cleanup.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The runtime is not in its created state or another runtime owns the target.</exception>
         public void Start()
         {
             lock (_lifecycleLock)
@@ -206,6 +225,8 @@ namespace NekoLib.Watchdog
             }
         }
 
+        /// <summary>Blocks until successful supervision reaches complete terminal cleanup.</summary>
+        /// <exception cref="InvalidOperationException"><see cref="Start"/> has not completed successfully.</exception>
         public void WaitForExit()
         {
             lock (_lifecycleLock)
@@ -224,6 +245,13 @@ namespace NekoLib.Watchdog
         // STOP
         // ============================================================
 
+        /// <summary>
+        /// Requests terminal shutdown, stops supervision, terminates the current
+        /// target through the configured graceful/forced bounds, joins owned
+        /// threads, and releases IPC and the instance slot. Concurrent and repeated
+        /// callers join or observe the same terminal state; stopping before start
+        /// makes the instance permanently stopped.
+        /// </summary>
         public void Stop()
         {
             lock (_lifecycleLock)
@@ -1282,6 +1310,7 @@ namespace NekoLib.Watchdog
         // DISPOSE
         // ============================================================
 
+        /// <summary>Performs the same terminal, idempotent cleanup as <see cref="Stop"/>.</summary>
         public void Dispose()
         {
             Stop();

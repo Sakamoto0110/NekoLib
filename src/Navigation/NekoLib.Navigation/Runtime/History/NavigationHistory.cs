@@ -19,7 +19,10 @@ namespace NekoLib.Navigation.Runtime.History
         {
         }
 
+        /// <summary>Gets whether a committed back-stack entry is available.</summary>
         public bool CanGoBack => _back.Count > 0;
+
+        /// <summary>Gets whether a committed forward-stack entry is available.</summary>
         public bool CanGoForward => _forward.Count > 0;
 
         // ------------------------------------------------------------
@@ -95,6 +98,7 @@ namespace NekoLib.Navigation.Runtime.History
         public IReadOnlyList<PageHistoryEntry> HistoryForward
             => _forward.ToList().AsReadOnly();
 
+        /// <summary>Gets whether either history stack contains an entry.</summary>
         public bool HasHistory
             => _back.Count > 0 || _forward.Count > 0;
 

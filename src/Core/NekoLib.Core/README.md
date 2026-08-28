@@ -28,6 +28,69 @@ Supplying an interface does not transfer disposal ownership to a feature
 module. Concrete packages define their own disposal and sink-ownership options.
 Core deliberately has no global Logging or Telemetry provider.
 
+## Supported consumer implementation seams
+
+Core's public interfaces are explicit in-process composition contracts. They do
+not provide assembly scanning, keyed discovery, dependency injection, retries,
+serialization, transport, authentication, or automatic lifetime management.
+The composition root constructs an implementation and passes the narrowest
+interface required by each producer or consumer.
+
+| Contract | Supported consumer use | Required boundary |
+|---|---|---|
+| `ILogger` | Supply a custom logging pipeline when the concrete `Logger` is not suitable. | `Log` is synchronous; the implementation owns filtering, failure isolation, concurrency, retention, redaction, and disposal. |
+| `ILogSink` | Add a destination to the supplied logging pipeline. | Consume each entry without mutating it; return promptly or accept synchronous backpressure; protect sensitive message and exception data. |
+| `IFlushableLogSink` | Add synchronous flushing to a buffering sink. | `Flush` has no cancellation. With the supplied pipeline it may continue after a budget expires and overlap a later `Write`, so internal state must be synchronized. |
+| `ILogFlusher` | Expose bounded pipeline-level completion to an owner such as Diagnostics. | `false` means unconfirmed within the budget, not cancellation. This capability is not implied by `ILogger`. |
+| `ILogSnapshotSource` | Expose a read-only recent-entry window. | Return a non-null newest window in chronological order; a non-positive limit returns empty. This capability is not implied by `ILogger`. |
+| `ITelemetry` + `ITelemetryOperation` | Replace the operation engine while retaining the Core producer contract. | The returned operation is caller-owned, explicitly completed, and never implicitly completed through disposal. Define duplicate completion and post-completion checkpoint behavior. |
+| `ITelemetrySink` | Export or aggregate completed operations from the supplied pipeline. | The supplied pipeline dispatches inline and in registration order; return promptly, avoid recursive production through the same pipeline, and redact before persistence or transport. |
+| `ITelemetrySnapshotSource` | Expose a read-only completed-operation window. | Return a non-null newest window in completion order; this capability is not implied by `ITelemetry`. |
+| `IInspectionRecorder` | Supply an alternate opt-in recorder and registration owner. | Never evaluate lazy payloads while disabled; return caller-owned unregistration handles; keep callbacks bounded and document concurrency. `RegisterAction` remains experimental. |
+| `IInspectionSnapshotSource` | Give bounded evidence consumers a read-only Inspection view. | Return a non-null snapshot, allow partial state, and treat the timeout as a caller completion budget rather than delegate cancellation. Do not expose action invocation. |
+
+For most applications the narrower sink/provider seams are preferable to
+reimplementing a whole capability. The supplied behavior and ownership rules
+remain documented by the concrete
+[`NekoLib.Logging`](../../Logging/NekoLib.Logging/README.md),
+[`NekoLib.Telemetry`](../../Telemetry/NekoLib.Telemetry/README.md), and
+[`NekoLib.Inspection`](../../Inspection/NekoLib.Inspection/README.md) packages.
+
+A minimal custom telemetry sink is ordinary explicit composition:
+
+```csharp
+public sealed class FailureCountingSink : ITelemetrySink
+{
+    private long _failures;
+
+    public long Failures => Interlocked.Read(ref _failures);
+
+    public void Write(TelemetryOperation operation)
+    {
+        if (operation == null)
+            throw new ArgumentNullException(nameof(operation));
+
+        if (operation.Outcome == TelemetryOutcome.Failed)
+            Interlocked.Increment(ref _failures);
+    }
+}
+
+var sink = new FailureCountingSink();
+ITelemetry telemetry = new TelemetryPipeline(
+    sinks: new ITelemetrySink[] { sink });
+```
+
+The sink is supplied directly; Core does not discover it or decide its
+lifetime. The same explicit-composition rule applies to custom logging sinks,
+snapshot sources, loggers, telemetry engines, and Inspection recorders.
+
+`LoggerExtensions`, the model and enum types, the three `Null*` singletons, and
+`Disposable.Empty` are conveniences or data contracts, not plug-in seams.
+`InspectionProvider` is one explicitly installed process-wide recorder slot,
+not a general service or plug-in registry. State-provider, action, and payload
+delegates are callbacks owned by an `IInspectionRecorder`; their presence does
+not create discovery, isolation, authorization, or remote-execution semantics.
+
 ## Logging contracts
 
 - `ILogger` accepts severity, message, optional exception, and optional

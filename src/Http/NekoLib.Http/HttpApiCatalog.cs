@@ -20,8 +20,16 @@ namespace NekoLib.Http
             Endpoints = new List<HttpEndpoint>(byName.Values).AsReadOnly();
         }
 
+        /// <summary>
+        /// Gets the immutable endpoint metadata collection in registration order.
+        /// The non-generic elements are for introspection and cannot be sent directly.
+        /// </summary>
         public IReadOnlyCollection<HttpEndpoint> Endpoints { get; }
 
+        /// <summary>Builds an immutable catalog through a single-use registration callback.</summary>
+        /// <param name="configure">Callback that registers all endpoint instances.</param>
+        /// <returns>An immutable, instance-scoped catalog.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
         public static HttpApiCatalog Create(Action<HttpApiCatalogBuilder> configure)
         {
             if (configure == null)
@@ -32,6 +40,11 @@ namespace NekoLib.Http
             return builder.Build();
         }
 
+        /// <summary>Looks up endpoint metadata by its case-insensitive registered name.</summary>
+        /// <param name="name">Non-blank endpoint name.</param>
+        /// <returns>The exact endpoint instance registered under <paramref name="name"/>.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="KeyNotFoundException">No endpoint is registered under that name.</exception>
         public HttpEndpoint Get(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -54,6 +67,10 @@ namespace NekoLib.Http
                 new ReadOnlyDictionary<string, HttpEndpoint>(endpoints));
     }
 
+    /// <summary>
+    /// Single-use endpoint registrar supplied by <see cref="HttpApiCatalog.Create"/>.
+    /// Names are unique under ordinal case-insensitive comparison.
+    /// </summary>
     public sealed class HttpApiCatalogBuilder
     {
         private readonly Dictionary<string, HttpEndpoint> _endpoints
@@ -64,6 +81,11 @@ namespace NekoLib.Http
         {
         }
 
+        /// <summary>Registers one endpoint instance and returns this builder for chaining.</summary>
+        /// <param name="endpoint">Immutable endpoint metadata to register.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The builder was already built or the endpoint name is already registered.</exception>
         public HttpApiCatalogBuilder Register(HttpEndpoint endpoint)
         {
             if (_built)

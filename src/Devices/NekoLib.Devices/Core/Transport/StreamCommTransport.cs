@@ -77,6 +77,7 @@ namespace NekoLib.Devices.Core.Transport
         /// <summary>
         /// Initializes a stream transport with a transport-specific endpoint.
         /// </summary>
+        /// <param name="endpoint">Endpoint passed to <see cref="NormalizeEndpoint"/> and captured without opening.</param>
         protected StreamCommTransport(string endpoint)
         {
             SetEndpoint(endpoint);
@@ -86,9 +87,14 @@ namespace NekoLib.Devices.Core.Transport
         protected abstract string TransportName { get; }
 
         /// <summary>Normalizes and validates a transport-specific endpoint.</summary>
+        /// <param name="endpoint">Caller-supplied endpoint.</param>
+        /// <returns>The canonical endpoint stored and passed to <see cref="ConnectStream"/>.</returns>
         protected abstract string NormalizeEndpoint(string endpoint);
 
         /// <summary>Creates and connects the underlying stream.</summary>
+        /// <param name="normalizedEndpoint">Canonical endpoint returned by <see cref="NormalizeEndpoint"/>.</param>
+        /// <param name="ct">Cancellation token governing connection.</param>
+        /// <returns>A connected caller-owned stream that this base class closes and disposes.</returns>
         protected abstract Task<Stream> ConnectStream(string normalizedEndpoint, CancellationToken ct);
 
         /// <inheritdoc/>
@@ -383,7 +389,11 @@ namespace NekoLib.Devices.Core.Transport
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Closes and disposes the connection and synchronization resources.
+        /// Disposal is terminal and idempotent and waits for in-flight serialized
+        /// transport work before releasing state.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if(_disposed)
@@ -395,7 +405,10 @@ namespace NekoLib.Devices.Core.Transport
             _dataAvailable.Dispose();
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Synchronously closes and disposes the connection and synchronization
+        /// resources. Disposal is terminal and idempotent and waits for in-flight work.
+        /// </summary>
         public void Dispose()
         {
             if(_disposed)

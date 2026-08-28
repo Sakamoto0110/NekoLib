@@ -27,6 +27,9 @@ namespace NekoLib.Devices.Core.Engine
     ///
     /// The engine does not interpret device-specific logic — 
     /// that is entirely the protocol's responsibility.
+    /// The caller retains transport ownership and must dispose a disposable
+    /// concrete transport; the engine never closes it except when
+    /// <see cref="CloseTransportOnNoResponse"/> is enabled for an operation boundary.
     /// </summary>
     public sealed class HardwareEngine
     {
@@ -74,6 +77,7 @@ namespace NekoLib.Devices.Core.Engine
         /// </summary>
         /// <param name="transport">Transport layer (serial, TCP, named pipe, or virtual).</param>
         /// <param name="protocol">Protocol implementation for the target controller.</param>
+        /// <exception cref="ArgumentNullException">A dependency is <c>null</c>.</exception>
         public HardwareEngine(ICommTransport transport, IHardwareProtocol protocol)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -92,7 +96,14 @@ namespace NekoLib.Devices.Core.Engine
         /// <param name="op">The protocol-defined operation to execute.</param>
         /// <param name="timeout">Overall timeout for receiving a reply.</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <returns>A parsed <see cref="HardwareResponse"/> instance.</returns>
+        /// <returns>
+        /// A parsed response. Non-cancellation transport, engine, and protocol
+        /// failures are converted to an unsuccessful response with
+        /// <see cref="HardwareResponse.Failure"/> evidence.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="op"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative.</exception>
+        /// <exception cref="OperationCanceledException"><paramref name="ct"/> is cancelled.</exception>
         public async Task<HardwareResponse> SendAsync(
             HardwareOperation op,
             int timeout,
@@ -115,7 +126,15 @@ namespace NekoLib.Devices.Core.Engine
         /// <param name="op">Protocol operation.</param>
         /// <param name="timeout">Receive timeout.</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <returns>A parsed <see cref="HardwareResponse"/> object.</returns>
+        /// <returns>
+        /// A parsed response. Non-cancellation transport, engine, and protocol
+        /// failures are converted to an unsuccessful response with
+        /// <see cref="HardwareResponse.Failure"/> evidence.
+        /// </returns>
+        /// <exception cref="ArgumentException"><paramref name="port"/> is blank.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="op"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is negative.</exception>
+        /// <exception cref="OperationCanceledException"><paramref name="ct"/> is cancelled.</exception>
         public async Task<HardwareResponse> SendAsync(
             string port,
             HardwareOperation op,

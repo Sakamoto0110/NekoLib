@@ -16,6 +16,11 @@ namespace NekoLib.Navigation.Telemetry
         private bool _authenticationPending;
         private TimeSpan? _authenticationElapsed;
 
+        /// <summary>
+        /// Records the first authentication-completed checkpoint. Calls before
+        /// Navigation binds telemetry are retained; duplicate calls are ignored.
+        /// Telemetry failures never escape this method.
+        /// </summary>
         public void AuthenticationCompleted()
         {
             ITelemetryOperation? operation;

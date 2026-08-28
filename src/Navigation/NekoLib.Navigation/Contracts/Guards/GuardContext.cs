@@ -6,6 +6,11 @@ namespace NekoLib.Navigation.Contracts.Guards
     /// <summary>Data passed to guards for a single navigation attempt.</summary>
     public sealed class GuardContext
     {
+        /// <summary>Initializes the immutable context for one guard evaluation.</summary>
+        /// <param name="targetPage">Concrete page type requested by the navigation attempt.</param>
+        /// <param name="user">Read-only session state evaluated by the guard.</param>
+        /// <param name="timing">Optional application timing correlation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="targetPage"/> or <paramref name="user"/> is <see langword="null"/>.</exception>
         public GuardContext(
             Type targetPage,
             IUserContext user,
@@ -16,7 +21,10 @@ namespace NekoLib.Navigation.Contracts.Guards
             Timing = timing;
         }
 
+        /// <summary>Gets the concrete target page type.</summary>
         public Type TargetPage { get; }
+
+        /// <summary>Gets the read-only authentication state for this evaluation.</summary>
         public IUserContext User { get; }
 
         /// <summary>

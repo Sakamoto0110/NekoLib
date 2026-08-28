@@ -75,6 +75,7 @@ namespace NekoLib.Data.Gateway
                 throw;
             }
         }
+        /// <inheritdoc/>
         public async Task<DbSession> OpenSessionAsync(CancellationToken ct = default)
         {
             var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);

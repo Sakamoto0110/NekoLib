@@ -11,18 +11,24 @@ namespace NekoLib.Http.Serialization
     {
         private readonly JsonSerializerSettings _settings;
 
+        /// <summary>Creates a serializer with new default Newtonsoft.Json settings.</summary>
         public JsonHttpBodySerializer()
             : this(new JsonSerializerSettings())
         {
         }
 
+        /// <summary>Creates a serializer that retains the supplied Newtonsoft.Json settings instance.</summary>
+        /// <param name="settings">Settings used for every serialization and deserialization call.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="settings"/> is <c>null</c>.</exception>
         public JsonHttpBodySerializer(JsonSerializerSettings settings)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         }
 
+        /// <inheritdoc />
         public string MediaType => "application/json";
 
+        /// <inheritdoc />
         public string Serialize(object value, Type declaredType)
         {
             if (value == null)
@@ -33,6 +39,7 @@ namespace NekoLib.Http.Serialization
             return JsonConvert.SerializeObject(value, declaredType, _settings);
         }
 
+        /// <inheritdoc />
         public object Deserialize(string content, Type declaredType)
         {
             if (content == null)

@@ -46,8 +46,9 @@ namespace NekoLib.Devices.Core.Transport
 
         /// <summary>
         /// Initializes the transport by optionally providing a default port name.
-        /// It will not open automatically until <see cref="Open"/> is called.
+        /// It will not open automatically until <see cref="Open(CancellationToken)"/> is called.
         /// </summary>
+        /// <param name="portName">Optional non-blank serial port name captured without opening.</param>
         public SerialCommTransport(string? portName = null)
         {
             if(!string.IsNullOrWhiteSpace(portName))
@@ -388,7 +389,10 @@ namespace NekoLib.Devices.Core.Transport
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Asynchronously closes and disposes the serial port and operation gate.
+        /// Disposal is terminal and idempotent and waits for in-flight serialized work.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if(_disposed)
@@ -400,7 +404,10 @@ namespace NekoLib.Devices.Core.Transport
             _disposed = true;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Synchronously closes and disposes the serial port and operation gate.
+        /// Disposal is terminal and idempotent and waits for in-flight serialized work.
+        /// </summary>
         public void Dispose()
         {
             if(_disposed)

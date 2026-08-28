@@ -21,9 +21,16 @@ namespace NekoLib.Navigation.Runtime.Factories
         // ----------------------------
         // Manual registration
         // ----------------------------
+        /// <summary>Registers the public parameterless constructor for a page type.</summary>
+        /// <typeparam name="T">Page type to create.</typeparam>
         public void Register<T>() where T : IPageView, new()
             => Register(typeof(T), () => new T());
 
+        /// <summary>Registers or replaces the factory for a page type.</summary>
+        /// <param name="pageType">Type implementing <see cref="IPageView"/>.</param>
+        /// <param name="factory">Factory invoked for every requested instance; it must return a compatible non-null view.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="pageType"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+        /// <exception cref="InvalidOperationException"><paramref name="pageType"/> does not implement <see cref="IPageView"/>.</exception>
         public void Register(Type pageType, Func<IPageView> factory)
         {
             if (pageType == null)
@@ -41,6 +48,11 @@ namespace NekoLib.Navigation.Runtime.Factories
         // ----------------------------
         
 
+       /// <summary>Creates a factory with registrations for every supplied registry page type.</summary>
+       /// <param name="registeredPageTypes">Page types enumerated and registered immediately.</param>
+       /// <param name="defaultFactory">Optional application factory; the public parameterless constructor is used when omitted.</param>
+       /// <returns>A new mutable page factory.</returns>
+       /// <exception cref="ArgumentNullException"><paramref name="registeredPageTypes"/> is <see langword="null"/>.</exception>
        public static PageFactory AutoWireFromRegistry(
     IEnumerable<Type> registeredPageTypes,
     Func<Type, IPageView> defaultFactory = null)
@@ -64,6 +76,11 @@ namespace NekoLib.Navigation.Runtime.Factories
         // ----------------------------
         // Creation (migration-friendly)
         // ----------------------------
+        /// <summary>Creates one page instance through a registered factory or the enabled fallback.</summary>
+        /// <param name="pageType">Concrete page type to create.</param>
+        /// <returns>The newly created page instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pageType"/> is <see langword="null"/>.</exception>
+        /// <exception cref="InvalidOperationException">The type is invalid, unregistered while fallback is disabled, or its factory fails.</exception>
         public IPageView Create(Type pageType)
         {
             if (pageType == null)
@@ -99,6 +116,9 @@ namespace NekoLib.Navigation.Runtime.Factories
             return CreateUsingDefaultCtor(pageType);
         }
 
+        /// <summary>Creates one page instance through the registration for <typeparamref name="T"/>.</summary>
+        /// <typeparam name="T">Concrete page type to create.</typeparam>
+        /// <returns>The newly created page instance.</returns>
         public T Create<T>() where T : IPageView
             => (T)Create(typeof(T));
 

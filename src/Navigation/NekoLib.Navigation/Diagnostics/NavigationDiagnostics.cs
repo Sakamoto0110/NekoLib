@@ -25,6 +25,7 @@ namespace NekoLib.Navigation.Diagnostics
             _sink = sink;
         }
 
+        /// <summary>Gets the subscriber-safe public outcome event hub for this context.</summary>
         public NavigationEventHub Hub => _hub;
         internal bool IsTracingEnabled => _sink != null || _hub.HasAnySubscribers;
         internal bool TraceEventsEnabled => _hub.HasTraceSubscribers;

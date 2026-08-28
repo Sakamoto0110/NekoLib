@@ -37,6 +37,10 @@ namespace NekoLib.Navigation.Runtime.Services
         private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
         private bool _blockerReferenceHeld;
 
+        /// <summary>Initializes a dialog service for one host and page factory.</summary>
+        /// <param name="viewHost">Host that owns native dialog views.</param>
+        /// <param name="factory">Factory used to create dialog view instances.</param>
+        /// <param name="interactionBlocker">Optional blocker shared by modal surfaces.</param>
         public DialogService(
             IViewHost viewHost,
             PageFactory factory,
@@ -49,6 +53,7 @@ namespace NekoLib.Navigation.Runtime.Services
                 interactionBlocker as IPageAwareInteractionBlocker;
         }
 
+        /// <inheritdoc />
         public async Task<bool> ShowDialogAsync<TDialog>(
             object? payload = null)
             where TDialog : class, IDialogView
@@ -130,6 +135,7 @@ namespace NekoLib.Navigation.Runtime.Services
             return await tcs.Task;
         }
 
+        /// <inheritdoc />
         public void CloseAll()
             => CloseAll(NavigationTraceCloseReasons.ClosedByService);
 

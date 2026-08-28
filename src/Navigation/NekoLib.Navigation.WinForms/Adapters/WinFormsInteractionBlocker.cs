@@ -19,11 +19,14 @@ namespace NekoLib.Navigation.WinForms.Adapters
         private readonly List<Control> _modalStack = new List<Control>();
         private int _blockDepth;
 
+        /// <summary>Initializes a blocker for one WinForms navigation root.</summary>
+        /// <param name="root">Root whose child controls are tracked.</param>
         public WinFormsInteractionBlocker(Control root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
+        /// <inheritdoc />
         public void Block()
         {
             _blockDepth++;
@@ -48,6 +51,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             }
         }
 
+        /// <inheritdoc />
         public void Unblock()
         {
             if (_blockDepth == 0)
@@ -60,6 +64,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             RestoreDisabledControls();
         }
 
+        /// <inheritdoc />
         public void OnViewAdded(object view, bool isModalSurface)
         {
             if (_blockDepth == 0 || !(view is Control control))
@@ -82,6 +87,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             Restore(control);
         }
 
+        /// <inheritdoc />
         public void OnViewRemoved(object view)
         {
             if (!(view is Control control))

@@ -26,13 +26,17 @@ namespace NekoLib.Navigation.WinForms.Hosting
         private Point _naturalLocation;
         private Action? _pendingLayout;
 
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public new bool IsDisposed { get; private set; }
 
+        /// <summary>Gets whether the control is running inside the WinForms designer.</summary>
         public new bool DesignMode =>
             base.DesignMode ||
             LicenseManager.UsageMode == LicenseUsageMode.Designtime;
 
+        /// <summary>Initializes a designer-safe centered popover surface.</summary>
         protected PopoverViewBase()
         {
             Name = GetType().Name; // NAV-008(g): aligned with the WPF surface bases.
@@ -102,7 +106,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         /// <summary>
         /// Queues <paramref name="action"/> onto the message loop, waiting for the
-        /// window handle when it does not exist yet. <see cref="Control.BeginInvoke"/>
+        /// window handle when it does not exist yet. <see cref="Control.BeginInvoke(Delegate)"/>
         /// throws outright on a handle-less control rather than deferring, so calling
         /// it straight from a parenting notification is not safe.
         /// </summary>
@@ -117,6 +121,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
             _pendingLayout = action;
         }
 
+        /// <inheritdoc />
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
@@ -127,6 +132,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 BeginInvoke(pending);
         }
 
+        /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
             if (disposing)

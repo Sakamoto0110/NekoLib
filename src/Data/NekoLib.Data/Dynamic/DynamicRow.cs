@@ -24,6 +24,8 @@ namespace NekoLib.Data.Dynamic
         private readonly IDictionary<string, object?>? _dict;
         private readonly Dictionary<string, PropertyInfo>? _props;
 
+        /// <summary>Wraps an object whose public instance properties form the row.</summary>
+        /// <param name="instance">The emitted or consumer-supplied row object.</param>
         public DynamicRow(object instance)
         {
             _instance = instance ?? throw new ArgumentNullException(nameof(instance));
@@ -40,11 +42,19 @@ namespace NekoLib.Data.Dynamic
             }
         }
 
+        /// <summary>Wraps a mutable dictionary as a dynamic row.</summary>
+        /// <param name="dict">The dictionary that backs member and index access.</param>
         public DynamicRow(IDictionary<string, object?> dict)
         {
             _dict = dict ?? throw new ArgumentNullException(nameof(dict));
         }
 
+        /// <summary>Gets or sets a column value by name.</summary>
+        /// <param name="name">
+        /// The public property name, matched case-insensitively for object-backed
+        /// rows; dictionary-backed rows use the supplied dictionary's comparer.
+        /// </param>
+        /// <returns>The value, or <see langword="null"/> when the name is absent.</returns>
         public object? this[string name]
         {
             get => Get(name);
@@ -86,18 +96,21 @@ namespace NekoLib.Data.Dynamic
             }
         }
 
+        /// <inheritdoc/>
         public override bool TryGetMember(GetMemberBinder binder, out object? result)
         {
             result = Get(binder.Name);
             return true;
         }
 
+        /// <inheritdoc/>
         public override bool TrySetMember(SetMemberBinder binder, object? value)
         {
             Set(binder.Name, value);
             return true;
         }
 
+        /// <inheritdoc/>
         public override bool TryGetIndex(GetIndexBinder binder, object[] indexes, out object? result)
         {
             if(indexes != null && indexes.Length == 1 && indexes[0] is string s)
@@ -110,6 +123,7 @@ namespace NekoLib.Data.Dynamic
             return false;
         }
 
+        /// <inheritdoc/>
         public override bool TrySetIndex(SetIndexBinder binder, object[] indexes, object? value)
         {
             if(indexes != null && indexes.Length == 1 && indexes[0] is string s)

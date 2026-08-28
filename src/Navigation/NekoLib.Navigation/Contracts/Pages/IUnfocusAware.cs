@@ -22,6 +22,11 @@ namespace NekoLib.Navigation.Contracts.Pages
     /// </remarks>
     public interface IUnfocusAware
     {
+        /// <summary>
+        /// Handles focus leaving the view subtree or deactivation of its owning
+        /// window. Implementations may complete their own surface to dismiss it.
+        /// </summary>
+        /// <returns>A task that completes when the focus-loss reaction finishes.</returns>
         Task OnUnfocusAsync();
     }
 }

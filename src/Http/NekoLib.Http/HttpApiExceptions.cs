@@ -4,6 +4,10 @@ using System.Net;
 
 namespace NekoLib.Http
 {
+    /// <summary>
+    /// Reports that a response body exceeded the configured byte bound while
+    /// preserving status and headers captured before body disposal.
+    /// </summary>
     public sealed class HttpResponseContentTooLargeException : Exception
     {
         internal HttpResponseContentTooLargeException(
@@ -23,8 +27,10 @@ namespace NekoLib.Http
             Headers = headers;
         }
 
+        /// <summary>Gets the registered endpoint name.</summary>
         public string EndpointName { get; }
 
+        /// <summary>Gets the inclusive configured response-body byte limit.</summary>
         public int MaximumBytes { get; }
 
         /// <summary>Status of the response whose body exceeded the bound.</summary>
@@ -40,6 +46,11 @@ namespace NekoLib.Http
         public IReadOnlyDictionary<string, IReadOnlyList<string>> Headers { get; }
     }
 
+    /// <summary>
+    /// Wraps a non-cancellation failure while converting a successful bounded
+    /// response body to the endpoint response type. The raw body is deliberately
+    /// excluded from the exception message.
+    /// </summary>
     public sealed class HttpResponseDeserializationException : Exception
     {
         internal HttpResponseDeserializationException(
@@ -57,10 +68,13 @@ namespace NekoLib.Http
             ResponseType = responseType;
         }
 
+        /// <summary>Gets the registered endpoint name.</summary>
         public string EndpointName { get; }
 
+        /// <summary>Gets the successful HTTP status whose body could not be converted.</summary>
         public HttpStatusCode StatusCode { get; }
 
+        /// <summary>Gets the endpoint response type requested from the body serializer.</summary>
         public Type ResponseType { get; }
     }
 }

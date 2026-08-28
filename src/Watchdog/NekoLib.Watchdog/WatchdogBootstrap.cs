@@ -22,8 +22,11 @@ namespace NekoLib.Watchdog
     {
         private static readonly object BootstrapLock = new object();
 
+        /// <summary>Environment flag set on supervised replacements to prevent recursive Host bootstrap.</summary>
         public const string UnderWatchdogEnvironmentVariable = "NEKO_UNDER_WATCHDOG";
+        /// <summary>Deployment subdirectory expected below the application base directory.</summary>
         public const string HostDirectoryName = "NekoLib.Watchdog.Host";
+        /// <summary>Watchdog Host executable expected inside <see cref="HostDirectoryName"/>.</summary>
         public const string HostExecutableName = "NekoLib.Watchdog.Host.exe";
 
         internal const string HostProtocolVersion = "1";
@@ -34,6 +37,9 @@ namespace NekoLib.Watchdog
         /// Starts supervision using the current process command-line arguments.
         /// Call this near the beginning of <c>Main</c>.
         /// </summary>
+        /// <exception cref="FileNotFoundException">The deployed Host executable cannot be found.</exception>
+        /// <exception cref="TimeoutException">The Host does not confirm the expected attachment within the default budget.</exception>
+        /// <exception cref="InvalidOperationException">Process identity cannot be resolved or a running Host reports a different target PID.</exception>
         public static void EnsureStarted()
         {
             var commandLine = Environment.GetCommandLineArgs();
@@ -48,6 +54,8 @@ namespace NekoLib.Watchdog
         /// Starts supervision while preserving the supplied original application
         /// arguments for every later restart.
         /// </summary>
+        /// <param name="arguments">Original application arguments, excluding the executable path.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="arguments"/> is <c>null</c>.</exception>
         public static void EnsureStarted(string[] arguments)
             => EnsureStarted(arguments, DefaultHandshakeTimeoutMs);
 
@@ -55,6 +63,13 @@ namespace NekoLib.Watchdog
         /// Starts supervision and waits at most <paramref name="handshakeTimeoutMs"/>
         /// for the Host to confirm the expected PID and one-time attach token.
         /// </summary>
+        /// <param name="arguments">Original application arguments, excluding the executable path.</param>
+        /// <param name="handshakeTimeoutMs">Positive total budget for duplicate detection, Host startup, and attach confirmation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="arguments"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="handshakeTimeoutMs"/> is less than 1.</exception>
+        /// <exception cref="FileNotFoundException">The deployed Host executable cannot be found.</exception>
+        /// <exception cref="TimeoutException">The Host does not confirm the expected attachment within the budget.</exception>
+        /// <exception cref="InvalidOperationException">Process identity cannot be resolved or a running Host reports a different target PID.</exception>
         public static void EnsureStarted(string[] arguments, int handshakeTimeoutMs)
         {
             if (IsRunningUnderWatchdog())

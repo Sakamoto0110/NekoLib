@@ -16,8 +16,12 @@ namespace NekoLib.Navigation.Metadata.Attributes
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class PageReuseAttribute : Attribute
     {
+        /// <summary>Gets the declared reuse policy.</summary>
         public PageReusePolicy Policy { get; }
 
+        /// <summary>Initializes the attribute with a supported reuse policy.</summary>
+        /// <param name="policy">Reuse policy recorded in the page descriptor.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="policy"/> is not a defined <see cref="PageReusePolicy"/> value.</exception>
         public PageReuseAttribute(PageReusePolicy policy)
         {
             if (!Enum.IsDefined(typeof(PageReusePolicy), policy))

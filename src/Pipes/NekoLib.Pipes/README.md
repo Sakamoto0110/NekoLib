@@ -106,6 +106,11 @@ its own server's shutdown must not await the returned task from inside that same
 handler: the task includes that handler. Initiate it, return, and await it from
 the owner.
 
+The same self-wait rule applies to `PipeEventClient` callbacks. A callback may
+initiate `ShutdownAsync`, but must not await that task or `DisposeAsync` before
+returning because completion includes the callback loop. Synchronous `Dispose`
+detects this case, initiates shutdown, and returns immediately.
+
 `Dispose()` initiates the same shutdown but waits synchronously for at most two
 seconds; uncooperative user work may therefore outlive the call. Use
 `ShutdownAsync()` whenever definitive completion matters. On `net9.0`, all
@@ -222,6 +227,56 @@ which may be after `PublishAsync` returns. Rejected oversized events do not
 advance it. Snapshots are new DTOs over current counters; a fresh metrics
 instance is the supported reset boundary. `NoopPipeMetrics` records nothing and
 returns null through `IPipeMetrics.Snapshot()`.
+
+### Writing custom pipe metrics
+
+Implement `IPipeMetrics` and assign the instance through `PipeServerOptions` or
+`PipeClientOptions`. Supply the same instance to both only when one aggregate is
+intentional. Callbacks are synchronous, may arrive concurrently from different
+connections and event-delivery trackers, and are not marshalled to a captured
+synchronization context. Keep them short, non-blocking, and thread-safe; enqueue
+external export work instead of performing network I/O inline.
+
+Transport-owned callback invocations are failure-isolated, so throwing does not
+change the RPC/event outcome. `Snapshot()` is different: the consumer calls it
+directly, and Pipes neither catches its exception nor imposes a snapshot shape.
+Return a new immutable/caller-owned DTO, or null when the implementation exposes
+no snapshot. Metrics are observational only; do not use them for authorization,
+protocol decisions, retries, or delivery control.
+
+```csharp
+public sealed class ErrorCountingMetrics : IPipeMetrics
+{
+    private long _errors;
+
+    public void OnError(string pipeName, string where, Exception error)
+        => Interlocked.Increment(ref _errors);
+
+    public void OnServerClientConnected(string pipeName) { }
+    public void OnServerClientDisconnected(string pipeName) { }
+    public void OnServerRequestReceived(string pipeName, string name) { }
+    public void OnServerResponseSent(
+        string pipeName, string name, bool ok, TimeSpan elapsed) { }
+    public void OnServerEventPublished(
+        string pipeName, string eventName, int subscribers, int success, int failed) { }
+    public void OnClientConnect(
+        string pipeName, TimeSpan elapsed, bool ok, string? errorCode) { }
+    public void OnClientRequest(string pipeName, string name) { }
+    public void OnClientResponse(
+        string pipeName, string name, bool ok, TimeSpan elapsed, string? errorCode) { }
+
+    public PipeMetricsSnapshot? Snapshot() => null;
+}
+```
+
+`IPipeMetrics` is the package's only consumer-implemented public interface.
+`PipeServer.Map` registers application handlers, `PipeEventClient` events are
+callbacks, public `PipeMetricsSnapshot` constructors compose DTOs, and a
+standalone `PipeEventHub` is an application-owned endpoint; none is plug-in
+discovery or activation. Framing, serialization, stream creation, retry, and
+authorization are not replaceable provider contracts. Exception objects and
+pipe/location labels supplied to metrics may contain sensitive operational
+evidence, so a custom exporter owns redaction and access control.
 
 ## Security boundary
 

@@ -20,6 +20,9 @@ namespace NekoLib.Navigation.Metadata.Attributes
         /// <summary>Idle timeout in seconds.</summary>
         public int Seconds { get; }
 
+        /// <summary>Initializes the idle-page timeout declaration.</summary>
+        /// <param name="seconds">Positive inactivity timeout in seconds.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="seconds"/> is not positive.</exception>
         public PageTimeoutAttribute(int seconds)
         {
             if (seconds <= 0)

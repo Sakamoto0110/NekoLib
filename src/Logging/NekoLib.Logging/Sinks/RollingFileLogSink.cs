@@ -22,6 +22,14 @@ namespace NekoLib.Logging.Sinks
         private readonly System.Text.Encoding _encoding;
         private readonly object _pathGate;
 
+        /// <summary>
+        /// Creates a sink from a captured options snapshot and joins the
+        /// process-wide serialization gate for the normalized path.
+        /// </summary>
+        /// <param name="options">Required rolling-file options.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> or its encoding is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">The configured file path is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A size or retention bound is below its supported minimum.</exception>
         public RollingFileLogSink(RollingFileLogSinkOptions options)
         {
             if (options == null)
@@ -51,8 +59,15 @@ namespace NekoLib.Logging.Sinks
             }
         }
 
+        /// <summary>Gets the absolute file path captured at construction.</summary>
         public string FilePath => _filePath;
 
+        /// <summary>
+        /// Appends one formatted line, rotating first when the encoded line would
+        /// exceed the configured bound. Error and Fatal entries force a disk flush.
+        /// </summary>
+        /// <param name="entry">Entry to persist.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <c>null</c>.</exception>
         public void Write(LogEntry entry)
         {
             if (entry == null)
@@ -89,6 +104,7 @@ namespace NekoLib.Logging.Sinks
             }
         }
 
+        /// <summary>Waits for any in-progress write to this normalized path to finish.</summary>
         public void Flush()
         {
             lock (_pathGate) { }

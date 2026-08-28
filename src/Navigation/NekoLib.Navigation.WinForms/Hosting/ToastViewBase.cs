@@ -27,13 +27,17 @@ namespace NekoLib.Navigation.WinForms.Hosting
         private Action _dismissCallback;
         private Size _designSize = Size.Empty;
 
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public new bool IsDisposed { get; private set; }
 
+        /// <summary>Gets whether the control is running inside the WinForms designer.</summary>
         public new bool DesignMode =>
             base.DesignMode ||
             LicenseManager.UsageMode == LicenseUsageMode.Designtime;
 
+        /// <summary>Initializes a designer-safe anchored toast surface.</summary>
         protected ToastViewBase()
         {
             Name = GetType().Name; // NAV-008(g): aligned with the WPF surface bases.
@@ -61,6 +65,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
             ApplyDefaultAnchor();
         }
 
+        /// <inheritdoc />
         protected override void OnParentChanged(EventArgs e)
         {
             base.OnParentChanged(e);
@@ -133,6 +138,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
             _dismissCallback?.Invoke();
         }
 
+        /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
             if (disposing)

@@ -25,9 +25,16 @@ namespace NekoLib.Data.Query
         private readonly object _sessionAffinityToken = new object();
         private bool disposedValue;
 
+        /// <summary>Occurs after provider SQL is generated and before a connection is opened.</summary>
         public event Action<DbQueryEventArgs>? OnSqlGenerated;
+        /// <summary>Occurs immediately before provider execution.</summary>
         public event Action<DbQueryEventArgs>? OnSqlDispatch;
+        /// <summary>
+        /// Occurs after successful execution. Streaming operations defer this
+        /// notification until owned resources have been cleaned up.
+        /// </summary>
         public event Action<DbQuerySuccessEventArgs>? OnSuccess;
+        /// <summary>Occurs when execution or cleanup fails.</summary>
         public event Action<DbQueryFailureEventArgs>? OnError;
 
         /// <summary>
@@ -35,12 +42,21 @@ namespace NekoLib.Data.Query
         /// that begins execution, after its owned resources are released.
         /// </summary>
         public event Action<DbQueryStreamTerminalEventArgs>? OnStreamTerminal;
+        /// <summary>Gets the factory used to create closed connections for owned operations.</summary>
         public IDbConnectionFactory ConnectionFactory { get; }
+        /// <summary>Gets the synchronous provider-specific SQL translator.</summary>
         public IDbQueryTranslator Translator { get; }
+        /// <summary>Gets the validated behavior and adaptation options.</summary>
         public DatabaseGatewayOptions Options { get; }
+        /// <summary>Gets whether this context disposes the supplied factory.</summary>
         public DbConnectionFactoryOwnership ConnectionFactoryOwnership { get; }
         internal object SessionAffinityToken => _sessionAffinityToken;
 
+        /// <summary>Creates an execution context from explicit connection and translation policies.</summary>
+        /// <param name="connectionFactory">A factory that returns a new closed connection per call.</param>
+        /// <param name="queryTranslator">The synchronous SQL-shaping translator.</param>
+        /// <param name="options">Optional context behavior; defaults are used when null.</param>
+        /// <param name="connectionFactoryOwnership">Whether the context disposes the supplied factory.</param>
         public QueryExecutionContext(
             IDbConnectionFactory connectionFactory,
             IDbQueryTranslator queryTranslator,
@@ -187,6 +203,10 @@ namespace NekoLib.Data.Query
             }
         }
 
+        /// <summary>
+        /// Disposes a context-owned factory, optionally clears subscribers, and
+        /// releases retained observer-failure evidence.
+        /// </summary>
         public void Dispose()
         {
             Dispose(disposing: true);
@@ -200,6 +220,10 @@ namespace NekoLib.Data.Query
     /// </summary>
     public sealed class DbQueryObserverFailure
     {
+        /// <summary>Creates a value-free record of an isolated observer failure.</summary>
+        /// <param name="sequence">The context-local monotonic sequence number.</param>
+        /// <param name="eventType">The notification being delivered.</param>
+        /// <param name="exception">The subscriber exception.</param>
         public DbQueryObserverFailure(
             long sequence,
             DbQueryEventType eventType,
@@ -210,21 +234,31 @@ namespace NekoLib.Data.Query
             Exception = exception ?? throw new ArgumentNullException(nameof(exception));
         }
 
+        /// <summary>Gets the context-local monotonic sequence number.</summary>
         public long Sequence { get; }
+        /// <summary>Gets the notification type that failed.</summary>
         public DbQueryEventType EventType { get; }
+        /// <summary>Gets the subscriber exception.</summary>
         public Exception Exception { get; }
     }
 
+    /// <summary>Identifies synchronous query lifecycle notifications.</summary>
     [Flags]
     public enum DbQueryEventType
     {
+        /// <summary>Provider SQL was generated.</summary>
         SqlGenerated = 1,
+        /// <summary>The command was about to be dispatched.</summary>
         SqlDispatched = 2,
+        /// <summary>The command completed successfully.</summary>
         Success = 4,
+        /// <summary>The command or cleanup failed.</summary>
         Error = 8,
+        /// <summary>A streamed enumeration reached its terminal outcome.</summary>
         StreamTerminal = 16
     }
 
+    /// <summary>Identifies the terminal outcome of one started stream enumeration.</summary>
     public enum DbQueryStreamOutcome
     {
         /// <summary>The provider was exhausted and cleanup succeeded.</summary>
@@ -239,10 +273,16 @@ namespace NekoLib.Data.Query
         /// <summary>The consumer disposed an active stream before exhaustion.</summary>
         DisposedBeforeCompletion = 3
     }
+    /// <summary>Describes one synchronous query lifecycle notification.</summary>
     public class DbQueryEventArgs : EventArgs
     {
+        /// <summary>Gets provider SQL or the redaction marker configured by the context.</summary>
         public string RawSqlQuery { get; }
+        /// <summary>Gets the lifecycle notification type.</summary>
         public DbQueryEventType EventType { get; }
+        /// <summary>Creates query event data.</summary>
+        /// <param name="sql">Provider SQL or the configured redaction marker.</param>
+        /// <param name="type">The lifecycle notification type.</param>
         public DbQueryEventArgs(string sql, DbQueryEventType type = DbQueryEventType.SqlGenerated)
         {
             EventType = type;
@@ -250,20 +290,32 @@ namespace NekoLib.Data.Query
         }
 
     }
+    /// <summary>Describes successful query execution.</summary>
     public class DbQuerySuccessEventArgs : DbQueryEventArgs
     {
+        /// <summary>Gets the optional command result when explicitly enabled.</summary>
         public object? Result { get; }
+        /// <summary>Creates a success notification without a command result.</summary>
+        /// <param name="sql">Provider SQL or the configured redaction marker.</param>
         public DbQuerySuccessEventArgs(string sql) : base(sql, DbQueryEventType.SqlDispatched | DbQueryEventType.Success)
         { }
+        /// <summary>Creates a success notification with an optional command result.</summary>
+        /// <param name="sql">Provider SQL or the configured redaction marker.</param>
+        /// <param name="result">The result permitted by context options.</param>
         public DbQuerySuccessEventArgs(string sql, object? result) : base(sql, DbQueryEventType.SqlDispatched | DbQueryEventType.Success)
         {
             Result = result;
         }
     }
+    /// <summary>Describes failed query execution or cleanup.</summary>
     public class DbQueryFailureEventArgs : DbQueryEventArgs
     {
+        /// <summary>Gets the authoritative execution or cleanup exception.</summary>
         public Exception Ex { get; }
 
+        /// <summary>Creates a failure notification.</summary>
+        /// <param name="sql">Provider SQL or the configured redaction marker.</param>
+        /// <param name="ex">The authoritative failure.</param>
         public DbQueryFailureEventArgs(string sql, Exception ex) : base(sql, DbQueryEventType.SqlDispatched | DbQueryEventType.Error)
         {
             Ex = ex;
@@ -272,8 +324,13 @@ namespace NekoLib.Data.Query
 
     }
 
+    /// <summary>Describes the terminal state reported after stream cleanup.</summary>
     public sealed class DbQueryStreamTerminalEventArgs : DbQueryEventArgs
     {
+        /// <summary>Creates a stream terminal notification.</summary>
+        /// <param name="sql">Provider SQL or the configured redaction marker.</param>
+        /// <param name="outcome">The terminal outcome.</param>
+        /// <param name="exception">The failure or cancellation exception, if applicable.</param>
         public DbQueryStreamTerminalEventArgs(
             string sql,
             DbQueryStreamOutcome outcome,
@@ -284,7 +341,9 @@ namespace NekoLib.Data.Query
             Exception = exception;
         }
 
+        /// <summary>Gets the terminal outcome.</summary>
         public DbQueryStreamOutcome Outcome { get; }
+        /// <summary>Gets the failure or cancellation exception, if applicable.</summary>
         public Exception? Exception { get; }
     }
 

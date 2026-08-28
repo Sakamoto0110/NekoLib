@@ -13,7 +13,9 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// </summary>
     public class PageView : UserControl, IPageView, IPageLifecycle, IPageVisibility
     {
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public new bool IsDisposed { get; private set; }
 
         /// <summary>
@@ -31,6 +33,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
         /// </summary>
         public virtual bool AllowBackNavigation => true;
 
+        /// <summary>Initializes a designer-safe WinForms page view.</summary>
         protected PageView()
         {
             // Keep the ctor designer-safe: the WinForms designer instantiates this
@@ -47,16 +50,21 @@ namespace NekoLib.Navigation.WinForms.Hosting
 
         // Optional lifecycle hooks — override to load/refresh state on entry and to
         // persist/flush on exit. The runtime invokes both on the UI thread.
+        /// <inheritdoc />
         public virtual Task OnNavigatedToAsync(NavigationArgs args)
             => Task.CompletedTask;
 
+        /// <inheritdoc />
         public virtual Task OnNavigatedFromAsync()
             => Task.CompletedTask;
 
+        /// <inheritdoc />
         public virtual void ShowPage() => Visible = true;
 
+        /// <inheritdoc />
         public virtual void HidePage() => Visible = false;
 
+        /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
             if (disposing)

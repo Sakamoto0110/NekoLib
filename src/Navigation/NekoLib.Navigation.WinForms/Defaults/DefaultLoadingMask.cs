@@ -16,11 +16,14 @@ namespace NekoLib.Navigation.WinForms.Defaults
     public class DefaultLoadingMask : UserControl, IGlobalLoadingMask
     {
         // Fulfill the IPageView contract manually.
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public new bool IsDisposed => base.IsDisposed;
 
         private readonly Label _lblMessage;
 
+        /// <summary>Initializes the built-in centered loading message overlay.</summary>
         public DefaultLoadingMask()
         {
             // Dimmed solid color; UserControl does not honor true transparency the
@@ -39,6 +42,7 @@ namespace NekoLib.Navigation.WinForms.Defaults
             Controls.Add(_lblMessage);
         }
 
+        /// <inheritdoc />
         public Task OnOverlayOpenedAsync(object? payload)
         {
             _lblMessage.Text = payload?.ToString() ?? "Loading...";
@@ -48,6 +52,7 @@ namespace NekoLib.Navigation.WinForms.Defaults
         Task IPageOverlay.OnOverlayOpenedAsync(object? payload)
             => OnOverlayOpenedAsync(payload);
 
+        /// <inheritdoc />
         public Task OnOverlayClosingAsync() => Task.CompletedTask;
     }
 }

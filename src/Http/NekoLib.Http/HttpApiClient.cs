@@ -23,6 +23,16 @@ namespace NekoLib.Http
         private readonly IHttpBodySerializer _serializer;
         private readonly int _maxResponseContentBytes;
 
+        /// <summary>
+        /// Creates a typed client over a caller-owned <see cref="System.Net.Http.HttpClient"/>,
+        /// immutable catalog, and captured option values. The supplied HTTP client
+        /// and serializer remain caller-owned and are never disposed here.
+        /// </summary>
+        /// <param name="httpClient">Client with an absolute base address ending in <c>/</c>.</param>
+        /// <param name="catalog">Immutable endpoint catalog.</param>
+        /// <param name="options">Options to capture, or <c>null</c> for defaults.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="httpClient"/> or <paramref name="catalog"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">The base address or options are invalid.</exception>
         public HttpApiClient(
             System.Net.Http.HttpClient httpClient,
             HttpApiCatalog catalog,
@@ -51,6 +61,16 @@ namespace NekoLib.Http
             _maxResponseContentBytes = effectiveOptions.MaxResponseContentBytes;
         }
 
+        /// <summary>Sends a registered fixed endpoint and materializes its bounded response.</summary>
+        /// <typeparam name="TResponse">Successful response type declared by the endpoint.</typeparam>
+        /// <param name="endpoint">The exact endpoint instance registered in this client's catalog.</param>
+        /// <param name="cancellationToken">Token governing request construction checks, transport, and response reading.</param>
+        /// <returns>The asynchronous materialized HTTP outcome.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The supplied endpoint instance is not registered in this catalog.</exception>
+        /// <exception cref="HttpResponseContentTooLargeException">The response body exceeds the configured byte bound.</exception>
+        /// <exception cref="HttpResponseDeserializationException">A successful body cannot be converted to <typeparamref name="TResponse"/>.</exception>
+        /// <exception cref="OperationCanceledException">The caller or consumer-owned HTTP client cancels the operation.</exception>
         public Task<HttpApiResponse<TResponse>> SendAsync<TResponse>(
             HttpEndpoint<TResponse> endpoint,
             CancellationToken cancellationToken = default)
@@ -61,6 +81,21 @@ namespace NekoLib.Http
             return SendCoreAsync<TResponse>(endpoint, null, cancellationToken);
         }
 
+        /// <summary>
+        /// Sends a registered typed endpoint, deriving its URI, optional body,
+        /// and request customization from <paramref name="request"/>.
+        /// </summary>
+        /// <typeparam name="TRequest">Endpoint request type.</typeparam>
+        /// <typeparam name="TResponse">Successful response type.</typeparam>
+        /// <param name="endpoint">The exact endpoint instance registered in this client's catalog.</param>
+        /// <param name="request">Non-null caller-owned request value.</param>
+        /// <param name="cancellationToken">Token governing request construction checks, transport, and response reading.</param>
+        /// <returns>The asynchronous materialized HTTP outcome.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> or <paramref name="request"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The endpoint is unregistered or an endpoint callback produces no required URI or body.</exception>
+        /// <exception cref="HttpResponseContentTooLargeException">The response body exceeds the configured byte bound.</exception>
+        /// <exception cref="HttpResponseDeserializationException">A successful body cannot be converted to <typeparamref name="TResponse"/>.</exception>
+        /// <exception cref="OperationCanceledException">The caller or consumer-owned HTTP client cancels the operation.</exception>
         public Task<HttpApiResponse<TResponse>> SendAsync<TRequest, TResponse>(
             HttpEndpoint<TRequest, TResponse> endpoint,
             TRequest request,

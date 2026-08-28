@@ -46,6 +46,54 @@ after every gateway and session that uses it. With
 `DbConnectionFactoryOwnership.External`, the caller also retains responsibility
 for disposing the factory.
 
+### Writing a custom connection factory
+
+Implement `IDbConnectionFactory` when construction needs a provider factory,
+credential refresh, tenant routing, or another application-owned policy that a
+public connection-string constructor cannot express:
+
+```csharp
+using System;
+using System.Data.Common;
+using System.Threading.Tasks;
+using NekoLib.Data.Connection;
+
+public sealed class ProviderConnectionFactory : IDbConnectionFactory
+{
+    private readonly DbProviderFactory _provider;
+    private readonly string _connectionString;
+
+    public ProviderConnectionFactory(
+        DbProviderFactory provider,
+        string connectionString)
+    {
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _connectionString = connectionString
+            ?? throw new ArgumentNullException(nameof(connectionString));
+    }
+
+    public Task<DbConnection> Create()
+    {
+        var connection = _provider.CreateConnection()
+            ?? throw new InvalidOperationException("The provider returned no connection.");
+        connection.ConnectionString = _connectionString;
+        return Task.FromResult(connection);
+    }
+
+    public void Dispose()
+    {
+        // Dispose only resources owned by the factory itself.
+    }
+}
+```
+
+Every `Create()` call must return a **new, closed** connection. The gateway opens
+and disposes each returned connection, except while a `DbSession` owns it. The
+factory must not retain or later dispose those returned instances. `Create()` has
+no cancellation token; keep it bounded and leave network opening to the gateway.
+Choose `ContextOwned` when the context should dispose the factory, or `External`
+when the composition root owns its lifetime.
+
 ## Public capability surface
 
 `IDatabaseGateway` composes small capability interfaces:
@@ -121,6 +169,55 @@ for replacements and the compatibility window.
 OleDb binds by occurrence order, not parameter name. Automatic binding selects
 the positional binder for OleDb and named binding elsewhere. Do not reorder
 generated placeholders independently of their parameters.
+
+### Writing a custom query translator
+
+`IDbQueryTranslator` is a synchronous SQL-shaping seam. It receives the
+provider-neutral model produced by `QueryBuilder`; it must not open a connection,
+execute SQL, or own retry policy. A minimal translator preserves logical
+parameter metadata and command policy when it rewrites the SQL:
+
+```csharp
+using System;
+using NekoLib.Data.Query;
+
+public sealed class FetchFirstQueryTranslator : IDbQueryTranslator
+{
+    public DatabaseQuery Translate(QueryModel model)
+    {
+        if (model == null)
+            throw new ArgumentNullException(nameof(model));
+
+        var sql = model.Sql;
+        if (model.Top.HasValue)
+            sql += " FETCH FIRST " + model.Top.Value + " ROWS ONLY";
+
+        return DatabaseQuery.FromLogicalParameters(
+            sql,
+            model.LogicalParameters,
+            model.CommandPolicy);
+    }
+}
+```
+
+Use `DatabaseQuery.FromLogicalParameters(...)` for builder-generated queries.
+Constructing a `DatabaseQuery` only from `QueryModel.Parameters` keeps values but
+loses table/column provenance and explicit promotion/decay rules. A translator
+may repeat an existing placeholder, but it must preserve each logical name and
+keep placeholder occurrence order aligned with the parameters. This is required
+for OleDb, which binds positionally. Renaming, adding, or removing generated
+parameters is outside the normal translator contract and can turn structured
+metadata into unscoped compatibility values.
+
+Provider recognition considers the connection and translator types. An
+unrecognized pair may still use exact or field-explicit type rules, but it cannot
+authorize automatic schema-validated promotion or provider fallback. Raw string
+operations bypass the translator entirely; only `QueryBuilder` operations raise
+`OnSqlGenerated` after translation and before dispatch.
+
+At minimum, test null rejection, row-limit placement, preservation of
+`LogicalParameters` and `CommandPolicy`, repeated-placeholder behavior when the
+dialect permits it, and both named and positional binding when applicable.
 
 ## Write-side type adaptation
 
@@ -210,6 +307,21 @@ hatches and do not trigger schema inference. The gateway never dispatches one
 representation and retries a mutation with another. See the
 [type-adaptation migration guide](../../../docs/migrations/data-type-adaptation.md)
 for policy selection and examples.
+
+### Writing custom type-adaptation rules
+
+`TypeValueConverter` is the executable seam behind `TypePromotionRule`,
+`TypeDecayRule`, and `TypeMaterializationRule`. The delegate receives only one
+non-null value: it receives no SQL, credentials, connection, schema, or ambient
+context. Keep converters deterministic, use an explicit culture/format for text,
+validate the declared source and target types, and classify loss honestly.
+Thrown conversion or overflow failures are reported through the value-free
+adaptation exception/event contract; a converter must not log the source value.
+
+Register promotion/decay rules on the individual builder value, and register
+read materialization rules in `DatabaseGatewayOptions` before concurrent use.
+Custom rules do not bypass `TypePromotionPolicy`, `TypeDecayPolicy`, or
+`TypeLossPolicy`.
 
 ## Reads and mapping
 
@@ -337,11 +449,15 @@ outcome.
 
 ## Extension boundary
 
-Extend Data through `IDbConnectionFactory`, `IDbQueryTranslator`, the capability
-interfaces, options, and event subscriptions. `DatabaseGateway`,
-`QueryExecutionContext`, `QueryBuilder`, `RecordItem`, and the generic factory
-are sealed and are not inheritance contracts. The module has no project
-reference to Core or any other NekoLib package.
+The implementation seams are `IDbConnectionFactory`, `IDbQueryTranslator`, and
+`TypeValueConverter` through the three rule types. Options configure policy and
+events provide synchronous observation. `IDatabaseGateway`, `IDqlGateway`,
+`IDmlGateway`, and the narrower interfaces are capability views for consumers;
+they are not plug-in contracts used by `DatabaseGateway` internally.
+
+`DatabaseGateway`, `QueryExecutionContext`, `QueryBuilder`, `RecordItem`, and
+the generic factory are sealed and are not inheritance contracts. The module has
+no project reference to Core or any other NekoLib package.
 
 ## Experimental APIs
 

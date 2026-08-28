@@ -201,6 +201,27 @@ requirement, which does not exist today.
 
 Windows P/Invoke stays isolated in `NekoLib.Diagnostics.Windows`.
 
+## Writing a custom dump writer
+
+`CrashDumpWriter` is the platform extension seam behind
+`CrashHandlerOptions.DumpWriter`. It is a synchronous delegate that receives the
+reserved `crash.dmp` path and the captured `CrashDumpLevel`. Configure it before
+constructing `CrashHandler`, because options are copied at construction.
+
+The writer must create the artifact at the supplied path and return `true` only
+after the file is complete. Return `false` when no dump was written. The handler
+passes `CrashDumpLevel.None` to a configured custom writer rather than suppressing
+the call; a writer that follows the built-in meaning must return `false` without
+creating a file for that value. Writer exceptions, false returns, and timeouts
+become artifact notes and do not suppress `crash.txt` or the remaining tails.
+
+The callback runs as a bounded Diagnostics contributor without a cancellation
+token. Keep it self-bounded and avoid process-wide state changes. It may execute
+on a background thread during an unhandled incident, so it must not require the
+UI thread, a healthy request context, or services that are already tearing down.
+`CrashBundleWrittenEventArgs.DumpWritten`, not file-path presence alone, is the
+reported outcome.
+
 ## NekoLib.Diagnostics.Windows
 
 The Windows adapter targets `net481`/`net9.0-windows` and references only

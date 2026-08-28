@@ -168,6 +168,16 @@ namespace NekoLib.Data
         public DbSynchronousFallbackMode SynchronousFallbackMode { get; set; } =
             DbSynchronousFallbackMode.Disabled;
 
+        /// <summary>
+        /// Normalizes bounded numeric options and validates enum values and
+        /// adaptation-rule collections before the options are used by a context.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// A rule collection contains an invalid, duplicate, or incompatible rule.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// An enum value or command timeout is outside its supported range.
+        /// </exception>
         public void Validate()
         {
             if (MaxDynamicSchemas < 1) MaxDynamicSchemas = 1;

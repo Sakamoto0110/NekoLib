@@ -10,6 +10,7 @@ namespace NekoLib.Data.Query
     /// </summary>
     public sealed class SqlServerQueryTranslator : IDbQueryTranslator
     {
+        /// <inheritdoc />
         public DatabaseQuery Translate(QueryModel Model)
         {
             if(Model == null) throw new ArgumentNullException(nameof(Model));
@@ -46,6 +47,7 @@ namespace NekoLib.Data.Query
     /// </summary>
     public sealed class AccessQueryTranslator : IDbQueryTranslator
     {
+        /// <inheritdoc />
         public DatabaseQuery Translate(QueryModel Model)
         {
             if(Model == null) throw new ArgumentNullException(nameof(Model));
@@ -123,6 +125,7 @@ namespace NekoLib.Data.Query
     /// </summary>
     public sealed class SqliteQueryTranslator : IDbQueryTranslator
     {
+        /// <inheritdoc />
         public DatabaseQuery Translate(QueryModel Model)
         {
             if(Model == null) throw new ArgumentNullException(nameof(Model));

@@ -19,6 +19,8 @@ namespace NekoLib.Navigation.WinForms.Adapters
         private readonly Control _root;
         private readonly int _uiThreadId;
 
+        /// <summary>Captures the owning UI thread and dispatch root.</summary>
+        /// <param name="root">WinForms root created on the UI thread.</param>
         public WinFormsEventDispatcherAdapter(Control root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
@@ -30,6 +32,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             _uiThreadId = Thread.CurrentThread.ManagedThreadId;
         }
 
+        /// <inheritdoc />
         public void Invoke(Action action)
         {
             if (action == null)
@@ -53,6 +56,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             action();
         }
 
+        /// <inheritdoc />
         public void BeginInvoke(Action action)
         {
             if (action == null)

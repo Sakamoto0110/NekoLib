@@ -24,6 +24,10 @@ namespace NekoLib.Data.Mapping
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache =
             new ConcurrentDictionary<Type, PropertyInfo[]>();
 
+        /// <summary>Maps a textual raw row to a new DTO using strict failure handling.</summary>
+        /// <typeparam name="T">A DTO with a public parameterless constructor.</typeparam>
+        /// <param name="row">The case-insensitive column map.</param>
+        /// <returns>The populated DTO.</returns>
         public static T Map<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -33,6 +37,11 @@ namespace NekoLib.Data.Mapping
             return Map<T>(row, DataMappingFailureMode.Strict);
         }
 
+        /// <summary>Maps a textual raw row to a new DTO.</summary>
+        /// <typeparam name="T">A DTO with a public parameterless constructor.</typeparam>
+        /// <param name="row">The case-insensitive column map.</param>
+        /// <param name="failureMode">How conversion or assignment failures are handled.</param>
+        /// <returns>The populated DTO.</returns>
         public static T Map<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -49,6 +58,10 @@ namespace NekoLib.Data.Mapping
             return instance;
         }
 
+        /// <summary>Maps a textual raw row to a runtime-selected DTO type using strict failure handling.</summary>
+        /// <param name="row">The case-insensitive column map.</param>
+        /// <param name="targetType">A type with a public parameterless constructor and writable properties.</param>
+        /// <returns>The populated DTO instance.</returns>
         public static object Map(
             Dictionary<string, RecordItem> row,
 #if NET6_0_OR_GREATER
@@ -59,6 +72,11 @@ namespace NekoLib.Data.Mapping
             return Map(row, targetType, DataMappingFailureMode.Strict);
         }
 
+        /// <summary>Maps a textual raw row to a runtime-selected DTO type.</summary>
+        /// <param name="row">The case-insensitive column map.</param>
+        /// <param name="targetType">A type with a public parameterless constructor and writable properties.</param>
+        /// <param name="failureMode">How conversion or assignment failures are handled.</param>
+        /// <returns>The populated DTO instance.</returns>
         public static object Map(
             Dictionary<string, RecordItem> row,
 #if NET6_0_OR_GREATER

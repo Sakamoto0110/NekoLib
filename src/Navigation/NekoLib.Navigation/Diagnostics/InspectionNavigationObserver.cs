@@ -20,6 +20,7 @@ namespace NekoLib.Navigation.Diagnostics
     /// </summary>
     public sealed class InspectionNavigationObserver : IDisposable
     {
+        /// <summary>Module name used for every Inspection provider and operation.</summary>
         public const string Module = "Navigation";
 
         private const long SlowStageMilliseconds = 1000;
@@ -148,6 +149,13 @@ namespace NekoLib.Navigation.Diagnostics
             }
         }
 
+        /// <summary>
+        /// Attaches Inspection recording and the full context-backed state provider set.
+        /// </summary>
+        /// <param name="context">Mounted context whose state and events are observed.</param>
+        /// <param name="debug">Recorder that owns the registered providers.</param>
+        /// <returns>An idempotent lifetime that unregisters providers and event handlers, or an empty lifetime when Inspection is disabled.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
         public static IDisposable Attach(
             NavigationContext context,
             IInspectionRecorder debug)
@@ -163,6 +171,14 @@ namespace NekoLib.Navigation.Diagnostics
                 debug);
         }
 
+        /// <summary>
+        /// Attaches Inspection recording to a standalone event hub without
+        /// context-backed registry, history, or session providers.
+        /// </summary>
+        /// <param name="hub">Event hub to observe.</param>
+        /// <param name="debug">Recorder that owns the registered providers.</param>
+        /// <returns>An idempotent lifetime that unregisters providers and event handlers, or an empty lifetime when Inspection is disabled.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="hub"/> is <see langword="null"/>.</exception>
         public static IDisposable Attach(
             NavigationEventHub hub,
             IInspectionRecorder debug)
@@ -1514,6 +1530,7 @@ namespace NekoLib.Navigation.Diagnostics
             }
         }
 
+        /// <summary>Detaches every event and unregisters every provider owned by this observer.</summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)

@@ -14,6 +14,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// </summary>
     public sealed class WpfFocusObserverAdapter : IFocusObserverAdapter
     {
+        /// <inheritdoc />
         public IDisposable Track(object nativeView, Action onUnfocus)
         {
             if (onUnfocus == null) throw new ArgumentNullException(nameof(onUnfocus));

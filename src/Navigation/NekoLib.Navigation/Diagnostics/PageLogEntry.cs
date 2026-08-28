@@ -11,28 +11,45 @@ namespace NekoLib.Navigation.Diagnostics
     /// </summary>
     public sealed class PageLogEntry
     {
+        /// <summary>Gets the previous page type, or <see langword="null"/> when navigation started without one.</summary>
         public Type? FromPageType { get; }
+        /// <summary>Gets the previous page's descriptor name, if one was available.</summary>
         public string? FromPageName { get; }
+        /// <summary>Gets the resolved target page type.</summary>
         public Type ToPageType { get; }
+        /// <summary>Gets the target page's descriptor name.</summary>
         public string ToPageName { get; }
 
         /// <summary>UTC timestamp at which the correlated request began.</summary>
         public DateTime TimestampUtc { get; }
+        /// <summary>Gets the descriptor-effective page load mode.</summary>
         public NavigationLoadMode LoadMode { get; }
+        /// <summary>Gets the descriptor-effective instance reuse policy.</summary>
         public PageReusePolicy ReusePolicy { get; }
+        /// <summary>Gets whether the terminal outcome represents an idle-timeout navigation failure.</summary>
         public bool IsTimeout { get; }
+        /// <summary>Gets whether this outcome belongs to a back-navigation request.</summary>
         public bool IsBackNavigation { get; }
+        /// <summary>Gets whether navigation completed successfully.</summary>
         public bool Success { get; }
+        /// <summary>Gets captured failure text, or <see langword="null"/> when none was recorded.</summary>
         public string? Error { get; }
+        /// <summary>Gets the normalized failure category.</summary>
         public NavigationFailureKind FailureKind { get; }
 
         /// <summary>Correlation is null for entries built through the legacy constructor.</summary>
         public string? RuntimeId { get; }
+        /// <summary>Gets the request correlation identifier, or <see langword="null"/> for a legacy entry.</summary>
         public string? RequestId { get; }
+        /// <summary>Gets the attempt correlation identifier, or <see langword="null"/> for a legacy entry.</summary>
         public string? AttemptId { get; }
+        /// <summary>Gets the parent attempt identifier for a redirect child, if any.</summary>
         public string? ParentAttemptId { get; }
+        /// <summary>Gets the zero-based redirect depth.</summary>
         public int RedirectDepth { get; }
+        /// <summary>Gets the request trigger name, or <see langword="null"/> for a legacy entry.</summary>
         public string? Trigger { get; }
+        /// <summary>Gets elapsed monotonic milliseconds from request start to this outcome.</summary>
         public long DurationMilliseconds { get; }
 
         /// <summary>
@@ -153,6 +170,8 @@ namespace NekoLib.Navigation.Diagnostics
             DurationMilliseconds = durationMilliseconds;
         }
 
+        /// <summary>Formats a compact timestamped navigation outcome for diagnostics.</summary>
+        /// <returns>A single-line outcome containing direction, page names, status, load mode, and reuse policy.</returns>
         public override string ToString()
         {
             var direction = IsBackNavigation ? "BACK" : "NAV";

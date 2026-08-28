@@ -30,6 +30,7 @@ namespace NekoLib.Data.Connection
         /// <summary>
         /// Creates a new closed <see cref="DbConnection"/> instance.
         /// </summary>
+        /// <returns>A task that yields a new, closed connection.</returns>
         Task<DbConnection> Create();
     }
 
@@ -44,12 +45,18 @@ namespace NekoLib.Data.Connection
     {
         private readonly string _connectionString;
 
+        /// <summary>
+        /// Creates a stateless factory for a connection type with a public
+        /// connection-string constructor.
+        /// </summary>
+        /// <param name="connectionString">The connection string passed to each new connection.</param>
         public DbConnectionAbstractFactory(string connectionString)
         {
             if(connectionString is null) throw new ArgumentNullException(nameof(connectionString));
             _connectionString = connectionString;
         }
 
+        /// <inheritdoc />
         public Task<DbConnection> Create()
         {
             var conn = (DbConnection?)Activator.CreateInstance(typeof(T), _connectionString);
@@ -58,6 +65,9 @@ namespace NekoLib.Data.Connection
             return Task.FromResult(conn);
         }
 
+        /// <summary>
+        /// Releases factory-owned resources. This stateless implementation owns none.
+        /// </summary>
         public void Dispose()
         {
             // Stateless: nothing to dispose.

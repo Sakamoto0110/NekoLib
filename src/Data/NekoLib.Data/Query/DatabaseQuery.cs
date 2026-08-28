@@ -15,6 +15,7 @@ namespace NekoLib.Data.Query
     /// </summary>
     public sealed class DatabaseQuery
     {
+        /// <summary>Gets the provider-specific SQL ready for execution.</summary>
         public string Sql { get; }
 
         /// <summary>
@@ -58,6 +59,14 @@ namespace NekoLib.Data.Query
         /// <summary>Gets the policy overrides for this translated command.</summary>
         public DbCommandPolicy CommandPolicy { get; }
 
+        /// <summary>
+        /// Creates provider-specific SQL from compatibility parameter values.
+        /// Values supplied here have no table or column provenance and no explicit
+        /// type-adaptation rules.
+        /// </summary>
+        /// <param name="sql">Provider-specific SQL.</param>
+        /// <param name="parameters">Parameter values keyed by logical name.</param>
+        /// <param name="commandPolicy">Optional command policy overrides.</param>
         public DatabaseQuery(
             string sql,
             Dictionary<string, object?> parameters,
@@ -71,6 +80,12 @@ namespace NekoLib.Data.Query
         /// Custom translators should use this factory when they rewrite SQL but
         /// retain the model's logical identities.
         /// </summary>
+        /// <param name="sql">Provider-specific SQL.</param>
+        /// <param name="logicalParameters">
+        /// Logical parameter identities, values, provenance, and adaptation rules.
+        /// </param>
+        /// <param name="commandPolicy">Optional command policy overrides.</param>
+        /// <returns>A translated query that retains the supplied metadata.</returns>
         public static DatabaseQuery FromLogicalParameters(
             string sql,
             IEnumerable<LogicalParameter> logicalParameters,

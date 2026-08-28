@@ -35,6 +35,11 @@ namespace NekoLib.Inspection
         private IDisposable? _globalInstallation;
         private int _disposed;
 
+        /// <summary>
+        /// Creates an enabled caller-owned runtime from a captured options snapshot.
+        /// </summary>
+        /// <param name="options">Options to capture, or <c>null</c> for defaults.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><see cref="InspectionOptions.Capacity"/> is less than 1.</exception>
         public InspectionRuntime(InspectionOptions? options = null)
         {
             var capacity = options?.Capacity ?? 1024;
@@ -45,6 +50,15 @@ namespace NekoLib.Inspection
             _operations = new Queue<InspectionOperation>(_capacity);
         }
 
+        /// <summary>
+        /// Creates and installs the single process-wide runtime exposed through
+        /// <see cref="InspectionProvider.Current"/>. Disposing the returned owner
+        /// restores the Core null implementation.
+        /// </summary>
+        /// <param name="options">Options to capture, or <c>null</c> for defaults.</param>
+        /// <returns>The installed runtime, whose disposal owns uninstallation.</returns>
+        /// <exception cref="InvalidOperationException">A global inspection runtime is already installed.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><see cref="InspectionOptions.Capacity"/> is less than 1.</exception>
         public static InspectionRuntime EnableGlobal(InspectionOptions? options = null)
             => EnableGlobal(options, null);
 
@@ -79,8 +93,19 @@ namespace NekoLib.Inspection
             }
         }
 
+        /// <summary>Gets whether the runtime still accepts and exposes inspection state.</summary>
         public bool IsEnabled => Volatile.Read(ref _disposed) == 0;
 
+        /// <summary>
+        /// Records a bounded passive operation. Payload failures are converted to
+        /// a type-only marker; valid calls after disposal are inert and do not
+        /// evaluate <paramref name="payload"/>.
+        /// </summary>
+        /// <param name="module">Non-blank module identity; <c>::</c> is reserved.</param>
+        /// <param name="operation">Non-blank operation name.</param>
+        /// <param name="payload">Optional synchronous payload factory evaluated before the operation lock.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="module"/> or <paramref name="operation"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An identity is blank or <paramref name="module"/> contains <c>::</c>.</exception>
         public void Record(string module, string operation, Func<object>? payload = null)
         {
             ValidateModule(module, nameof(module));
@@ -117,6 +142,17 @@ namespace NekoLib.Inspection
             }
         }
 
+        /// <summary>
+        /// Registers a pull-based state provider under the ordinal,
+        /// case-sensitive identity <c>module::key</c>.
+        /// </summary>
+        /// <param name="module">Non-blank module identity without <c>::</c>.</param>
+        /// <param name="key">Non-blank provider key without <c>::</c>.</param>
+        /// <param name="snapshot">Synchronous provider invoked by state capture.</param>
+        /// <returns>An idempotent handle that unregisters only this registration, or an inert handle after disposal.</returns>
+        /// <exception cref="ArgumentNullException">An identity or <paramref name="snapshot"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An identity is blank or contains <c>::</c>.</exception>
+        /// <exception cref="InvalidOperationException">The composed identity is already registered.</exception>
         public IDisposable RegisterStateProvider(
             string module,
             string key,
@@ -145,6 +181,18 @@ namespace NekoLib.Inspection
             return new Unregister(() => UnregisterStateProvider(id, registrationId));
         }
 
+        /// <summary>
+        /// Registers a synchronous experimental action under the ordinal,
+        /// case-sensitive identity <c>module::name</c>. This is not an
+        /// authorization or remote-execution boundary.
+        /// </summary>
+        /// <param name="module">Non-blank module identity without <c>::</c>.</param>
+        /// <param name="name">Non-blank action name without <c>::</c>.</param>
+        /// <param name="action">Action delegate invoked outside the registry lock.</param>
+        /// <returns>An idempotent handle that unregisters only this registration, or an inert handle after disposal.</returns>
+        /// <exception cref="ArgumentNullException">An identity or <paramref name="action"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An identity is blank or contains <c>::</c>.</exception>
+        /// <exception cref="InvalidOperationException">The composed identity is already registered.</exception>
         [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public IDisposable RegisterAction(
             string module,
@@ -174,6 +222,15 @@ namespace NekoLib.Inspection
             return new Unregister(() => UnregisterAction(id, registrationId));
         }
 
+        /// <summary>
+        /// Captures the newest operation window and invokes state providers in
+        /// registration order under one shared completion budget. The budget
+        /// bounds caller completion but does not cancel provider code.
+        /// </summary>
+        /// <param name="maxOperations">Maximum newest operations to include; zero is valid.</param>
+        /// <param name="timeout">Shared non-negative provider completion budget.</param>
+        /// <returns>A detached snapshot with timeout, null, and failure markers for provider outcomes.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">A limit or timeout is negative.</exception>
         public InspectionSnapshot CaptureSnapshot(int maxOperations, TimeSpan timeout)
         {
             if (maxOperations < 0)
@@ -244,6 +301,7 @@ namespace NekoLib.Inspection
         /// failures are isolated exactly as before the rename. Diagnostics should
         /// depend on <see cref="IInspectionSnapshotSource"/> and supply a budget.
         /// </summary>
+        /// <returns>A new ordinal dictionary in provider registration order.</returns>
         public IReadOnlyDictionary<string, object> CaptureState()
         {
             List<KeyValuePair<string, StateRegistration>> providers;
@@ -264,12 +322,19 @@ namespace NekoLib.Inspection
             return state;
         }
 
+        /// <summary>Returns all currently retained operations in sequence order.</summary>
+        /// <returns>A detached collection whose payload values remain shallow references.</returns>
         public IReadOnlyList<InspectionOperation> GetOperations()
         {
             lock (_operationGate)
                 return _operations.ToArray();
         }
 
+        /// <summary>
+        /// Removes retained operations and increments the enabled clear count,
+        /// while preserving lifetime totals, eviction count, and sequence state.
+        /// Calls after disposal are inert.
+        /// </summary>
         public void ClearOperations()
         {
             lock (_operationGate)
@@ -282,6 +347,8 @@ namespace NekoLib.Inspection
             }
         }
 
+        /// <summary>Captures current lifecycle, retention, lifetime counter, and registration diagnostics.</summary>
+        /// <returns>A best-effort immutable snapshot; operation and registry groups are not globally atomic.</returns>
         public InspectionRuntimeDiagnostics GetDiagnostics()
         {
             int retainedCount;
@@ -321,6 +388,17 @@ namespace NekoLib.Inspection
                 actionCount);
         }
 
+        /// <summary>
+        /// Invokes a registered experimental action synchronously outside the
+        /// registry lock. Action exceptions propagate to the caller.
+        /// </summary>
+        /// <param name="module">Non-blank module identity without <c>::</c>.</param>
+        /// <param name="name">Non-blank action name without <c>::</c>.</param>
+        /// <param name="argument">Caller-owned argument passed through unchanged.</param>
+        /// <param name="result">Receives the action result, or <c>null</c> when no action is found.</param>
+        /// <returns><c>true</c> when an action was found and invoked; otherwise <c>false</c>.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="module"/> or <paramref name="name"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">An identity is blank or contains <c>::</c>.</exception>
         [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public bool TryInvokeAction(
             string module,
@@ -345,6 +423,8 @@ namespace NekoLib.Inspection
             return true;
         }
 
+        /// <summary>Returns current state-provider identities in registration order.</summary>
+        /// <returns>A detached list of ordinal, case-sensitive <c>module::key</c> identities.</returns>
         public IReadOnlyList<string> StateKeys()
         {
             lock (_registryGate)
@@ -358,6 +438,8 @@ namespace NekoLib.Inspection
             }
         }
 
+        /// <summary>Returns current experimental action identities in registration order.</summary>
+        /// <returns>A detached list of ordinal, case-sensitive <c>module::name</c> identities.</returns>
         [Obsolete("Experimental API NEKOEXP0001: compatibility is not guaranteed.", error: false)]
         public IReadOnlyList<string> ActionKeys()
         {
@@ -372,6 +454,11 @@ namespace NekoLib.Inspection
             }
         }
 
+        /// <summary>
+        /// Disables the runtime, uninstalls a global ownership slot when held,
+        /// and clears registrations and retained operations. Disposal is idempotent;
+        /// delegates already copied by a concurrent capture are not cancelled.
+        /// </summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)

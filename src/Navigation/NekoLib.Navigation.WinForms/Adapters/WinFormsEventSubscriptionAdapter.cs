@@ -4,9 +4,11 @@ using System.Reflection;
 
 namespace NekoLib.Navigation.WinForms.Adapters
 {
+    /// <summary>Attaches delegates to named public WinForms or application events by reflection.</summary>
     public sealed class WinFormsEventSubscriptionAdapter
      : IEventSubscriptionAdapter
     {
+        /// <inheritdoc />
         public void Attach<THandler>(
             object receiver,
             string eventName,
@@ -32,6 +34,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
             ev.AddEventHandler(receiver, handler);
         }
 
+        /// <inheritdoc />
         public void Detach<THandler>(
             object receiver,
             string eventName,

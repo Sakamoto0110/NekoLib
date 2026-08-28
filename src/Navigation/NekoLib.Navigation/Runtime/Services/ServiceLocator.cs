@@ -23,6 +23,11 @@ namespace NekoLib.Navigation.Runtime.Services
         // Registration
         // ------------------------------------------------------------
 
+        /// <summary>Registers one exact service type before the locator is locked.</summary>
+        /// <param name="serviceType">Exact key used for later resolution; assignable types are not searched.</param>
+        /// <param name="instance">Context-scoped instance retained without automatic disposal.</param>
+        /// <exception cref="ArgumentNullException">Either argument is <see langword="null"/>.</exception>
+        /// <exception cref="InvalidOperationException">Registration is locked or the key is already present.</exception>
         public void Register(Type serviceType, object instance)
         {
             if (serviceType == null)
@@ -44,6 +49,9 @@ namespace NekoLib.Navigation.Runtime.Services
             }
         }
 
+        /// <summary>Registers an instance under the exact compile-time type <typeparamref name="T"/>.</summary>
+        /// <typeparam name="T">Service key type.</typeparam>
+        /// <param name="instance">Context-scoped instance retained without automatic disposal.</param>
         public void Register<T>(T instance) where T : class
             => Register(typeof(T), instance);
 
@@ -51,6 +59,9 @@ namespace NekoLib.Navigation.Runtime.Services
         // Resolution
         // ------------------------------------------------------------
 
+        /// <summary>Checks whether an exact service type is registered.</summary>
+        /// <param name="type">Exact service key; <see langword="null"/> returns <see langword="false"/>.</param>
+        /// <returns><see langword="true"/> when the key is present.</returns>
         public bool CanResolve(Type type)
         {
             if (type == null)
@@ -62,6 +73,11 @@ namespace NekoLib.Navigation.Runtime.Services
             }
         }
 
+        /// <summary>Resolves an instance by its exact registered type.</summary>
+        /// <param name="type">Exact service key.</param>
+        /// <returns>The registered instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null"/>.</exception>
+        /// <exception cref="InvalidOperationException">The key is not registered.</exception>
         public object Get(Type type)
         {
             if (type == null)
@@ -77,6 +93,9 @@ namespace NekoLib.Navigation.Runtime.Services
             }
         }
 
+        /// <summary>Resolves an instance by the exact compile-time type <typeparamref name="T"/>.</summary>
+        /// <typeparam name="T">Registered service key type.</typeparam>
+        /// <returns>The registered instance cast to <typeparamref name="T"/>.</returns>
         public T Get<T>() where T : class
         {
             return (T)Get(typeof(T));
@@ -86,6 +105,7 @@ namespace NekoLib.Navigation.Runtime.Services
         // Lifecycle
         // ------------------------------------------------------------
 
+        /// <summary>Permanently closes registration while leaving resolution available.</summary>
         public void Lock()
         {
             lock (_sync)

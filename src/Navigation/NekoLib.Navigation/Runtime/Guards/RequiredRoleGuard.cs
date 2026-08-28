@@ -4,11 +4,15 @@ using System.Linq;
 using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Guards {
+    /// <summary>Requires one named role and optionally redirects when it is absent.</summary>
     public sealed class RequireRoleGuard : IGuard
     {
         private readonly string _role;
         private readonly Type? _redirect;
 
+        /// <summary>Initializes the role requirement.</summary>
+        /// <param name="role">Non-empty role name.</param>
+        /// <param name="redirect">Optional concrete <see cref="Contracts.Pages.IPageView"/> redirect type.</param>
         public RequireRoleGuard(string role, Type? redirect = null)
         {
             _role = GuardContractValidation.RequireName(role, nameof(role), "required role");
@@ -17,6 +21,7 @@ namespace NekoLib.Navigation.Runtime.Guards {
             _redirect = redirect;
         }
 
+        /// <inheritdoc />
         public Task<GuardResult> EvaluateAsync(GuardContext context)
         {
             if (context?.User?.Roles == null)

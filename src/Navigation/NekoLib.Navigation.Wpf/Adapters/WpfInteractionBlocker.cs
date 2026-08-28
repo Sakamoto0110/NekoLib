@@ -36,11 +36,14 @@ namespace NekoLib.Navigation.Wpf.Adapters
         private readonly List<UIElement> _modalStack = new List<UIElement>();
         private int _blockDepth;
 
+        /// <summary>Initializes a blocker for one WPF navigation root.</summary>
+        /// <param name="root">Root whose descendant elements are tracked.</param>
         public WpfInteractionBlocker(UIElement root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
+        /// <inheritdoc />
         public void Block()
         {
             _blockDepth++;
@@ -78,6 +81,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             }
         }
 
+        /// <inheritdoc />
         public void Unblock()
         {
             if (_blockDepth == 0) return;
@@ -88,6 +92,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             RestoreDisabledElements();
         }
 
+        /// <inheritdoc />
         public void OnViewAdded(object view, bool isModalSurface)
         {
             if (_blockDepth == 0 || !(view is UIElement element))
@@ -110,6 +115,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             Restore(element);
         }
 
+        /// <inheritdoc />
         public void OnViewRemoved(object view)
         {
             if (!(view is UIElement element))

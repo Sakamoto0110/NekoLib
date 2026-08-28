@@ -25,6 +25,9 @@ namespace NekoLib.Diagnostics.Windows
         /// applying this afterwards has no effect on that handler. Replaces any
         /// previously configured dump writer. Returns the same options for chaining.
         /// </summary>
+        /// <param name="options">Options instance to mutate before handler construction.</param>
+        /// <returns>The same <paramref name="options"/> instance for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public static CrashHandlerOptions UseMiniDump(this CrashHandlerOptions options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));

@@ -22,6 +22,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
     /// </remarks>
     public class AutoDismissPopoverBase : PopoverViewBase, IUnfocusAware
     {
+        /// <inheritdoc />
         public virtual Task OnUnfocusAsync()
         {
             Complete(false);

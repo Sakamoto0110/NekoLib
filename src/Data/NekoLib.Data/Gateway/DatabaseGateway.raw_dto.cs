@@ -23,11 +23,13 @@ namespace NekoLib.Data.Gateway
     {
         #region Raw API (RecordItem)
 
+        /// <inheritdoc/>
         public Task<bool> ContainsData(string Sql, CancellationToken Ct = default)
         {
             return ContainsDataCore(Sql, null, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<bool> ContainsData(
             string Sql,
             Dictionary<string, object?>? Parameters,
@@ -36,11 +38,13 @@ namespace NekoLib.Data.Gateway
             return ContainsDataCore(Sql, Parameters, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<bool> ContainsData(string Sql, DbSession session, CancellationToken Ct = default)
         {
             return ContainsDataCore(Sql, null, session, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<bool> ContainsData(
             string Sql,
             Dictionary<string, object?>? Parameters,
@@ -68,16 +72,19 @@ namespace NekoLib.Data.Gateway
             return has;
         }
 
+        /// <inheritdoc/>
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql,CancellationToken Ct = default)
         {
             return GetRawCore(Sql, null, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters,CancellationToken Ct = default)
         {
             return GetRawCore(Sql, Parameters, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(string Sql, Dictionary<string, object?>? Parameters, DbSession session, CancellationToken Ct = default)
         {
             return GetRawCore(Sql, Parameters, session, Ct);
@@ -112,16 +119,19 @@ namespace NekoLib.Data.Gateway
             return result;
         }
 
+        /// <inheritdoc/>
         public Task ReadRaw(string Sql,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
         {
             return ReadRawCore(Sql, null, Callback, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
         {
             return ReadRawCore(Sql, Parameters, Callback, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task ReadRaw(string Sql,Dictionary<string, object?>? Parameters,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
         {
             return ReadRawCore(Sql, Parameters, Callback, session, Ct);
@@ -156,11 +166,13 @@ namespace NekoLib.Data.Gateway
             }, Ct, session, commandPolicy, logicalParameters).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder,CancellationToken Ct = default)
         {
             return GetRawFromBuilder(Builder, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<List<Dictionary<string, RecordItem>>> GetRaw(QueryBuilder Builder, DbSession session, CancellationToken Ct = default)
         {
             return GetRawFromBuilder(Builder, session, Ct);
@@ -183,11 +195,13 @@ namespace NekoLib.Data.Gateway
                 dbq.LogicalParameters).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback,CancellationToken Ct = default)
         {
             return ReadRawFromBuilder(Builder, Callback, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task ReadRaw(QueryBuilder Builder ,Action<Dictionary<string, RecordItem>> Callback, DbSession session, CancellationToken Ct = default)
         {
             return ReadRawFromBuilder(Builder, Callback, session, Ct);
@@ -214,11 +228,13 @@ namespace NekoLib.Data.Gateway
 
         }
 
+        /// <inheritdoc/>
         public Task<int> Insert(QueryBuilder Builder , CancellationToken Ct = default)
         {
             return ExecuteBuilderDmlAsync(Builder, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<int> Insert(
             QueryBuilder Builder,
             DbSession session,
@@ -227,11 +243,13 @@ namespace NekoLib.Data.Gateway
             return ExecuteBuilderDmlAsync(Builder, session, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<int> Update(QueryBuilder Builder , CancellationToken Ct = default)
         {
             return ExecuteBuilderDmlAsync(Builder, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<int> Update(
             QueryBuilder Builder,
             DbSession session,
@@ -240,11 +258,13 @@ namespace NekoLib.Data.Gateway
             return ExecuteBuilderDmlAsync(Builder, session, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<int> Delete(QueryBuilder Builder, CancellationToken Ct = default)
         {
             return ExecuteBuilderDmlAsync(Builder, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<int> Delete(
             QueryBuilder Builder,
             DbSession session,
@@ -295,6 +315,7 @@ namespace NekoLib.Data.Gateway
 
 
 
+        /// <inheritdoc/>
         public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -304,6 +325,7 @@ namespace NekoLib.Data.Gateway
             return GetDtoFromBuilder<T>(Builder, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -371,6 +393,7 @@ namespace NekoLib.Data.Gateway
             return list;
         }
 
+        /// <inheritdoc/>
         public Task ReadDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -380,6 +403,7 @@ namespace NekoLib.Data.Gateway
             return ReadDtoFromBuilder<T>(Builder, Callback, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task ReadDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -455,6 +479,7 @@ namespace NekoLib.Data.Gateway
 
 
 
+        /// <inheritdoc/>
         public IAsyncEnumerable<T> StreamDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -464,6 +489,7 @@ namespace NekoLib.Data.Gateway
             return StreamDtoFromBuilder<T>(builder, null, ct);
         }
 
+        /// <inheritdoc/>
         /// <remarks>
         /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
         /// so the <paramref name="session"/> connection and transaction remain

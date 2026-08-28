@@ -27,11 +27,25 @@ namespace NekoLib.Logging
         private readonly Queue<LogEntry> _recentEntries;
         private int _disposed;
 
+        /// <summary>
+        /// Creates a logger with the specified minimum level, default retention
+        /// and sink-disposal behavior, and a copied sink set.
+        /// </summary>
+        /// <param name="minLevel">Minimum severity accepted by the pipeline.</param>
+        /// <param name="sinks">Sinks invoked synchronously in registration order; null elements are ignored.</param>
         public Logger(LogLevel minLevel, params ILogSink[]? sinks)
             : this(new LoggerOptions { MinimumLevel = minLevel }, sinks)
         {
         }
 
+        /// <summary>
+        /// Creates a logger from a captured options snapshot and a copied sink set.
+        /// </summary>
+        /// <param name="options">Options to capture, or <c>null</c> for defaults.</param>
+        /// <param name="sinks">Sinks invoked synchronously in registration order; null elements are ignored.</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <see cref="LoggerOptions.RecentEntryCapacity"/> is less than 1.
+        /// </exception>
         public Logger(LoggerOptions? options = null, params ILogSink[]? sinks)
         {
             options = options ?? new LoggerOptions();
@@ -70,6 +84,15 @@ namespace NekoLib.Logging
                 : accepted.ToArray();
         }
 
+        /// <summary>
+        /// Records and synchronously dispatches an entry when its severity meets
+        /// the configured threshold. Calls after disposal are ignored, and sink
+        /// exceptions are isolated.
+        /// </summary>
+        /// <param name="level">Entry severity.</param>
+        /// <param name="message">Caller-supplied message; the pipeline does not redact it.</param>
+        /// <param name="exception">Optional exception evidence.</param>
+        /// <param name="category">Optional application category.</param>
         public void Log(
             LogLevel level,
             string message,
@@ -110,6 +133,8 @@ namespace NekoLib.Logging
         /// stays readable after disposal so an incident collector can still take a
         /// post-shutdown snapshot.
         /// </summary>
+        /// <param name="maxEntries">Maximum number of newest retained entries to return.</param>
+        /// <returns>A detached chronological collection, or an empty collection for a non-positive limit.</returns>
         public IReadOnlyList<LogEntry> GetRecentEntries(int maxEntries)
         {
             if (maxEntries <= 0)
@@ -136,6 +161,8 @@ namespace NekoLib.Logging
         /// <c>true</c> after disposal completes, because disposal performs the
         /// final flush. A concurrent disposal still observes this timeout.
         /// </summary>
+        /// <param name="timeout">Total non-negative completion budget across lock admission and all flushable sinks.</param>
+        /// <returns><c>true</c> when completion was confirmed for every admitted sink; otherwise <c>false</c>.</returns>
         /// <exception cref="ArgumentOutOfRangeException">
         /// <paramref name="timeout"/> is negative, which includes
         /// <see cref="Timeout.InfiniteTimeSpan"/>. A bounded completion request

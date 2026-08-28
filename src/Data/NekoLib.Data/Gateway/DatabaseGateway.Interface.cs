@@ -13,6 +13,7 @@ namespace NekoLib.Data.Gateway
 {
     public partial class DatabaseGateway
     {
+        /// <inheritdoc/>
         public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -26,6 +27,7 @@ namespace NekoLib.Data.Gateway
             return GetDtoFromSql<T>(sql, parameters, ct);
         }
 
+        /// <inheritdoc/>
         public Task<List<T>> GetDto<
 #if NET6_0_OR_GREATER
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
@@ -41,6 +43,7 @@ namespace NekoLib.Data.Gateway
             return GetDtoFromSql<T>(sql, parameters, ct, session);
         }
 
+        /// <inheritdoc/>
         public Task<int> Insert(
             string sql,
             Dictionary<string, object?>? parameters = null,
@@ -49,6 +52,7 @@ namespace NekoLib.Data.Gateway
             return ExecuteDmlAsync(sql, parameters, ct, null);
         }
 
+        /// <inheritdoc/>
         public Task<int> Insert(
             string sql,
             Dictionary<string, object?>? parameters,
@@ -59,6 +63,7 @@ namespace NekoLib.Data.Gateway
             return ExecuteDmlAsync(sql, parameters, ct, session);
         }
 
+        /// <inheritdoc/>
         public Task<int> Update(
             string sql,
             Dictionary<string, object?>? parameters = null,
@@ -67,6 +72,7 @@ namespace NekoLib.Data.Gateway
             return ExecuteDmlAsync(sql, parameters, ct, null);
         }
 
+        /// <inheritdoc/>
         public Task<int> Update(
             string sql,
             Dictionary<string, object?>? parameters,
@@ -77,6 +83,7 @@ namespace NekoLib.Data.Gateway
             return ExecuteDmlAsync(sql, parameters, ct, session);
         }
 
+        /// <inheritdoc/>
         public Task<int> Delete(
             string sql,
             Dictionary<string, object?>? parameters = null,
@@ -85,6 +92,7 @@ namespace NekoLib.Data.Gateway
             return ExecuteDmlAsync(sql, parameters, ct, null);
         }
 
+        /// <inheritdoc/>
         public Task<int> Delete(
             string sql,
             Dictionary<string, object?>? parameters,
@@ -114,6 +122,7 @@ namespace NekoLib.Data.Gateway
         }
 
 #if NET6_0_OR_GREATER
+        /// <inheritdoc/>
         public IAsyncEnumerable<Dictionary<string, RecordItem>> StreamRaw(
             string sql,
             Dictionary<string, object?>? parameters = null,
@@ -122,8 +131,9 @@ namespace NekoLib.Data.Gateway
             return StreamRawCore(new DatabaseQuery(sql, parameters ?? new Dictionary<string, object?>()), null, ct);
         }
 
+        /// <inheritdoc/>
         /// <remarks>
-        /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
+        /// The <see cref="System.Data.Common.DbDataReader"/> remains open for the entire enumeration,
         /// so the <paramref name="session"/> connection and transaction remain
         /// occupied while the consumer iterates. Avoid slow per-row I/O inside
         /// an open transaction; consume promptly or materialize the results.

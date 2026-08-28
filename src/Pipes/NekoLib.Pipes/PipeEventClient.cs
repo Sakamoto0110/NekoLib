@@ -5,6 +5,12 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Pipes
 {
+    /// <summary>
+    /// Owns one background connection/reconnect loop for an event endpoint at the
+    /// captured base pipe name plus <c>.events</c>. Callbacks are serialized on
+    /// that loop, are not marshalled to a synchronization context, and are
+    /// isolated individually from subscriber exceptions.
+    /// </summary>
     public sealed class PipeEventClient : IDisposable
 #if NET9
         , IAsyncDisposable
@@ -28,24 +34,32 @@ namespace NekoLib.Pipes
         private long _connectTimeoutTicks = TimeSpan.FromSeconds(5).Ticks;
         private Task _shutdownCompletion = Task.CompletedTask;
 
-        /// <summary>Raised for each event frame received from the hub.</summary>
+        /// <summary>
+        /// Raised in wire order for each <c>evt</c> frame. The payload may contain
+        /// application-sensitive data received from the local peer.
+        /// </summary>
         public event Action<PipeMessage>? OnEvent;
 
-        /// <summary>Raised after a connection to the event hub is established.</summary>
+        /// <summary>Raised after a connection is established and before events from that connection.</summary>
         public event Action? OnConnected;
 
-        /// <summary>Raised after an established connection ends.</summary>
+        /// <summary>
+        /// Raised after an established connection ends. A failed connection attempt
+        /// raises <see cref="OnError"/> without raising this event.
+        /// </summary>
         public event Action? OnDisconnected;
 
         /// <summary>
         /// Raised for connection, framing, parsing, or listen failures. Subscriber
-        /// exceptions are isolated and never terminate the listen loop.
+        /// exceptions are isolated, are not forwarded here, and never terminate
+        /// the listen loop. Clean remote EOF and local shutdown are not errors.
         /// </summary>
         public event Action<Exception>? OnError;
 
         /// <summary>
         /// When true (default), the client reconnects after an attempt or connection
-        /// ends until terminal shutdown begins.
+        /// ends until terminal shutdown begins. This is the one live configuration
+        /// switch and may be changed while the loop is running.
         /// </summary>
         public bool AutoReconnect
         {
@@ -53,7 +67,13 @@ namespace NekoLib.Pipes
             set => Volatile.Write(ref _autoReconnect, value ? 1 : 0);
         }
 
-        /// <summary>Validated delay captured separately for each reconnect wait.</summary>
+        /// <summary>
+        /// Gets or sets the delay captured separately for each reconnect wait. The
+        /// default is 500 milliseconds.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The value is negative or exceeds <see cref="int.MaxValue"/> milliseconds.
+        /// </exception>
         public TimeSpan ReconnectDelay
         {
             get => TimeSpan.FromTicks(Interlocked.Read(ref _reconnectDelayTicks));
@@ -64,7 +84,13 @@ namespace NekoLib.Pipes
             }
         }
 
-        /// <summary>Validated timeout captured separately for each connection attempt.</summary>
+        /// <summary>
+        /// Gets or sets the positive timeout captured separately for each connection
+        /// attempt. The default is five seconds.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The value is not positive or exceeds <see cref="int.MaxValue"/> milliseconds.
+        /// </exception>
         public TimeSpan ConnectTimeout
         {
             get => TimeSpan.FromTicks(Interlocked.Read(ref _connectTimeoutTicks));
@@ -75,6 +101,9 @@ namespace NekoLib.Pipes
             }
         }
 
+        /// <summary>Initializes an event client and captures the base pipe name.</summary>
+        /// <param name="basePipeName">Nonblank base name; <c>.events</c> is appended.</param>
+        /// <exception cref="ArgumentException"><paramref name="basePipeName"/> is blank.</exception>
         public PipeEventClient(string basePipeName)
         {
             _pipeName = PipeConfiguration.RequirePipeName(
@@ -82,6 +111,13 @@ namespace NekoLib.Pipes
                 nameof(basePipeName)) + ".events";
         }
 
+        /// <summary>Starts the one-shot background connection and listen loop.</summary>
+        /// <exception cref="InvalidOperationException">The client was already started.</exception>
+        /// <exception cref="ObjectDisposedException">Shutdown or disposal has begun.</exception>
+        /// <remarks>
+        /// When <see cref="AutoReconnect"/> is false and the loop ends, the client
+        /// remains started and cannot be restarted. Shut it down to release resources.
+        /// </remarks>
         public void Start()
         {
             lock (_lifecycleGate)
@@ -229,9 +265,19 @@ namespace NekoLib.Pipes
         /// Enters terminal shutdown, closes the current transport, and waits for
         /// the background reconnect/listen loop to finish.
         /// </summary>
+        /// <returns>An idempotent task representing definitive loop completion and resource cleanup.</returns>
+        /// <remarks>
+        /// A callback may initiate shutdown, but must not await this task from that
+        /// same callback because the task includes completion of the callback loop.
+        /// </remarks>
         public Task ShutdownAsync()
             => BeginShutdown();
 
+        /// <summary>
+        /// Initiates terminal shutdown and waits synchronously for at most two
+        /// seconds. When called from this client's callback, it initiates shutdown
+        /// and returns immediately to avoid waiting on the current callback.
+        /// </summary>
         public void Dispose()
         {
             var completion = BeginShutdown();
@@ -242,6 +288,9 @@ namespace NekoLib.Pipes
         }
 
 #if NET9
+        /// <summary>Initiates terminal shutdown and asynchronously waits for definitive completion.</summary>
+        /// <returns>A value task representing the full shutdown operation.</returns>
+        /// <remarks>Do not await this method from one of this client's callbacks.</remarks>
         public async ValueTask DisposeAsync()
         {
             await ShutdownAsync().ConfigureAwait(false);

@@ -2,6 +2,9 @@
 
 namespace NekoLib.Navigation.Contracts.Runtime
 {
+    /// <summary>
+    /// Reports host-level user interaction used to restart the idle timeout.
+    /// </summary>
     public interface IInteractionObserverService
     {
         /// <summary>

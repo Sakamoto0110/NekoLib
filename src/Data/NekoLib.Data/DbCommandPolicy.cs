@@ -30,16 +30,29 @@ namespace NekoLib.Data
     /// </remarks>
     public sealed class DbParameterSpec
     {
+        /// <summary>Creates metadata for a parameter with the supplied value.</summary>
+        /// <param name="value">The provider value, or <see langword="null"/>.</param>
         public DbParameterSpec(object? value)
         {
             Value = value;
         }
 
+        /// <summary>Gets or sets the value supplied to the provider parameter.</summary>
         public object? Value { get; set; }
+
+        /// <summary>Gets or sets the provider-neutral database type override.</summary>
         public DbType? DbType { get; set; }
+
+        /// <summary>Gets or sets the size override; <c>-1</c> requests an unbounded size where supported.</summary>
         public int? Size { get; set; }
+
+        /// <summary>Gets or sets the numeric precision override.</summary>
         public byte? Precision { get; set; }
+
+        /// <summary>Gets or sets the numeric scale override.</summary>
         public byte? Scale { get; set; }
+
+        /// <summary>Gets or sets the parameter direction.</summary>
         public ParameterDirection Direction { get; set; } = ParameterDirection.Input;
 
         internal void Validate(string parameterName)
@@ -57,6 +70,10 @@ namespace NekoLib.Data
     /// </summary>
     public sealed class DbCommandPolicy
     {
+        /// <summary>
+        /// Gets or sets the command timeout in seconds. A null value preserves
+        /// the context or provider default.
+        /// </summary>
         public int? TimeoutSeconds { get; set; }
 
         internal void Validate(string parameterName)

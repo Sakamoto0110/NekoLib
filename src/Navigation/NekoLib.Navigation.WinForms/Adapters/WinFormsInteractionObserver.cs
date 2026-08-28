@@ -5,6 +5,10 @@ using System.Windows.Forms;
 
 namespace NekoLib.Navigation.WinForms.Adapters
 {
+    /// <summary>
+    /// Observes mouse, keyboard, control-tree, and form activity beneath one
+    /// WinForms root and reports it through the idle interaction contract.
+    /// </summary>
     public sealed class WinFormsInteractionObserver :
      IInteractionObserverService,
      IDisposable
@@ -14,6 +18,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
         // Tracks ONLY controls we have hooked
         private readonly HashSet<Control> _hooked = new();
 
+        /// <inheritdoc />
         public event Action? InteractionDetected;
 
         event Action? IInteractionObserverService.InteractionDetected
@@ -22,6 +27,8 @@ namespace NekoLib.Navigation.WinForms.Adapters
             remove { if (value != null) InteractionDetected -= value; }
         }
 
+        /// <summary>Initializes and recursively hooks one WinForms root.</summary>
+        /// <param name="root">Root control whose current and future descendants are observed.</param>
         public WinFormsInteractionObserver(Control root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
@@ -95,6 +102,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
         // Cleanup
         // ------------------------------------------------------------
 
+        /// <summary>Unhooks the root, its descendants, and control-tree change handlers.</summary>
         public void Dispose()
         {
             UnhookTree(_root);

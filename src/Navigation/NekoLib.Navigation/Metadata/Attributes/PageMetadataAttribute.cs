@@ -3,6 +3,7 @@
 namespace NekoLib.Navigation.Metadata.Attributes
 {
 
+    /// <summary>Declares a page's role, optional registry name, and classification tags.</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class PageMetadataAttribute : Attribute
     {

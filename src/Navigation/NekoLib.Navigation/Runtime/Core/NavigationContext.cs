@@ -39,18 +39,27 @@ namespace NekoLib.Navigation.Runtime.Core
             Diagnostics = new NavigationDiagnostics(hub, sink);
         }
 
+        /// <summary>Gets the platform page host owned by this context.</summary>
         public IPageHost Host { get; }
+        /// <summary>Gets the locked context-scoped service registry.</summary>
         public ServiceLocator Services { get; }
+        /// <summary>Gets the immutable page metadata registry.</summary>
         public PageRegistry Registry { get; }
+        /// <summary>Gets the mutable back/forward history owned by this context.</summary>
         public NavigationHistory History { get; }
+        /// <summary>Gets the built-in mutable authentication session.</summary>
         public NavigationSession Session { get; }
+        /// <summary>Gets the session through the read-only guard contract.</summary>
         public IUserContext User => Session;
+        /// <summary>Gets the platform adapter used to compose this context.</summary>
         public IPlatformAdapter Platform { get; }
+        /// <summary>Gets the context-owned diagnostics publisher.</summary>
         public NavigationDiagnostics Diagnostics { get; }
 
         /// <summary>Optional independent logging writer selected at composition.</summary>
         public ILogger? Logger { get; }
 
+        /// <summary>Gets the public subscriber-safe navigation outcome hub.</summary>
         public NavigationEventHub Events => Diagnostics.Hub;
     }
 }

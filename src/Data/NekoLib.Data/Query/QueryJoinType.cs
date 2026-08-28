@@ -7,9 +7,13 @@ namespace NekoLib.Data.Query
     /// </summary>
     public enum QueryJoinType
     {
+        /// <summary>Inner join.</summary>
         Inner,
+        /// <summary>Left outer join.</summary>
         Left,
+        /// <summary>Right outer join.</summary>
         Right,
+        /// <summary>Full outer join.</summary>
         Full
     }
 }

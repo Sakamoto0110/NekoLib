@@ -10,9 +10,9 @@ namespace NekoLib.Watchdog
     /// <para>
     /// The watchdog's file log previously grew without limit — <c>WatchdogOptions.MaxLogBytes</c>
     /// was defined but never honored. This helper enforces that cap: when an append would
-    /// push the active file past <paramref name="maxBytes"/>, the current file is rolled to
+    /// push the active file past the configured <c>maxBytes</c>, the current file is rolled to
     /// "<c>&lt;path&gt;.1</c>" (replacing any previous backup) and a fresh active file is started.
-    /// Total on-disk usage is therefore bounded to roughly 2 × <paramref name="maxBytes"/>.
+    /// Total on-disk usage is therefore bounded to roughly twice <c>maxBytes</c>.
     /// </para>
     ///
     /// <para>

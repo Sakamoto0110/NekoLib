@@ -13,11 +13,14 @@ namespace NekoLib.Navigation.Wpf.Adapters
     {
         private readonly Dispatcher _dispatcher;
 
+        /// <summary>Initializes the adapter for one WPF dispatcher.</summary>
+        /// <param name="dispatcher">Dispatcher that owns the navigation UI.</param>
         public WpfEventDispatcherAdapter(Dispatcher dispatcher)
         {
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         }
 
+        /// <inheritdoc />
         public void Invoke(Action action)
         {
             if (action == null) return;
@@ -34,6 +37,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
                 _dispatcher.Invoke(action);
         }
 
+        /// <inheritdoc />
         public void BeginInvoke(Action action)
         {
             if (action == null) return;

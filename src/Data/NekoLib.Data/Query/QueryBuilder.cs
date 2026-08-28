@@ -544,6 +544,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>Adds an <c>EXISTS</c> predicate from a built SELECT subquery.</summary>
+        /// <param name="SubQuery">The provider-neutral SELECT subquery.</param>
+        /// <returns>This builder.</returns>
         public QueryBuilder WhereExists(QueryBuilder SubQuery)
         {
             RequirePredicateQuery(nameof(WhereExists));
@@ -553,6 +556,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>Adds a <c>NOT EXISTS</c> predicate from a built SELECT subquery.</summary>
+        /// <param name="SubQuery">The provider-neutral SELECT subquery.</param>
+        /// <returns>This builder.</returns>
         public QueryBuilder WhereNotExists(QueryBuilder SubQuery)
         {
             RequirePredicateQuery(nameof(WhereNotExists));
@@ -851,6 +857,8 @@ namespace NekoLib.Data.Query
 
         #region BUILD
 
+        /// <summary>Builds an immutable provider-neutral model of the active statement.</summary>
+        /// <returns>The SQL, logical parameters, row limit, and command policy.</returns>
         public QueryModel Build()
         {
             string sql;

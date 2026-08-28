@@ -17,11 +17,14 @@ namespace NekoLib.Navigation.Wpf.Toolkit
     {
         private readonly FrameworkElement _host;
 
+        /// <summary>Initializes a surface projection over one WPF element.</summary>
+        /// <param name="host">Native navigation root.</param>
         public WpfNavigationSurface(FrameworkElement host)
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
         }
 
+        /// <inheritdoc />
         public DrawingRectangle ClientBounds => new DrawingRectangle(
             0,
             0,
@@ -43,8 +46,10 @@ namespace NekoLib.Navigation.Wpf.Toolkit
             }
         }
 
+        /// <inheritdoc />
         public bool IsActive => _host.IsVisible && _host.IsEnabled;
 
+        /// <inheritdoc />
         public DrawingPoint ResolveAnchor(SurfaceAnchor anchor)
         {
             int w = (int)_host.ActualWidth;

@@ -3,8 +3,17 @@ using System.Threading;
 
 namespace NekoLib.Pipes
 {
+    /// <summary>
+    /// Provides a thread-safe cumulative in-memory <see cref="IPipeMetrics"/>
+    /// implementation. Create a new instance to start a new measurement window.
+    /// </summary>
     public sealed class SimplePipeMetrics : IPipeMetrics
     {
+        /// <summary>Initializes an empty cumulative metrics collector.</summary>
+        public SimplePipeMetrics()
+        {
+        }
+
         // ================= SERVER =================
 
         private long _srvClients;
@@ -56,15 +65,19 @@ namespace NekoLib.Pipes
         // SERVER
         // ============================================================
 
+        /// <inheritdoc />
         public void OnServerClientConnected(string pipeName)
             => Interlocked.Increment(ref _srvClients);
 
+        /// <inheritdoc />
         public void OnServerClientDisconnected(string pipeName)
             => Interlocked.Decrement(ref _srvClients);
 
+        /// <inheritdoc />
         public void OnServerRequestReceived(string pipeName, string name)
             => Interlocked.Increment(ref _srvReq);
 
+        /// <inheritdoc />
         public void OnServerResponseSent(
             string pipeName,
             string name,
@@ -86,6 +99,7 @@ namespace NekoLib.Pipes
                 ref _srvSamples);
         }
 
+        /// <inheritdoc />
         public void OnServerEventPublished(
             string pipeName,
             string eventName,
@@ -102,6 +116,7 @@ namespace NekoLib.Pipes
         // CLIENT
         // ============================================================
 
+        /// <inheritdoc />
         public void OnClientConnect(
             string pipeName,
             TimeSpan elapsed,
@@ -116,9 +131,11 @@ namespace NekoLib.Pipes
                 Interlocked.Increment(ref _cliConnFail);
         }
 
+        /// <inheritdoc />
         public void OnClientRequest(string pipeName, string name)
             => Interlocked.Increment(ref _cliReq);
 
+        /// <inheritdoc />
         public void OnClientResponse(
             string pipeName,
             string name,
@@ -145,6 +162,7 @@ namespace NekoLib.Pipes
         // ERRORS
         // ============================================================
 
+        /// <inheritdoc />
         public void OnError(string pipeName, string where, Exception ex)
             => Interlocked.Increment(ref _errors);
 
@@ -179,6 +197,13 @@ namespace NekoLib.Pipes
         // SNAPSHOT
         // ============================================================
 
+        /// <summary>
+        /// Returns a new snapshot of the cumulative counters. Concurrent updates
+        /// may advance individual counters while the snapshot is being assembled,
+        /// so the result is point-in-time observational evidence rather than a
+        /// transactionally consistent protocol state.
+        /// </summary>
+        /// <returns>A new caller-owned snapshot; collecting it does not reset counters.</returns>
         public PipeMetricsSnapshot Snapshot()
         {
             long srvLast, srvMax; double srvAvg, srvEma;

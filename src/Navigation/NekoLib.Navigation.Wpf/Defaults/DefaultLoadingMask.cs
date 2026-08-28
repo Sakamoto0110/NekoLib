@@ -14,11 +14,14 @@ namespace NekoLib.Navigation.Wpf.Defaults
     [PageMetadata(Name = "DefaultLoadingMask")]
     public class DefaultLoadingMask : UserControl, IGlobalLoadingMask
     {
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public bool IsDisposed { get; private set; }
 
         private readonly TextBlock _message;
 
+        /// <summary>Initializes the built-in centered loading message overlay.</summary>
         public DefaultLoadingMask()
         {
             Background = new SolidColorBrush(Color.FromArgb(160, 40, 40, 40));
@@ -39,6 +42,7 @@ namespace NekoLib.Navigation.Wpf.Defaults
             Content = _message;
         }
 
+        /// <inheritdoc />
         public Task OnOverlayOpenedAsync(object? payload)
         {
             _message.Text = payload?.ToString() ?? "Loading...";
@@ -48,8 +52,10 @@ namespace NekoLib.Navigation.Wpf.Defaults
         Task IPageOverlay.OnOverlayOpenedAsync(object? payload)
             => OnOverlayOpenedAsync(payload);
 
+        /// <inheritdoc />
         public Task OnOverlayClosingAsync() => Task.CompletedTask;
 
+        /// <summary>Marks the lightweight overlay disposed; it owns no unmanaged resources.</summary>
         public void Dispose() => IsDisposed = true;
     }
 }

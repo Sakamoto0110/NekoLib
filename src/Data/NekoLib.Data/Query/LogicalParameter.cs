@@ -16,6 +16,9 @@ namespace NekoLib.Data.Query
         internal IReadOnlyList<TypeDecayRule> DecayRulesValue =>
             new ReadOnlyCollection<TypeDecayRule>(_decayRules.ToArray());
 
+        /// <summary>Declares the semantic type expected after promotion.</summary>
+        /// <param name="semanticType">The exact semantic type.</param>
+        /// <returns>This options instance.</returns>
         public LogicalParameterOptions As(Type semanticType)
         {
             SemanticTypeValue = semanticType ?? throw new ArgumentNullException(nameof(semanticType));
@@ -23,11 +26,17 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>Declares <typeparamref name="T"/> as the semantic type.</summary>
+        /// <typeparam name="T">The exact semantic type.</typeparam>
+        /// <returns>This options instance.</returns>
         public LogicalParameterOptions As<T>()
         {
             return As(typeof(T));
         }
 
+        /// <summary>Attaches the only promotion rule authorized for this parameter.</summary>
+        /// <param name="rule">A rule whose target matches the semantic type.</param>
+        /// <returns>This options instance.</returns>
         public LogicalParameterOptions AllowPromotion(TypePromotionRule rule)
         {
             PromotionRuleValue = rule ?? throw new ArgumentNullException(nameof(rule));
@@ -37,6 +46,9 @@ namespace NekoLib.Data.Query
             return this;
         }
 
+        /// <summary>Sets the primary provider-representation fallback for this parameter.</summary>
+        /// <param name="rule">A rule whose source matches the semantic type.</param>
+        /// <returns>This options instance.</returns>
         public LogicalParameterOptions AllowDecay(TypeDecayRule rule)
         {
             if (rule == null) throw new ArgumentNullException(nameof(rule));
@@ -137,11 +149,17 @@ namespace NekoLib.Data.Query
             DecayRule = decaySnapshot.Count == 0 ? null : decaySnapshot[0];
         }
 
+        /// <summary>Gets the logical parameter name.</summary>
         public string Name { get; }
+        /// <summary>Gets the original consumer value.</summary>
         public object? Value { get; }
+        /// <summary>Gets the optional structured table provenance.</summary>
         public string? Table { get; }
+        /// <summary>Gets the optional structured column provenance.</summary>
         public string? Column { get; }
+        /// <summary>Gets the declared or inferred semantic type.</summary>
         public Type? SemanticType { get; }
+        /// <summary>Gets the explicitly authorized promotion rule, if any.</summary>
         public TypePromotionRule? PromotionRule { get; }
         /// <summary>Gets the ordered provider-representation fallback candidates.</summary>
         public IReadOnlyList<TypeDecayRule> DecayRules { get; }

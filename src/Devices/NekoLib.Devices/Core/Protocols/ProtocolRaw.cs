@@ -22,7 +22,7 @@ namespace NekoLib.Devices.Core.Protocols
     ///
     /// The protocol expects the user to configure:
     /// <list type="bullet">
-    ///     <item>"RawBytes" → <see cref="byte[]"/></item>
+    ///     <item>"RawBytes" → <see cref="Byte"/> array</item>
     ///     <item>"RawText" → <see cref="string"/></item>
     /// </list>
     ///
@@ -51,6 +51,7 @@ namespace NekoLib.Devices.Core.Protocols
         /// <summary>
         /// Creates a raw protocol with caller-owned transport configuration.
         /// </summary>
+        /// <param name="portConfig">Configuration exposed through <see cref="PortConfig"/>; do not mutate it during an operation.</param>
         public ProtocolRaw(SerialConfig portConfig)
             : this(portConfig, null)
         {
@@ -60,6 +61,8 @@ namespace NekoLib.Devices.Core.Protocols
         /// Creates a raw protocol with caller-owned configuration and text encoding.
         /// ASCII remains the default for compatibility; use raw bytes for binary data.
         /// </summary>
+        /// <param name="portConfig">Configuration exposed through <see cref="PortConfig"/>, or <c>null</c> for defaults.</param>
+        /// <param name="textEncoding">Encoding for RawText command and response conversion, or <c>null</c> for ASCII.</param>
         public ProtocolRaw(SerialConfig? portConfig, Encoding? textEncoding)
         {
             _portConfig = portConfig ?? new SerialConfig
@@ -102,6 +105,8 @@ namespace NekoLib.Devices.Core.Protocols
         /// <exception cref="InvalidOperationException">
         /// Thrown when neither RawBytes nor RawText was provided.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="op"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">Arguments are missing or a selected raw value has the wrong type.</exception>
         public byte[] BuildCommand(HardwareOperation op)
         {
             if(op == null)

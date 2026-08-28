@@ -9,7 +9,7 @@ namespace NekoLib.Devices.Core.Abstractions
 {
     /// <summary>
     /// Represents the supported hardware controller types.
-    /// Each concrete protocol DLL will expose one controller model.
+    /// Each protocol implementation reports one controller model.
     /// </summary>
     public enum ControllerModel
     {
@@ -63,7 +63,8 @@ namespace NekoLib.Devices.Core.Abstractions
     public interface IProtocolWithLogging
     {
         /// <summary>
-        /// Assigns a logger to the protocol implementation.
+        /// Gets or sets the optional synchronous logger assigned by the
+        /// composition root or <see cref="Engine.HardwareEngine"/>.
         /// </summary>
         HardwareLogHandler? Log { get; set; }
     }
@@ -76,6 +77,8 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Converts a byte array into a spaced hex string.
         /// </summary>
+        /// <param name="data">Bytes to format, or <c>null</c> to return the literal <c>&lt;null&gt;</c>.</param>
+        /// <returns>Uppercase hexadecimal byte pairs separated by spaces.</returns>
         public static string Hex(byte[] data)
         {
             if(data == null) return "<null>";
@@ -85,6 +88,8 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Escapes control characters in string logs.
         /// </summary>
+        /// <param name="s">Text to clean, or <c>null</c> to return the literal <c>&lt;null&gt;</c>.</param>
+        /// <returns>The text with carriage returns and line feeds escaped.</returns>
         public static string Clean(string s)
         {
             if(s == null) return "<null>";
@@ -99,6 +104,9 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Computes additive checksum mod 256.
         /// </summary>
+        /// <param name="bytes">Bytes to include in the checksum.</param>
+        /// <returns>The low eight bits of the additive sum.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="bytes"/> is <c>null</c>.</exception>
         public static byte Sum(params byte[] bytes)
         {
             if(bytes == null) throw new ArgumentNullException(nameof(bytes));
@@ -109,6 +117,9 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>
         /// Computes XOR checksum across all bytes.
         /// </summary>
+        /// <param name="bytes">Bytes to include in the checksum.</param>
+        /// <returns>The XOR of all supplied bytes, or zero for an empty array.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="bytes"/> is <c>null</c>.</exception>
         public static byte Xor(params byte[] bytes)
         {
             if(bytes == null) throw new ArgumentNullException(nameof(bytes));
@@ -212,10 +223,26 @@ namespace NekoLib.Devices.Core.Abstractions
         /// </summary>
         public Exception? Failure;
     }
+    /// <summary>
+    /// Defines the supported device-specific extension seam used by
+    /// <see cref="Engine.HardwareEngine"/> to build commands and interpret replies.
+    /// Implementations own framing, correlation, protocol status semantics, and
+    /// any device-specific validation; the engine owns transport orchestration.
+    /// </summary>
     public interface IHardwareProtocol
     {
+        /// <summary>Gets the controller identity reported by this protocol.</summary>
         ControllerModel Model { get; }
+
+        /// <summary>
+        /// Gets the protocol-owned transport configuration. Consumers and the
+        /// engine must treat this mutable object as read-only while an operation is in flight.
+        /// </summary>
         SerialConfig PortConfig { get; }
+
+        /// <summary>Builds the complete byte frame for one protocol operation.</summary>
+        /// <param name="op">Caller-owned operation to encode.</param>
+        /// <returns>The complete frame passed to the configured transport.</returns>
         byte[] BuildCommand(HardwareOperation op);
 
 
@@ -223,6 +250,9 @@ namespace NekoLib.Devices.Core.Abstractions
         /// Interprets a transport reply. <paramref name="reply"/> is null when the
         /// transport received nothing within its budget.
         /// </summary>
+        /// <param name="reply">Complete reply bytes, or <c>null</c> when no bytes arrived before timeout.</param>
+        /// <param name="op">The original operation associated with the reply.</param>
+        /// <returns>A protocol-owned response; protocol failures should normally be represented by the response rather than thrown.</returns>
         HardwareResponse ParseResponse(byte[]? reply, HardwareOperation op);
     }
 }

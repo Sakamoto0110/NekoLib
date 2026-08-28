@@ -13,14 +13,18 @@ namespace NekoLib.Navigation.Wpf.Toolkit
     {
         private readonly FrameworkElement _host;
 
+        /// <summary>Initializes toolkit services for one WPF navigation root.</summary>
+        /// <param name="host">Native navigation root.</param>
         public WpfNavigationToolkit(FrameworkElement host)
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
             Surface = new WpfNavigationSurface(host);
         }
 
+        /// <inheritdoc />
         public INavigationSurface Surface { get; }
 
+        /// <inheritdoc />
         public void FocusSurface() => _host.Focus();
     }
 }

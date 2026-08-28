@@ -14,7 +14,8 @@ namespace NekoLib.Devices.Core.Transport
     {
         /// <summary>
         /// Maximum time allowed for establishing a TCP connection.
-        /// Zero disables the client-side connect timeout.
+        /// The default is 5000 milliseconds. Zero disables the client-side
+        /// connect timeout and negative values are rejected when opening.
         /// </summary>
         public int ConnectTimeout { get; set; } = 5000;
 
@@ -24,12 +25,15 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <summary>Creates a TCP transport for an endpoint.</summary>
+        /// <param name="endpoint"><c>tcp://host:port</c> or <c>host:port</c>.</param>
         public TcpCommTransport(string endpoint)
             : base(endpoint)
         {
         }
 
         /// <summary>Creates a TCP transport for a host and port.</summary>
+        /// <param name="host">Non-blank host name or address.</param>
+        /// <param name="port">Port from 1 through 65535.</param>
         public TcpCommTransport(string host, int port)
             : base(BuildEndpoint(host, port))
         {

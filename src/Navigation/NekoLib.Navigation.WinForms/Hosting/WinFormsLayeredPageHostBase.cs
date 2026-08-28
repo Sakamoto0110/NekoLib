@@ -16,11 +16,14 @@ namespace NekoLib.Navigation.WinForms.Hosting
     /// </summary>
     public class WinFormsLayeredPageHostBase : IPageHost, IViewHost, INavigationToolkit
     {
+        /// <summary>Gets the native root that owns every page and overlay control.</summary>
         protected Control Root { get; }
         private readonly HashSet<Control> _pageControls =
             new HashSet<Control>();
         private readonly WinFormsNavigationToolkit _toolkit;
 
+        /// <summary>Initializes a layered host over one WinForms root.</summary>
+        /// <param name="root">Native root that owns the attached controls.</param>
         public WinFormsLayeredPageHostBase(Control root)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
@@ -37,14 +40,17 @@ namespace NekoLib.Navigation.WinForms.Hosting
         // working — the toolkit simply stays unregistered.
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public INavigationSurface Surface => _toolkit.Surface;
 
+        /// <inheritdoc />
         public void FocusSurface() => _toolkit.FocusSurface();
 
         // ---------------------------------------------------------------------
         // IPageHost (content pages)
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public virtual void Attach(IPageView page)
         {
             if (!(page?.NativeView is Control control))
@@ -68,6 +74,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 attachable.OnAttach(this);
         }
 
+        /// <inheritdoc />
         public virtual void Detach(IPageView page)
         {
             if (page?.NativeView is not Control control)
@@ -85,6 +92,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
                 attachable.OnDetach();
         }
 
+        /// <inheritdoc />
         public virtual void BringToFront(IPageView page)
         {
             if (page?.NativeView is Control control)
@@ -99,6 +107,7 @@ namespace NekoLib.Navigation.WinForms.Hosting
         // IViewHost (transient surfaces: toasts, dialogs, prompts, mask)
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public virtual void AddView(object view)
         {
             if (view is Control control)
@@ -112,18 +121,21 @@ namespace NekoLib.Navigation.WinForms.Hosting
             }
         }
 
+        /// <inheritdoc />
         public virtual void RemoveView(object view)
         {
             if (view is Control control && Root.Controls.Contains(control))
                 Root.Controls.Remove(control);
         }
 
+        /// <inheritdoc />
         public virtual void BringToFront(object view)
         {
             if (view is Control control)
                 control.BringToFront();
         }
 
+        /// <inheritdoc />
         public virtual void Focus(object view)
         {
             if (view is Control control && control.CanFocus)

@@ -230,6 +230,28 @@ the compiled public surface, so the package's public contract is bound to
 Newtonsoft 13.x. That is the deliberate cost of identical serializer semantics on
 both target families; supply your own `IHttpBodySerializer` to avoid it.
 
+### Writing a custom body serializer
+
+Implement `IHttpBodySerializer` and assign it to
+`HttpApiClientOptions.BodySerializer` before constructing the client. Its three
+members have deliberately narrow responsibilities:
+
+- `MediaType` must be a non-empty media type without a charset; request content
+  is encoded as UTF-8 and the framework adds the charset.
+- `Serialize(value, declaredType)` receives a non-null request body and its
+  runtime type. This matters when an endpoint's `selectBody` returns a subtype or
+  a wire DTO different from the request DTO.
+- `Deserialize(content, declaredType)` receives the bounded, already decoded
+  text of a successful response and the endpoint's `TResponse`. It must return a
+  non-null value assignable to that type.
+
+`string` and `HttpNoContent` responses bypass deserialization. Non-success
+responses also bypass it and preserve their bounded raw body. Serialization
+failures propagate from request construction; response deserialization failures
+are wrapped in `HttpResponseDeserializationException` without embedding the raw
+body. A serializer owns only its codec state: it must not send requests, retry,
+log bodies, manage credentials, or dispose the consumer's `HttpClient`.
+
 ## Explicit non-goals
 
 The module is not an API gateway, service discovery system, generated SDK,

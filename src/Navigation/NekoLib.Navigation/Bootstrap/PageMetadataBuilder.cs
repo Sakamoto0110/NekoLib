@@ -8,6 +8,10 @@ using System.Reflection;
 
 namespace NekoLib.Navigation.Bootstrap
 {
+    /// <summary>
+    /// Collects assembly scans and explicit page registrations used to build an
+    /// immutable <see cref="Runtime.Registry.PageRegistry"/>.
+    /// </summary>
     public sealed class PageMetadataBuilder
     {
         
@@ -19,6 +23,9 @@ namespace NekoLib.Navigation.Bootstrap
         internal PageMetadataBuilder()
         {
         }
+        /// <summary>Queues one assembly for concrete <see cref="IPageView"/> discovery.</summary>
+        /// <param name="assembly">Assembly to scan during registry construction.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="assembly"/> is <see langword="null"/>.</exception>
         public void RegisterFromAssembly(Assembly assembly)
         {
             if (assembly == null)
@@ -26,16 +33,27 @@ namespace NekoLib.Navigation.Bootstrap
 
             _assemblies.Add(assembly);
         }
+        /// <summary>Queues each supplied assembly for page discovery.</summary>
+        /// <param name="assemblies">Assemblies enumerated immediately.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="assemblies"/> or an element is <see langword="null"/>.</exception>
         public void RegisterFromAssemblies(IEnumerable<Assembly> assemblies)
         {
             if (assemblies == null) throw new ArgumentNullException(nameof(assemblies));
             foreach (var asm in assemblies) RegisterFromAssembly(asm);
         }
 
+        /// <summary>Queues the supplied assemblies for page discovery.</summary>
+        /// <param name="assemblies">Assemblies to scan during registry construction.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="assemblies"/> or an element is <see langword="null"/>.</exception>
         public void RegisterFromAssemblies(params Assembly[] assemblies)
             => RegisterFromAssemblies((IEnumerable<Assembly>)assemblies);
 
-        // Optional: scan references too (careful in large apps)
+        /// <summary>
+        /// Queues an assembly and every reference that can be loaded transitively.
+        /// References that cannot be loaded are skipped and reported to the debug output.
+        /// </summary>
+        /// <param name="root">Root assembly for the breadth-first reference scan.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="root"/> is <see langword="null"/>.</exception>
         public void RegisterFromAssemblyAndReferences(Assembly root)
         {
             if (root == null) throw new ArgumentNullException(nameof(root));
@@ -70,6 +88,14 @@ namespace NekoLib.Navigation.Bootstrap
                 }
             }
         }
+        /// <summary>
+        /// Explicitly registers one concrete page type and optionally appends a
+        /// manual descriptor override.
+        /// </summary>
+        /// <param name="type">Concrete type implementing <see cref="IPageView"/>.</param>
+        /// <param name="configure">Optional override applied after attributes.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null"/>.</exception>
+        /// <exception cref="InvalidOperationException"><paramref name="type"/> is abstract or does not implement <see cref="IPageView"/>.</exception>
         public void RegisterType(Type type, Action<PageDescriptorBuilder>? configure = null)
         {
             if (type == null) throw new ArgumentNullException(nameof(type));
@@ -96,6 +122,9 @@ namespace NekoLib.Navigation.Bootstrap
 
        
 
+        /// <summary>Explicitly registers a concrete page type.</summary>
+        /// <typeparam name="TPage">Page type to register.</typeparam>
+        /// <param name="configure">Optional override applied after attributes.</param>
         public void Register<TPage>(Action<PageDescriptorBuilder>? configure = null)
             where TPage : IPageView
         {

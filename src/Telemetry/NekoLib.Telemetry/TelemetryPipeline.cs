@@ -23,6 +23,16 @@ namespace NekoLib.Telemetry
         private readonly int _capacity;
         private readonly ITelemetrySink[] _sinks;
 
+        /// <summary>
+        /// Creates a pipeline with a captured options snapshot and a copied set
+        /// of sinks. Null sink elements are ignored, and the pipeline does not
+        /// own or dispose accepted sinks.
+        /// </summary>
+        /// <param name="options">Options to capture, or <c>null</c> for defaults.</param>
+        /// <param name="sinks">Sinks invoked synchronously in registration order.</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <see cref="TelemetryPipelineOptions.RecentOperationCapacity"/> is less than 1.
+        /// </exception>
         public TelemetryPipeline(
             TelemetryPipelineOptions? options = null,
             params ITelemetrySink[]? sinks)
@@ -71,6 +81,13 @@ namespace NekoLib.Telemetry
         /// never completed is simply never recorded, and the pipeline keeps no
         /// reference to it.
         /// </summary>
+        /// <param name="module">Non-blank producer module name.</param>
+        /// <param name="name">Non-blank operation name.</param>
+        /// <param name="operationId">Caller-supplied operation identifier, or <c>null</c>/blank to generate one.</param>
+        /// <param name="parentOperationId">Optional parent correlation identifier; blank values become <c>null</c>.</param>
+        /// <param name="dimensions">Optional initial dimensions, copied with ordinal key comparison.</param>
+        /// <returns>A caller-owned operation that is retained only after its first completion.</returns>
+        /// <exception cref="ArgumentException"><paramref name="module"/> or <paramref name="name"/> is blank.</exception>
         public ITelemetryOperation StartOperation(
             string module,
             string name,
@@ -108,6 +125,8 @@ namespace NekoLib.Telemetry
         /// Retention happens before sink dispatch and takes a separate lock, so a
         /// snapshot is never blocked by a slow sink.
         /// </summary>
+        /// <param name="maxOperations">Maximum number of newest operations to return.</param>
+        /// <returns>A detached collection in completion order, or an empty collection for a non-positive limit.</returns>
         public IReadOnlyList<TelemetryOperation> GetRecentOperations(int maxOperations)
         {
             if (maxOperations <= 0)

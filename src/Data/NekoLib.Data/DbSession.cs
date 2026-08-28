@@ -9,9 +9,21 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Data
 {
+    /// <summary>
+    /// Owns one open database connection and an optional transaction across
+    /// multiple gateway operations.
+    /// </summary>
+    /// <remarks>
+    /// A session becomes affiliated with the first query context that uses it.
+    /// Nested transaction calls track logical depth over one provider transaction;
+    /// any rollback ends that complete transaction.
+    /// </remarks>
     public sealed class DbSession : IDisposable
     {
+        /// <summary>Gets the open connection owned by this session.</summary>
         public DbConnection Connection { get; }
+
+        /// <summary>Gets the active provider transaction, if any.</summary>
         public DbTransaction? Transaction { get; private set; }
 
         private int _transactionDepth;
@@ -33,6 +45,10 @@ namespace NekoLib.Data
             _affinityToken = affinityToken;
         }
 
+        /// <summary>
+        /// Starts a provider transaction at depth zero, or enters a nested
+        /// logical transaction when one is already active.
+        /// </summary>
         public void BeginTransaction()
         {
             ThrowIfDisposed();
@@ -61,6 +77,11 @@ namespace NekoLib.Data
             _transactionDepth++;
         }
 
+        /// <summary>
+        /// Leaves one logical transaction level and commits the provider
+        /// transaction when the outermost level completes.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">No transaction is active.</exception>
         public void Commit()
         {
             ThrowIfDisposed();
@@ -90,6 +111,10 @@ namespace NekoLib.Data
             }
         }
 
+        /// <summary>
+        /// Rolls back and disposes the complete active provider transaction.
+        /// Calling this method without an active transaction has no effect.
+        /// </summary>
         public void Rollback()
         {
             ThrowIfDisposed();
@@ -115,6 +140,10 @@ namespace NekoLib.Data
             }
         }
 
+        /// <summary>
+        /// Rolls back any active transaction on a best-effort basis and disposes
+        /// the owned connection.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)

@@ -10,6 +10,7 @@ namespace NekoLib.Navigation.Runtime.Guards {
     /// </summary>
     public sealed class RequireAuthenticatedGuard : IGuard
     {
+        /// <inheritdoc />
         public Task<GuardResult> EvaluateAsync(GuardContext context)
         {
             if (context?.User?.IsAuthenticated == true)

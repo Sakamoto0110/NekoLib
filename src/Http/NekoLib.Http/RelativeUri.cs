@@ -16,11 +16,19 @@ namespace NekoLib.Http
             Value = value ?? throw new ArgumentNullException(nameof(value));
         }
 
+        /// <summary>Gets the escaped relative URI text; an empty value targets the client base address.</summary>
         public string Value { get; }
 
+        /// <summary>Creates a relative URI from independently escaped path segments.</summary>
+        /// <param name="pathSegments">Ordered path segments; an empty array creates an empty relative URI.</param>
+        /// <returns>An immutable relative URI.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pathSegments"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">A segment is blank.</exception>
         public static RelativeUri FromPathSegments(params string[] pathSegments)
             => RelativeUriBuilder.Create(pathSegments).Build();
 
+        /// <summary>Returns <see cref="Value"/>.</summary>
+        /// <returns>The escaped relative URI text.</returns>
         public override string ToString() => Value;
     }
 
@@ -38,6 +46,11 @@ namespace NekoLib.Http
         {
         }
 
+        /// <summary>Creates a builder and appends each supplied path segment in order.</summary>
+        /// <param name="pathSegments">Initial path segments; an empty array is valid.</param>
+        /// <returns>A mutable builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pathSegments"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">A segment is blank.</exception>
         public static RelativeUriBuilder Create(params string[] pathSegments)
         {
             if (pathSegments == null)
@@ -50,6 +63,10 @@ namespace NekoLib.Http
             return builder;
         }
 
+        /// <summary>Escapes and appends one non-blank path segment.</summary>
+        /// <param name="segment">Literal segment value; slashes are escaped rather than treated as separators.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentException"><paramref name="segment"/> is blank.</exception>
         public RelativeUriBuilder AppendPathSegment(string segment)
         {
             if (string.IsNullOrWhiteSpace(segment))
@@ -59,6 +76,11 @@ namespace NekoLib.Http
             return this;
         }
 
+        /// <summary>Adds one escaped query pair, or omits it when <paramref name="value"/> is <c>null</c>.</summary>
+        /// <param name="name">Non-blank query name.</param>
+        /// <param name="value">Optional query value.</param>
+        /// <returns>This builder. Repeated names are retained in insertion order.</returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
         public RelativeUriBuilder AddQuery(string name, string? value)
         {
             ValidateQueryName(name);
@@ -72,15 +94,29 @@ namespace NekoLib.Http
             return this;
         }
 
+        /// <summary>Adds an invariant-culture integer query value.</summary>
+        /// <param name="name">Non-blank query name.</param>
+        /// <param name="value">Integer value.</param>
+        /// <returns>This builder.</returns>
         public RelativeUriBuilder AddQuery(string name, int value)
             => AddQuery(name, value.ToString(CultureInfo.InvariantCulture));
 
+        /// <summary>Adds an invariant-culture long-integer query value.</summary>
+        /// <param name="name">Non-blank query name.</param>
+        /// <param name="value">Long-integer value.</param>
+        /// <returns>This builder.</returns>
         public RelativeUriBuilder AddQuery(string name, long value)
             => AddQuery(name, value.ToString(CultureInfo.InvariantCulture));
 
+        /// <summary>Adds a lowercase <c>true</c> or <c>false</c> query value.</summary>
+        /// <param name="name">Non-blank query name.</param>
+        /// <param name="value">Boolean value.</param>
+        /// <returns>This builder.</returns>
         public RelativeUriBuilder AddQuery(string name, bool value)
             => AddQuery(name, value ? "true" : "false");
 
+        /// <summary>Materializes the current path and query sequence.</summary>
+        /// <returns>An immutable relative URI.</returns>
         public RelativeUri Build()
         {
             var path = string.Join("/", _segments);

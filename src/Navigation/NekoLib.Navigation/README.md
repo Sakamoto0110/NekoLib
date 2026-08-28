@@ -285,6 +285,22 @@ auto-registered at bootstrap **unless** the scanned assemblies contain a custom
   is visible to guards on the next navigation. Consumers never implement an auth
   contract for the built-in guards to work.
 
+### Writing a custom guard attribute
+
+Use `GuardAttribute` when a reusable page annotation should create an `IGuard`
+during registry construction. The attribute is discovered on the page type and
+`CreateGuard()` contributes its guard to that page descriptor. Keep constructor
+arguments immutable and configuration-only; runtime decisions belong in
+`IGuard.EvaluateAsync`.
+
+The public `RedirectTo` property validates that its value is a concrete
+`IPageView`, but the shared redirect wrapper is internal to the built-in
+attributes. A consumer-defined attribute must either return a guard that applies
+its own redirect result or deliberately remain deny-only. Merely setting
+`RedirectTo` on a custom attribute does not wrap its returned guard. The same
+guard timeout, exception-to-denial behavior, redirect depth limit, and cycle
+detection apply after the custom guard enters the descriptor.
+
 ## Idle system
 
 `IdlePageRules` is the single source of truth for which page is idle. Priority:
@@ -413,6 +429,47 @@ Both platform projects ship `ToastViewBase`, `DialogViewBase`,
 `PromptViewBase<TResult>`, `PopoverViewBase` and `AutoDismissPopoverBase` so
 subclasses skip the wiring.
 
+## Consumer extension boundary
+
+Navigation has explicit composition seams; public interfaces outside this list
+must not be assumed to be replaceable plug-ins.
+
+| Supported seam | How to compose it | Required invariants |
+|---|---|---|
+| Application pages | Derive from the WinForms/WPF `PageView`, or implement `IPageView` plus only the optional page contracts needed by the page | `NativeView` belongs to the selected UI stack; lifecycle work stays UI-thread-safe; `Dispose` is idempotent; background results are applied only through `ApplyBackgroundResultAsync` |
+| Toast/dialog/prompt/popover/loading-mask views | Derive from the matching platform base, or implement the dedicated view contract | Bind exactly one framework callback, tolerate teardown completion, release callbacks/subscriptions from `Dispose`, and never treat `IPageOverlay` alone as surface registration |
+| Guards | Implement `IGuard`; use `GuardAttribute` only when a reusable page annotation should create it | Return allow/deny/redirect rather than navigating directly; keep evaluation bounded and cancellation-independent; custom attributes implement their own redirect behavior as described above |
+| Page construction | Resolve the existing `PageFactory` inside `ConfigureServices` and register application factories | Register before `Start()` locks the locator; return a compatible non-null view; the factory owns construction only, while runtime reuse and disposal remain descriptor-driven |
+| New UI platform | Implement `IPlatformAdapter` and a host that implements both `IPageHost` and `IViewHost`; implement the subordinate platform contracts the adapter returns | One native root per context; truthful UI-thread dispatch; idempotent detach/disposal; balanced modal blocking; nullable optional observers remain valid |
+| Optional host toolkit | Have the custom host also implement `INavigationToolkit` | This is a host capability probe, not a new `IPlatformAdapter` member; surface coordinates, scale and focus must describe the same native root |
+| Logging, telemetry and Inspection writers | Supply the Core-owned `ILogger`, `ITelemetry` or `IInspectionRecorder` contract through the matching `Use...` method | Calls are synchronous and must return promptly; do not retain page instances, payloads, session values, or other sensitive application state |
+
+Registering an application factory does not replace the framework service set:
+
+```csharp
+var context = PageNavBootstrap
+    .Use<WinFormsPlatformAdapter>(pageHost)
+    .ConfigurePages(pages => pages.Register<OrdersPage>())
+    .ConfigureServices((services, _) =>
+        services.Get<PageFactory>().Register(
+            typeof(OrdersPage),
+            () => new OrdersPage(orderRepository)))
+    .Start();
+```
+
+`ConfigureServices` can add application-owned exact-type services and configure
+the registered `PageFactory`; it cannot replace built-in entries because
+duplicate keys are rejected. `IUserContext` is the read-only view of the
+framework-owned `NavigationSession`, not an authentication-provider plug-in.
+`IDialogService`, `IPromptService`, `IPopoverService`, `IToastService`,
+`IInteractionObserverService`, `INavigationSurface`, and the public diagnostics
+DTOs/events are capabilities to resolve, implement as part of a platform port,
+or observe according to the routes above; their public visibility does not by
+itself activate discovery or replacement. `IEventSubscriptionAdapter` is the
+narrow optional infrastructure contract described below, not a general event
+bus. Navigation performs no assembly-based plug-in discovery beyond explicit
+page metadata scanning.
+
 ## Platform adapters
 
 `IPlatformAdapter` is a pure factory:
@@ -421,11 +478,21 @@ subclasses skip the wiring.
 |---|---|
 | `CreateHost` | `IPageHost` |
 | `CreateEventDispatcher` | UI-thread marshaling |
+| `CreateEventSubscriber` | nullable named-event attachment service for custom platform/app components |
 | `CreateInteractionBlocker` | modal input blocking; built-in adapters also implement the page-aware extension |
 | `CreateTimerAdapter` | idle timer |
 | `CreateInteractionObserverAdapter` | nullable — idle timeout remains inactive and diagnostics report it unavailable |
 | `CreateFocusObserver` | nullable — popovers just will not auto-dismiss |
 | `GetDefaultLoadingMaskType` | nullable |
+
+`IEventSubscriptionAdapter` is optional platform infrastructure, not a
+Navigation lifecycle event bus. `Start()` registers a non-null instance in the
+context service locator; current core lifecycle code does not consume it.
+Implementations attach a delegate to a named public instance event and must
+detach the same delegate instance during cleanup. Validate receiver, event name,
+delegate type, and event compatibility at attachment time, and make detachment
+tolerant of partial setup. Consumers that resolve this service own the matching
+detach call; bootstrap does not track their subscriptions.
 
 The concrete adapter events `InteractionDetected` and `Tick` are nullable: an
 adapter with no subscriber is a normal state. Overlay payloads are likewise

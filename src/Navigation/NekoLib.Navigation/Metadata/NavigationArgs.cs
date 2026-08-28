@@ -14,6 +14,7 @@ namespace NekoLib.Navigation.Metadata;
 /// </summary>
 public sealed class NavigationArgs
 {
+    /// <summary>Gets the shared request with no payload and immediate display requested.</summary>
     public static readonly NavigationArgs Empty =
         new NavigationArgs(null, NavigationLoadMode.ShowImmediately);
 
@@ -80,6 +81,9 @@ public sealed class NavigationArgs
     /// Returns a request copy correlated with application-supplied page-switch
     /// timing checkpoints.
     /// </summary>
+    /// <param name="timing">Application-owned timing correlation to attach.</param>
+    /// <returns>A new immutable request carrying <paramref name="timing"/>.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="timing"/> is <see langword="null"/>.</exception>
     public NavigationArgs WithTiming(NavigationTimingContext timing)
         => new NavigationArgs(
             Payload,

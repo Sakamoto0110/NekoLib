@@ -23,12 +23,16 @@ namespace NekoLib.Navigation.Wpf.Hosting
     {
         private Action<bool> _completionCallback;
 
+        /// <inheritdoc />
         public object NativeView => this;
+        /// <inheritdoc />
         public bool IsDisposed { get; private set; }
 
+        /// <summary>Gets whether the control is running inside the WPF designer.</summary>
         public bool DesignMode =>
             base.GetValue(DesignerProperties.IsInDesignModeProperty) is bool b && b;
 
+        /// <summary>Initializes a designer-safe centered popover surface.</summary>
         protected PopoverViewBase()
         {
             Name = GetType().Name;

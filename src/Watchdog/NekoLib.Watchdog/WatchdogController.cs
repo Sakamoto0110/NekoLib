@@ -17,18 +17,28 @@ using Newtonsoft.Json.Linq;
 
 namespace NekoLib.Watchdog
 {
+    /// <summary>
+    /// Synchronous application-side facade for the Watchdog Host associated with
+    /// the current executable. It is not a controller for arbitrary processes.
+    /// </summary>
     public static class WatchdogController
     {
         // ============================================================
         // Structured Log DTO
         // ============================================================
 
+        /// <summary>Mutable transport DTO delivered by replay and live log subscriptions.</summary>
         public sealed class LogEvent
         {
+            /// <summary>Gets or sets the UTC Unix timestamp in milliseconds, or zero when absent.</summary>
             public long TsUnixMs { get; set; }
+            /// <summary>Gets or sets the optional serialized severity name.</summary>
             public string? Level { get; set; }
+            /// <summary>Gets or sets the optional structured message.</summary>
             public string? Msg { get; set; }
+            /// <summary>Gets or sets compact raw JSON metadata, or <c>null</c> when metadata is absent or JSON null.</summary>
             public string? MetaJson { get; set; }
+            /// <summary>Gets or sets the optional preformatted display line.</summary>
             public string? Line { get; set; }
         }
 
@@ -46,6 +56,13 @@ namespace NekoLib.Watchdog
             return ResolvePipeNameForTarget(exe);
         }
 
+        /// <summary>
+        /// Derives the deterministic control-pipe identity from the lowercase
+        /// absolute target path. The result is stable target identity, not a secret.
+        /// </summary>
+        /// <param name="targetPath">Target executable path.</param>
+        /// <returns>The <c>NekoLib.Watchdog.</c>-prefixed SHA-1-derived pipe name.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="targetPath"/> is <c>null</c>.</exception>
         public static string ResolvePipeNameForTarget(string targetPath)
         {
             if (targetPath == null)
@@ -75,11 +92,24 @@ namespace NekoLib.Watchdog
                 RequestTimeout = TimeSpan.FromMilliseconds(3000)
             });
         }
+        /// <summary>Best-effort forwards exception metadata to the Host for the current executable.</summary>
+        /// <param name="type">Optional exception type name.</param>
+        /// <param name="message">Optional exception message.</param>
+        /// <param name="source">Optional application source.</param>
         public static void NotifyException(string? type, string? message, string? source)
         {
             NotifyExceptionToPipe(_pipeName, type, message, source);
         }
 
+        /// <summary>
+        /// Best-effort forwards exception metadata to the Host identity derived
+        /// from a target path. Pipe and protocol failures are swallowed.
+        /// </summary>
+        /// <param name="targetPath">Target executable path used only for pipe identity.</param>
+        /// <param name="type">Optional exception type name.</param>
+        /// <param name="message">Optional exception message.</param>
+        /// <param name="source">Optional application source.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="targetPath"/> is <c>null</c>.</exception>
         public static void NotifyExceptionForTarget(
             string targetPath,
             string? type,
@@ -155,18 +185,35 @@ namespace NekoLib.Watchdog
         // Public API (No targetPath needed anymore)
         // ============================================================
 
+        /// <summary>Checks whether the current Host returns the expected health acknowledgement.</summary>
+        /// <returns><c>true</c> only for <c>pong</c>; timeout, transport, protocol, and other responses return <c>false</c>.</returns>
         public static bool Ping() => Send(WatchdogCommands.Ping) == "pong";
 
+        /// <summary>Requests the current Host status synchronously.</summary>
+        /// <returns>Serialized status evidence, or an <c>error=...</c> value for unavailable, transport, or protocol failure.</returns>
         public static string Status() => Send(WatchdogCommands.Status);
 
+        /// <summary>Requests that the current Host pause restart supervision.</summary>
+        /// <returns><c>true</c> only when the Host returns <c>paused</c>.</returns>
         public static bool Pause() => Send(WatchdogCommands.Pause) == "paused";
 
+        /// <summary>Requests that the current Host resume restart supervision.</summary>
+        /// <returns><c>true</c> only when the Host returns <c>running</c>.</returns>
         public static bool Resume() => Send(WatchdogCommands.Resume) == "running";
 
+        /// <summary>Requests that the current Host stop supervision and the target.</summary>
+        /// <returns><c>true</c> only when the Host returns <c>stopped</c>.</returns>
         public static bool Stop() => Send(WatchdogCommands.Stop) == "stopped";
 
+        /// <summary>Requests that the current Host replace the supervised target.</summary>
+        /// <returns><c>true</c> only when the Host returns <c>restarting</c>.</returns>
         public static bool Restart() => Send(WatchdogCommands.Restart) == "restarting";
 
+        /// <summary>
+        /// Best-effort forwards one Core log entry to the current Host. Null
+        /// entries and all pipe or protocol failures are ignored.
+        /// </summary>
+        /// <param name="entry">Caller-owned log entry, or <c>null</c>.</param>
         public static void NotifyLog(LogEntry? entry)
         {
             if (entry == null)
@@ -239,6 +286,14 @@ namespace NekoLib.Watchdog
         // Log Subscription (Replay + Live)
         // ============================================================
 
+        /// <summary>
+        /// Replays retained structured logs synchronously, then starts a live
+        /// listener. Replay/live handoff is not gapless; ordering is guaranteed
+        /// only within each phase, and callback exceptions are isolated.
+        /// </summary>
+        /// <param name="onLog">Application callback invoked on the subscribing thread during replay and on the event-client thread for live events.</param>
+        /// <returns>A caller-owned handle that stops the live subscription when disposed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="onLog"/> is <c>null</c>.</exception>
         public static IDisposable SubscribeLogs(Action<LogEvent> onLog)
         {
             if (onLog == null)
@@ -306,6 +361,14 @@ namespace NekoLib.Watchdog
             return client;
         }
 
+        /// <summary>
+        /// Subscribes to formatted log lines, falling back to the structured
+        /// message when no line is present. It retains the replay, ordering,
+        /// threading, and gap behavior of <see cref="SubscribeLogs"/>.
+        /// </summary>
+        /// <param name="onLine">Application callback for non-blank line or message text.</param>
+        /// <returns>A caller-owned handle that stops the live subscription when disposed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="onLine"/> is <c>null</c>.</exception>
         public static IDisposable SubscribeLogLines(Action<string> onLine)
         {
             if (onLine == null)

@@ -40,6 +40,10 @@ namespace NekoLib.Navigation.Runtime.Services
         private NavigationDiagnostics? _diagnostics;
         private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
 
+        /// <summary>Initializes a popover service for one host and page factory.</summary>
+        /// <param name="viewHost">Host that owns native popover views.</param>
+        /// <param name="factory">Factory used to create popover view instances.</param>
+        /// <param name="focusObserver">Optional observer that enables focus-loss notification.</param>
         public PopoverService(
             IViewHost viewHost,
             PageFactory factory,
@@ -50,6 +54,7 @@ namespace NekoLib.Navigation.Runtime.Services
             _focusObserver = focusObserver;
         }
 
+        /// <inheritdoc />
         public async Task<bool> ShowPopoverAsync<TPopover>(
             object? payload = null)
             where TPopover : class, IPopoverView
@@ -132,6 +137,7 @@ namespace NekoLib.Navigation.Runtime.Services
             return await tcs.Task;
         }
 
+        /// <inheritdoc />
         public void CloseAll()
             => CloseAll(NavigationTraceCloseReasons.ClosedByService);
 

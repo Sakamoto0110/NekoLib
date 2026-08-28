@@ -27,14 +27,19 @@ namespace NekoLib.Watchdog
         private long _dropped;
         private volatile bool _disposed;
 
+        /// <summary>Creates a sink with a 1,000-entry queue, 250 ms coalescing window, and 64-entry batches.</summary>
         public WatchdogPipeLogSink()
             : this(maxQueued: 1000, flushIntervalMs: 250, maxBatch: 64)
         {
         }
 
-        /// <param name="maxQueued">Bounded in-memory queue size; entries are dropped when full.</param>
+        /// <summary>
+        /// Creates a best-effort asynchronous forwarding sink. Invalid bounds are
+        /// normalized to their minimums rather than rejected.
+        /// </summary>
+        /// <param name="maxQueued">Bounded in-memory queue size; values below 1 become 1 and entries are dropped when full.</param>
         /// <param name="flushIntervalMs">Coalescing window between batches so bursts amortize into one connect.</param>
-        /// <param name="maxBatch">Maximum entries sent per pipe round-trip.</param>
+        /// <param name="maxBatch">Maximum entries sent per pipe round-trip; values below 1 become 1.</param>
         public WatchdogPipeLogSink(int maxQueued = 1000, int flushIntervalMs = 250, int maxBatch = 64)
         {
             if (maxQueued < 1) maxQueued = 1;
@@ -56,6 +61,12 @@ namespace NekoLib.Watchdog
         /// <summary>Total entries dropped because the queue was full.</summary>
         public long DroppedCount => Interlocked.Read(ref _dropped);
 
+        /// <summary>
+        /// Attempts to enqueue one entry without waiting for pipe I/O. Null entries
+        /// and calls after disposal are ignored; a full queue increments
+        /// <see cref="DroppedCount"/>.
+        /// </summary>
+        /// <param name="entry">Entry to forward.</param>
         public void Write(LogEntry entry)
         {
             if (entry == null || _disposed)
@@ -123,6 +134,11 @@ namespace NekoLib.Watchdog
             catch { }
         }
 
+        /// <summary>
+        /// Stops accepting entries and waits at most three seconds for the current
+        /// background flush thread. Disposal is idempotent and does not guarantee
+        /// delivery of queued entries.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)

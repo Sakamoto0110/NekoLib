@@ -3,13 +3,20 @@ using System;
 
 namespace NekoLib.Http
 {
+    /// <summary>
+    /// Configures body serialization and the inclusive response-content byte
+    /// bound for an <see cref="HttpApiClient"/>. Values are captured at construction.
+    /// </summary>
     public sealed class HttpApiClientOptions
     {
+        /// <summary>Default maximum buffered response body size: 1 MiB.</summary>
         public const int DefaultMaxResponseContentBytes = 1024 * 1024;
 
+        /// <summary>Gets or sets the non-null body codec. The default is <see cref="JsonHttpBodySerializer"/>.</summary>
         public IHttpBodySerializer BodySerializer { get; set; }
             = new JsonHttpBodySerializer();
 
+        /// <summary>Gets or sets the positive maximum buffered response body size in bytes.</summary>
         public int MaxResponseContentBytes { get; set; }
             = DefaultMaxResponseContentBytes;
 

@@ -38,6 +38,15 @@ namespace NekoLib.Data.Query
         /// <summary>Gets the provider-neutral command policy.</summary>
         public DbCommandPolicy CommandPolicy { get; }
 
+        /// <summary>
+        /// Creates a provider-neutral model from SQL and compatibility parameter
+        /// values. Parameters created through this constructor have no table or
+        /// column provenance and no explicit type-adaptation rules.
+        /// </summary>
+        /// <param name="Sql">Provider-neutral SQL.</param>
+        /// <param name="Parameters">Parameter values keyed by logical name.</param>
+        /// <param name="Top">Optional provider-neutral row limit.</param>
+        /// <param name="CommandPolicy">Optional command policy overrides.</param>
         public QueryModel(
             string Sql,
             Dictionary<string, object?> Parameters,
@@ -128,6 +137,11 @@ namespace NekoLib.Data.Query
         /// <summary>
         /// Translates a provider-neutral model into a provider-specific query.
         /// </summary>
+        /// <param name="Model">The model produced by <see cref="QueryBuilder"/>.</param>
+        /// <returns>
+        /// Provider-specific SQL with the model's logical parameters and command
+        /// policy preserved.
+        /// </returns>
         DatabaseQuery Translate(QueryModel Model);
     }
 }

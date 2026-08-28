@@ -293,6 +293,7 @@ namespace NekoLib.Data.Gateway
 
         #region Dynamic API (IL + DynamicRow, no DTO)
 
+        /// <inheritdoc/>
         public async Task<List<DynamicRow>> GetDynamic(QueryBuilder Builder,  CancellationToken Ct = default)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
@@ -303,6 +304,7 @@ namespace NekoLib.Data.Gateway
             return list;
         }
 
+        /// <inheritdoc/>
         public async Task<List<DynamicRow>> GetDynamic(QueryBuilder Builder, DbSession session, CancellationToken Ct = default)
         {
             if(Builder == null) throw new ArgumentNullException(nameof(Builder));
@@ -313,11 +315,13 @@ namespace NekoLib.Data.Gateway
             return list;
         }
 
+        /// <inheritdoc/>
         public Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback,CancellationToken Ct = default)
         {
             return ReadDynamicFromBuilder(Builder, Callback, null, Ct);
         }
 
+        /// <inheritdoc/>
         public Task ReadDynamic(QueryBuilder Builder ,Action<DynamicRow> Callback, DbSession session, CancellationToken Ct = default)
         {
             return ReadDynamicFromBuilder(Builder, Callback, session, Ct);
@@ -386,11 +390,13 @@ namespace NekoLib.Data.Gateway
         #if NET6_0_OR_GREATER
         #region DataStreaming
 
+        /// <inheritdoc/>
         public IAsyncEnumerable<DynamicRow> StreamDynamic(QueryBuilder builder, CancellationToken ct = default)
         {
             return StreamDynamicFromBuilder(builder, null, ct);
         }
 
+        /// <inheritdoc/>
         /// <remarks>
         /// The <see cref="DbDataReader"/> remains open for the entire enumeration,
         /// so the <paramref name="session"/> connection and transaction remain

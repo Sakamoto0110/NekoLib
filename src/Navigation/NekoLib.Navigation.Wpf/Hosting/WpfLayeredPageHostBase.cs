@@ -24,9 +24,12 @@ namespace NekoLib.Navigation.Wpf.Hosting
         private const int PageZIndex = 0;
         private const int OverlayZIndex = 1000;
 
+        /// <summary>Gets the native panel that owns every page and overlay element.</summary>
         protected Panel Root { get; }
         private readonly WpfNavigationToolkit _toolkit;
 
+        /// <summary>Initializes a layered host over one WPF panel.</summary>
+        /// <param name="root">Native panel that owns the attached elements.</param>
         public WpfLayeredPageHostBase(Panel root)
         {
             Root = root ?? throw new ArgumentNullException(nameof(root));
@@ -41,14 +44,17 @@ namespace NekoLib.Navigation.Wpf.Hosting
         // does not implement it simply leaves the toolkit unregistered.
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public INavigationSurface Surface => _toolkit.Surface;
 
+        /// <inheritdoc />
         public void FocusSurface() => _toolkit.FocusSurface();
 
         // ---------------------------------------------------------------------
         // IPageHost (content pages)
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public virtual void Attach(IPageView page)
         {
             if (page?.NativeView is not UIElement element)
@@ -71,6 +77,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
                 attachable.OnAttach(this);
         }
 
+        /// <inheritdoc />
         public virtual void Detach(IPageView page)
         {
             if (page?.NativeView is not UIElement element || !Root.Children.Contains(element))
@@ -82,6 +89,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
                 attachable.OnDetach();
         }
 
+        /// <inheritdoc />
         public virtual void BringToFront(IPageView page)
         {
             if (page?.NativeView is not UIElement element)
@@ -106,6 +114,7 @@ namespace NekoLib.Navigation.Wpf.Hosting
         // IViewHost (transient surfaces)
         // ---------------------------------------------------------------------
 
+        /// <inheritdoc />
         public virtual void AddView(object view)
         {
             if (view is not UIElement element) return;
@@ -122,12 +131,14 @@ namespace NekoLib.Navigation.Wpf.Hosting
             Panel.SetZIndex(element, OverlayZIndex);
         }
 
+        /// <inheritdoc />
         public virtual void RemoveView(object view)
         {
             if (view is UIElement element && Root.Children.Contains(element))
                 Root.Children.Remove(element);
         }
 
+        /// <inheritdoc />
         public virtual void BringToFront(object view)
         {
             if (view is UIElement element)

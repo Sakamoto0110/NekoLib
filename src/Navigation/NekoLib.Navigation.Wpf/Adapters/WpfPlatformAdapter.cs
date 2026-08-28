@@ -16,8 +16,10 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// </summary>
     public sealed class WpfPlatformAdapter : IPlatformAdapter
     {
+        /// <inheritdoc />
         public bool CanHandle(object host) => host is Panel;
 
+        /// <inheritdoc />
         public IPageHost CreateHost(object host)
         {
             if (host is not Panel panel)
@@ -28,6 +30,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             return new WpfLayeredPageHostBase(panel);
         }
 
+        /// <inheritdoc />
         public IEventDispatcherAdapter CreateEventDispatcher(object host)
         {
             if (host is not UIElement element)
@@ -36,9 +39,11 @@ namespace NekoLib.Navigation.Wpf.Adapters
             return new WpfEventDispatcherAdapter(element.Dispatcher);
         }
 
+        /// <inheritdoc />
         public IEventSubscriptionAdapter CreateEventSubscriber(object host)
             => new WpfEventSubscriptionAdapter();
 
+        /// <inheritdoc />
         public IInteractionBlocker CreateInteractionBlocker(object host)
         {
             if (host is not UIElement element)
@@ -47,10 +52,13 @@ namespace NekoLib.Navigation.Wpf.Adapters
             return new WpfInteractionBlocker(element);
         }
 
+        /// <inheritdoc />
         public ITimerAdapter CreateTimerAdapter() => new WpfTimerAdapter();
 
+        /// <inheritdoc />
         public Type GetDefaultLoadingMaskType() => typeof(DefaultLoadingMask);
 
+        /// <inheritdoc />
         public IInteractionObserverService CreateInteractionObserverAdapter(object host)
         {
             if (host is not UIElement element)
@@ -59,6 +67,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
             return new WpfInteractionObserver(element);
         }
 
+        /// <inheritdoc />
         public IFocusObserverAdapter CreateFocusObserver(object host)
             => new WpfFocusObserverAdapter();
     }

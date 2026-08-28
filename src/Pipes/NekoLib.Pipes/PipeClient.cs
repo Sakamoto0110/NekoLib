@@ -18,6 +18,16 @@ namespace NekoLib.Pipes
         private readonly int _maxMessageBytes;
         private readonly IPipeMetrics _metrics;
 
+        /// <summary>
+        /// Initializes a stateless RPC client and captures a validated snapshot of
+        /// the supplied options. The options and metrics sink remain caller-owned.
+        /// </summary>
+        /// <param name="options">Client configuration to validate and capture.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+        /// <exception cref="ArgumentException">The configured pipe name is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// A timeout or maximum message size is outside its supported positive bound.
+        /// </exception>
         public PipeClient(PipeClientOptions options)
         {
             if (options == null)
@@ -38,6 +48,33 @@ namespace NekoLib.Pipes
             _metrics = PipeMetricsGuard.Protect(options.Metrics ?? NoopPipeMetrics.Instance);
         }
 
+        /// <summary>
+        /// Sends one request over a new owned pipe connection, validates the
+        /// correlated response, and closes the connection before completion.
+        /// Concurrent calls are independent.
+        /// </summary>
+        /// <param name="name">Nonblank mapped operation name.</param>
+        /// <param name="payload">
+        /// Optional caller payload serialized immediately into the target-specific
+        /// JSON DOM. Credentials or secrets in this object are sent to the peer.
+        /// </param>
+        /// <param name="cancellationToken">Token governing connection, request writing, and response reading.</param>
+        /// <returns>
+        /// The correlated response. A clean close before a response frame is
+        /// represented by an unsuccessful <see cref="PipeErrorCodes.ConnectionClosed"/> response.
+        /// </returns>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is blank.</exception>
+        /// <exception cref="OperationCanceledException">
+        /// The caller token, connection timeout, or request timeout ends the operation.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The request exceeds the configured frame limit, or the response has a
+        /// mismatched ID or a type other than <c>res</c>.
+        /// </exception>
+        /// <remarks>
+        /// Serialization, connection, write, framing, parsing, and truncated-frame
+        /// failures propagate. The request timeout starts only after connection.
+        /// </remarks>
         public async Task<PipeMessage> SendAsync(
             string name,
             object? payload = null,

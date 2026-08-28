@@ -17,7 +17,16 @@ namespace NekoLib.Navigation.Diagnostics
         {
         }
 
+        /// <summary>
+        /// Raised for terminal navigation outcomes. Each subscriber is isolated;
+        /// an exception does not affect navigation or later subscribers.
+        /// </summary>
         public event Action<PageLogEntry>? NavigationLogged;
+
+        /// <summary>
+        /// Raised when a guard denies or redirects an attempt. Each subscriber is
+        /// isolated from navigation control flow and from other subscribers.
+        /// </summary>
         public event Action<GuardDeniedEvent>? GuardDenied;
         internal event Action<NavigationStartedEvent>? NavigationStarted;
         internal event Action<NavigationTraceEvent>? NavigationTrace;

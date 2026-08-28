@@ -31,6 +31,10 @@ namespace NekoLib.Navigation.Runtime.Services
         private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
         private bool _currentBlockerTracked;
 
+        /// <summary>Initializes a toast service for one host and page factory.</summary>
+        /// <param name="viewHost">Host that owns native toast views.</param>
+        /// <param name="factory">Factory used to create toast view instances.</param>
+        /// <param name="dispatcher">Optional dispatcher used for timer-driven dismissal.</param>
         public ToastService(
             IViewHost viewHost,
             PageFactory factory,
@@ -41,6 +45,7 @@ namespace NekoLib.Navigation.Runtime.Services
             _dispatcher = dispatcher;
         }
 
+        /// <inheritdoc />
         public void ShowToast<TToast>(
             object? payload = null,
             int durationMs = 3000)
@@ -148,6 +153,7 @@ namespace NekoLib.Navigation.Runtime.Services
             }
         }
 
+        /// <inheritdoc />
         public void DismissCurrentToast()
         {
             Exception? cleanupError;

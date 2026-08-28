@@ -15,7 +15,8 @@ namespace NekoLib.Devices.Core.Transport
     {
         /// <summary>
         /// Maximum time allowed for establishing a pipe connection.
-        /// Zero disables the client-side connect timeout.
+        /// The default is 5000 milliseconds. Zero disables the client-side
+        /// connect timeout and negative values are rejected when opening.
         /// </summary>
         public int ConnectTimeout { get; set; } = 5000;
 
@@ -25,12 +26,15 @@ namespace NekoLib.Devices.Core.Transport
         }
 
         /// <summary>Creates a named-pipe transport for a pipe name or endpoint.</summary>
+        /// <param name="pipeNameOrEndpoint">Bare pipe name or supported named-pipe endpoint.</param>
         public NamedPipeCommTransport(string pipeNameOrEndpoint)
             : base(pipeNameOrEndpoint)
         {
         }
 
         /// <summary>Creates a named-pipe transport for a server and pipe name.</summary>
+        /// <param name="serverName">Non-blank server name; use <c>.</c> for the local machine.</param>
+        /// <param name="pipeName">Non-blank pipe name.</param>
         public NamedPipeCommTransport(string serverName, string pipeName)
             : base(BuildEndpoint(serverName, pipeName))
         {

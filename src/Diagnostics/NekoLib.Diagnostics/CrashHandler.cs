@@ -19,6 +19,9 @@ namespace NekoLib.Diagnostics
     /// wires the dbghelp.dll minidump writer here) so the cross-platform crash
     /// orchestration never depends on a Windows-only assembly.
     /// </summary>
+    /// <param name="filePath">Reserved artifact path the writer must create on success.</param>
+    /// <param name="level">Captured dump level requested by the application.</param>
+    /// <returns><c>true</c> only when a complete artifact was written at <paramref name="filePath"/>.</returns>
     public delegate bool CrashDumpWriter(string filePath, CrashDumpLevel level);
 
     /// <summary>
@@ -28,12 +31,23 @@ namespace NekoLib.Diagnostics
     /// </summary>
     public sealed class CrashHandlerOptions
     {
+        /// <summary>
+        /// Gets or sets the crash-bundle root. It is required when
+        /// <see cref="WriteCrashFolder"/> is <c>true</c> and is captured without creating it.
+        /// </summary>
         public string? CrashRootDirectory { get; set; }
+        /// <summary>Gets or sets the requested dump level. The default is <see cref="CrashDumpLevel.MiniDumpNormal"/>.</summary>
         public CrashDumpLevel DumpLevel { get; set; } = CrashDumpLevel.MiniDumpNormal;
 
+        /// <summary>Gets or sets caller-owned file paths whose newest lines are copied into each bundle.</summary>
         public List<string> TailFiles { get; set; } = new List<string>();
+        /// <summary>Gets or sets the maximum lines copied from each tail file. The default is 400; a non-positive value writes no tail content.</summary>
         public int TailLines { get; set; } = 400;
 
+        /// <summary>
+        /// Gets or sets whether crash folders are written. The default is
+        /// <c>true</c>; when false, no bundle success or failure event is raised.
+        /// </summary>
         public bool WriteCrashFolder { get; set; } = true;
 
         /// <summary>
@@ -63,7 +77,9 @@ namespace NekoLib.Diagnostics
         /// </summary>
         public ILogSnapshotSource? LogSnapshotSource { get; set; }
 
+        /// <summary>Gets or sets the optional caller-owned source of recent completed telemetry operations.</summary>
         public ITelemetrySnapshotSource? TelemetrySnapshotSource { get; set; }
+        /// <summary>Gets or sets the optional caller-owned read-only inspection snapshot source.</summary>
         public IInspectionSnapshotSource? InspectionSnapshotSource { get; set; }
 
         /// <summary>
@@ -73,9 +89,13 @@ namespace NekoLib.Diagnostics
         /// </summary>
         public TimeSpan EvidenceCollectionTimeout { get; set; } = TimeSpan.FromMilliseconds(250);
 
+        /// <summary>Gets or sets the locally enforced recent-log entry limit. The default is 200 and the value cannot be negative.</summary>
         public int MaxRecentLogEntries { get; set; } = 200;
+        /// <summary>Gets or sets the locally enforced completed-telemetry limit. The default is 100 and the value cannot be negative.</summary>
         public int MaxRecentTelemetryOperations { get; set; } = 100;
+        /// <summary>Gets or sets the locally enforced retained-inspection-operation limit. The default is 100 and the value cannot be negative.</summary>
         public int MaxInspectionOperations { get; set; } = 100;
+        /// <summary>Gets or sets the maximum persisted evidence-line length. The default is 4096 and the minimum is 64.</summary>
         public int MaxEvidenceLineLength { get; set; } = 4096;
 
         /// <summary>
@@ -94,12 +114,20 @@ namespace NekoLib.Diagnostics
         public Action<CrashDetectedEventArgs>? ExternalNotifier { get; set; }
     }
 
+    /// <summary>Describes one crash report accepted by a handler before evidence collection begins.</summary>
     public sealed class CrashDetectedEventArgs : EventArgs
     {
+        /// <summary>Gets the process or adapter source that reported the crash.</summary>
         public string Source { get; }
+        /// <summary>Gets the raw exception, or <c>null</c> when the reporting boundary supplied no exception object.</summary>
         public Exception? Exception { get; }
+        /// <summary>Gets whether the reporting source identified the process event as terminating.</summary>
         public bool IsTerminating { get; }
 
+        /// <summary>Creates crash-detected event data.</summary>
+        /// <param name="source">Reporting source identifier.</param>
+        /// <param name="ex">Raw reported exception, if available.</param>
+        /// <param name="terminating">Whether the source identified the report as terminating.</param>
         public CrashDetectedEventArgs(string source, Exception? ex, bool terminating)
         {
             Source = source;
@@ -108,9 +136,12 @@ namespace NekoLib.Diagnostics
         }
     }
 
+    /// <summary>Describes a crash bundle whose mandatory text artifact was written.</summary>
     public sealed class CrashBundleWrittenEventArgs : EventArgs
     {
+        /// <summary>Gets the created bundle directory.</summary>
         public string BundleDirectory { get; }
+        /// <summary>Gets the path of the written <c>crash.txt</c> artifact.</summary>
         public string CrashTextPath { get; }
 
         /// <summary>
@@ -118,8 +149,14 @@ namespace NekoLib.Diagnostics
         /// <see cref="DumpWritten"/> is true.
         /// </summary>
         public string DumpPath { get; }
+        /// <summary>Gets whether the configured dump writer reported a completed dump artifact.</summary>
         public bool DumpWritten { get; }
 
+        /// <summary>Creates crash-bundle success event data.</summary>
+        /// <param name="dir">Created bundle directory.</param>
+        /// <param name="crashTxt">Written crash-text path.</param>
+        /// <param name="dump">Reserved dump path.</param>
+        /// <param name="dumpWritten">Whether a complete dump was reported at the reserved path.</param>
         public CrashBundleWrittenEventArgs(string dir, string crashTxt, string dump, bool dumpWritten)
         {
             BundleDirectory = dir;
@@ -144,6 +181,9 @@ namespace NekoLib.Diagnostics
         /// <summary>Failure type and message, for logging or notification.</summary>
         public string Reason { get; }
 
+        /// <summary>Creates crash-bundle failure event data.</summary>
+        /// <param name="bundleDirectory">Attempted bundle directory or configured root.</param>
+        /// <param name="reason">Failure type and message.</param>
         public CrashBundleFailedEventArgs(string bundleDirectory, string reason)
         {
             BundleDirectory = bundleDirectory;
@@ -151,6 +191,11 @@ namespace NekoLib.Diagnostics
         }
     }
 
+    /// <summary>
+    /// Installs caller-owned crash reporting into process-wide exception sources
+    /// and writes bounded incident evidence. Installation is idempotent; disposal
+    /// is terminal and removes global hooks after the last installed handler leaves.
+    /// </summary>
     public sealed class CrashHandler : IDisposable
     {
         /// <summary>
@@ -193,10 +238,30 @@ namespace NekoLib.Diagnostics
         private int _crashing;
         private int _redactorUnavailable;
 
+        /// <summary>
+        /// Occurs inline after a report is accepted and before evidence collection.
+        /// Subscriber failures are isolated, but subscribers have no timeout.
+        /// </summary>
         public event EventHandler<CrashDetectedEventArgs>? CrashDetected;
+        /// <summary>
+        /// Occurs inline after a crash folder is written. Exactly one bundle
+        /// success or failure event occurs when folder writing is enabled.
+        /// </summary>
         public event EventHandler<CrashBundleWrittenEventArgs>? CrashBundleWritten;
+        /// <summary>
+        /// Occurs inline when crash-folder creation or mandatory text persistence
+        /// fails. Subscriber failures are isolated.
+        /// </summary>
         public event EventHandler<CrashBundleFailedEventArgs>? CrashBundleFailed;
 
+        /// <summary>
+        /// Creates a handler from a defensive snapshot of the supplied options.
+        /// Contributor, sink, and callback objects remain caller-owned references.
+        /// </summary>
+        /// <param name="options">Required composition-root configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">Folder writing is enabled without a crash root.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">An evidence budget or bound is outside its supported range.</exception>
         public CrashHandler(CrashHandlerOptions options)
         {
             if (options == null)
@@ -241,6 +306,11 @@ namespace NekoLib.Diagnostics
         // INSTALL
         // ============================================================
 
+        /// <summary>
+        /// Registers this handler for process-wide unhandled and unobserved-task
+        /// exception sources. Repeated calls are inert.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">The handler has been disposed.</exception>
         public void Install()
         {
             lock (RegistryLock)
@@ -292,6 +362,9 @@ namespace NekoLib.Diagnostics
         /// <c>Application.ThreadException</c> hook installed by
         /// NekoLib.Diagnostics.Windows) into the installed handlers. Never throws.
         /// </summary>
+        /// <param name="source">Reporting source identifier.</param>
+        /// <param name="ex">Reported exception.</param>
+        /// <param name="terminating">Whether the external source considers the report terminating.</param>
         public static void ReportExternalCrash(string source, Exception ex, bool terminating)
         {
             DispatchCrash(source, ex, terminating);

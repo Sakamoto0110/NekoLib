@@ -7,6 +7,11 @@ using System.Threading.Tasks;
 
 namespace NekoLib.Pipes
 {
+    /// <summary>
+    /// Hosts a bounded best-effort local event channel at the captured base pipe
+    /// name plus <c>.events</c>. Each subscriber owns an independent FIFO queue
+    /// and writer; the hub is one-shot and terminal after shutdown.
+    /// </summary>
     public sealed class PipeEventHub : IDisposable
 #if NET9
         , IAsyncDisposable
@@ -157,6 +162,7 @@ namespace NekoLib.Pipes
             }
         }
 
+        /// <summary>Gets the current number of established event subscribers.</summary>
         public int SubscriberCount => _subscribers.Count;
 
         internal int ActiveSubscriberOperationCount => _subscriberOperations.Count;
@@ -170,6 +176,15 @@ namespace NekoLib.Pipes
             }
         }
 
+        /// <summary>
+        /// Initializes a standalone event hub with platform-default pipe security,
+        /// a queue capacity of 64, and <see cref="PipeEventQueueOverflowPolicy.DropNewest"/>.
+        /// </summary>
+        /// <param name="basePipeName">Nonblank base name; <c>.events</c> is appended.</param>
+        /// <param name="maxSubscribers">Positive maximum number of concurrent subscribers.</param>
+        /// <param name="metrics">Optional synchronous metrics sink, which remains caller-owned; null selects no-op metrics.</param>
+        /// <exception cref="ArgumentException"><paramref name="basePipeName"/> is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxSubscribers"/> is not positive.</exception>
         public PipeEventHub(
             string basePipeName,
             int maxSubscribers,
@@ -184,6 +199,18 @@ namespace NekoLib.Pipes
         {
         }
 
+        /// <summary>
+        /// Initializes a standalone event hub with an explicit access policy, a
+        /// queue capacity of 64, and <see cref="PipeEventQueueOverflowPolicy.DropNewest"/>.
+        /// </summary>
+        /// <param name="basePipeName">Nonblank base name; <c>.events</c> is appended.</param>
+        /// <param name="maxSubscribers">Positive maximum number of concurrent subscribers.</param>
+        /// <param name="accessPolicy">Supported operating-system pipe access policy.</param>
+        /// <param name="metrics">Optional synchronous metrics sink, which remains caller-owned; null selects no-op metrics.</param>
+        /// <exception cref="ArgumentException"><paramref name="basePipeName"/> is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="maxSubscribers"/> is not positive or <paramref name="accessPolicy"/> is unsupported.
+        /// </exception>
         public PipeEventHub(
             string basePipeName,
             int maxSubscribers,
@@ -199,6 +226,17 @@ namespace NekoLib.Pipes
         {
         }
 
+        /// <summary>Initializes a standalone event hub with explicit capacity, access, and overflow contracts.</summary>
+        /// <param name="basePipeName">Nonblank base name; <c>.events</c> is appended.</param>
+        /// <param name="maxSubscribers">Positive maximum number of concurrent subscribers.</param>
+        /// <param name="accessPolicy">Supported operating-system pipe access policy.</param>
+        /// <param name="subscriberQueueCapacity">Positive bounded FIFO capacity for each subscriber.</param>
+        /// <param name="overflowPolicy">Supported action when one subscriber queue is full.</param>
+        /// <param name="metrics">Optional synchronous metrics sink, which remains caller-owned; null selects no-op metrics.</param>
+        /// <exception cref="ArgumentException"><paramref name="basePipeName"/> is blank.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// A count, access policy, or overflow policy is unsupported.
+        /// </exception>
         public PipeEventHub(
             string basePipeName,
             int maxSubscribers,
@@ -225,6 +263,9 @@ namespace NekoLib.Pipes
             _overflowPolicy = overflowPolicy;
         }
 
+        /// <summary>Starts accepting event subscribers.</summary>
+        /// <exception cref="InvalidOperationException">The hub was already started.</exception>
+        /// <exception cref="ObjectDisposedException">Shutdown or disposal has begun.</exception>
         public void Start()
         {
             lock (_lifecycleGate)
@@ -363,6 +404,27 @@ namespace NekoLib.Pipes
         /// Events larger than the fixed 1 MiB frame limit are rejected before
         /// any subscriber queue or publication metric is changed.
         /// </summary>
+        /// <param name="eventName">
+        /// Event name placed on the wire. Pipes does not validate this value;
+        /// applications should define a stable nonblank vocabulary.
+        /// </param>
+        /// <param name="payload">
+        /// Optional payload serialized immediately into the target-specific JSON
+        /// DOM. Sensitive values are sent to every subscriber admitted for delivery.
+        /// </param>
+        /// <param name="ct">
+        /// Token checked while attempting current subscriber enqueues. Cancellation
+        /// marks remaining deliveries failed and does not fault the returned task.
+        /// </param>
+        /// <returns>An already-completed task after serialization and enqueue attempts finish.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The hub has not started or the serialized event exceeds the fixed 1 MiB frame limit.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">Shutdown or disposal has begun.</exception>
+        /// <remarks>
+        /// Serialization failures propagate. Completion does not promise pipe I/O
+        /// or delivery; terminal subscriber outcomes update metrics later.
+        /// </remarks>
         public Task PublishAsync(
             string eventName,
             object? payload,
@@ -485,9 +547,14 @@ namespace NekoLib.Pipes
         /// Enters terminal shutdown, closes all subscriber transports, and waits
         /// for the accept and writer operations admitted by this hub.
         /// </summary>
+        /// <returns>An idempotent task representing definitive hub shutdown and resource cleanup.</returns>
         public Task ShutdownAsync()
             => BeginShutdown();
 
+        /// <summary>
+        /// Initiates terminal shutdown and waits synchronously for at most two
+        /// seconds. Use <see cref="ShutdownAsync"/> when definitive completion matters.
+        /// </summary>
         public void Dispose()
         {
             var completion = BeginShutdown();
@@ -495,6 +562,8 @@ namespace NekoLib.Pipes
         }
 
 #if NET9
+        /// <summary>Initiates terminal shutdown and asynchronously waits for definitive completion.</summary>
+        /// <returns>A value task representing the full shutdown operation.</returns>
         public async ValueTask DisposeAsync()
         {
             await ShutdownAsync().ConfigureAwait(false);

@@ -14,6 +14,16 @@ namespace NekoLib.Mvvm
         private readonly Action<object?> _execute;
         private readonly Predicate<object?>? _canExecute;
 
+        /// <summary>
+        /// Creates a command that passes the binding parameter to the supplied
+        /// delegates unchanged.
+        /// </summary>
+        /// <param name="execute">Delegate invoked by <see cref="Execute(object)"/>.</param>
+        /// <param name="canExecute">
+        /// Optional predicate used by <see cref="CanExecute(object)"/>; when
+        /// omitted, the command is always executable.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="execute"/> is <c>null</c>.</exception>
         public RelayCommand(Action<object?> execute, Predicate<object?>? canExecute = null)
         {
             if (execute == null) throw new ArgumentNullException(nameof(execute));
@@ -21,6 +31,15 @@ namespace NekoLib.Mvvm
             _canExecute = canExecute;
         }
 
+        /// <summary>
+        /// Creates a parameterless command. Any binding parameter supplied to
+        /// <see cref="Execute(object)"/> or <see cref="CanExecute(object)"/> is ignored.
+        /// </summary>
+        /// <param name="execute">Parameterless delegate invoked by <see cref="Execute(object)"/>.</param>
+        /// <param name="canExecute">
+        /// Optional parameterless predicate; when omitted, the command is always executable.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="execute"/> is <c>null</c>.</exception>
         public RelayCommand(Action execute, Func<bool>? canExecute = null)
         {
             if (execute == null) throw new ArgumentNullException(nameof(execute));
@@ -28,6 +47,11 @@ namespace NekoLib.Mvvm
             if (canExecute != null) _canExecute = _ => canExecute();
         }
 
+        /// <summary>
+        /// Evaluates the configured predicate for the supplied binding parameter.
+        /// </summary>
+        /// <param name="parameter">The binding-provided parameter, which may be <c>null</c>.</param>
+        /// <returns><c>true</c> when no predicate was supplied or the predicate accepts the parameter.</returns>
         public bool CanExecute(object? parameter)
             => _canExecute == null || _canExecute(parameter);
 
@@ -36,9 +60,14 @@ namespace NekoLib.Mvvm
         /// matching <see cref="ICommand"/>: WPF gates the call through the bound
         /// control, and WinForms does not gate it at all.
         /// </summary>
+        /// <param name="parameter">The binding-provided parameter, which may be <c>null</c>.</param>
         public void Execute(object? parameter)
             => _execute(parameter);
 
+        /// <summary>
+        /// Occurs when a consumer should reevaluate <see cref="CanExecute(object)"/>.
+        /// The command raises the event only through <see cref="RaiseCanExecuteChanged"/>.
+        /// </summary>
         public event EventHandler? CanExecuteChanged;
 
         /// <summary>
@@ -67,11 +96,22 @@ namespace NekoLib.Mvvm
     /// Coercion requires an exact runtime type match: there is no numeric
     /// widening, no enum conversion from an integer, and no string parsing.
     /// </summary>
+    /// <typeparam name="T">The exact command-parameter type accepted from the binding.</typeparam>
     public sealed class RelayCommand<T> : ICommand
     {
         private readonly Action<T> _execute;
         private readonly Predicate<T>? _canExecute;
 
+        /// <summary>
+        /// Creates a typed command whose delegates receive only parameters that
+        /// satisfy this type's exact coercion rules.
+        /// </summary>
+        /// <param name="execute">Delegate invoked for an accepted parameter.</param>
+        /// <param name="canExecute">
+        /// Optional predicate for accepted parameters; when omitted, every
+        /// successfully coerced parameter is executable.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="execute"/> is <c>null</c>.</exception>
         public RelayCommand(Action<T> execute, Predicate<T>? canExecute = null)
         {
             if (execute == null) throw new ArgumentNullException(nameof(execute));
@@ -79,6 +119,15 @@ namespace NekoLib.Mvvm
             _canExecute = canExecute;
         }
 
+        /// <summary>
+        /// Coerces <paramref name="parameter"/> to <typeparamref name="T"/> and
+        /// evaluates the configured predicate when coercion succeeds.
+        /// </summary>
+        /// <param name="parameter">The binding-provided parameter, which may be <c>null</c>.</param>
+        /// <returns>
+        /// <c>false</c> when coercion fails; otherwise the predicate result, or
+        /// <c>true</c> when no predicate was supplied.
+        /// </returns>
         public bool CanExecute(object? parameter)
         {
             if (!TryCoerce(parameter, out T typed))
@@ -94,6 +143,10 @@ namespace NekoLib.Mvvm
             _execute(typed);
         }
 
+        /// <summary>
+        /// Occurs when a consumer should reevaluate <see cref="CanExecute(object)"/>.
+        /// The command raises the event only through <see cref="RaiseCanExecuteChanged"/>.
+        /// </summary>
         public event EventHandler? CanExecuteChanged;
 
         /// <inheritdoc cref="RelayCommand.RaiseCanExecuteChanged" />
