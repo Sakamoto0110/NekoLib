@@ -203,7 +203,12 @@ namespace NekoLib.Logging
 
                     // One sink never decides the outcome for the others: the file
                     // sink must still be flushed when an unrelated sink fails.
-                    if (!FlushSink(flushable, remaining))
+                    // A timeout is different because that sink consumed the
+                    // remaining pipeline-wide budget.
+                    var result = FlushSink(flushable, remaining);
+                    if (result == FlushSinkResult.TimedOut)
+                        return false;
+                    if (result == FlushSinkResult.Failed)
                         confirmed = false;
                 }
 
@@ -220,11 +225,13 @@ namespace NekoLib.Logging
         /// outlives the budget keeps running on its own thread; the caller only
         /// learns that completion was not confirmed.
         /// </summary>
-        private static bool FlushSink(IFlushableLogSink sink, TimeSpan remaining)
+        private static FlushSinkResult FlushSink(
+            IFlushableLogSink sink,
+            TimeSpan remaining)
         {
             Task task;
             try { task = Task.Run((Action)sink.Flush); }
-            catch { return false; }
+            catch { return FlushSinkResult.Failed; }
 
             // Reading the fault of an abandoned flush keeps
             // TaskScheduler.UnobservedTaskException - which NekoLib.Diagnostics
@@ -236,8 +243,23 @@ namespace NekoLib.Logging
                 TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
 
-            try { return task.Wait(remaining); }
-            catch { return false; }
+            try
+            {
+                return task.Wait(remaining)
+                    ? FlushSinkResult.Completed
+                    : FlushSinkResult.TimedOut;
+            }
+            catch
+            {
+                return FlushSinkResult.Failed;
+            }
+        }
+
+        private enum FlushSinkResult
+        {
+            Completed,
+            Failed,
+            TimedOut
         }
 
         /// <summary>
