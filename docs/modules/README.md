@@ -31,7 +31,7 @@ the [global documentation index](../README.md).
 | Core | Not migrated | Current source-adjacent reference |
 | Data | Not migrated | Current source-adjacent reference |
 | Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |
-| Diagnostics / Windows | Not migrated | Current source-adjacent reference |
+| Diagnostics / Windows | Populated module-first boundary | [`Diagnostics/MANIFEST.md`](Diagnostics/MANIFEST.md) |
 | Hosting | Not migrated; unshipped | Current project/source evidence |
 | Http | Not migrated | Current source-adjacent reference |
 | Inspection | Not migrated | Current source-adjacent reference |

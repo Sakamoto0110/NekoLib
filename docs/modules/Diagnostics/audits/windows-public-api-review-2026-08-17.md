@@ -1,13 +1,24 @@
 # Diagnostics.Windows Public API Review — 2026-08-17
 
+**Document ID:** DIAG-AUDIT-WINDOWS-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-WIN compiled public surface, WinForms exception-hook ownership
-and installation contract, minidump composition and native failure handling,
-WER-suppression scope, process-wide state ownership, target parity, and the
-Diagnostics package boundary
+**Subject:** F1-WIN compiled public surface, WinForms exception-hook ownership and installation contract, minidump composition and native failure handling, WER-suppression scope, process-wide state ownership, target parity, and the Diagnostics package boundary
+
+**Surface:** audit
+
+**Boundary:** diagnostics
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions implemented, with one recorded deviation, and
 package-validated
@@ -16,9 +27,11 @@ package-validated
 
 **Reference commit:** `ef533e2bca9ae8f86a8ecec7ae4d7bcf778077bf`
 
+**Original path:** `docs/audit/diagnostics-windows-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-18 — package gate completed
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-WIN
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-WIN
 
 ## Baseline and authority
 
@@ -32,12 +45,12 @@ of `origin/phase-e/sqlserver-and-orchestration`, and nothing was pushed.
 
 The reviewed authority is the `NekoLib.Diagnostics.Windows` project, all three
 of its source files, its project file, the two assembly-derived manifests under
-[`eng/public-api/NekoLib.Diagnostics.Windows/`](../../eng/public-api/NekoLib.Diagnostics.Windows),
-[`WindowsCrashTests.cs`](../../tests/NekoLib.Diagnostics.Tests/Unit/WindowsCrashTests.cs),
+[`eng/public-api/NekoLib.Diagnostics.Windows/`](../../../../eng/public-api/NekoLib.Diagnostics.Windows),
+[`WindowsCrashTests.cs`](../../../../tests/NekoLib.Diagnostics.Tests/Unit/WindowsCrashTests.cs),
 the `NekoLib.Diagnostics` surface it extends, the
-[public API and release policy](../public-api-release-policy.md), and current
+[public API and release policy](../../../public-api-release-policy.md), and current
 repository consumer source. The historical
-[Diagnostics boundaries review](diagnostics-boundaries-review-2026-07-30.md)
+[Diagnostics boundaries review](../../../audit/diagnostics-boundaries-review-2026-07-30.md)
 supplied WIN-01 as a lead only; it was reverified against current code.
 
 This review changes no product source, test, API baseline, package, changelog,
@@ -46,7 +59,7 @@ migration guide, or roadmap item.
 ## Dependency on the proposed Diagnostics decisions
 
 This review is written against the **proposed** F1-DIAG dispositions in
-[`diagnostics-public-api-review-2026-08-17.md`](diagnostics-public-api-review-2026-08-17.md).
+[`public-api-review-2026-08-17.md`](public-api-review-2026-08-17.md).
 Two of them change what this package must do, and both must be reverified
 against the accepted Diagnostics implementation before F1-WIN is implemented:
 
@@ -55,7 +68,7 @@ against the accepted Diagnostics implementation before F1-WIN is implemented:
    `WindowsCrash.UseMiniDump()` must be applied **before constructing** the
    handler. Its XML documentation currently says "Call before installing the
    handler"
-   ([`WindowsCrash.cs:22`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L22)),
+   ([`WindowsCrash.cs:22`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L22)),
    which would become wrong. If DIAG-09 is rejected, that line stays correct and
    WIN-04 below reduces to a clarification.
 2. **DIAG-02/DIAG-03 (contributor budgets).** These keep the dump writer running
@@ -101,7 +114,7 @@ Excluded:
 `UseWindowsForms`, **disables `Nullable`**, disables `ImplicitUsings`, defines
 `NEKOLIB` and `WINFORMS` plus the conditional `NETFRAMEWORK`/`NET_9` symbols,
 and references only `NekoLib.Diagnostics`
-([`NekoLib.Diagnostics.Windows.csproj`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj)).
+([`NekoLib.Diagnostics.Windows.csproj`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/NekoLib.Diagnostics.Windows.csproj)).
 It contains no conditional compilation, so both targets compile the same text.
 
 The boundary is correct and should be preserved exactly as it is: every
@@ -136,7 +149,7 @@ campaign and the recommendation is that the whole of it is intentionally stable;
 every finding below is behavioral or documentary.
 
 `MiniDumpWriter` is `internal`
-([`MiniDumpWriter.cs:8`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L8))
+([`MiniDumpWriter.cs:8`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L8))
 and must stay internal. It is reachable only as the delegate that
 `UseMiniDump()` installs, which is the correct shape: the P/Invoke signature,
 the `MINIDUMP_*` structures, and the flag enum are implementation detail behind
@@ -165,7 +178,7 @@ launched.
 **Closed.** `HookWinForms()` now takes a lock, guards on
 `_winFormsHookInstalled`, and installs one named handler for the process
 lifetime
-([`WindowsCrash.cs:39`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L39)).
+([`WindowsCrash.cs:39`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L39)).
 The two misspelled filenames are gone: the tracked files are
 `CrashSuppressor.cs` and `MiniDumpWriter.cs`. `WindowsCrashTests` calls
 `HookWinForms()` twice and asserts exactly one dispatch. The 2026-08-08
@@ -180,7 +193,7 @@ disposition did not consider.
 
 **Confirmed, probe-confirmed on both targets.** The method wraps the mode change
 and the subscription in one `try`
-([`WindowsCrash.cs:46`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L46)):
+([`WindowsCrash.cs:46`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L46)):
 
 ```csharp
 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
@@ -206,7 +219,7 @@ net481:          SetUnhandledExceptionMode threw=True
 Two things follow. First, any WinForms application that calls
 `WindowsCrash.HookWinForms()` after constructing its shell — which the current
 documentation, "Call at startup, after handlers are installed"
-([`WindowsCrash.cs:36`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L36)),
+([`WindowsCrash.cs:36`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L36)),
 does not warn against — gets **no UI-thread crash reporting at all**, silently.
 Second, the mode call is not required: a bare `Application.ThreadException`
 subscription received the UI-thread fault on both targets.
@@ -226,7 +239,7 @@ dispatch still happens.
 
 **Confirmed, probe-confirmed on both targets.** `MiniDumpWriter.TryWrite` builds
 `MINIDUMP_EXCEPTION_INFORMATION` from *ambient thread state*
-([`MiniDumpWriter.cs:67`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L67)):
+([`MiniDumpWriter.cs:67`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L67)):
 
 ```csharp
 ThreadId = GetCurrentThreadId(),
@@ -237,8 +250,8 @@ ClientPointers = false
 But `CrashHandler` does not call the dump writer on the crashing thread. It runs
 every contributor, including the dump writer, on a freshly created background
 thread
-([`CrashHandler.cs:450`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L450),
-[`:510`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L510)).
+([`CrashHandler.cs:450`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L450),
+[`:510`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L510)).
 Both values are therefore read from a thread that has no exception in flight.
 
 Probe reproducing exactly that shape — throw, catch, then start a background
@@ -259,7 +272,7 @@ debugger open on the fault is fabricated from the wrong thread.
 
 `crash.txt` cannot rescue this either: it records
 `Thread.CurrentThread.ManagedThreadId`
-([`CrashHandler.cs:574`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L574)),
+([`CrashHandler.cs:574`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L574)),
 a **managed** id, while a minidump indexes **native** thread ids. There is no
 way for an analyst to correlate the two.
 
@@ -285,7 +298,7 @@ gated. Resolving it requires explicit authorization.
 ### WIN-04 — `UseMiniDump()` overwrites any existing dump writer, and its "before installing" guidance is fragile
 
 **Confirmed.** `UseMiniDump` assigns unconditionally
-([`WindowsCrash.cs:25`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L25)),
+([`WindowsCrash.cs:25`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L25)),
 so a previously configured `CrashDumpWriter` is replaced without a signal. The
 null check is correct and throws `ArgumentNullException`.
 
@@ -302,16 +315,16 @@ expectation, and a silent no-op would be worse.
 ### WIN-05 — a failed dump leaves an empty or truncated `crash.dmp` in the bundle
 
 **Confirmed by construction.** `TryWrite` opens the file with `FileMode.Create`
-([`MiniDumpWriter.cs:63`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L63))
+([`MiniDumpWriter.cs:63`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L63))
 before calling `MiniDumpWriteDump`. If the native call returns `false`, or the
 `using` block unwinds on an exception, the created — and possibly zero-length or
 partially written — file stays in the crash bundle. `CrashHandler` records
 `Dump writer: no dump was written.`
-([`CrashHandler.cs:515`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L515))
+([`CrashHandler.cs:515`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L515))
 while a file named `crash.dmp` sits next to `crash.txt`.
 
 The `DllImport` declares `SetLastError = true`
-([`MiniDumpWriter.cs:29`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L29))
+([`MiniDumpWriter.cs:29`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L29))
 but the last error is never read, so the failure reason is discarded.
 
 **Recommended disposition:** delete the artifact when the native call does not
@@ -324,13 +337,13 @@ is rejected.
 ### WIN-06 — the `CrashDumpLevel` ladder is not cumulative
 
 **Confirmed.** `Map` returns exactly one `MiniDumpType` flag per level
-([`MiniDumpWriter.cs:42`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L42)).
+([`MiniDumpWriter.cs:42`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L42)).
 Because `MiniDumpNormal` is `0`, each level is "normal plus one flag" — so
 `WithFullMemory` does **not** include handle data or thread info, and
 `WithThreadInfo` does not include data segments. The `CrashDumpLevel`
 documentation describes them as increasing levels where "Bigger levels = bigger
 files"
-([`CrashDumpLevel.cs:3`](../../src/Diagnostics/NekoLib.Diagnostics/CrashDumpLevel.cs#L3)),
+([`CrashDumpLevel.cs:3`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashDumpLevel.cs#L3)),
 which reads as a nested ladder that does not exist.
 
 **Recommended disposition:** document the exact level-to-flag mapping in the
@@ -341,11 +354,11 @@ change dump content and size for every existing consumer of `WithHandleData` and
 ### WIN-07 — an out-of-range dump level silently degrades to a normal dump
 
 **Confirmed.** `Map`'s `default` branch returns `MiniDumpNormal`
-([`MiniDumpWriter.cs:51`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L51)),
+([`MiniDumpWriter.cs:51`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L51)),
 so a cast integer outside the enum produces a smaller dump than requested with
 no signal. `CrashDumpLevel.None` is handled correctly and earlier, returning
 `false` without creating a file
-([`MiniDumpWriter.cs:57`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L57)).
+([`MiniDumpWriter.cs:57`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/MiniDumpWriter.cs#L57)).
 
 **Recommended disposition:** document the fallback. Throwing on the crash path
 would be wrong, and the current degradation is the safe direction.
@@ -354,7 +367,7 @@ would be wrong, and the current degradation is the safe direction.
 
 **Confirmed, probe-confirmed on both targets.** `Enable()` calls `SetErrorMode`
 with a fixed flag set and discards the returned previous mode
-([`CrashSuppressor.cs:29`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/CrashSuppressor.cs#L29)).
+([`CrashSuppressor.cs:29`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/CrashSuppressor.cs#L29)).
 There is no restore, no nesting, no query, and no way to learn what the process
 mode was.
 
@@ -370,7 +383,7 @@ this case the replacement happens to be a superset, but the pattern is a
 process-wide stomp: any flag another component set that is not in NekoLib's
 three is discarded. `SEM_NOALIGNMENTFAULTEXCEPT` is declared in the internal enum
 and never used
-([`CrashSuppressor.cs:18`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/CrashSuppressor.cs#L18)).
+([`CrashSuppressor.cs:18`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/CrashSuppressor.cs#L18)).
 
 **Recommended disposition:** merge instead of replace — `GetErrorMode()` is
 available on every supported Windows version, so `SetErrorMode(GetErrorMode() |
@@ -384,10 +397,10 @@ not stop WER from generating or queueing a report.
 
 **Confirmed by construction.** `OnThreadException` forwards with
 `terminating: false`
-([`WindowsCrash.cs:58`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L58)).
+([`WindowsCrash.cs:58`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L58)).
 Combined with `CrashHandler`'s reentrancy latch, which resets only for
 non-terminating reports
-([`CrashHandler.cs:249`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L249)),
+([`CrashHandler.cs:249`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L249)),
 this means a WinForms application keeps running after a UI-thread fault and can
 produce one crash bundle per fault.
 
@@ -407,7 +420,7 @@ while the `NekoLib.Diagnostics` types they reference do. The difference is
 visible in the manifests: `UseMiniDump(this CrashHandlerOptions options)` has no
 annotation, though the method does throw `ArgumentNullException` for a null
 argument
-([`WindowsCrash.cs:27`](../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L27)).
+([`WindowsCrash.cs:27`](../../../../src/Diagnostics/NekoLib.Diagnostics.Windows/WindowsCrash.cs#L27)).
 
 The campaign fixes this setting as disabled, and enabling it would change the
 compiled manifests on both targets.
@@ -431,7 +444,7 @@ launches a crash.
 ### WIN-12 — Diagnostics.Windows has no documentation owner
 
 **Confirmed.** There is no README for this package and
-[`docs/README.md`](../README.md) registers no owner for it. Every process-wide
+[`docs/README.md`](../../../README.md) registers no owner for it. Every process-wide
 effect catalogued above is currently undocumented.
 
 `NekoLib.Navigation.WinForms` and `NekoLib.Navigation.Wpf` set the repository

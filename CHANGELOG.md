@@ -224,7 +224,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `CrashSuppressor.Enable()` now merges into the current process error mode
   instead of replacing it, preserving flags set by the host. `UseMiniDump()` must
   be applied before **constructing** the handler; see the
-  [F1-DIAG migration guide](docs/migrations/f1-diagnostics.md).
+  [F1-DIAG migration guide](docs/modules/Diagnostics/migrations/f1.md).
 - **NekoLib.Diagnostics — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed the obsolete
   `CrashHandlerOptions.NotifyWatchdog` gate, whose Watchdog-specific policy was
@@ -251,7 +251,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   are disambiguated and recorded rather than overwriting each other, and the
   crash-text block is redacted as one bounded batch instead of one thread per
   line. In `crash.txt`, `ThreadId` is now `ManagedThreadId`. See the
-  [F1-DIAG migration guide](docs/migrations/f1-diagnostics.md).
+  [F1-DIAG migration guide](docs/modules/Diagnostics/migrations/f1.md).
 - **NekoLib.Inspection - behavioral and experimental pre-stable candidate
   correction for the first `1.0.0` stable family release.** No public type,
   member, signature, nullability annotation, default value, namespace, target,

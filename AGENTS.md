@@ -15,7 +15,7 @@ the handoff state and the rules that are easy to get wrong.
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`src/Logging/NekoLib.Logging/README.md`](src/Logging/NekoLib.Logging/README.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`src/Telemetry/NekoLib.Telemetry/README.md`](src/Telemetry/NekoLib.Telemetry/README.md) |
 | Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
-| Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](src/Diagnostics/NekoLib.Diagnostics/README.md) |
+| Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`docs/modules/Diagnostics/REFERENCE.md`](docs/modules/Diagnostics/REFERENCE.md) |
 | Binding helper coercion, notification semantics, threading, and nullability | [`docs/modules/Mvvm/REFERENCE.md`](docs/modules/Mvvm/REFERENCE.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`docs/modules/Devices/REFERENCE.md`](docs/modules/Devices/REFERENCE.md) |
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |

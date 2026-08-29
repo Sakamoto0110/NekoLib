@@ -22,6 +22,11 @@ namespace NekoLib.Diagnostics
     /// <param name="filePath">Reserved artifact path the writer must create on success.</param>
     /// <param name="level">Captured dump level requested by the application.</param>
     /// <returns><c>true</c> only when a complete artifact was written at <paramref name="filePath"/>.</returns>
+    /// <remarks>
+    /// Diagnostics invokes the writer on a bounded background contributor without
+    /// cancellation. A writer abandoned after timeout can still complete later;
+    /// the crash-bundle event records the outcome observed at its own publication time.
+    /// </remarks>
     public delegate bool CrashDumpWriter(string filePath, CrashDumpLevel level);
 
     /// <summary>
@@ -51,8 +56,9 @@ namespace NekoLib.Diagnostics
         public bool WriteCrashFolder { get; set; } = true;
 
         /// <summary>
-        /// Optional caller-owned evidence. The application owns its size; unlike the
-        /// snapshot sources below, this contributor is not bounded by Diagnostics.
+        /// Optional caller-owned evidence. The returned record count is not bounded,
+        /// but the callback is time-bounded and persisted lines are redacted and
+        /// truncated to <see cref="MaxEvidenceLineLength"/>.
         /// </summary>
         public Func<IEnumerable<string>>? ExtraLines { get; set; }
 
@@ -100,16 +106,20 @@ namespace NekoLib.Diagnostics
 
         /// <summary>
         /// Optional line-oriented redactor applied to dynamic crash evidence and
-        /// configured file tails before it is persisted. It governs persisted
-        /// artifacts only; subscribers and <see cref="ExternalNotifier"/> still
-        /// receive the raw exception.
+        /// configured file tails before it is persisted. Failure or timeout fails
+        /// closed and disables further redaction attempts for this handler. It
+        /// governs persisted text only: native dump bytes are not redacted, and
+        /// subscribers, <see cref="Logger"/>, and <see cref="ExternalNotifier"/>
+        /// receive raw data.
         /// </summary>
         public Func<string, string>? Redact { get; set; }
 
         /// <summary>
         /// Optional notification callback supplied by the application composition
-        /// root. Diagnostics invokes it after crash artifacts are written. Leave it
-        /// null when no external notification is required.
+        /// root. Diagnostics invokes it inline after the artifact stage completes or
+        /// fails, including when crash-folder writing is disabled. The callback is
+        /// unbudgeted and its exceptions are isolated. Leave it null when no external
+        /// notification is required.
         /// </summary>
         public Action<CrashDetectedEventArgs>? ExternalNotifier { get; set; }
     }

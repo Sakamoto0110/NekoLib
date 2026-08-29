@@ -1,13 +1,24 @@
 # Diagnostics Public API Review — 2026-08-17
 
+**Document ID:** DIAG-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-DIAG compiled public surface, crash-handler installation and
-ownership, process-wide hook lifetime, incident collection budgets, crash-bundle
-composition, partial-evidence contracts, redaction boundary, external
-notification, and compatibility boundaries
+**Subject:** F1-DIAG compiled public surface, crash-handler installation and ownership, process-wide hook lifetime, incident collection budgets, crash-bundle composition, partial-evidence contracts, redaction boundary, external notification, and compatibility boundaries
+
+**Surface:** audit
+
+**Boundary:** diagnostics
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions implemented, independently reviewed, and
 package-validated
@@ -16,10 +27,11 @@ package-validated
 
 **Reference commit:** `89f05b667be10104e8ef966ac9bebba7b7f13a23`
 
-**Last reconciliation:** 2026-08-18 — lifecycle correction and package gate
-completed
+**Original path:** `docs/audit/diagnostics-public-api-review-2026-08-17.md`
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-DIAG
+**Last reconciliation:** 2026-08-18 — lifecycle correction and package gate completed
+
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-DIAG
 
 ## Baseline and authority
 
@@ -30,11 +42,11 @@ worktree and index were clean and the branch was 23 commits ahead of
 
 The reviewed authority is the `NekoLib.Diagnostics` project, all of its source,
 its project file, the two assembly-derived manifests under
-[`eng/public-api/NekoLib.Diagnostics/`](../../eng/public-api/NekoLib.Diagnostics),
+[`eng/public-api/NekoLib.Diagnostics/`](../../../../eng/public-api/NekoLib.Diagnostics),
 the dual-target focused tests, the Core Logging/Telemetry/Inspection contracts
-it consumes, the [public API and release policy](../public-api-release-policy.md),
+it consumes, the [public API and release policy](../../../public-api-release-policy.md),
 and current repository consumer source. The historical
-[Diagnostics boundaries review](diagnostics-boundaries-review-2026-07-30.md)
+[Diagnostics boundaries review](../../../audit/diagnostics-boundaries-review-2026-07-30.md)
 supplied leads only; every finding cited from it was reverified against current
 code.
 
@@ -87,7 +99,7 @@ Excluded:
 `NekoLib.Diagnostics` targets `net481;net9.0`, enables `Nullable`, disables
 `ImplicitUsings`, defines `NEKOLIB` plus the conditional `NETFRAMEWORK`/`NET_9`
 symbols, and references only `NekoLib.Core`
-([`NekoLib.Diagnostics.csproj`](../../src/Diagnostics/NekoLib.Diagnostics/NekoLib.Diagnostics.csproj)).
+([`NekoLib.Diagnostics.csproj`](../../../../src/Diagnostics/NekoLib.Diagnostics/NekoLib.Diagnostics.csproj)).
 It contains no conditional compilation at all, so both targets compile the same
 text. It does not reference the concrete Logging, Telemetry, or Inspection
 packages, and must not.
@@ -166,9 +178,9 @@ stated, not measured.
 ### DIAG-01 — A failed crash bundle is invisible to the application
 
 **Confirmed.** `WriteCrashArtifacts` wraps its entire body in `catch { }`
-([`CrashHandler.cs:483`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L483)).
+([`CrashHandler.cs:483`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L483)).
 `CrashBundleWritten` is raised only on the success path
-([`CrashHandler.cs:521`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L521)).
+([`CrashHandler.cs:521`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L521)).
 There is no failure event, no note, and no return value.
 
 Probe, with a crash root whose parent is an existing *file* so the directory
@@ -195,22 +207,22 @@ events, and keep the crash path non-throwing. Document that exactly one of
 
 **Confirmed.** `EvidenceCollectionTimeout` is documented as "Maximum wait for
 each optional crash-evidence contributor"
-([`CrashHandler.cs:62`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L62)).
+([`CrashHandler.cs:62`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L62)).
 It is used simultaneously as:
 
 - the outer wall-clock `Thread.Join` bound in `RunContributor`
-  ([`CrashHandler.cs:461`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L461));
+  ([`CrashHandler.cs:461`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L461));
 - the cooperative budget handed to `ILogFlusher.Flush`
-  ([`CrashHandler.cs:296`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L296));
+  ([`CrashHandler.cs:296`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L296));
 - the cooperative budget handed to `IInspectionSnapshotSource.CaptureSnapshot`
-  ([`CrashHandler.cs:396`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L396)).
+  ([`CrashHandler.cs:396`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L396)).
 
 Both shipped implementations consume their full supplied budget before
 returning a partial answer: `Logger.Flush` returns `false` when the budget
 expires
-([`Logger.cs:173`](../../src/Logging/NekoLib.Logging/Logger.cs#L173)) and
+([`Logger.cs:173`](../../../../src/Logging/NekoLib.Logging/Logger.cs#L173)) and
 `InspectionRuntime.CaptureSnapshot` records `<snapshot timed out>` per provider
-([`InspectionRuntime.cs:206`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs#L206)).
+([`InspectionRuntime.cs:206`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs#L206)).
 The outer join therefore always expires first, and the contributor's own
 correct answer is thrown away.
 
@@ -249,10 +261,10 @@ exception.ToString() lines=2; redactor invocations=8; elapsed=31 ms
 
 Each of those eight invocations created and joined its own dedicated OS thread
 (`Sanitize` → `RunContributor` →
-[`CrashHandler.cs:450`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L450)).
+[`CrashHandler.cs:450`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L450)).
 The count grows linearly with stack-trace depth and incident-note count, on the
 crash path of a process that is usually dying. The `_redactorUnavailable` latch
-([`CrashHandler.cs:673`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L673))
+([`CrashHandler.cs:673`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L673))
 bounds only the *failing* case; a redactor that succeeds slowly is charged the
 full per-line cost every time.
 
@@ -271,11 +283,11 @@ full per-line cost every time.
 
 **Confirmed.** `EnsureGlobalHandlersInstalled` latches `_globalHandlersInstalled`
 and subscribes both CLR events
-([`CrashHandler.cs:173`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L173)).
+([`CrashHandler.cs:173`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L173)).
 Nothing ever unsubscribes them or resets the latch. `OnUnobservedTaskException`
 calls `e.SetObserved()` unconditionally, after dispatching to a registry that
 may be empty
-([`CrashHandler.cs:201`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L201)).
+([`CrashHandler.cs:201`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L201)).
 
 Probe, after installing and then disposing the only handler:
 
@@ -291,7 +303,7 @@ has explicitly disposed its crash handling, and including for library code that
 never asked for it. On `net481` with legacy escalation configured, that is a
 silent policy change, not an implementation detail. The Logging module already
 had to work around this exact behavior
-([`Logger.cs:202`](../../src/Logging/NekoLib.Logging/Logger.cs#L202)).
+([`Logger.cs:202`](../../../../src/Logging/NekoLib.Logging/Logger.cs#L202)).
 
 **Recommended disposition:** remove both process-wide subscriptions when the
 last installed handler is removed from the registry, resetting the latch under
@@ -305,9 +317,9 @@ observed, deliberately, because it has already recorded them.
 
 **Confirmed.** `_installed` doubles as the disposal flag: `Dispose()` swaps it
 back to `0`
-([`CrashHandler.cs:758`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L758)),
+([`CrashHandler.cs:758`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L758)),
 which re-arms `Install()`
-([`CrashHandler.cs:161`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L161)).
+([`CrashHandler.cs:161`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L161)).
 
 Probe:
 
@@ -330,9 +342,9 @@ protect the process must be told it will not.
 **Confirmed.** `MaxRecentLogEntries`, `MaxRecentTelemetryOperations`, and
 `MaxInspectionOperations` are passed to the supplied source and never enforced
 locally; the formatters iterate whatever the source returned
-([`CrashHandler.cs:355`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L355),
-[`:365`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L365),
-[`:407`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L407)).
+([`CrashHandler.cs:355`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L355),
+[`:365`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L365),
+[`:407`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L407)).
 `ExtraLines` has no cap at all. Only per-line length is bounded.
 
 Probe, with `MaxRecentLogEntries = 5` and a snapshot source that ignores its
@@ -354,11 +366,11 @@ the application owns its size. Document that boundary explicitly.
 ### DIAG-07 — One poisoned record destroys its entire evidence section
 
 **Confirmed.** `entry.ToString()`
-([`CrashHandler.cs:362`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L362))
+([`CrashHandler.cs:362`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L362))
 and `operation.ToString()`
-([`CrashHandler.cs:408`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L408))
+([`CrashHandler.cs:408`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L408))
 are unguarded, unlike `SafeObjectText`
-([`CrashHandler.cs:439`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L439)).
+([`CrashHandler.cs:439`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L439)).
 `LogEntry.ToString()` embeds `Exception.ToString()`, which application exception
 types may override.
 
@@ -381,7 +393,7 @@ per-section.
 ### DIAG-08 — Two tail files with the same file name silently overwrite each other
 
 **Confirmed.** The destination is `Path.Combine(bundleDir, Path.GetFileName(f))`
-([`CrashHandler.cs:624`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L624)),
+([`CrashHandler.cs:624`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L624)),
 so `C:\a\app.log` and `C:\b\app.log` land on the same path.
 
 Probe:
@@ -401,7 +413,7 @@ collision occurs. Behavioral only.
 **Confirmed.** The constructor validates `CrashRootDirectory`,
 `EvidenceCollectionTimeout`, the three evidence limits, and the
 `MaxEvidenceLineLength ≥ 64` floor
-([`CrashHandler.cs:141`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L141)).
+([`CrashHandler.cs:141`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L141)).
 The handler then stores the options object itself and reads `_o.X` during the
 crash.
 
@@ -431,9 +443,9 @@ review and the Windows review.
 
 **Confirmed.** `CrashDetected`, `CrashBundleWritten`, and `ExternalNotifier` are
 invoked inline on the crashing thread with exception isolation but no timeout
-([`:255`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L255),
-[`:530`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L530),
-[`:268`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L268)),
+([`:255`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L255),
+[`:530`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L530),
+[`:268`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L268)),
 while every contributor is thread-bounded.
 
 Probe, with `EvidenceCollectionTimeout = 100 ms`:
@@ -454,7 +466,7 @@ block.
 `SanitizeInline`, both of which feed file writes.
 `CrashDetectedEventArgs.Exception` hands the raw exception object to every
 `CrashDetected` subscriber and to `ExternalNotifier`
-([`CrashHandler.cs:96`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L96)).
+([`CrashHandler.cs:96`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L96)).
 
 This is a defensible boundary — a supervisor integration usually needs the real
 exception — but it is undocumented, and "Redact" reads as a stronger guarantee
@@ -468,7 +480,7 @@ the raw exception. No code change.
 
 **Confirmed.** `_crashing` is a per-handler latch reset in `finally` only when
 the report was non-terminating
-([`CrashHandler.cs:225`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L225)).
+([`CrashHandler.cs:225`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L225)).
 
 Probe, a second report arriving while the first is still collecting evidence:
 
@@ -487,7 +499,7 @@ drop is silent so operators do not read one bundle as proof of one fault.
 
 **Confirmed.** `DumpPath` is always `<bundle>/crash.dmp` and `DumpWritten` is
 `false` when no writer is configured or the writer failed
-([`CrashHandler.cs:505`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L505)).
+([`CrashHandler.cs:505`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L505)).
 The path names a file that may not exist.
 
 **Recommended disposition:** document that `DumpPath` is the reserved path and
@@ -498,7 +510,7 @@ benefit.
 ### DIAG-14 — Diagnostics has no current technical reference
 
 **Confirmed.** There is no `src/Diagnostics/NekoLib.Diagnostics/README.md`, and
-[`docs/README.md`](../README.md) registers no Diagnostics owner. Core, Data,
+[`docs/README.md`](../../../README.md) registers no Diagnostics owner. Core, Data,
 Logging, Telemetry, Inspection, Navigation, and HTTP all have one. The
 contracts this review had to derive from source — ownership, installation
 lifetime, budget composition, partial-evidence rules, redaction boundary, bundle
@@ -511,7 +523,7 @@ and register it in the documentation index and `AGENTS.md` navigation table.
 
 **Confirmed.** `NotifyWatchdog` is `[Obsolete]` and now does nothing but gate
 `ExternalNotifier` globally
-([`CrashHandler.cs:80`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L80)).
+([`CrashHandler.cs:80`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs#L80)).
 The Watchdog-specific policy it was named for is gone: `NEKO_UNDER_WATCHDOG`
 does not appear anywhere under `src/Diagnostics` (CRASH-02 reverified, closed —
 see below). Its behavior is exactly duplicated by setting

@@ -1,8 +1,9 @@
 ﻿namespace NekoLib.Diagnostics
 {
     /// <summary>
-    /// Dump "levels" (what gets captured). Bigger levels = bigger files + more sensitive data risk.
-    /// Keep MiniDumpNormal as default for field machines.
+    /// Dump-content requests passed unchanged to the configured writer. Values
+    /// are not cumulative; the platform writer defines their exact mapping.
+    /// Keep MiniDumpNormal as the conservative default for field machines.
     /// </summary>
     public enum CrashDumpLevel
     {

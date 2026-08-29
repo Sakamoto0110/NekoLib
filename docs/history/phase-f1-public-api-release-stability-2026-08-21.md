@@ -44,8 +44,8 @@ become current API or package authority.
 | F1-LOG | [`logging-public-api-review-2026-08-17.md`](../audit/logging-public-api-review-2026-08-17.md) | [Logging reference](../../src/Logging/NekoLib.Logging/README.md) |
 | F1-TEL | [`telemetry-public-api-review-2026-08-17.md`](../audit/telemetry-public-api-review-2026-08-17.md) | [Telemetry reference](../../src/Telemetry/NekoLib.Telemetry/README.md) |
 | F1-INSP | [`inspection-public-api-review-2026-08-17.md`](../audit/inspection-public-api-review-2026-08-17.md) | [Inspection reference](../../src/Inspection/NekoLib.Inspection/README.md) |
-| F1-DIAG | [`diagnostics-public-api-review-2026-08-17.md`](../audit/diagnostics-public-api-review-2026-08-17.md) | [Diagnostics reference](../../src/Diagnostics/NekoLib.Diagnostics/README.md) |
-| F1-WIN | [`diagnostics-windows-public-api-review-2026-08-17.md`](../audit/diagnostics-windows-public-api-review-2026-08-17.md) | [Diagnostics reference](../../src/Diagnostics/NekoLib.Diagnostics/README.md) |
+| F1-DIAG | [`public-api-review-2026-08-17.md`](../modules/Diagnostics/audits/public-api-review-2026-08-17.md) | [Diagnostics reference](../modules/Diagnostics/REFERENCE.md) |
+| F1-WIN | [`windows-public-api-review-2026-08-17.md`](../modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md) | [Diagnostics reference](../modules/Diagnostics/REFERENCE.md) |
 | F1-HTTP | [`http-public-api-review-2026-08-17.md`](../audit/http-public-api-review-2026-08-17.md) | [HTTP reference](../../src/Http/NekoLib.Http/README.md) |
 | F1-MVVM | [`public-api-review-2026-08-17.md`](../modules/Mvvm/audits/public-api-review-2026-08-17.md) | [Mvvm reference](../modules/Mvvm/REFERENCE.md) |
 | F1-DEV | [`public-api-review-2026-08-17.md`](../modules/Devices/audits/public-api-review-2026-08-17.md) | [Devices reference](../modules/Devices/REFERENCE.md) |
