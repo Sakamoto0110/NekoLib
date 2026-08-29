@@ -59,7 +59,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Diagnostics and Diagnostics.Windows technical contract | [`docs/modules/Diagnostics/REFERENCE.md`](modules/Diagnostics/REFERENCE.md) | Diagnostics source, four accepted API manifests, and the dual-target Diagnostics tests |
 | Logging technical contract | [`docs/modules/Logging/REFERENCE.md`](modules/Logging/REFERENCE.md) | Logging source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
 | Telemetry technical contract | [`docs/modules/Telemetry/REFERENCE.md`](modules/Telemetry/REFERENCE.md) | Telemetry source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
-| Inspection runtime technical contract | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | Inspection source, tests, and the Observability scenario |
+| Inspection technical contract | [`docs/modules/Inspection/REFERENCE.md`](modules/Inspection/REFERENCE.md) | Inspection source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
 | Pipes technical contract | [`docs/modules/Pipes/REFERENCE.md`](modules/Pipes/REFERENCE.md) | Pipes source, dual-target tests, and the compiled public API manifests |
 | Watchdog technical contract | [`docs/modules/Watchdog/REFERENCE.md`](modules/Watchdog/REFERENCE.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
 | Watchdog Host deployment contract | [`docs/modules/WatchdogHost/REFERENCE.md`](modules/WatchdogHost/REFERENCE.md) | Host source, dual-target tests, package target, and package-only consumers |
@@ -170,7 +170,16 @@ reference commit.
 | [`docs/modules/Telemetry/VALIDATION_REQUIREMENTS.md`](modules/Telemetry/VALIDATION_REQUIREMENTS.md) | reference | current | Telemetry evidence contract derived from the inherited validation profiles |
 | [`docs/modules/Telemetry/VALIDATIONS.md`](modules/Telemetry/VALIDATIONS.md) | reference | current | Telemetry executed-evidence registry |
 | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | reference | current | Pointer-only source portal to the canonical Telemetry technical reference |
-| [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | reference | current | Passive Inspection composition, recording, provider identity and ordering, snapshot budgets, owner diagnostics, lifecycle, and experimental actions |
+| [`docs/modules/Inspection/MANIFEST.md`](modules/Inspection/MANIFEST.md) | reference | current | Inspection identity, routing, project/package topology, API oracles, experimental marker, and evidence locations |
+| [`docs/modules/Inspection/README.md`](modules/Inspection/README.md) | reference | current | Concise Inspection consumer introduction |
+| [`docs/modules/Inspection/REFERENCE.md`](modules/Inspection/REFERENCE.md) | reference | current | Passive Inspection composition, recording, provider identity and ordering, snapshot budgets, owner diagnostics, lifecycle, and experimental actions |
+| [`docs/modules/Inspection/HISTORY.md`](modules/Inspection/HISTORY.md) | reference | current | Append-only factual Inspection chronology |
+| [`docs/modules/Inspection/CHANGELOG.md`](modules/Inspection/CHANGELOG.md) | reference | current | Inspection-specific consumer-visible evolution |
+| [`docs/modules/Inspection/ISSUES.md`](modules/Inspection/ISSUES.md) | reference | current | Confirmed Inspection defects registry |
+| [`docs/modules/Inspection/FINDINGS.md`](modules/Inspection/FINDINGS.md) | reference | current | Non-normative Inspection findings registry |
+| [`docs/modules/Inspection/VALIDATION_REQUIREMENTS.md`](modules/Inspection/VALIDATION_REQUIREMENTS.md) | reference | current | Inspection evidence contract derived from the inherited validation profiles |
+| [`docs/modules/Inspection/VALIDATIONS.md`](modules/Inspection/VALIDATIONS.md) | reference | current | Inspection executed-evidence registry |
+| [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | reference | current | Pointer-only source portal to the canonical Inspection technical reference |
 | [`docs/modules/Navigation/MANIFEST.md`](modules/Navigation/MANIFEST.md) | reference | current | Navigation family identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Navigation/README.md`](modules/Navigation/README.md) | reference | current | Concise consumer introduction, package route, bootstrap entry point, and boundary non-goals |
 | [`docs/modules/Navigation/REFERENCE.md`](modules/Navigation/REFERENCE.md) | reference | current | Navigation family package, lifecycle, ownership, concurrency, cancellation, platform, extension, security, diagnostics, and validation contract |
@@ -202,7 +211,7 @@ reference commit.
 | [`docs/modules/Watchdog/migrations/f1.md`](modules/Watchdog/migrations/f1.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
 | [`docs/modules/WatchdogHost/migrations/f1.md`](modules/WatchdogHost/migrations/f1.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
 | [`docs/modules/Logging/migrations/f1.md`](modules/Logging/migrations/f1.md) | guide | current | Migration from the initial Logging candidate surface to the accepted F1-LOG pipeline, flush, disposal, and sink behavior |
-| [`docs/migrations/f1-inspection.md`](migrations/f1-inspection.md) | guide | current | Migration from the initial Inspection candidate surface to the accepted passive runtime and experimental action boundary |
+| [`docs/modules/Inspection/migrations/f1.md`](modules/Inspection/migrations/f1.md) | guide | current | Migration from the initial Inspection candidate surface to the accepted passive runtime and experimental action boundary |
 | [`docs/modules/Telemetry/migrations/f1.md`](modules/Telemetry/migrations/f1.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
 | [`docs/modules/Navigation/migrations/f1.md`](modules/Navigation/migrations/f1.md) | guide | current | Migration from the initial Navigation candidate family to the accepted core facade, adapter compatibility, ownership, disposal, and nullability contracts |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
@@ -213,7 +222,7 @@ reference commit.
 | [`docs/modules/Diagnostics/audits/public-api-review-2026-08-17.md`](modules/Diagnostics/audits/public-api-review-2026-08-17.md) | audit | historical | F1-DIAG compiled-surface review, accepted implementation reconciliation, final lifecycle correction, and immutable package evidence |
 | [`docs/modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md`](modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md) | audit | historical | F1-WIN compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Logging/audits/public-api-review-2026-08-17.md`](modules/Logging/audits/public-api-review-2026-08-17.md) | audit | historical | F1-LOG compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
-| [`docs/audit/inspection-public-api-review-2026-08-17.md`](audit/inspection-public-api-review-2026-08-17.md) | audit | historical | F1-INSP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
+| [`docs/modules/Inspection/audits/public-api-review-2026-08-17.md`](modules/Inspection/audits/public-api-review-2026-08-17.md) | audit | historical | F1-INSP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/http-public-api-review-2026-08-17.md`](audit/http-public-api-review-2026-08-17.md) | audit | historical | F1-HTTP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/public-api-documentation-extensibility-review-2026-08-27.md`](audit/public-api-documentation-extensibility-review-2026-08-27.md) | audit | historical | Completed managed public API documentation, extension-contract, and immutable package-delivery review |
 | [`docs/modules/Mvvm/audits/public-api-review-2026-08-17.md`](modules/Mvvm/audits/public-api-review-2026-08-17.md) | audit | historical | F1-MVVM compiled-surface review, accepted implementation reconciliation, and immutable package evidence |

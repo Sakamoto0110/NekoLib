@@ -87,7 +87,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Watchdog`](docs/modules/Watchdog/REFERENCE.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | [`NekoLib.Watchdog.Host`](docs/modules/WatchdogHost/REFERENCE.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
 | [`NekoLib.Devices`](docs/modules/Devices/REFERENCE.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
-| [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
+| [`NekoLib.Inspection`](docs/modules/Inspection/REFERENCE.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
 Ordinary logging does not require Diagnostics or Inspection:
 
@@ -125,7 +125,7 @@ action registry is also cleared. The overload
 `UseInspection(IInspectionRecorder)` accepts an explicit non-global recorder.
 Diagnostics sees only `IInspectionSnapshotSource`, so it cannot invoke
 registered actions. See the
-[Inspection reference](src/Inspection/NekoLib.Inspection/README.md) for identity,
+[Inspection reference](docs/modules/Inspection/REFERENCE.md) for identity,
 ordering, budget, lifecycle, and experimental-boundary contracts.
 
 Navigation telemetry creates one correlated `Navigation/page_switch` operation.
@@ -177,7 +177,7 @@ technical manual.
 | [Core](src/Core/NekoLib.Core/README.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
 | [Logging](docs/modules/Logging/REFERENCE.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
 | [Telemetry](docs/modules/Telemetry/REFERENCE.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
-| [Inspection](src/Inspection/NekoLib.Inspection/README.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
+| [Inspection](docs/modules/Inspection/REFERENCE.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
 | [Diagnostics](docs/modules/Diagnostics/REFERENCE.md) | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; options are captured at construction, disposal is terminal and releases the process hooks, bundles may be partial, and a failed bundle raises `CrashBundleFailed` | `NekoLib.Diagnostics.Tests.Unit` |
 | [Diagnostics.Windows](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
@@ -375,7 +375,7 @@ cycles.
 | | |
 |---|---|
 | Navigation technical reference | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
-| Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
+| Inspection technical reference | [`docs/modules/Inspection/REFERENCE.md`](docs/modules/Inspection/REFERENCE.md) |
 | Pipes technical reference | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |
 | Watchdog technical reference | [`docs/modules/Watchdog/REFERENCE.md`](docs/modules/Watchdog/REFERENCE.md) |
 | Product direction, intentions, and the Inspection instrumentation freeze | [`ROADMAP.md`](ROADMAP.md) |

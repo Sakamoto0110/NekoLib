@@ -59,6 +59,16 @@ namespace NekoLib.Inspection
         /// <returns>The installed runtime, whose disposal owns uninstallation.</returns>
         /// <exception cref="InvalidOperationException">A global inspection runtime is already installed.</exception>
         /// <exception cref="ArgumentOutOfRangeException"><see cref="InspectionOptions.Capacity"/> is less than 1.</exception>
+        /// <exception cref="ObjectDisposedException">
+        /// The new runtime was disposed while activation was being completed.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// The recorder reported itself disabled while it was being installed.
+        /// </exception>
+        /// <remarks>
+        /// Every failure path rolls the installation back, so the process-wide slot
+        /// is never left holding a disabled recorder.
+        /// </remarks>
         public static InspectionRuntime EnableGlobal(InspectionOptions? options = null)
             => EnableGlobal(options, null);
 
@@ -297,9 +307,15 @@ namespace NekoLib.Inspection
         }
 
         /// <summary>
-        /// Convenience synchronous read for interactive Inspection owners. Provider
-        /// failures are isolated exactly as before the rename. Diagnostics should
-        /// depend on <see cref="IInspectionSnapshotSource"/> and supply a budget.
+        /// Convenience synchronous read for a local Inspection owner. Providers are
+        /// invoked in registration order and their failures are isolated into the
+        /// same null and exception markers the budgeted capture uses.
+        /// <para/>
+        /// This applies <b>no completion budget</b>: it invokes each provider
+        /// directly and blocks for as long as a provider blocks. Bounded evidence
+        /// collectors, including <c>NekoLib.Diagnostics</c>, must use
+        /// <see cref="IInspectionSnapshotSource.CaptureSnapshot"/> and supply a
+        /// timeout instead.
         /// </summary>
         /// <returns>A new ordinal dictionary in provider registration order.</returns>
         public IReadOnlyDictionary<string, object> CaptureState()

@@ -266,7 +266,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   observe late failures without adding cancellation. Invalid capacity now
   reports `Capacity`, and clear is inert after disposal while enabled empty
   clears still count. See the
-  [F1-INSP migration guide](docs/migrations/f1-inspection.md).
+  [F1-INSP migration guide](docs/modules/Inspection/migrations/f1.md).
 - **NekoLib.Telemetry — behavioral pre-stable candidate correction for the first
   `1.0.0` stable family release.** No public type, member, signature,
   nullability annotation, default value, namespace, target, or dependency

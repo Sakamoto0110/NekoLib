@@ -54,7 +54,7 @@ reimplementing a whole capability. The supplied behavior and ownership rules
 remain documented by the concrete
 [`NekoLib.Logging`](../../../docs/modules/Logging/REFERENCE.md),
 [`NekoLib.Telemetry`](../../../docs/modules/Telemetry/REFERENCE.md), and
-[`NekoLib.Inspection`](../../Inspection/NekoLib.Inspection/README.md) packages.
+[`NekoLib.Inspection`](../../../docs/modules/Inspection/REFERENCE.md) packages.
 
 A minimal custom telemetry sink is ordinary explicit composition:
 

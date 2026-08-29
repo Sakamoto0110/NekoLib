@@ -14,7 +14,7 @@ the handoff state and the rules that are easy to get wrong.
 | Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`docs/modules/Logging/REFERENCE.md`](docs/modules/Logging/REFERENCE.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`docs/modules/Telemetry/REFERENCE.md`](docs/modules/Telemetry/REFERENCE.md) |
-| Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
+| Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`docs/modules/Inspection/REFERENCE.md`](docs/modules/Inspection/REFERENCE.md) |
 | Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`docs/modules/Diagnostics/REFERENCE.md`](docs/modules/Diagnostics/REFERENCE.md) |
 | Binding helper coercion, notification semantics, threading, and nullability | [`docs/modules/Mvvm/REFERENCE.md`](docs/modules/Mvvm/REFERENCE.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`docs/modules/Devices/REFERENCE.md`](docs/modules/Devices/REFERENCE.md) |

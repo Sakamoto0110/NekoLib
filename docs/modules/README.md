@@ -34,7 +34,7 @@ the [global documentation index](../README.md).
 | Diagnostics / Windows | Populated module-first boundary | [`Diagnostics/MANIFEST.md`](Diagnostics/MANIFEST.md) |
 | Hosting | Not migrated; unshipped | Current project/source evidence |
 | Http | Not migrated | Current source-adjacent reference |
-| Inspection | Not migrated | Current source-adjacent reference |
+| Inspection | Populated module-first boundary | [`Inspection/MANIFEST.md`](Inspection/MANIFEST.md) |
 | Logging | Populated module-first boundary | [`Logging/MANIFEST.md`](Logging/MANIFEST.md) |
 | Navigation / WinForms / Wpf | Populated module-first boundary | [`Navigation/MANIFEST.md`](Navigation/MANIFEST.md) |
 | Pipes | Populated module-first boundary | [`Pipes/MANIFEST.md`](Pipes/MANIFEST.md) |

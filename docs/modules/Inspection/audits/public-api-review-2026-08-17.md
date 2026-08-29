@@ -1,12 +1,24 @@
 # Inspection Public API Review - 2026-08-17
 
+**Document ID:** INSP-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-INSP compiled public surface, passive recording, provider and
-snapshot behavior, owner diagnostics, opt-in lifecycle, experimental action
-boundary, and compatibility impact
+**Subject:** F1-INSP compiled public surface, passive recording, provider and snapshot behavior, owner diagnostics, opt-in lifecycle, experimental action boundary, and compatibility impact
+
+**Surface:** audit
+
+**Boundary:** inspection
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions accepted, implemented, and package-validated
 
@@ -14,9 +26,11 @@ boundary, and compatibility impact
 
 **Reference commit:** `7c4d449ec3a6854b0561c8514701a1ec31fe3c35`
 
+**Original path:** `docs/audit/inspection-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-17
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-INSP
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-INSP
 
 ## Baseline and authority
 
@@ -64,8 +78,8 @@ not evidence for any implementation proposed here.
 
 The package description says "bounded operations, state snapshots and
 constrained actions" in
-[`NekoLib.Inspection.csproj:13-17`](../../src/Inspection/NekoLib.Inspection/NekoLib.Inspection.csproj),
-and the root [`README.md:89`](../../README.md) repeats it. "Constrained" is not
+[`NekoLib.Inspection.csproj:13-17`](../../../../src/Inspection/NekoLib.Inspection/NekoLib.Inspection.csproj),
+and the root [`README.md:89`](../../../../README.md) repeats it. "Constrained" is not
 an authorization or security property and does not match the passive-first
 boundary. It should be corrected if INSP-01 is accepted.
 
@@ -98,7 +112,7 @@ Excluded:
 
 ## Project, ownership, and lifecycle boundary
 
-[`NekoLib.Inspection.csproj:3-29`](../../src/Inspection/NekoLib.Inspection/NekoLib.Inspection.csproj)
+[`NekoLib.Inspection.csproj:3-29`](../../../../src/Inspection/NekoLib.Inspection/NekoLib.Inspection.csproj)
 targets `net481;net9.0`, enables nullable annotations, disables implicit usings,
 declares `NEKOLIB` plus `NETFRAMEWORK` / `NET_9`, and references only Core. No
 Inspection source uses conditional compilation.
@@ -179,18 +193,18 @@ removals or internalizations.
 
 ### Options and construction
 
-[`InspectionRuntime.cs:38-46`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
+[`InspectionRuntime.cs:38-46`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
 reads capacity once into readonly `_capacity`, defaults to `1024`, rejects below
 `1`, and sizes the queue from it. Later options mutation cannot affect the
 runtime. The exception currently reports `ParamName == "options"`, although
 `Capacity` is invalid. Direct construction is enabled immediately through the
 one-way disposed flag
-([`InspectionRuntime.cs:82`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs));
+([`InspectionRuntime.cs:82`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs));
 that is the correct local opt-in contract.
 
 ### Record, retention, and time
 
-[`InspectionRuntime.cs:84-120`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
+[`InspectionRuntime.cs:84-120`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
 shows:
 
 - null module/operation throws; blank values are accepted today;
@@ -213,7 +227,7 @@ rollover protocol; saturation/reset behavior is not proposed.
 ### Registration identity, ordering, and races
 
 State/action identity is
-[`module + "::" + key`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
+[`module + "::" + key`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
 at line 374, while only null is rejected at lines 122-180. Therefore blank
 components are ambiguous, and `("a::b", "c")` collides with
 `("a", "b::c")`. A second registration is rejected, and an action lookup
@@ -221,7 +235,7 @@ through the other pair can reach the first registration.
 
 Duplicates otherwise preserve the original owner. Handles are idempotent, and
 registration IDs prevent a stale handle from removing a later owner
-([`InspectionRuntime.cs:386-448`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:386-448`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 State/action registries are separate. Comparison is currently case-sensitive
 through default string equality; the accepted contract should make
 `StringComparer.Ordinal` explicit.
@@ -233,14 +247,14 @@ after unregistration or runtime disposal; no contract can cancel it, so this
 must be documented instead of holding locks across application code.
 
 Provider enumeration and `StateKeys`/`ActionKeys` use dictionary enumeration
-([`InspectionRuntime.cs:202-208`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs),
-[`InspectionRuntime.cs:346-356`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:202-208`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs),
+[`InspectionRuntime.cs:346-356`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 That order is not an accepted cross-target contract, yet it determines which
 providers receive the shared budget first.
 
 ### Snapshot and provider budgets
 
-[`InspectionRuntime.cs:182-241`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
+[`InspectionRuntime.cs:182-241`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)
 implements these semantics:
 
 - negative `maxOperations`/`timeout` throw with their parameter names; zero
@@ -258,12 +272,12 @@ implements these semantics:
 
 Frozen Core copies/wraps the outer snapshot collections but retains shallow
 payload/state values
-([`InspectionSnapshot.cs:17-24`](../../src/Core/NekoLib.Core/Inspection/InspectionSnapshot.cs),
-[`InspectionSnapshot.cs:34-51`](../../src/Core/NekoLib.Core/Inspection/InspectionSnapshot.cs)).
+([`InspectionSnapshot.cs:17-24`](../../../../src/Core/NekoLib.Core/Inspection/InspectionSnapshot.cs),
+[`InspectionSnapshot.cs:34-51`](../../../../src/Core/NekoLib.Core/Inspection/InspectionSnapshot.cs)).
 No deep cloning is proposed.
 
 `CaptureState` invokes all copied providers synchronously without a timeout
-([`InspectionRuntime.cs:243-265`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:243-265`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 It remains an owner convenience only; Diagnostics must use the budgeted
 interface.
 
@@ -276,18 +290,18 @@ bound.
 
 `ClearOperations` clears retained operations and increments `ClearCount` even
 when already empty, while preserving totals, evictions, and next sequence
-([`InspectionRuntime.cs:273-279`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:273-279`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 Oldest/newest become null; later records resume the lifetime sequence.
 
 `GetDiagnostics` reads the operation domain under one lock, registry counts
 under another, and lifecycle when creating the result
-([`InspectionRuntime.cs:282-319`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:282-319`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 Each group is coherent, but the result is best-effort across domains under
 concurrency. That is acceptable and avoids one global application-code lock.
 
 `Dispose` is idempotent, flips state before cleanup, unregisters an
 `EnableGlobal` installation, and clears registries/operations
-([`InspectionRuntime.cs:358-372`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:358-372`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 After completed disposal and valid arguments:
 
 - record is inert and registration returns `Disposable.Empty`;
@@ -306,7 +320,7 @@ empty post-cleanup state; already copied delegates are not cancelled.
 
 `EnableGlobal` installs a new runtime, stores the Core installation handle, and
 rolls both back on failure
-([`InspectionRuntime.cs:48-80`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
+([`InspectionRuntime.cs:48-80`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs)).
 A second owner is refused without disturbing the first.
 
 The internal `afterProviderInstall` hook has no production caller. It is
@@ -318,18 +332,18 @@ general test-control surface and has no manifest impact.
 Frozen Core remains authoritative: `Current` is non-null, `Install` admits at
 most one enabled recorder, and its idempotent conditional handle unregisters but
 does not dispose
-([`InspectionProvider.cs:8-38`](../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs),
-[`InspectionProvider.cs:41-55`](../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs)).
+([`InspectionProvider.cs:8-38`](../../../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs),
+[`InspectionProvider.cs:41-55`](../../../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs)).
 
 ## Downstream evidence
 
 | Consumer | Current use | Consequence |
 |---|---|---|
-| Navigation | Resolves/provides `IInspectionRecorder`, then uses only `RegisterStateProvider` and `Record` ([`PageNavBootstrap.cs:120-141`](../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs), [`InspectionNavigationObserver.cs:226-246`](../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs), [`InspectionNavigationObserver.cs:1509-1517`](../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs)). | Only feature-library producer; no action and no edit required. |
-| Diagnostics | Accepts only `IInspectionSnapshotSource`, supplies operation/time bounds, then safely formats, redacts, and truncates ([`CrashHandler.cs:59-74`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs), [`CrashHandler.cs:394-410`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs), [`CrashHandler.cs:694-725`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs)). | Cannot discover/invoke actions; F1-DIAG remains untouched. |
+| Navigation | Resolves/provides `IInspectionRecorder`, then uses only `RegisterStateProvider` and `Record` ([`PageNavBootstrap.cs:120-141`](../../../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs), [`InspectionNavigationObserver.cs:226-246`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs), [`InspectionNavigationObserver.cs:1509-1517`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs)). | Only feature-library producer; no action and no edit required. |
+| Diagnostics | Accepts only `IInspectionSnapshotSource`, supplies operation/time bounds, then safely formats, redacts, and truncates ([`CrashHandler.cs:59-74`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs), [`CrashHandler.cs:394-410`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs), [`CrashHandler.cs:694-725`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs)). | Cannot discover/invoke actions; F1-DIAG remains untouched. |
 | Other feature modules | Source-wide search found no recorder/provider/registration use outside Core, Inspection, Navigation, and Diagnostics' snapshot-only use. | B4/B5 remains frozen; application calls are not library instrumentation. |
-| Observability scenario | Exercises retention, provider shapes/budgets, lifecycle, concurrency, and global ownership; explicitly registers no action ([`InspectionMatrix.cs:13-38`](../../runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/Workload/InspectionMatrix.cs), [`InspectionMatrix.cs:534-570`](../../runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/Workload/InspectionMatrix.cs)). | Strong prior runtime source/evidence, but not run here; its records are application-owned. |
-| Package consumers | WinForms projects directly reference Inspection and compile/load `InspectionRuntime`; shared code compiles the Core snapshot-source call. WPF projects do not directly reference Inspection ([`WinFormsSmokeProgram.cs:10-60`](../../tests/NekoLib.PackageConsumers/WinFormsSmokeProgram.cs)). | Package reachability/graph evidence only, not behavior or action adoption. |
+| Observability scenario | Exercises retention, provider shapes/budgets, lifecycle, concurrency, and global ownership; explicitly registers no action ([`InspectionMatrix.cs:13-38`](../../../../runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/Workload/InspectionMatrix.cs), [`InspectionMatrix.cs:534-570`](../../../../runtime_tests/Observability/LongRunningRecovery/NekoLib.Observability.RuntimeTests.LongRunningRecovery/Workload/InspectionMatrix.cs)). | Strong prior runtime source/evidence, but not run here; its records are application-owned. |
+| Package consumers | WinForms projects directly reference Inspection and compile/load `InspectionRuntime`; shared code compiles the Core snapshot-source call. WPF projects do not directly reference Inspection ([`WinFormsSmokeProgram.cs:10-60`](../../../../tests/NekoLib.PackageConsumers/WinFormsSmokeProgram.cs)). | Package reachability/graph evidence only, not behavior or action adoption. |
 
 ## Findings and proposed dispositions
 
@@ -340,9 +354,9 @@ does not dispose
 Core says action registration alone is experimental and that authorization,
 discovery/invocation, async, cancellation, timeout, UI marshalling, and adoption
 are unstable
-([`NekoLib.Core/README.md:115-136`](../../src/Core/NekoLib.Core/README.md)).
+([`NekoLib.Core/README.md:115-136`](../../../../src/Core/NekoLib.Core/README.md)).
 No feature module registers an action, and the roadmap rejects rollout
-([`TODO.md:175-188`](../../TODO.md)). Concrete `RegisterAction`,
+([`TODO.md:175-188`](../../../../TODO.md)). Concrete `RegisterAction`,
 `TryInvokeAction`, `ActionKeys`, and `ActionCount` currently appear stable.
 
 **Disposition:** retain all four for coherent source/binary compatibility, but
@@ -597,7 +611,7 @@ unchanged.
 - **INSP-06** - enabled empty clears still count and preserve lifetime state;
   post-disposal clear is inert.
 - **INSP-07** -
-  [`src/Inspection/NekoLib.Inspection/README.md`](../../src/Inspection/NekoLib.Inspection/README.md)
+  [`src/Inspection/NekoLib.Inspection/README.md`](../../../../src/Inspection/NekoLib.Inspection/README.md)
   is the current concrete-runtime owner and is indexed from repository routing
   and documentation tables.
 - **INSP-08** - twenty-seven deterministic cases were added, taking the focused
@@ -611,8 +625,8 @@ friend declaration changed, and both targets built with zero warnings and zero
 errors during the update.
 
 Consumer-visible behavior and warning impact are recorded in
-[`CHANGELOG.md`](../../CHANGELOG.md) and
-[`docs/migrations/f1-inspection.md`](../migrations/f1-inspection.md). The
+[`CHANGELOG.md`](../../../../CHANGELOG.md) and
+[`docs/modules/Inspection/migrations/f1.md`](../migrations/f1.md). The
 Observability scenario removed passive zero-action probes rather than opting
 into an experiment it does not exercise; its passive boundary check and README
 now state that action APIs are intentionally unreferenced. The scenario then
