@@ -91,7 +91,16 @@ reference commit.
 | [`src/Core/NekoLib.Core/README.md`](../src/Core/NekoLib.Core/README.md) | reference | current | Core capability contracts, ownership, snapshots, null objects, and experimental action marker |
 | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](../src/Diagnostics/NekoLib.Diagnostics/README.md) | reference | current | Incident collection, handler installation and disposal, evidence budgets and bounds, redaction boundary, crash-bundle layout, and the Windows crash adapter |
-| [`src/Devices/NekoLib.Devices/README.md`](../src/Devices/NekoLib.Devices/README.md) | reference | current | Hardware engine orchestration, operation boundaries, configuration ownership, transport and protocol contracts, encoding, and disposal |
+| [`docs/modules/Devices/MANIFEST.md`](modules/Devices/MANIFEST.md) | reference | current | Devices identity, routing, project/package topology, API oracles, and evidence locations |
+| [`docs/modules/Devices/README.md`](modules/Devices/README.md) | reference | current | Concise Devices consumer introduction |
+| [`docs/modules/Devices/REFERENCE.md`](modules/Devices/REFERENCE.md) | reference | current | Hardware engine orchestration, operation boundaries, configuration ownership, transport and protocol contracts, encoding, and disposal |
+| [`docs/modules/Devices/HISTORY.md`](modules/Devices/HISTORY.md) | reference | current | Append-only factual Devices chronology |
+| [`docs/modules/Devices/CHANGELOG.md`](modules/Devices/CHANGELOG.md) | reference | current | Devices-specific consumer-visible evolution |
+| [`docs/modules/Devices/ISSUES.md`](modules/Devices/ISSUES.md) | reference | current | Confirmed Devices defects registry |
+| [`docs/modules/Devices/FINDINGS.md`](modules/Devices/FINDINGS.md) | reference | current | Non-normative Devices findings registry |
+| [`docs/modules/Devices/VALIDATION_REQUIREMENTS.md`](modules/Devices/VALIDATION_REQUIREMENTS.md) | reference | current | Devices evidence contract derived from the inherited validation profiles |
+| [`docs/modules/Devices/VALIDATIONS.md`](modules/Devices/VALIDATIONS.md) | reference | current | Devices executed-evidence registry |
+| [`src/Devices/NekoLib.Devices/README.md`](../src/Devices/NekoLib.Devices/README.md) | reference | current | Pointer-only source portal to the canonical Devices technical reference |
 | [`docs/modules/Mvvm/MANIFEST.md`](modules/Mvvm/MANIFEST.md) | reference | current | Mvvm identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Mvvm/README.md`](modules/Mvvm/README.md) | reference | current | Concise Mvvm consumer introduction |
 | [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | reference | current | Binding helper and command contracts: parameter coercion, notification semantics, threading, exception behavior, and nullability |
@@ -142,7 +151,7 @@ reference commit.
 | [`docs/migrations/data-type-adaptation.md`](migrations/data-type-adaptation.md) | guide | current | Adoption of explicit input promotion, provider decay/loss policies, schema discovery, and sanitized adaptation hooks |
 | [`docs/migrations/f1-diagnostics.md`](migrations/f1-diagnostics.md) | guide | current | Migration from the initial Diagnostics candidate surface to the accepted F1-DIAG incident-collection, bundle, lifecycle, and ownership contracts |
 | [`docs/migrations/f1-http.md`](migrations/f1-http.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
-| [`docs/migrations/f1-devices.md`](migrations/f1-devices.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
+| [`docs/modules/Devices/migrations/f1.md`](modules/Devices/migrations/f1.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
 | [`docs/modules/Mvvm/migrations/f1.md`](modules/Mvvm/migrations/f1.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
 | [`docs/modules/Pipes/migrations/f1.md`](modules/Pipes/migrations/f1.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
 | [`docs/migrations/f1-watchdog.md`](migrations/f1-watchdog.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
@@ -155,7 +164,7 @@ reference commit.
 | [`docs/audit/core-public-api-review-2026-08-17.md`](audit/core-public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | historical | F1-DATA compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md`](audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md) | audit | historical | Accepted and completed Data type-adaptation policy and QueryBuilder API normalization, including DTO temporal materialization |
-| [`docs/audit/devices-public-api-review-2026-08-17.md`](audit/devices-public-api-review-2026-08-17.md) | audit | historical | F1-DEV compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
+| [`docs/modules/Devices/audits/public-api-review-2026-08-17.md`](modules/Devices/audits/public-api-review-2026-08-17.md) | audit | historical | F1-DEV compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/diagnostics-public-api-review-2026-08-17.md`](audit/diagnostics-public-api-review-2026-08-17.md) | audit | historical | F1-DIAG compiled-surface review, accepted implementation reconciliation, final lifecycle correction, and immutable package evidence |
 | [`docs/audit/diagnostics-windows-public-api-review-2026-08-17.md`](audit/diagnostics-windows-public-api-review-2026-08-17.md) | audit | historical | F1-WIN compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/logging-public-api-review-2026-08-17.md`](audit/logging-public-api-review-2026-08-17.md) | audit | historical | F1-LOG compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |

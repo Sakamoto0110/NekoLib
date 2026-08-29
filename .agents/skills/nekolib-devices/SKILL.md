@@ -14,7 +14,7 @@ keeping dependency decisions proportional to the requested capability.
 2. Inspect `../../../src/Devices/NekoLib.Devices/NekoLib.Devices.csproj`.
 3. Read the affected implementation and existing tests before proposing or
    making a change.
-4. Consult `../../../docs/audit/devices-first-pass.md` only for historical
+4. Consult `../../../docs/modules/Devices/audits/initial-audit.md` only for historical
    leads. Reverify every finding against current source and tests.
 5. Inspect the worktree before editing and preserve unrelated or concurrent
    user changes.

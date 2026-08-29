@@ -1,18 +1,34 @@
 # Devices Module Audit — Historical Snapshot
 
+**Document ID:** DEV-AUDIT-INITIAL
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
 **Subject:** Devices first-pass review
 
+**Surface:** audit
+
+**Boundary:** devices
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
 **Reference date:** 2026-06-10
 
 **Reference commit:** not recorded
 
+**Original path:** docs/audit/devices-first-pass.md
+
 **Last reconciliation:** 2026-08-01
 
-**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
+**Current state:** [Devices technical reference](../REFERENCE.md) and [`TODO.md`](../../../../TODO.md)
 
 ## Scope
 

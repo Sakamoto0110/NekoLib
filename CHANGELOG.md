@@ -165,7 +165,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `ArgumentNullException`. `ReadLine`, `ReadExact` and `ReadAll` now declare the
   null they always returned on timeout, `ParseResponse` takes `byte[]?`, and
   `Log` is nullable across the contracts. See the
-  [F1-DEV migration guide](docs/migrations/f1-devices.md).
+  [F1-DEV migration guide](docs/modules/Devices/migrations/f1.md).
 - **NekoLib.Mvvm — behavioral and binary-breaking pre-stable candidate correction
   for the first `1.0.0` stable family release.** No type, member, signature,
   default value, namespace, target, or dependency was added or removed. The

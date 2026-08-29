@@ -30,7 +30,7 @@ the [global documentation index](../README.md).
 | Mvvm | Structural pilot | [`Mvvm/MANIFEST.md`](Mvvm/MANIFEST.md) |
 | Core | Not migrated | Current source-adjacent reference |
 | Data | Not migrated | Current source-adjacent reference |
-| Devices | Not migrated | Current source-adjacent reference |
+| Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |
 | Diagnostics / Windows | Not migrated | Current source-adjacent reference |
 | Hosting | Not migrated; unshipped | Current project/source evidence |
 | Http | Not migrated | Current source-adjacent reference |

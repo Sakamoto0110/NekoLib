@@ -86,7 +86,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Pipes`](src/Pipes/NekoLib.Pipes/README.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
 | [`NekoLib.Watchdog`](src/Watchdog/NekoLib.Watchdog/README.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | [`NekoLib.Watchdog.Host`](src/Watchdog/NekoLib.Watchdog.Host/README.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
-| [`NekoLib.Devices`](src/Devices/NekoLib.Devices/README.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
+| [`NekoLib.Devices`](docs/modules/Devices/REFERENCE.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
 Ordinary logging does not require Diagnostics or Inspection:
@@ -184,7 +184,7 @@ technical manual.
 | [Mvvm](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency; coercion needs an exact runtime type match and `Execute` does not consult `CanExecute` | `NekoLib.Mvvm.Tests.Unit` |
 | [Pipes](src/Pipes/NekoLib.Pipes/README.md) | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; stateful shutdown is terminal and awaitable | `NekoLib.Pipes.Tests.Unit` |
 | [Watchdog](src/Watchdog/NekoLib.Watchdog/README.md) | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Default application bootstrap plus a deliberate advanced supervisor runtime; configuration is captured, shutdown is terminal, evidence is bounded/best-effort, and current-user RPC/events do not protect against a hostile same-user process | `NekoLib.Watchdog.Tests.Unit` |
-| [Devices](src/Devices/NekoLib.Devices/README.md) | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; a timed-out operation leaves an indeterminate receive state unless `CloseTransportOnNoResponse` is enabled; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
+| [Devices](docs/modules/Devices/REFERENCE.md) | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; a timed-out operation leaves an indeterminate receive state unless `CloseTransportOnNoResponse` is enabled; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
 
 Navigation and its adapters use their
 [dedicated technical reference](docs/modules/Navigation/REFERENCE.md).

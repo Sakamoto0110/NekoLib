@@ -94,7 +94,10 @@ namespace NekoLib.Devices.Core.Engine
         /// <see cref="SerialConfig"/>. 
         /// </summary>
         /// <param name="op">The protocol-defined operation to execute.</param>
-        /// <param name="timeout">Overall timeout for receiving a reply.</param>
+        /// <param name="timeout">
+        /// Receive budget in milliseconds. It bounds only the reply read; establishing
+        /// the connection and writing the frame are bounded by the transport instead.
+        /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>
         /// A parsed response. Non-cancellation transport, engine, and protocol
@@ -124,7 +127,10 @@ namespace NekoLib.Devices.Core.Engine
         /// </summary>
         /// <param name="port">Endpoint to use (for example, "COM7" or "tcp://127.0.0.1:5001").</param>
         /// <param name="op">Protocol operation.</param>
-        /// <param name="timeout">Receive timeout.</param>
+        /// <param name="timeout">
+        /// Receive budget in milliseconds. It bounds only the reply read; establishing
+        /// the connection and writing the frame are bounded by the transport instead.
+        /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>
         /// A parsed response. Non-cancellation transport, engine, and protocol

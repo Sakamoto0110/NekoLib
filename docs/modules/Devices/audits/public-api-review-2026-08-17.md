@@ -1,24 +1,36 @@
 # Devices Public API Review — 2026-08-17
 
+**Document ID:** DEV-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-DEV compiled public surface, `HardwareEngine` orchestration and
-operation boundaries, transport and protocol extension contracts, configuration
-ownership, timeout and cancellation semantics, raw-byte and encoding
-boundaries, disposal, target parity, and documentation ownership
+**Subject:** F1-DEV compiled public surface, `HardwareEngine` orchestration and operation boundaries, transport and protocol extension contracts, configuration ownership, timeout and cancellation semantics, raw-byte and encoding boundaries, disposal, target parity, and documentation ownership
 
-**Status:** all dispositions implemented, with the DEV-01 remedy revised at the
-gate, and package-validated
+**Surface:** audit
+
+**Boundary:** devices
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Status:** all dispositions implemented, with the DEV-01 remedy revised at the gate, and package-validated
 
 **Reference date:** 2026-08-17
 
 **Reference commit:** `a6af985245180bf1d5aa4581dbeb3352fee3e885`
 
+**Original path:** docs/audit/devices-public-api-review-2026-08-17.md
+
 **Last reconciliation:** 2026-08-18 — package gate completed
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-DEV
+**Current state:** the [Devices technical reference](../REFERENCE.md) owns the implemented contract; [`TODO.md`](../../../../TODO.md) records F1-DEV as complete
 
 ## Baseline and authority
 
@@ -31,15 +43,15 @@ branch was 27 commits ahead of `origin/phase-e/sqlserver-and-orchestration`, and
 nothing was pushed.
 
 The review followed
-[`.agents/skills/nekolib-devices/SKILL.md`](../../.agents/skills/nekolib-devices/SKILL.md)
+[`.agents/skills/nekolib-devices/SKILL.md`](../../../../.agents/skills/nekolib-devices/SKILL.md)
 throughout. The reviewed authority is the `NekoLib.Devices` project, all eight of
 its source files, its project file, the two assembly-derived manifests under
-[`eng/public-api/NekoLib.Devices/`](../../eng/public-api/NekoLib.Devices), the
+[`eng/public-api/NekoLib.Devices/`](../../../../eng/public-api/NekoLib.Devices), the
 dual-target tests, the
-[public API and release policy](../public-api-release-policy.md), and the
-[com0com scenario](../../runtime_tests/Devices/Com0Com/README.md) as source only.
+[public API and release policy](../../../public-api-release-policy.md), and the
+[com0com scenario](../../../../runtime_tests/Devices/Com0Com/README.md) as source only.
 
-[`devices-first-pass.md`](devices-first-pass.md) is materially stale, as the
+[`initial-audit.md`](initial-audit.md) is materially stale, as the
 campaign brief states. Every one of its four remaining review items was
 reverified against current source and all four are closed — see the
 reverification section below.
@@ -84,7 +96,7 @@ Excluded:
 `NekoLib.Devices` targets `net481;net9.0`, enables `Nullable`, enables
 `ImplicitUsings`, declares `NETFRAMEWORK`/`NET_9` **but not `NEKOLIB`**, and has
 no project reference
-([`NekoLib.Devices.csproj`](../../src/Devices/NekoLib.Devices/NekoLib.Devices.csproj)).
+([`NekoLib.Devices.csproj`](../../../../src/Devices/NekoLib.Devices/NekoLib.Devices.csproj)).
 It takes `System.IO.Ports 9.0.0` on `net9.0` and
 `Microsoft.Bcl.AsyncInterfaces 10.0.1` on `net481`. There is **no conditional
 compilation anywhere**, so the two declared constants are currently unused and
@@ -174,14 +186,14 @@ the module.**
 
 `StreamCommTransport` runs a background receive pump into a shared
 `_receiveBuffer`
-([`StreamCommTransport.cs:449`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L449)).
+([`StreamCommTransport.cs:449`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L449)).
 That correctly prevents an orphaned stream read from lingering — the design
 intent recorded in the class comment. But the buffer is only cleared on `Open`
 and `StopConnection`
-([`:432`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L432),
-[`:514`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L514)),
+([`:432`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L432),
+[`:514`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L514)),
 and `HardwareEngine.ExecuteCore` never drains it before writing a new command
-([`HardwareEngine.cs:183`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L183)).
+([`HardwareEngine.cs:183`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L183)).
 
 Probe, over a real loopback TCP connection: operation 1 is given a 200 ms budget
 and the peer answers after 600 ms; operation 2 is then issued and is never
@@ -200,7 +212,7 @@ wrong-command-succeeded hazard, not a cosmetic issue.
 
 `SerialCommTransport` has the same exposure by a different route: unread bytes
 stay in the `SerialPort` receive buffer and the next `ReadAll` returns them
-([`SerialCommTransport.cs:257`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L257)).
+([`SerialCommTransport.cs:257`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L257)).
 That path was **not** probed, because it needs a real or virtual serial port.
 
 **Recommended disposition:** make the operation boundary explicit and
@@ -228,13 +240,13 @@ request/response.
 
 **Confirmed, probe-confirmed on both targets.** `ProtocolRaw.PortConfig` returns
 the **live** internal instance
-([`ProtocolRaw.cs:92`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L92)),
+([`ProtocolRaw.cs:92`](../../../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L92)),
 `ExecuteCore` passes it straight to `_transport.Configure(cfg)`
-([`HardwareEngine.cs:155`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L155)),
+([`HardwareEngine.cs:155`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L155)),
 and both shipped transports **write back** into the caller's object when the
 config has no endpoint
-([`SerialCommTransport.cs:115`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L115),
-[`StreamCommTransport.cs:121`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L121)).
+([`SerialCommTransport.cs:115`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L115),
+[`StreamCommTransport.cs:121`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L121)).
 
 Probe, a `ProtocolRaw` constructed with no `PortName`:
 
@@ -265,7 +277,7 @@ today relies on reading its endpoint back out of the config object must read
 **Confirmed, probe-confirmed on both targets.** `ExecuteCore` catches everything
 except `OperationCanceledException` and returns
 `new HardwareResponse { Success = false, Status = ex.Message }`
-([`HardwareEngine.cs:213`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L213)).
+([`HardwareEngine.cs:213`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L213)).
 
 ```text
 ObjectDisposedException     -> Success=False Status='Cannot access a disposed object...'
@@ -299,13 +311,13 @@ throw for every existing consumer, which is a behavioral break with no requester
 **Confirmed, probe-confirmed on both targets.** The project is
 `Nullable=enable`, yet `ICommTransport.ReadLine`, `ReadExact`, and `ReadAll`
 declare non-nullable returns
-([`ISerialCommTransport.cs:80`](../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L80))
+([`ISerialCommTransport.cs:80`](../../../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L80))
 while their own XML documentation says they return `null` on timeout — and both
 shipped implementations do exactly that, using `return null!;` to silence the
 compiler
-([`StreamCommTransport.cs:273`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L273),
-[`:317`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L317),
-[`:378`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L378)).
+([`StreamCommTransport.cs:273`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L273),
+[`:317`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L317),
+[`:378`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L378)).
 
 ```text
 ICommTransport.ReadLine return type 'Task`1', nullable metadata: <none>
@@ -319,7 +331,7 @@ null check, on the exact path a device is silent.
 The module is also annotated inconsistently: `ProtocolRaw(SerialConfig?,
 Encoding?)` carries annotations while `SerialCommTransport(string portName =
 null)` does not, and `StreamCommTransport.Log` is initialized to `null!`
-([`StreamCommTransport.cs:36`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L36)).
+([`StreamCommTransport.cs:36`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L36)).
 
 **Recommended disposition:** annotate the three read methods as `Task<string?>`
 and `Task<byte[]?>` on the interface and both implementations, annotate the
@@ -333,7 +345,7 @@ the F1-MVVM nullability finding.
 
 **Confirmed.** `HardwareProtocol` declares one member,
 `public virtual string Template { get; protected set; }`
-([`ProtocolRaw.cs:12`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L12)).
+([`ProtocolRaw.cs:12`](../../../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L12)).
 Nothing derives from it, `ProtocolRaw` implements the interfaces directly, and
 `Template` is never read, written, or referenced anywhere in the repository. It
 participates in no contract: `HardwareEngine` accepts `IHardwareProtocol`, not
@@ -353,9 +365,9 @@ to document; the property has no defined meaning.
 
 **Confirmed by construction.** The constructor overwrites `_transport.Log` and,
 for a protocol implementing `IProtocolWithLogging`, `p.Log`
-([`HardwareEngine.cs:70`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L70)),
+([`HardwareEngine.cs:70`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L70)),
 and the `Log` setter overwrites both again
-([`:43`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L43)).
+([`:43`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L43)).
 
 A consumer who wired `transport.Log` before constructing an engine loses it
 without any signal, and a consumer who sets `transport.Log` after construction
@@ -374,10 +386,10 @@ conditional would produce two competing logging paths.
 ### DEV-07 — Disposal is asymmetric between the two shipped transports
 
 **Confirmed.** `StreamCommTransport.Dispose` acquires `_gate` before tearing down
-([`StreamCommTransport.cs:399`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L399)),
+([`StreamCommTransport.cs:399`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L399)),
 so it cannot race a read or write in flight. `SerialCommTransport.Dispose` does
 **not** take `_gate`
-([`SerialCommTransport.cs:409`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L409));
+([`SerialCommTransport.cs:409`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L409));
 it closes and disposes the `SerialPort` while another thread may be inside the
 `Task.Run` polling loop reading `_port.BytesToRead`, which then throws
 `ObjectDisposedException` from a background task.
@@ -397,10 +409,10 @@ existing dual-target tests.
 ### DEV-08 — `SerialCommTransport.PortName` is settable while the interface's is not
 
 **Confirmed.** `ICommTransport.PortName` is get-only
-([`ISerialCommTransport.cs:44`](../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L44))
+([`ISerialCommTransport.cs:44`](../../../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L44))
 and `StreamCommTransport.PortName` is get-only, but `SerialCommTransport.PortName`
 adds a public setter that also latches `_hasExplicitPortName`
-([`SerialCommTransport.cs:31`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L31)).
+([`SerialCommTransport.cs:31`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L31)).
 Three implementations of one contract therefore disagree on mutability, and code
 written against `ICommTransport` cannot use the setter at all.
 
@@ -421,7 +433,7 @@ Checksum.Xor(null) -> NullReferenceException    (from foreach)
 
 Two sibling helpers with `params byte[]` signatures fail differently on the same
 input, and neither validates deliberately
-([`ControllerModel.cs:97`](../../src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs#L97)).
+([`ControllerModel.cs:97`](../../../../src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs#L97)).
 
 Neither is called anywhere in the repository. They are, however, exactly the kind
 of helper a third-party protocol implementation needs, which is a legitimate
@@ -436,13 +448,13 @@ protocol-authoring helpers. No compiled-surface change.
 **Confirmed.** `ProtocolRaw.ParseResponse` returns the reply array unchanged as
 `RawBytes` — the skill's raw-byte invariant holds — and also sets
 `RawText = _textEncoding.GetString(reply)`
-([`ProtocolRaw.cs:166`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L166)).
+([`ProtocolRaw.cs:166`](../../../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L166)).
 With the ASCII default, every byte above `0x7F` decodes to `?`, so `RawText` on a
 binary reply is lossy and must never be used to reconstruct the payload.
 
 Two related behaviors are also undocumented: `RawBytes` takes precedence when an
 operation supplies both arguments
-([`ProtocolRaw.cs:121`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L121)),
+([`ProtocolRaw.cs:121`](../../../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L121)),
 and `ICommTransport.Write(string)` is hardcoded to ASCII on both transports
 regardless of `ProtocolRaw.TextEncoding` — which is harmless through the engine,
 because the engine only ever calls `Write(byte[])`, but is a trap for direct
@@ -456,7 +468,7 @@ convenience path.
 
 **Confirmed.** `SerialConfig`, `HardwareOperation`, and `HardwareResponse` expose
 public mutable **fields**, not properties
-([`ControllerModel.cs:120`](../../src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs#L120)).
+([`ControllerModel.cs:120`](../../../../src/Devices/NekoLib.Devices/Core/Abstractions/ControllerModel.cs#L120)).
 `HardwareOperation.Args` is a mutable dictionary initialized inline and never
 copied.
 
@@ -475,14 +487,14 @@ them.**
 
 - `OperationCanceledException` is rethrown, never converted into a failed
   response
-  ([`HardwareEngine.cs:208`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L208)) —
+  ([`HardwareEngine.cs:208`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L208)) —
   the skill's cancellation invariant.
 - Complete transactions are serialized through a `SemaphoreSlim`, and the gate is
   released on every failure path
-  ([`:130`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L130)).
+  ([`:130`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L130)).
 - `ReadAll`'s quiet period only starts after the first byte arrives, so a slow
   device is not cut off before it answers
-  ([`StreamCommTransport.cs:361`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L361)).
+  ([`StreamCommTransport.cs:361`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L361)).
 - `ReadExact` returns null rather than a partial buffer.
 - `TcpCommTransport` and `NamedPipeCommTransport` canonicalize and validate their
   endpoints before connecting, reject malformed forms with clear messages, and
@@ -499,7 +511,7 @@ keep the existing regressions.
 
 **Confirmed by construction.** All three serial reads run a polling loop inside
 `Task.Run` with `Thread.Sleep(5)`
-([`SerialCommTransport.cs:248`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L248)),
+([`SerialCommTransport.cs:248`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L248)),
 so a `SendAsync(op, 2000)` holds a thread-pool thread for up to two seconds and
 cancellation is observed with up to ~5 ms latency. `StreamCommTransport` avoids
 this with its pump.
@@ -515,7 +527,7 @@ that only real-hardware evidence should justify, and this campaign has none.
 ### DEV-14 — Devices has no documentation owner
 
 **Confirmed.** There is no `src/Devices/NekoLib.Devices/README.md` and
-[`docs/README.md`](../README.md) registers no owner. Every contract this review
+[`docs/README.md`](../../../README.md) registers no owner. Every contract this review
 had to derive from source — the operation boundary, configuration ownership, the
 failure model, logging ownership, encoding boundaries, disposal, endpoint forms,
 and the extension seams — has no owner anywhere.
@@ -548,14 +560,14 @@ loopback-TCP fixture style, so they need no new infrastructure and no hardware.
 
 ## Reverification of the historical audit
 
-[`devices-first-pass.md`](devices-first-pass.md) lists four remaining review
+[`initial-audit.md`](initial-audit.md) lists four remaining review
 items. All four are **closed** in current source:
 
 1. **`ReadLine` timeout behavior** — both transports return `null`, not an empty
    string. Closed. DEV-04 is about annotating that null, not about restoring it.
 2. **Explicit `SerialConfig` validation** — `ValidateSerialConfig` checks baud
    rate, data bits, stop bits, handshake, and both timeouts
-   ([`SerialCommTransport.cs:473`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L473));
+   ([`SerialCommTransport.cs:473`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L473));
    `ValidateStreamConfig` checks the timeout fields that apply to a stream.
    Closed.
 3. **`ThrowIfDisposed()`** — present in both transports and exercised by
@@ -747,14 +759,14 @@ interface:
 
 - the engine sees `rspBytes == null` directly, which is the transport-level
   signal that nothing arrived within the budget
-  ([`HardwareEngine.cs:186`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L186));
+  ([`HardwareEngine.cs:186`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L186));
 - `ICommTransport.Close()` already exists
-  ([`ISerialCommTransport.cs:64`](../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L64));
+  ([`ISerialCommTransport.cs:64`](../../../../src/Devices/NekoLib.Devices/Core/Transport/ISerialCommTransport.cs#L64));
 - the next `SendAsync` reopens, because `ExecuteCore` opens whenever
   `!_transport.IsOpen`
-  ([`HardwareEngine.cs:169`](../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L169));
+  ([`HardwareEngine.cs:169`](../../../../src/Devices/NekoLib.Devices/Core/Engine/HardwareEngine.cs#L169));
 - `StreamCommTransport.OpenCore` clears `_receiveBuffer` on every open
-  ([`StreamCommTransport.cs:432`](../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L432)),
+  ([`StreamCommTransport.cs:432`](../../../../src/Devices/NekoLib.Devices/Core/Transport/StreamCommTransport.cs#L432)),
   so the reopened transport starts from a verified clean boundary.
 
 The accepted remedy is therefore a single opt-in `HardwareEngine` property,
@@ -762,12 +774,12 @@ default **off**, named for its trigger rather than for a timeout — `ReadAll`
 returns `null` both when the budget expires and when the connection closed with
 nothing buffered, and `"NoResponse"` is already the vocabulary `ProtocolRaw` uses
 for that outcome
-([`ProtocolRaw.cs:160`](../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L160)).
+([`ProtocolRaw.cs:160`](../../../../src/Devices/NekoLib.Devices/Core/Protocols/ProtocolRaw.cs#L160)).
 When enabled, the engine closes the transport after an operation that received no
 bytes, so the next operation cannot inherit a late reply.
 
 **Serial half.** `SerialCommTransport.OpenCore` only calls `_port.Open()`
-([`SerialCommTransport.cs:439`](../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L439));
+([`SerialCommTransport.cs:439`](../../../../src/Devices/NekoLib.Devices/Core/Transport/SerialCommTransport.cs#L439));
 unlike the stream transport it performs no explicit discard. To make the
 close/reopen boundary symmetric, the implementation should also call
 `SerialPort.DiscardInBuffer()` after a successful open. A freshly opened port

@@ -22,9 +22,9 @@ namespace NekoLib.Devices.Core.Transport
     {
         /// <summary>
         /// Gets a snapshot of the protocol/transport configuration.
-        /// Serial transports apply every field. Stream transports use endpoint,
-        /// newline and timeout fields while preserving the serial fields for
-        /// compatibility with existing protocols.
+        /// Serial transports apply every field. Stream transports apply the endpoint
+        /// and newline, and preserve and report the remaining fields — including the
+        /// read and write timeouts — without acting on them.
         /// </summary>
         SerialConfig PortInfo { get; }
 

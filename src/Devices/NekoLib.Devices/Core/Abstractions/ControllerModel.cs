@@ -131,8 +131,12 @@ namespace NekoLib.Devices.Core.Abstractions
     }
     /// <summary>
     /// Represents communication configuration used by a device.
-    /// The type retains its serial-shaped fields for API compatibility; non-serial
-    /// transports use the endpoint, newline, and timeout fields that apply to them.
+    /// The type retains its serial-shaped fields for API compatibility. A serial
+    /// transport applies every field; the shipped stream transports apply only the
+    /// endpoint and newline, and validate, store, and report the remaining fields
+    /// without acting on them. In particular <see cref="ReadTimeout"/> and
+    /// <see cref="WriteTimeout"/> do not bound a stream transport's reads or writes —
+    /// each read is bounded by its own <c>timeoutMs</c> argument.
     /// </summary>
     public class SerialConfig
     {
@@ -200,7 +204,12 @@ namespace NekoLib.Devices.Core.Abstractions
         /// <summary>Status string describing the result (e.g., "Ok", "Timeout").</summary>
         public string Status;
 
-        /// <summary>Raw text received (ASCII protocols only).</summary>
+        /// <summary>
+        /// Raw reply decoded as text by the protocol. The shipped
+        /// <see cref="Protocols.ProtocolRaw"/> fills it on every reply using its own
+        /// text encoding, ASCII by default, so on a binary payload it is lossy and
+        /// must not be used to reconstruct the reply. Use <see cref="RawBytes"/>.
+        /// </summary>
         public string RawText;
 
         /// <summary>Raw binary received (binary protocols).</summary>
