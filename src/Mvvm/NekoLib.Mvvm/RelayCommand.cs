@@ -135,7 +135,17 @@ namespace NekoLib.Mvvm
             return _canExecute == null || _canExecute(typed);
         }
 
-        /// <inheritdoc cref="RelayCommand.Execute(object)" />
+        /// <summary>
+        /// Coerces <paramref name="parameter"/> to <typeparamref name="T"/> and
+        /// invokes the delegate. A parameter that cannot be coerced makes this a
+        /// silent no-op rather than an <see cref="InvalidCastException"/>, so a
+        /// stale binding does nothing instead of failing.
+        /// <para/>
+        /// Like <see cref="RelayCommand.Execute(object)"/>, this does not consult
+        /// <see cref="CanExecute(object)"/>: WPF gates the call through the bound
+        /// control, and WinForms does not gate it at all.
+        /// </summary>
+        /// <param name="parameter">The binding-provided parameter, which may be <c>null</c>.</param>
         public void Execute(object? parameter)
         {
             if (!TryCoerce(parameter, out T typed))

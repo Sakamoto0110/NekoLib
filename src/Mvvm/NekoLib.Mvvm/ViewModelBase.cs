@@ -49,7 +49,11 @@ namespace NekoLib.Mvvm
         /// <typeparam name="T">The property's value type.</typeparam>
         /// <param name="field">Backing field updated when the value changes.</param>
         /// <param name="value">Candidate value.</param>
-        /// <param name="propertyName">Property name reported to subscribers.</param>
+        /// <param name="propertyName">
+        /// Property name reported to subscribers. Supplied by the compiler from
+        /// the calling member unless given explicitly; a <c>null</c> or empty
+        /// value is forwarded unchanged and means "every property changed".
+        /// </param>
         /// <returns><c>true</c> when the field changed and a notification was raised; otherwise <c>false</c>.</returns>
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {

@@ -88,8 +88,13 @@ the stable public API oracle.
 - Stable release provenance: [`stable-release-1.0.0.md`](../../stable-release-1.0.0.md)
 - Public API and release policy: [`public-api-release-policy.md`](../../public-api-release-policy.md)
 
-The module-first registers created by the structural pilot use explicit empty
-states. They have not been semantically populated and do not erase or supersede
-existing source, audit, migration, roadmap, release, test, or runtime evidence.
-The `data` relationship above records ownership of consumer evidence; Mvvm still
-has no project or package dependency.
+Every register below is populated against the current source baseline. Mvvm is
+the smallest shipped library in the family: three public types, fifteen members,
+two source files, and no project or package reference at all — `ICommand` and
+`INotifyPropertyChanged` come from the platform on both targets.
+
+`Related boundaries` lists `data` because the Data-owned FarmDatabase scenario is
+the only place in the repository where Mvvm is driven through a real WinForms
+binding surface. That records where cross-boundary consumer evidence lives; it
+creates no project or package dependency in either direction, and the scenario
+remains Data's to own, run, and interpret.

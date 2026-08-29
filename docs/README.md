@@ -114,12 +114,12 @@ reference commit.
 | [`docs/modules/Mvvm/MANIFEST.md`](modules/Mvvm/MANIFEST.md) | reference | current | Mvvm identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Mvvm/README.md`](modules/Mvvm/README.md) | reference | current | Concise Mvvm consumer introduction |
 | [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | reference | current | Binding helper and command contracts: parameter coercion, notification semantics, threading, exception behavior, and nullability |
-| [`docs/modules/Mvvm/HISTORY.md`](modules/Mvvm/HISTORY.md) | reference | current | Append-only factual Mvvm chronology; structural empty state in the pilot |
-| [`docs/modules/Mvvm/CHANGELOG.md`](modules/Mvvm/CHANGELOG.md) | reference | current | Module changelog scaffold routing to the coordinated family changelog until populated |
-| [`docs/modules/Mvvm/ISSUES.md`](modules/Mvvm/ISSUES.md) | reference | current | Confirmed Mvvm issues registry; structural empty state in the pilot |
-| [`docs/modules/Mvvm/FINDINGS.md`](modules/Mvvm/FINDINGS.md) | reference | current | Non-normative Mvvm findings registry; structural empty state in the pilot |
-| [`docs/modules/Mvvm/VALIDATION_REQUIREMENTS.md`](modules/Mvvm/VALIDATION_REQUIREMENTS.md) | reference | current | Mvvm evidence-contract scaffold and inherited validation profile |
-| [`docs/modules/Mvvm/VALIDATIONS.md`](modules/Mvvm/VALIDATIONS.md) | reference | current | Mvvm executed-evidence registry; structural empty state in the pilot |
+| [`docs/modules/Mvvm/HISTORY.md`](modules/Mvvm/HISTORY.md) | reference | current | Append-only factual Mvvm chronology |
+| [`docs/modules/Mvvm/CHANGELOG.md`](modules/Mvvm/CHANGELOG.md) | reference | current | Mvvm-specific consumer-visible evolution |
+| [`docs/modules/Mvvm/ISSUES.md`](modules/Mvvm/ISSUES.md) | reference | current | Confirmed Mvvm defects registry |
+| [`docs/modules/Mvvm/FINDINGS.md`](modules/Mvvm/FINDINGS.md) | reference | current | Non-normative Mvvm findings registry |
+| [`docs/modules/Mvvm/VALIDATION_REQUIREMENTS.md`](modules/Mvvm/VALIDATION_REQUIREMENTS.md) | reference | current | Mvvm evidence contract derived from the inherited validation profile |
+| [`docs/modules/Mvvm/VALIDATIONS.md`](modules/Mvvm/VALIDATIONS.md) | reference | current | Mvvm executed-evidence registry |
 | [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Pointer-only source portal to the canonical Mvvm technical reference |
 | [`docs/modules/Pipes/MANIFEST.md`](modules/Pipes/MANIFEST.md) | reference | current | Pipes identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Pipes/README.md`](modules/Pipes/README.md) | reference | current | Concise Pipes consumer introduction |

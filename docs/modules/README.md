@@ -27,7 +27,7 @@ the [global documentation index](../README.md).
 
 | Boundary | Status | Entry point |
 |---|---|---|
-| Mvvm | Structural pilot | [`Mvvm/MANIFEST.md`](Mvvm/MANIFEST.md) |
+| Mvvm | Populated module-first boundary | [`Mvvm/MANIFEST.md`](Mvvm/MANIFEST.md) |
 | Core | Not migrated | Current source-adjacent reference |
 | Data | Not migrated | Current source-adjacent reference |
 | Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |

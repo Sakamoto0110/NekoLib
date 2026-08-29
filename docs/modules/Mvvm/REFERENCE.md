@@ -24,9 +24,11 @@ Three types, deliberately. `NekoLib.Mvvm` is an opt-in `net481`/`net9.0` package
 with **no project reference and no package reference at all**: `ICommand` and
 `INotifyPropertyChanged` come from the platform on both targets.
 
-It is a binding helper, not an architecture. There is no service locator, no
-dependency injection, no messenger, no async command infrastructure, and no
-coupling to Navigation. If you need more than this, write it — the point of the
+It is a binding helper, not an architecture. There is no application host, no
+dispatcher abstraction, no dependency-injection container, no service locator, no
+messenger, no async-command framework, no automatic `CommandManager` integration,
+and no coupling to Navigation — Mvvm was created as Navigation's sibling and has
+never referenced it. If you need more than this, write it — the point of the
 module is that it stays small.
 
 ```csharp
@@ -53,6 +55,14 @@ public sealed class OrderViewModel : ViewModelBase
 
 `RelayCommand` passes the binding's parameter through as `object?`.
 `RelayCommand<T>` coerces it to `T` first.
+
+`RelayCommand` has two constructors. The `Action<object?>` overload receives the
+binding parameter; the `Action` overload wraps a parameterless delegate and
+**ignores whatever the binding supplies**, to both `Execute` and `CanExecute`.
+`RelayCommand<T>` has only the typed overload — a command that wants no
+parameter is already `RelayCommand`. Both types reject a null execute delegate
+at construction with `ArgumentNullException`; the predicate is optional
+everywhere and its absence means always executable.
 
 ### Parameter coercion
 
@@ -141,6 +151,22 @@ by background work, bound to WinForms controls that require the UI thread. The
 module ships no such base class — a UI-framework adapter is out of scope, and the
 override above is six lines.
 
+### The two supported extension seams
+
+There are exactly two, and neither involves registering anything:
+
+- **Derive from `ViewModelBase` and override `OnPropertyChanged`.** That is the
+  notification seam, and because `SetProperty` routes through it, one override
+  covers every notification. `SetProperty` is `protected`, so it is available to
+  derived types and to nothing else.
+- **Compose delegates into the commands.** `execute`, `canExecute`, and the
+  choice of `T` are the whole customization surface. Both command types are
+  `sealed`; there is nothing to derive from and nothing to intercept.
+
+There is no plug-in model, no registry, no forwarding facade, and no interface
+to implement. If you need behavior these two seams cannot express, write your
+own type — that is cheaper than bending this one.
+
 ## Exceptions and reentrancy
 
 **Subscriber exceptions propagate and abort the remaining subscribers**, for both
@@ -187,6 +213,24 @@ dotnet test tests\NekoLib.Mvvm.Tests\Unit\NekoLib.Mvvm.Tests.Unit.csproj
 
 The suite runs on `net481` and `net9.0-windows`. Note that the shipped `net9.0`
 assembly is therefore exercised through a Windows-flavoured host rather than its
-own target framework — compatible, but not identical. No WinForms or WPF binding
-pipeline is driven by it, so the threading guidance above rests on documented
-framework behaviour rather than on an interactive run.
+own target framework — compatible, but not identical, and recorded as
+[`MVVM-FINDING-001`](FINDINGS.md) rather than assumed away. No WinForms or WPF
+binding pipeline is driven by it, so the threading guidance above rests on
+documented framework behaviour rather than on an interactive run.
+
+[`VALIDATION_REQUIREMENTS.md`](VALIDATION_REQUIREMENTS.md) owns the qualifying
+evidence contract and [`VALIDATIONS.md`](VALIDATIONS.md) records what actually
+ran, with its gaps.
+
+## Related surfaces
+
+| Need | Owner |
+|---|---|
+| Identity, packages, targets, API oracles, evidence routes | [`MANIFEST.md`](MANIFEST.md) |
+| Consumer introduction | [`README.md`](README.md) |
+| Consumer-visible evolution | [`CHANGELOG.md`](CHANGELOG.md) |
+| Chronology | [`HISTORY.md`](HISTORY.md) |
+| Confirmed defects | [`ISSUES.md`](ISSUES.md) |
+| Unconfirmed observations | [`FINDINGS.md`](FINDINGS.md) |
+| Candidate-to-stable transition | [`migrations/f1.md`](migrations/f1.md) |
+| Historical F1 review | [`audits/public-api-review-2026-08-17.md`](audits/public-api-review-2026-08-17.md) |
