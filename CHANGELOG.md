@@ -204,7 +204,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `InvalidOperationException` and `ArgumentOutOfRangeException`. Sending an
   endpoint that is not the registered instance now says so, instead of claiming
   the name is unregistered. See the
-  [F1-HTTP migration guide](docs/migrations/f1-http.md).
+  [F1-HTTP migration guide](docs/modules/Http/migrations/f1.md).
 - **NekoLib.Diagnostics.Windows — behavioral pre-stable candidate correction for
   the first `1.0.0` stable family release.** No public type, member, signature,
   target, or dependency changed, and both accepted API manifests are unchanged;

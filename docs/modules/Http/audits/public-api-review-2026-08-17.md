@@ -1,13 +1,24 @@
 # HTTP Public API Review — 2026-08-17
 
+**Document ID:** HTTP-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-HTTP compiled public surface, typed catalog and endpoint
-identity, relative URI construction, request and response ownership,
-serialization contracts, bounded response buffering, protocol-evidence
-preservation, target parity, and compatibility boundaries
+**Subject:** F1-HTTP compiled public surface, typed catalog and endpoint identity, relative URI construction, request and response ownership, serialization contracts, bounded response buffering, protocol-evidence preservation, target parity, and compatibility boundaries
+
+**Surface:** audit
+
+**Boundary:** http
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions implemented, including both optional items, and
 package-validated
@@ -16,9 +27,11 @@ package-validated
 
 **Reference commit:** `e845165252c60c9ecff2e90221eac739a1631c68`
 
+**Original path:** `docs/audit/http-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-18 — package gate completed
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-HTTP
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-HTTP
 
 ## Baseline and authority
 
@@ -31,10 +44,10 @@ of `origin/phase-e/sqlserver-and-orchestration`, and nothing was pushed.
 
 The reviewed authority is the `NekoLib.Http` project, all nine of its source
 files, its project file, its README, the two assembly-derived manifests under
-[`eng/public-api/NekoLib.Http/`](../../eng/public-api/NekoLib.Http), the
+[`eng/public-api/NekoLib.Http/`](../../../../eng/public-api/NekoLib.Http), the
 dual-target deterministic tests, the
-[public API and release policy](../public-api-release-policy.md), and the
-[TheCatAPI scenario](../../runtime_tests/Http/TheCatApi/README.md) **as scenario
+[public API and release policy](../../../public-api-release-policy.md), and the
+[TheCatAPI scenario](../../../../runtime_tests/Http/TheCatApi/README.md) **as scenario
 source only**.
 
 This review changes no product source, test, API baseline, package, changelog,
@@ -81,7 +94,7 @@ Excluded:
 `ImplicitUsings`, defines `NEKOLIB` plus the conditional symbols, has **no
 NekoLib project reference**, and takes `Newtonsoft.Json 13.0.3` plus the net481
 `System.Net.Http` framework reference
-([`NekoLib.Http.csproj`](../../src/Http/NekoLib.Http/NekoLib.Http.csproj)).
+([`NekoLib.Http.csproj`](../../../../src/Http/NekoLib.Http/NekoLib.Http.csproj)).
 It contains no conditional compilation, so both targets compile the same text.
 
 The ownership split is stated well in the current README and holds up under
@@ -159,7 +172,7 @@ network request was made.
 
 **Confirmed, probe-confirmed on both targets.** `ResolveEncoding` calls
 `Encoding.GetEncoding(charset)` directly
-([`HttpApiClient.cs:211`](../../src/Http/NekoLib.Http/HttpApiClient.cs#L211)).
+([`HttpApiClient.cs:211`](../../../../src/Http/NekoLib.Http/HttpApiClient.cs#L211)).
 .NET Framework ships the full code-page set; .NET 9 ships only the Unicode and
 ASCII families unless `CodePagesEncodingProvider` is registered.
 
@@ -195,9 +208,9 @@ blocker rather than folded into F1-HTTP.
 **Confirmed, probe-confirmed on both targets.** `HttpApiResponse` exists so that
 "non-success statuses are returned rather than converted into exceptions so
 callers retain protocol evidence"
-([`HttpApiResponse.cs:7`](../../src/Http/NekoLib.Http/HttpApiResponse.cs#L7)).
+([`HttpApiResponse.cs:7`](../../../../src/Http/NekoLib.Http/HttpApiResponse.cs#L7)).
 But `ReadBodyAsync` throws before any response object is built
-([`HttpApiClient.cs:172`](../../src/Http/NekoLib.Http/HttpApiClient.cs#L172)),
+([`HttpApiClient.cs:172`](../../../../src/Http/NekoLib.Http/HttpApiClient.cs#L172)),
 and `HttpResponseContentTooLargeException` carries only the endpoint name and the
 configured limit.
 
@@ -225,9 +238,9 @@ a complete one, which is worse than a loud failure.
 
 **Confirmed by compilation.** `HttpEndpoint` is `public abstract` with a
 `protected` constructor in the manifest
-([`HttpEndpoint.cs:11`](../../src/Http/NekoLib.Http/HttpEndpoint.cs#L11)),
+([`HttpEndpoint.cs:11`](../../../../src/Http/NekoLib.Http/HttpEndpoint.cs#L11)),
 but `CreateRequest` is `internal abstract`
-([`HttpEndpoint.cs:30`](../../src/Http/NekoLib.Http/HttpEndpoint.cs#L30)).
+([`HttpEndpoint.cs:30`](../../../../src/Http/NekoLib.Http/HttpEndpoint.cs#L30)).
 
 Compiling a derived type in a separate assembly:
 
@@ -254,10 +267,10 @@ manifest to stop advertising a seam that cannot be used**.
 
 **Confirmed, probe-confirmed on both targets.** `HttpApiCatalogBuilder` keys by
 name with `StringComparer.OrdinalIgnoreCase`
-([`HttpApiCatalog.cs:56`](../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L56)),
+([`HttpApiCatalog.cs:56`](../../../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L56)),
 while `HttpApiCatalog.Contains` uses a `HashSet<HttpEndpoint>` with default
 reference equality
-([`HttpApiCatalog.cs:46`](../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L46)).
+([`HttpApiCatalog.cs:46`](../../../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L46)).
 
 ```text
 catalog.Get("SHAPE") -> case-insensitive hit, same instance True
@@ -280,7 +293,7 @@ differs from the registered one.
 ### HTTP-05 — `HttpApiCatalog.Get(string)` returns something no `SendAsync` overload accepts
 
 **Confirmed.** `Get` returns the non-generic `HttpEndpoint`
-([`HttpApiCatalog.cs:35`](../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L35)),
+([`HttpApiCatalog.cs:35`](../../../../src/Http/NekoLib.Http/HttpApiCatalog.cs#L35)),
 while both `SendAsync` overloads require `HttpEndpoint<TResponse>` or
 `HttpEndpoint<TRequest, TResponse>`. The value is usable for introspection —
 `Name`, `Method`, `RequestType`, `ResponseType` — and nothing else without a
@@ -310,7 +323,7 @@ segment list yields an empty relative URI that targets the base address.
 
 The last one is also an inconsistency worth naming: every individual segment is
 rejected when blank
-([`RelativeUri.cs:55`](../../src/Http/NekoLib.Http/RelativeUri.cs#L55)),
+([`RelativeUri.cs:55`](../../../../src/Http/NekoLib.Http/RelativeUri.cs#L55)),
 yet a builder with no segments at all silently produces `""`.
 
 **Recommended disposition:** document all four behaviors in the README. Keep the
@@ -320,7 +333,7 @@ explicitly rather than leaving it as an accident of `string.Join`.
 ### HTTP-07 — The absolute-route prohibition is enforced by escaping, and the escape hatch is `configureRequest`
 
 **Confirmed.** `RelativeUri`'s constructor is `internal`
-([`RelativeUri.cs:14`](../../src/Http/NekoLib.Http/RelativeUri.cs#L14)),
+([`RelativeUri.cs:14`](../../../../src/Http/NekoLib.Http/RelativeUri.cs#L14)),
 so every instance comes from the builder, and every segment and query component
 passes through `Uri.EscapeDataString`. A scheme, an authority, or a
 protocol-relative `//` prefix cannot survive that: blank segments are rejected
@@ -338,7 +351,7 @@ as the caller-owned trust boundary that suspends it. No code change.
 **Confirmed.** `SendCoreAsync` disposes both the request message — and therefore
 its content — and the response message, after fully materializing the body into a
 string
-([`HttpApiClient.cs:90`](../../src/Http/NekoLib.Http/HttpApiClient.cs#L90)).
+([`HttpApiClient.cs:90`](../../../../src/Http/NekoLib.Http/HttpApiClient.cs#L90)).
 `HttpCompletionOption.ResponseHeadersRead` keeps `HttpClient` from buffering the
 body before the size bound is applied, which is what makes
 `MaxResponseContentBytes` meaningful rather than advisory.
@@ -379,13 +392,13 @@ POST content-type -> 'application/json; charset=utf-8', body '{"id":"1"}'
 ```
 
 `SerializeBody` uses `new StringContent(serialized, Encoding.UTF8, MediaType)`
-([`HttpEndpoint.cs:139`](../../src/Http/NekoLib.Http/HttpEndpoint.cs#L139)),
+([`HttpEndpoint.cs:139`](../../../../src/Http/NekoLib.Http/HttpEndpoint.cs#L139)),
 which appends the charset parameter. A minority of providers reject
 `application/json; charset=utf-8`, and RFC 8259 makes the parameter meaningless
 for JSON.
 
 `configureRequest` runs **after** the body is assigned
-([`HttpEndpoint.cs:214`](../../src/Http/NekoLib.Http/HttpEndpoint.cs#L214)), so a
+([`HttpEndpoint.cs:214`](../../../../src/Http/NekoLib.Http/HttpEndpoint.cs#L214)), so a
 caller can replace `message.Content` or reset its `ContentType`.
 
 **Recommended disposition:** document the emitted content type, the delegate
@@ -405,7 +418,7 @@ captured headers -> Content-Length=[4] Content-Type=[text/plain; charset=utf-8]
 `CaptureHeaders` builds one case-insensitive dictionary from
 `response.Headers` and then `response.Content.Headers`, concatenating when a name
 appears in both
-([`HttpApiClient.cs:219`](../../src/Http/NekoLib.Http/HttpApiClient.cs#L219)).
+([`HttpApiClient.cs:219`](../../../../src/Http/NekoLib.Http/HttpApiClient.cs#L219)).
 Multi-value headers are preserved in order. The result is wrapped in a
 `ReadOnlyDictionary`, so it is genuinely immutable.
 
@@ -432,7 +445,7 @@ The bound is inclusive at the limit and exclusive above it, on both the
 `Content-Length` pre-check and the streaming path; a non-success response is
 never deserialized and never throws, and its raw body survives; and
 `HttpApiClientOptions` is validated once and its values copied into the client
-([`HttpApiClient.cs:48`](../../src/Http/NekoLib.Http/HttpApiClient.cs#L48)), so
+([`HttpApiClient.cs:48`](../../../../src/Http/NekoLib.Http/HttpApiClient.cs#L48)), so
 later mutation of the caller's options object cannot re-target a live client —
 matching the accepted `Logger` and `TelemetryPipeline` read-once decisions.
 
@@ -447,7 +460,7 @@ decision gate wants the consistency, because the current types are not wrong.
 ### HTTP-13 — The nullability of `HttpApiResponse.Value` is invisible to the API baseline
 
 **Confirmed.** The source declares `public TResponse? Value { get; }`
-([`HttpApiResponse.cs:46`](../../src/Http/NekoLib.Http/HttpApiResponse.cs#L46)),
+([`HttpApiResponse.cs:46`](../../../../src/Http/NekoLib.Http/HttpApiResponse.cs#L46)),
 but both manifests record `public TResponse Value { get; }` — the reflected
 representation does not carry the annotation for an unconstrained type
 parameter.
@@ -467,7 +480,7 @@ proposed — changing the manifest generator is outside F1-HTTP.
 **Confirmed.** `JsonHttpBodySerializer(JsonSerializerSettings settings)` appears
 in both manifests, so `Newtonsoft.Json` types are part of the compiled public
 contract
-([`JsonHttpBodySerializer.cs:19`](../../src/Http/NekoLib.Http/Serialization/JsonHttpBodySerializer.cs#L19)).
+([`JsonHttpBodySerializer.cs:19`](../../../../src/Http/NekoLib.Http/Serialization/JsonHttpBodySerializer.cs#L19)).
 The README explains *why* Newtonsoft was chosen but not that the choice is
 consumer-visible and version-binding.
 
@@ -478,7 +491,7 @@ settings overload would remove a legitimate configuration seam.
 
 ### HTTP-15 — The README is good and has specific, enumerable gaps
 
-**Confirmed.** [`src/Http/NekoLib.Http/README.md`](../../src/Http/NekoLib.Http/README.md)
+**Confirmed.** [`src/Http/NekoLib.Http/README.md`](../../../../src/Http/NekoLib.Http/README.md)
 is one of the better module references in the repository: the ownership section,
 the non-goals, and the bounds discussion are all accurate. It does not cover the
 two identity models (HTTP-04), the introspection-only `Get` (HTTP-05), the four

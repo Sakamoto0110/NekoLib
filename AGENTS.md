@@ -10,7 +10,7 @@ the handoff state and the rules that are easy to get wrong.
 |---|---|
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Core contracts, ownership, null objects, and experimental action marker | [`src/Core/NekoLib.Core/README.md`](src/Core/NekoLib.Core/README.md) |
-| Typed HTTP catalogs, ownership, and response boundaries | [`src/Http/NekoLib.Http/README.md`](src/Http/NekoLib.Http/README.md) |
+| Typed HTTP catalogs, ownership, and response boundaries | [`docs/modules/Http/REFERENCE.md`](docs/modules/Http/REFERENCE.md) |
 | Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`docs/modules/Logging/REFERENCE.md`](docs/modules/Logging/REFERENCE.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`docs/modules/Telemetry/REFERENCE.md`](docs/modules/Telemetry/REFERENCE.md) |

@@ -46,7 +46,7 @@ become current API or package authority.
 | F1-INSP | [`public-api-review-2026-08-17.md`](../modules/Inspection/audits/public-api-review-2026-08-17.md) | [Inspection reference](../modules/Inspection/REFERENCE.md) |
 | F1-DIAG | [`public-api-review-2026-08-17.md`](../modules/Diagnostics/audits/public-api-review-2026-08-17.md) | [Diagnostics reference](../modules/Diagnostics/REFERENCE.md) |
 | F1-WIN | [`windows-public-api-review-2026-08-17.md`](../modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md) | [Diagnostics reference](../modules/Diagnostics/REFERENCE.md) |
-| F1-HTTP | [`http-public-api-review-2026-08-17.md`](../audit/http-public-api-review-2026-08-17.md) | [HTTP reference](../../src/Http/NekoLib.Http/README.md) |
+| F1-HTTP | [`public-api-review-2026-08-17.md`](../modules/Http/audits/public-api-review-2026-08-17.md) | [HTTP reference](../modules/Http/REFERENCE.md) |
 | F1-MVVM | [`public-api-review-2026-08-17.md`](../modules/Mvvm/audits/public-api-review-2026-08-17.md) | [Mvvm reference](../modules/Mvvm/REFERENCE.md) |
 | F1-DEV | [`public-api-review-2026-08-17.md`](../modules/Devices/audits/public-api-review-2026-08-17.md) | [Devices reference](../modules/Devices/REFERENCE.md) |
 | F1-PIPE | [`public-api-review-2026-08-18.md`](../modules/Pipes/audits/public-api-review-2026-08-18.md) | [Pipes reference](../modules/Pipes/REFERENCE.md) |

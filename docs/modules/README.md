@@ -33,7 +33,7 @@ the [global documentation index](../README.md).
 | Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |
 | Diagnostics / Windows | Populated module-first boundary | [`Diagnostics/MANIFEST.md`](Diagnostics/MANIFEST.md) |
 | Hosting | Not migrated; unshipped | Current project/source evidence |
-| Http | Not migrated | Current source-adjacent reference |
+| Http | Populated module-first boundary | [`Http/MANIFEST.md`](Http/MANIFEST.md) |
 | Inspection | Populated module-first boundary | [`Inspection/MANIFEST.md`](Inspection/MANIFEST.md) |
 | Logging | Populated module-first boundary | [`Logging/MANIFEST.md`](Logging/MANIFEST.md) |
 | Navigation / WinForms / Wpf | Populated module-first boundary | [`Navigation/MANIFEST.md`](Navigation/MANIFEST.md) |

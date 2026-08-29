@@ -57,6 +57,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Product purpose and concise module map | [`README.md`](../README.md) | Project files and source |
 | Data gateway technical contract | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | Data source, tests, and provider scenarios |
 | Diagnostics and Diagnostics.Windows technical contract | [`docs/modules/Diagnostics/REFERENCE.md`](modules/Diagnostics/REFERENCE.md) | Diagnostics source, four accepted API manifests, and the dual-target Diagnostics tests |
+| HTTP technical contract | [`docs/modules/Http/REFERENCE.md`](modules/Http/REFERENCE.md) | HTTP source, deterministic dual-target tests, the compiled public API manifests, and the separate TheCatAPI provider scenario |
 | Logging technical contract | [`docs/modules/Logging/REFERENCE.md`](modules/Logging/REFERENCE.md) | Logging source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
 | Telemetry technical contract | [`docs/modules/Telemetry/REFERENCE.md`](modules/Telemetry/REFERENCE.md) | Telemetry source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
 | Inspection technical contract | [`docs/modules/Inspection/REFERENCE.md`](modules/Inspection/REFERENCE.md) | Inspection source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
@@ -190,7 +191,16 @@ reference commit.
 | [`docs/modules/Navigation/VALIDATION_REQUIREMENTS.md`](modules/Navigation/VALIDATION_REQUIREMENTS.md) | reference | current | Risk-derived build, API, regression, native UI, recovery, designer, package, observation, and XML-documentation qualification requirements |
 | [`docs/modules/Navigation/VALIDATIONS.md`](modules/Navigation/VALIDATIONS.md) | reference | current | Curated historical interactive, designer, recovery, stable-release, API/XML, and package evidence with explicit gaps |
 | [`src/Navigation/NekoLib.Navigation/README.md`](../src/Navigation/NekoLib.Navigation/README.md) | reference | current | Pointer-only source portal to the canonical Navigation technical reference |
-| [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, response bounds, and explicit non-goals |
+| [`docs/modules/Http/MANIFEST.md`](modules/Http/MANIFEST.md) | reference | current | HTTP identity, routing, project/package topology, API oracles, and evidence locations |
+| [`docs/modules/Http/README.md`](modules/Http/README.md) | reference | current | Concise HTTP consumer introduction |
+| [`docs/modules/Http/REFERENCE.md`](modules/Http/REFERENCE.md) | reference | current | Typed HTTP endpoint catalogs, consumer ownership, relative URI construction, bounded response evidence, serialization contracts, and target differences |
+| [`docs/modules/Http/HISTORY.md`](modules/Http/HISTORY.md) | reference | current | Append-only factual HTTP chronology |
+| [`docs/modules/Http/CHANGELOG.md`](modules/Http/CHANGELOG.md) | reference | current | HTTP-specific consumer-visible evolution |
+| [`docs/modules/Http/ISSUES.md`](modules/Http/ISSUES.md) | reference | current | Confirmed HTTP defects registry |
+| [`docs/modules/Http/FINDINGS.md`](modules/Http/FINDINGS.md) | reference | current | Non-normative HTTP findings registry |
+| [`docs/modules/Http/VALIDATION_REQUIREMENTS.md`](modules/Http/VALIDATION_REQUIREMENTS.md) | reference | current | HTTP evidence contract derived from the inherited validation profiles |
+| [`docs/modules/Http/VALIDATIONS.md`](modules/Http/VALIDATIONS.md) | reference | current | HTTP executed-evidence registry |
+| [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Pointer-only source portal to the canonical HTTP technical reference |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/governance/documentation-policy.md`](governance/documentation-policy.md) | reference | current | Module-first authority, lifecycle, conflict, migration, and indexing policy |
 | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) | reference | current | Interoperable output contract and permitted role variation for documentation skills |
@@ -204,7 +214,7 @@ reference commit.
 | [`docs/migrations/querybuilder-structured-api.md`](migrations/querybuilder-structured-api.md) | guide | current | Migration to the canonical structured QueryBuilder API and its warning-only compatibility window |
 | [`docs/migrations/data-type-adaptation.md`](migrations/data-type-adaptation.md) | guide | current | Adoption of explicit input promotion, provider decay/loss policies, schema discovery, and sanitized adaptation hooks |
 | [`docs/modules/Diagnostics/migrations/f1.md`](modules/Diagnostics/migrations/f1.md) | guide | current | Migration from the initial Diagnostics candidate surface to the accepted F1-DIAG incident-collection, bundle, lifecycle, and ownership contracts |
-| [`docs/migrations/f1-http.md`](migrations/f1-http.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
+| [`docs/modules/Http/migrations/f1.md`](modules/Http/migrations/f1.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
 | [`docs/modules/Devices/migrations/f1.md`](modules/Devices/migrations/f1.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
 | [`docs/modules/Mvvm/migrations/f1.md`](modules/Mvvm/migrations/f1.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
 | [`docs/modules/Pipes/migrations/f1.md`](modules/Pipes/migrations/f1.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
@@ -223,7 +233,7 @@ reference commit.
 | [`docs/modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md`](modules/Diagnostics/audits/windows-public-api-review-2026-08-17.md) | audit | historical | F1-WIN compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Logging/audits/public-api-review-2026-08-17.md`](modules/Logging/audits/public-api-review-2026-08-17.md) | audit | historical | F1-LOG compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Inspection/audits/public-api-review-2026-08-17.md`](modules/Inspection/audits/public-api-review-2026-08-17.md) | audit | historical | F1-INSP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
-| [`docs/audit/http-public-api-review-2026-08-17.md`](audit/http-public-api-review-2026-08-17.md) | audit | historical | F1-HTTP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
+| [`docs/modules/Http/audits/public-api-review-2026-08-17.md`](modules/Http/audits/public-api-review-2026-08-17.md) | audit | historical | F1-HTTP compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/audit/public-api-documentation-extensibility-review-2026-08-27.md`](audit/public-api-documentation-extensibility-review-2026-08-27.md) | audit | historical | Completed managed public API documentation, extension-contract, and immutable package-delivery review |
 | [`docs/modules/Mvvm/audits/public-api-review-2026-08-17.md`](modules/Mvvm/audits/public-api-review-2026-08-17.md) | audit | historical | F1-MVVM compiled-surface review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Navigation/audits/public-api-review-2026-08-20.md`](modules/Navigation/audits/public-api-review-2026-08-20.md) | audit | historical | F1-NAV code-first core public API review, accepted implementation reconciliation, and residual package/runtime gaps |
