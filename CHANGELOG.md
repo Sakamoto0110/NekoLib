@@ -142,7 +142,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   target-specific `JToken?`/`JsonElement?` payload contract, `net481`
   Newtonsoft.Json dependency, access-policy defaults, bounded event policies,
   application-defined error codes, and application-owned authorization remain
-  unchanged. See the [F1-PIPE migration guide](docs/migrations/f1-pipes.md).
+  unchanged. See the [F1-PIPE migration guide](docs/modules/Pipes/migrations/f1.md).
 - **NekoLib.Devices — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed
   `Protocols.HardwareProtocol`, a public abstract class whose single `Template`

@@ -60,7 +60,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Logging pipeline technical contract | [`src/Logging/NekoLib.Logging/README.md`](../src/Logging/NekoLib.Logging/README.md) | Logging source, tests, and the Observability scenario |
 | Telemetry pipeline technical contract | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | Telemetry source, tests, and the Observability scenario |
 | Inspection runtime technical contract | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | Inspection source, tests, and the Observability scenario |
-| Pipes technical contract | [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | Pipes source, dual-target tests, and the compiled public API manifests |
+| Pipes technical contract | [`docs/modules/Pipes/REFERENCE.md`](modules/Pipes/REFERENCE.md) | Pipes source, dual-target tests, and the compiled public API manifests |
 | Watchdog technical contract | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
 | Watchdog Host deployment contract | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | Host source, dual-target tests, package target, and package-only consumers |
 | Navigation technical contract | [`docs/modules/Navigation/REFERENCE.md`](modules/Navigation/REFERENCE.md) | Navigation source, adapters, tests, and compiled public API manifests |
@@ -102,7 +102,16 @@ reference commit.
 | [`docs/modules/Mvvm/VALIDATION_REQUIREMENTS.md`](modules/Mvvm/VALIDATION_REQUIREMENTS.md) | reference | current | Mvvm evidence-contract scaffold and inherited validation profile |
 | [`docs/modules/Mvvm/VALIDATIONS.md`](modules/Mvvm/VALIDATIONS.md) | reference | current | Mvvm executed-evidence registry; structural empty state in the pilot |
 | [`src/Mvvm/NekoLib.Mvvm/README.md`](../src/Mvvm/NekoLib.Mvvm/README.md) | reference | current | Pointer-only source portal to the canonical Mvvm technical reference |
-| [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | reference | current | Named-pipe RPC/events, configuration ownership, lifecycle, framing, metrics, errors, access policy, and target-specific payload contracts |
+| [`docs/modules/Pipes/MANIFEST.md`](modules/Pipes/MANIFEST.md) | reference | current | Pipes identity, routing, project/package topology, API oracles, and evidence locations |
+| [`docs/modules/Pipes/README.md`](modules/Pipes/README.md) | reference | current | Concise Pipes consumer introduction |
+| [`docs/modules/Pipes/REFERENCE.md`](modules/Pipes/REFERENCE.md) | reference | current | Named-pipe RPC/events, configuration ownership, lifecycle, framing, metrics, errors, access policy, and target-specific payload contracts |
+| [`docs/modules/Pipes/HISTORY.md`](modules/Pipes/HISTORY.md) | reference | current | Append-only factual Pipes chronology |
+| [`docs/modules/Pipes/CHANGELOG.md`](modules/Pipes/CHANGELOG.md) | reference | current | Pipes-specific consumer-visible evolution |
+| [`docs/modules/Pipes/ISSUES.md`](modules/Pipes/ISSUES.md) | reference | current | Confirmed Pipes defects registry |
+| [`docs/modules/Pipes/FINDINGS.md`](modules/Pipes/FINDINGS.md) | reference | current | Non-normative Pipes findings registry |
+| [`docs/modules/Pipes/VALIDATION_REQUIREMENTS.md`](modules/Pipes/VALIDATION_REQUIREMENTS.md) | reference | current | Pipes evidence contract derived from the inherited validation profiles |
+| [`docs/modules/Pipes/VALIDATIONS.md`](modules/Pipes/VALIDATIONS.md) | reference | current | Pipes executed-evidence registry |
+| [`src/Pipes/NekoLib.Pipes/README.md`](../src/Pipes/NekoLib.Pipes/README.md) | reference | current | Pointer-only source portal to the canonical Pipes technical reference |
 | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | reference | current | Watchdog application bootstrap, advanced runtime, configuration, lifecycle, process ownership, control, evidence, security, and package boundary |
 | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | reference | current | Watchdog Host deployment package, payload selection, build/publish behavior, protocol v1, fatal evidence, security, and release validation |
 | [`src/Logging/NekoLib.Logging/README.md`](../src/Logging/NekoLib.Logging/README.md) | reference | current | Logging pipeline composition, ownership, delivery ordering, snapshots, flush and disposal contracts, and the shipped sinks |
@@ -135,7 +144,7 @@ reference commit.
 | [`docs/migrations/f1-http.md`](migrations/f1-http.md) | guide | current | Migration from the initial HTTP candidate surface to the accepted F1-HTTP charset, response-evidence, identity, and validation contracts |
 | [`docs/migrations/f1-devices.md`](migrations/f1-devices.md) | guide | current | Migration from the initial Devices candidate surface to the accepted F1-DEV operation-boundary, configuration-ownership, failure-evidence, and nullability contracts |
 | [`docs/modules/Mvvm/migrations/f1.md`](modules/Mvvm/migrations/f1.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
-| [`docs/migrations/f1-pipes.md`](migrations/f1-pipes.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
+| [`docs/modules/Pipes/migrations/f1.md`](modules/Pipes/migrations/f1.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
 | [`docs/migrations/f1-watchdog.md`](migrations/f1-watchdog.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
 | [`docs/migrations/f1-watchdog-host.md`](migrations/f1-watchdog-host.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
 | [`docs/migrations/f1-logging.md`](migrations/f1-logging.md) | guide | current | Migration from the initial Logging candidate surface to the accepted F1-LOG pipeline, flush, disposal, and sink behavior |
@@ -159,7 +168,7 @@ reference commit.
 | [`docs/modules/Navigation/audits/wpf-public-api-review-2026-08-21.md`](modules/Navigation/audits/wpf-public-api-review-2026-08-21.md) | audit | historical | F1-NAV-WPF code-first adapter review, accepted implementation reconciliation, exact manifest changes, and residual package/runtime gaps |
 | [`docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | audit | historical | NekoMarketplace external-consumer evidence intake; F-009/F-026 are promoted, F-022 is an active roadmap decision, and remaining records stay historical |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | historical | Phase G2 code-first design review preserved as dated input to the unpromoted Payments/Pix proposal |
-| [`docs/audit/pipes-public-api-review-2026-08-18.md`](audit/pipes-public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
+| [`docs/modules/Pipes/audits/public-api-review-2026-08-18.md`](modules/Pipes/audits/public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/audit/watchdog-public-api-review-2026-08-18.md`](audit/watchdog-public-api-review-2026-08-18.md) | audit | historical | F1-WDOG compiled public surface, accepted decisions, implementation reconciliation, and residual Host/release-evidence gaps |
 | [`docs/audit/watchdog-host-contract-review-2026-08-20.md`](audit/watchdog-host-contract-review-2026-08-20.md) | audit | historical | F1-WDOG-HOST deployment package and protocol review, accepted implementation reconciliation, and immutable package evidence |

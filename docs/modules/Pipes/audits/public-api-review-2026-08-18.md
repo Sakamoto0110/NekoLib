@@ -1,12 +1,24 @@
 # Pipes Public API Review — 2026-08-18
 
+**Document ID:** PIPE-AUDIT-PUBLIC-API-20260818
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-PIPE compiled public surface, request/response and event
-contracts, ownership, lifecycle, concurrency, framing, metrics, errors,
-security policy, target parity, and package boundary
+**Subject:** F1-PIPE compiled public surface, request/response and event contracts, ownership, lifecycle, concurrency, framing, metrics, errors, security policy, target parity, and package boundary
+
+**Surface:** audit
+
+**Boundary:** pipes
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all eight dispositions accepted and implemented
 
@@ -14,11 +26,11 @@ security policy, target parity, and package boundary
 
 **Reference commit:** `2db588ac6fef271851e70c04f7b8b82cd8e004a7`
 
+**Original path:** docs/audit/pipes-public-api-review-2026-08-18.md
+
 **Last reconciliation:** 2026-08-18
 
-**Current state:** the [Pipes technical reference](../../src/Pipes/NekoLib.Pipes/README.md)
-owns the implemented contract; [`TODO.md`](../../TODO.md) records F1-PIPE as
-complete and retains the family release gates
+**Current state:** the [Pipes technical reference](../REFERENCE.md) owns the implemented contract; [`TODO.md`](../../../../TODO.md) records F1-PIPE as complete and retains the family release gates
 
 ## Baseline and authority
 
@@ -40,28 +52,28 @@ efd0a88 feat(diagnostics): finalize F1 public API
 ```
 
 The review followed [the NekoLib routing
-skill](../../.agents/skills/nekolib/SKILL.md) and the
-[repository-hygiene workflow](../../.agents/skills/nekolib-repository-hygiene/SKILL.md).
+skill](../../../../.agents/skills/nekolib/SKILL.md) and the
+[repository-hygiene workflow](../../../../.agents/skills/nekolib-repository-hygiene/SKILL.md).
 Pipes has no specialized module skill, so the current source, project, tests,
 compiled manifests, public API policy, and current repository documentation are
 the operative authorities.
 
 Authority order used here:
 
-1. all tracked source under [`src/Pipes/NekoLib.Pipes/`](../../src/Pipes/NekoLib.Pipes/);
-2. [`NekoLib.Pipes.csproj`](../../src/Pipes/NekoLib.Pipes/NekoLib.Pipes.csproj)
+1. all tracked source under [`src/Pipes/NekoLib.Pipes/`](../../../../src/Pipes/NekoLib.Pipes/);
+2. [`NekoLib.Pipes.csproj`](../../../../src/Pipes/NekoLib.Pipes/NekoLib.Pipes.csproj)
    and evaluated MSBuild properties/items;
 3. all tests under
-   [`tests/NekoLib.Pipes.Tests/Unit/`](../../tests/NekoLib.Pipes.Tests/Unit/);
+   [`tests/NekoLib.Pipes.Tests/Unit/`](../../../../tests/NekoLib.Pipes.Tests/Unit/);
 4. the two assembly-derived manifests under
-   [`eng/public-api/NekoLib.Pipes/`](../../eng/public-api/NekoLib.Pipes/);
-5. [`README.md`](../../README.md),
-   [`tests/README.md`](../../tests/README.md), and the
-   [public API and release policy](../public-api-release-policy.md);
-6. [`TODO.md`](../../TODO.md) F1-PIPE;
+   [`eng/public-api/NekoLib.Pipes/`](../../../../eng/public-api/NekoLib.Pipes/);
+5. [`README.md`](../../../../README.md),
+   [`tests/README.md`](../../../../tests/README.md), and the
+   [public API and release policy](../../../public-api-release-policy.md);
+6. [`TODO.md`](../../../../TODO.md) F1-PIPE;
 7. the historical
-   [`pipes-first-pass.md`](pipes-first-pass.md) and
-   [`pipes-ipc-hardening-review-2026-08-08.md`](pipes-ipc-hardening-review-2026-08-08.md)
+   [`initial-audit.md`](initial-audit.md) and
+   [`ipc-hardening-review-2026-08-08.md`](ipc-hardening-review-2026-08-08.md)
    only as leads rechecked against current code.
 
 The direct Watchdog consumer was read only where necessary to confirm how the
@@ -108,7 +120,7 @@ Excluded:
 The evaluated project targets `net481;net9.0`, has `Nullable=enable`,
 `ImplicitUsings=enable`, `LangVersion=latest`, and is packable as
 `NekoLib.Pipes`
-([`NekoLib.Pipes.csproj:3`](../../src/Pipes/NekoLib.Pipes/NekoLib.Pipes.csproj#L3)).
+([`NekoLib.Pipes.csproj:3`](../../../../src/Pipes/NekoLib.Pipes/NekoLib.Pipes.csproj#L3)).
 It declares `NET481` for `net481` and `NET9` for `net9.0`; it does not declare
 `NEKOLIB`. It has no project reference.
 
@@ -121,7 +133,7 @@ The dependency graph differs by target:
 
 `Newtonsoft.Json` is a public, not merely implementation, dependency on
 `net481`: `PipeMessage.Data` exposes `JToken?`
-([`PipeMessage.cs:19`](../../src/Pipes/NekoLib.Pipes/PipeMessage.cs#L19)). The
+([`PipeMessage.cs:19`](../../../../src/Pipes/NekoLib.Pipes/PipeMessage.cs#L19)). The
 modern assembly exposes `JsonElement?` instead. A future normal package is
 therefore expected to contain the two library assets above, the repository root
 README and license supplied by `Directory.Build.targets`, symbols in the normal
@@ -147,8 +159,8 @@ The other compiled difference is the type of `PipeMessage.Data`:
 `System.Text.Json.JsonElement?` on `net9.0`. Apart from target-framework
 metadata, those are the only target-specific public differences confirmed by
 the manifests
-([`net481.approved.txt`](../../eng/public-api/NekoLib.Pipes/net481.approved.txt),
-[`net9.0.approved.txt`](../../eng/public-api/NekoLib.Pipes/net9.0.approved.txt)).
+([`net481.approved.txt`](../../../../eng/public-api/NekoLib.Pipes/net481.approved.txt),
+[`net9.0.approved.txt`](../../../../eng/public-api/NekoLib.Pipes/net9.0.approved.txt)).
 
 The classifications below are proposals for the decision gate, not accepted
 stable declarations.
@@ -184,8 +196,8 @@ path.
 - `PipeClient` owns one `NamedPipeClientStream` per `SendAsync`; it closes that
   stream in the call's `finally`. The instance itself retains only the caller's
   mutable options object and one metrics reference
-  ([`PipeClient.cs:15`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L15),
-  [`PipeClient.cs:76`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L76)).
+  ([`PipeClient.cs:15`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L15),
+  [`PipeClient.cs:76`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L76)).
 - `PipeServer` owns its cancellation source, accept task, semaphore, admitted
   operations and streams, optional event hub, and the handler dictionary. A
   handler delegate remains application-owned; the server may invoke it
@@ -211,7 +223,7 @@ path.
 - `PipeServer.Map` and request lookup use a `ConcurrentDictionary`; mapping and
   dispatch may run concurrently. Re-mapping one name is last-writer-wins, and a
   request sees whichever handler the dictionary returns at lookup time
-  ([`PipeServer.cs:17`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L17)).
+  ([`PipeServer.cs:17`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L17)).
 - One connection is processed sequentially. Different connections and handlers
   execute concurrently up to `MaxClients`.
 - Each event subscriber has one FIFO and one writer. Sequential completed
@@ -219,7 +231,7 @@ path.
   publishers are serialized by each queue lock, but their relative order is
   lock-acquisition order and is intentionally unspecified.
 - `PublishAsync` is enqueue-only and never waits for subscriber I/O
-  ([`PipeEventHub.cs:363`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L363)).
+  ([`PipeEventHub.cs:363`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L363)).
   `DropNewest` keeps a slow subscriber and counts that attempted delivery as
   failed; `DisconnectSubscriber` removes it and fails its queued deliveries.
 - `PipeEventClient` invokes `OnEvent` subscribers serially in registration
@@ -235,11 +247,11 @@ path.
 - A non-positive or over-limit incoming length is rejected before payload
   allocation. The RPC default is 1 MiB and is configurable independently on
   client and server
-  ([`PipeFraming.cs:161`](../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L161)).
+  ([`PipeFraming.cs:161`](../../../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L161)).
 - Clean EOF before any header byte makes `TryReadAsync` return null. EOF after a
   partial header or body throws `EndOfStreamException`; it is not collapsed into
   clean closure
-  ([`PipeFraming.cs:195`](../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L195)).
+  ([`PipeFraming.cs:195`](../../../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L195)).
 - Invalid JSON throws the target serializer's parse exception. The server closes
   a client on any read/framing failure because it may not have a trustworthy
   correlation ID.
@@ -249,7 +261,7 @@ path.
 - Handlers receive the public mutable request object. The server overwrites
   `Id`, `Type`, and `Name` on the handler's returned response object before
   writing it
-  ([`PipeServer.cs:307`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L307)).
+  ([`PipeServer.cs:307`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L307)).
 
 ### Metrics and snapshots
 
@@ -259,7 +271,7 @@ maintains cumulative counts from construction; it has no reset operation.
 consistent under their respective locks, while the complete snapshot is a
 weakly consistent read across independent counters, not one global atomic
 instant
-([`SimplePipeMetrics.cs:182`](../../src/Pipes/NekoLib.Pipes/SimplePipeMetrics.cs#L182)).
+([`SimplePipeMetrics.cs:182`](../../../../src/Pipes/NekoLib.Pipes/SimplePipeMetrics.cs#L182)).
 
 `Events.Published` counts completed publication trackers, not subscriber
 deliveries. `Delivered` and `Failed` count per-subscriber outcomes. A
@@ -278,8 +290,8 @@ anonymous. `CurrentUserOnly` is opt-in. On modern .NET the runtime option checks
 that client and server have the same user and, on Windows, the same elevation
 level; on `net481` Pipes installs a protected ACL granting the current user SID
 full control
-([`PipeServerStreamFactory.cs:20`](../../src/Pipes/NekoLib.Pipes/PipeServerStreamFactory.cs#L20),
-[`PipeServerStreamFactory.cs:78`](../../src/Pipes/NekoLib.Pipes/PipeServerStreamFactory.cs#L78)).
+([`PipeServerStreamFactory.cs:20`](../../../../src/Pipes/NekoLib.Pipes/PipeServerStreamFactory.cs#L20),
+[`PipeServerStreamFactory.cs:78`](../../../../src/Pipes/NekoLib.Pipes/PipeServerStreamFactory.cs#L78)).
 
 Platform references:
 
@@ -300,8 +312,8 @@ TestControl infrastructure without a separate threat-model decision.
 
 **Observed fact.** `PipeClient` and `PipeServer` retain the caller's options
 object directly
-([`PipeClient.cs:18`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L18),
-[`PipeServer.cs:36`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L36)). One
+([`PipeClient.cs:18`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L18),
+[`PipeServer.cs:36`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L36)). One
 operation reads fields at different times: a concurrent mutation can make the
 stream connect to one name while metrics record another, or apply different
 frame limits to its write and read. Server mutation can split the RPC and event
@@ -314,10 +326,10 @@ Validation is incomplete and inconsistent. `MaxClients=0` and
 inside stream construction; non-positive message limits make every frame fail;
 invalid `ClientIdleTimeout` values are swallowed by the `CancelAfter` guard and
 silently remove the intended idle bound
-([`PipeServer.cs:185`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L185)). Event
+([`PipeServer.cs:185`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L185)). Event
 client timeout and delay properties are read by the background loop without
 validated setters
-([`PipeEventClient.cs:28`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L28)).
+([`PipeEventClient.cs:28`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L28)).
 
 **Risk to consumers.** Configuration has no stable ownership point, failures
 occur far from construction, and concurrent applications can observe mixed
@@ -350,17 +362,17 @@ manifests should remain unchanged.
 **Observed fact.** `PipeServer` and `PipeEventHub` track admitted work and an
 internal completion task, cancel and close transports, then let `Dispose()` wait
 at most two seconds
-([`PipeServer.cs:320`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L320),
-[`PipeEventHub.cs:480`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L480)). A
+([`PipeServer.cs:320`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L320),
+[`PipeEventHub.cs:480`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L480)). A
 handler that ignores cancellation may therefore outlive `Dispose`, as the
 current tests deliberately confirm
-([`PipeShutdownTests.cs:42`](../../tests/NekoLib.Pipes.Tests/Unit/PipeShutdownTests.cs#L42)).
+([`PipeShutdownTests.cs:42`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeShutdownTests.cs#L42)).
 The completion task is not public. `PipeServer` has no async-disposal member on
 either target; `PipeEventHub.DisposeAsync` exists only on `net9.0`.
 
 `PipeEventClient.DisposeAsync` calls synchronous `Dispose()` and immediately
 returns a completed `ValueTask`, so it is not an asynchronous drain
-([`PipeEventClient.cs:138`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L138)).
+([`PipeEventClient.cs:138`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L138)).
 It has no terminal disposed state: disposal before start does nothing, disposal
 after start resets `_running`, and a later `Start()` can create another loop.
 If `AutoReconnect=false` ends the loop naturally, `_running` remains true and a
@@ -369,7 +381,7 @@ so concurrent starts or start/dispose races are not atomic.
 
 `PipeClient.Dispose()` is explicitly a no-op reserved for a hypothetical future
 persistent model
-([`PipeClient.cs:163`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L163)). The
+([`PipeClient.cs:163`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L163)). The
 instance owns no long-lived resource, so its `IDisposable` and modern
 `IAsyncDisposable` contracts are accidental surface today.
 
@@ -418,9 +430,9 @@ response, accept, disconnect, event-delivery, and error paths without a safety
 boundary. For example, a throwing `OnClientRequest` aborts a connected request;
 a throwing `OnServerRequestReceived` closes the connection before dispatch;
 and a throwing event metric can fault a writer or a zero-subscriber publish
-([`PipeClient.cs:47`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L47),
-[`PipeServer.cs:211`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L211),
-[`PipeEventHub.cs:89`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L89)). A
+([`PipeClient.cs:47`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L47),
+[`PipeServer.cs:211`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L211),
+[`PipeEventHub.cs:89`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L89)). A
 throwing `OnError` may replace the original exception.
 
 **Risk to consumers.** Optional observation can make an otherwise valid RPC
@@ -454,8 +466,8 @@ neither `PipeEventHub` nor `PipeEventClient` exposes a limit. `PublishAsync`
 serializes and enqueues without preflighting framed size. Each writer later
 throws `PipeFrameTooLargeException`; the generic writer catch counts failure,
 removes the subscriber, and disposes its stream
-([`PipeEventHub.cs:367`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L367),
-[`PipeEventHub.cs:446`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L446)).
+([`PipeEventHub.cs:367`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L367),
+[`PipeEventHub.cs:446`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L446)).
 
 **Risk to consumers.** One producer mistake disconnects every current
 subscriber even though none caused the failure. `PublishAsync` has already
@@ -486,12 +498,12 @@ metrics remain coherent.
 callback. `OnConnected` and `OnDisconnected` instead invoke the whole multicast
 delegate inside one try, so the first throwing callback prevents later
 callbacks from running
-([`PipeEventClient.cs:119`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L119),
-[`PipeEventClient.cs:133`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L133)).
+([`PipeEventClient.cs:119`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L119),
+[`PipeEventClient.cs:133`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L133)).
 `OnDisconnected` is raised from `finally` even when the connect attempt never
 succeeded. Connect, read, framing, and parse failures are swallowed by the loop,
 and the public client has no error event or failure state
-([`PipeEventClient.cs:53`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L53)).
+([`PipeEventClient.cs:53`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L53)).
 
 **Risk to consumers.** Later state subscribers can miss notifications; a failed
 connect is indistinguishable from a completed connection; and applications
@@ -523,10 +535,10 @@ shutdown, callback order, and reconnect tests on both targets.
 
 **Observed fact.** Four framework-generated response codes are visible on the
 wire: `not_found`, `exception`, `response_too_large`, and `connection_closed`
-([`PipeServer.cs:224`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L224),
-[`PipeServer.cs:253`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L253),
-[`PipeServer.cs:293`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L293),
-[`PipeClient.cs:120`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L120)).
+([`PipeServer.cs:224`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L224),
+[`PipeServer.cs:253`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L253),
+[`PipeServer.cs:293`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L293),
+[`PipeClient.cs:120`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L120)).
 Consumers must hard-code strings because no public symbols name them. The root
 README says protocol errors are stable and handler details are sanitized, but
 does not publish the complete outcome matrix.
@@ -574,7 +586,7 @@ JSON, and correlation failure.
 and awaits token-aware `ConnectAsync`. The `net481` branch runs blocking
 `pipe.Connect(timeout)` on a pool thread and awaits it without a cancellation
 bridge
-([`PipeClient.cs:82`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L82)). A token
+([`PipeClient.cs:82`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L82)). A token
 cancelled after connect begins cannot return the RPC call until the configured
 connect timeout elapses. Request framing has a separate cancellation bridge and
 does not share this gap.
@@ -604,8 +616,8 @@ worker fault or pipe endpoint remains.
 **Observed fact.** `PipeMessage.Data` has different public types on the two
 targets. The direct Watchdog consumer consequently uses conditional branches to
 read request data and construct response data
-([`WatchdogRuntime.cs:351`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L351),
-[`WatchdogRuntime.cs:478`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L478)).
+([`WatchdogRuntime.cs:351`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L351),
+[`WatchdogRuntime.cs:478`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L478)).
 The wire remains JSON, but shared multi-target consumer source cannot use one
 serializer-specific API without conditional code.
 
@@ -639,7 +651,7 @@ dependency groups recorded.
 
 **Observed fact.** `SimplePipeMetrics` is public and unsealed, but none of its
 public methods is virtual and it exposes no protected extension hook
-([`SimplePipeMetrics.cs:6`](../../src/Pipes/NekoLib.Pipes/SimplePipeMetrics.cs#L6)).
+([`SimplePipeMetrics.cs:6`](../../../../src/Pipes/NekoLib.Pipes/SimplePipeMetrics.cs#L6)).
 The real customization contract is `IPipeMetrics`. The repository has no
 derived `SimplePipeMetrics`; Watchdog constructs it directly.
 
@@ -669,8 +681,8 @@ existing metric concurrency/snapshot tests.
 **Observed fact.** The package exposes `PlatformDefault` and `CurrentUserOnly`,
 defaults server options and compatibility constructors to `PlatformDefault`,
 and exposes no peer identity or operation-authorization contract
-([`PipeServerOptions.cs:20`](../../src/Pipes/NekoLib.Pipes/PipeServerOptions.cs#L20),
-[`PipeEventHub.cs:174`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L174)).
+([`PipeServerOptions.cs:20`](../../../../src/Pipes/NekoLib.Pipes/PipeServerOptions.cs#L20),
+[`PipeEventHub.cs:174`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L174)).
 The direct Watchdog consumer explicitly opts into `CurrentUserOnly`; generic
 Pipes does not impose that policy.
 
@@ -835,41 +847,41 @@ in `e608dc873c78f5bcecbd79dc5931c59f5d461dcc`.
 1. **Configuration (PIPE-01).** Client and server values are captured and
    validated at construction. Event-client timeouts and reconnect delay validate
    their live setters; only `AutoReconnect` remains an intentional live behavior
-   switch. See [`PipeConfiguration.cs`](../../src/Pipes/NekoLib.Pipes/PipeConfiguration.cs)
+   switch. See [`PipeConfiguration.cs`](../../../../src/Pipes/NekoLib.Pipes/PipeConfiguration.cs)
    and the mutation regressions in
-   [`PipeConfigurationTests.cs:115`](../../tests/NekoLib.Pipes.Tests/Unit/PipeConfigurationTests.cs#L115).
+   [`PipeConfigurationTests.cs:115`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeConfigurationTests.cs#L115).
 2. **Lifecycle (PIPE-02).** `PipeServer`, `PipeEventHub`, and `PipeEventClient`
    expose target-neutral `ShutdownAsync`; start and shutdown are terminal and
    race-safe; admitted operations remain represented by shutdown completion;
    modern async disposal performs real async shutdown. The stateless
    `PipeClient` no longer exposes disposal. See
-   [`PipeServer.cs:357`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L357),
-   [`PipeEventHub.cs:488`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L488),
-   [`PipeEventClient.cs:232`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L232),
-   and [`PipeShutdownTests.cs:131`](../../tests/NekoLib.Pipes.Tests/Unit/PipeShutdownTests.cs#L131).
+   [`PipeServer.cs:357`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L357),
+   [`PipeEventHub.cs:488`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L488),
+   [`PipeEventClient.cs:232`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L232),
+   and [`PipeShutdownTests.cs:131`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeShutdownTests.cs#L131).
 3. **Metrics (PIPE-03 and PIPE-09).** Every framework-owned metrics callback is
    isolated behind an internal guard; snapshots remain cumulative and do not
    reset; `IPipeMetrics` remains the extension seam; and `SimplePipeMetrics` is
-   sealed. See [`PipeMetricsGuard.cs`](../../src/Pipes/NekoLib.Pipes/PipeMetricsGuard.cs)
-   and [`PipeMetricsIsolationTests.cs:12`](../../tests/NekoLib.Pipes.Tests/Unit/PipeMetricsIsolationTests.cs#L12).
+   sealed. See [`PipeMetricsGuard.cs`](../../../../src/Pipes/NekoLib.Pipes/PipeMetricsGuard.cs)
+   and [`PipeMetricsIsolationTests.cs:12`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeMetricsIsolationTests.cs#L12).
 4. **Events (PIPE-04 and PIPE-05).** Bounded FIFO subscriber queues and both
    overflow policies remain. Serialized events are preflighted against the fixed
    1 MiB frame bound before enqueue, so an oversized publication fails without
    disconnecting healthy subscribers or changing publication metrics. The event
    client now exposes isolated `OnError`; connected, event, error, and
    disconnected callbacks are isolated individually and retain documented
-   ordering. See [`PipeEventHub.cs:403`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L403),
-   [`PipeEventClient.cs:44`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L44),
-   [`PipeEventTests.cs:136`](../../tests/NekoLib.Pipes.Tests/Unit/PipeEventTests.cs#L136),
-   and [`PipeEventClientTests.cs:110`](../../tests/NekoLib.Pipes.Tests/Unit/PipeEventClientTests.cs#L110).
+   ordering. See [`PipeEventHub.cs:403`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L403),
+   [`PipeEventClient.cs:44`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L44),
+   [`PipeEventTests.cs:136`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeEventTests.cs#L136),
+   and [`PipeEventClientTests.cs:110`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeEventClientTests.cs#L110).
 5. **Errors and cancellation (PIPE-06 and PIPE-07).** `PipeErrorCodes` publishes
    the four stable framework codes while the existing response-versus-exception
    matrix and sanitized handler failure remain unchanged. The `net481` blocking
    connect path now races caller cancellation without disposing the still-running
-   task prematurely. See [`PipeErrorCodes.cs`](../../src/Pipes/NekoLib.Pipes/PipeErrorCodes.cs),
-   [`PipeTaskCancellation.cs`](../../src/Pipes/NekoLib.Pipes/PipeTaskCancellation.cs),
-   [`PipeRpcTests.cs:339`](../../tests/NekoLib.Pipes.Tests/Unit/PipeRpcTests.cs#L339),
-   and [`PipeClientCancellationTests.cs`](../../tests/NekoLib.Pipes.Tests/Unit/PipeClientCancellationTests.cs).
+   task prematurely. See [`PipeErrorCodes.cs`](../../../../src/Pipes/NekoLib.Pipes/PipeErrorCodes.cs),
+   [`PipeTaskCancellation.cs`](../../../../src/Pipes/NekoLib.Pipes/PipeTaskCancellation.cs),
+   [`PipeRpcTests.cs:339`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeRpcTests.cs#L339),
+   and [`PipeClientCancellationTests.cs`](../../../../tests/NekoLib.Pipes.Tests/Unit/PipeClientCancellationTests.cs).
 6. **Target and package contract (PIPE-08).** The target-specific
    `PipeMessage.Data` types and the `net481` Newtonsoft dependency are accepted
    for this baseline and documented. No new project reference or package

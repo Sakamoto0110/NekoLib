@@ -1,29 +1,40 @@
 # Pipes and Watchdog IPC Hardening Review — 2026-08-08
 
+**Document ID:** PIPE-AUDIT-IPC-HARDENING-20260808
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** code-first review of the NekoLib.Pipes transport and the Watchdog
-RPC/event boundary — trust model, Windows pipe security, endpoint ownership,
-framing, authorization, replay, backpressure, and shutdown
+**Subject:** code-first review of the NekoLib.Pipes transport and the Watchdog RPC/event boundary — trust model, Windows pipe security, endpoint ownership, framing, authorization, replay, backpressure, and shutdown
+
+**Surface:** audit
+
+**Boundary:** pipes
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Reference date:** 2026-08-08
 
 **Reference commit:** `941e17e8224dff3b34b7495d7bd0f7cf12c8f4ed`
 
-**Last reconciliation:** 2026-08-08 — review completed; bounded dispositions
-accepted and promoted to `TODO.md` Phase E5
+**Original path:** docs/audit/pipes-ipc-hardening-review-2026-08-08.md
 
-**Current state:** [`TODO.md`](../../TODO.md) Phase E5 is the sole authority for
-accepted work and implementation status; this snapshot preserves the reviewed
-evidence, original recommendations, and rejected alternatives
+**Last reconciliation:** 2026-08-08 — review completed; bounded dispositions accepted and promoted to `TODO.md` Phase E5
+
+**Current state:** [`TODO.md`](../../../../TODO.md) Phase E5 is the sole authority for accepted work and implementation status; this snapshot preserves the reviewed evidence, original recommendations, and rejected alternatives
 
 ## Baseline and authority
 
 This review covers committed `master` at the reference commit on a clean
 worktree. It reviews current source and executable tests, not the findings in
-the historical [`pipes-first-pass.md`](pipes-first-pass.md) as if they were
+the historical [`initial-audit.md`](initial-audit.md) as if they were
 still current.
 
 The review changed no product code. Creating this snapshot and indexing it are
@@ -137,9 +148,9 @@ per-command authorization is checked.
 
 Evidence:
 
-- [`PipeServer.Dispatch`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L265)
+- [`PipeServer.Dispatch`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L265)
   looks up only `request.Name`;
-- [`WatchdogRuntime.RegisterRpcHandlers`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L236)
+- [`WatchdogRuntime.RegisterRpcHandlers`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L236)
   exposes the command surface;
 - `restart` calls `TryKill` at lines 300-312 and `stop` queues `Stop(true)` at
   lines 315-327.
@@ -167,12 +178,12 @@ a different user or at a different elevation level.
 
 Evidence:
 
-- [`PipeServer`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L95) creates the
+- [`PipeServer`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L95) creates the
   duplex server;
-- [`PipeEventHub`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L81) creates
+- [`PipeEventHub`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L81) creates
   the outbound event server;
-- [`PipeClient`](../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L39) and
-  [`PipeEventClient`](../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L80)
+- [`PipeClient`](../../../../src/Pipes/NekoLib.Pipes/PipeClient.cs#L39) and
+  [`PipeEventClient`](../../../../src/Pipes/NekoLib.Pipes/PipeEventClient.cs#L80)
   likewise omit an identity restriction.
 
 ### IPC-03 — Medium — deterministic names permit same-user endpoint squatting and impersonation
@@ -190,8 +201,8 @@ authenticate a hostile server that can observe or obtain the correlation token.
 
 Evidence:
 
-- [`WatchdogController.ResolvePipeNameForTarget`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L46);
-- [`WatchdogRuntime.Start`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L101).
+- [`WatchdogController.ResolvePipeNameForTarget`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L46);
+- [`WatchdogRuntime.Start`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L101).
 
 ### IPC-04 — Medium correctness — concurrent event publications have no single-writer boundary
 
@@ -210,11 +221,11 @@ single publisher. The generic public Pipes API still exposes the race.
 
 Evidence:
 
-- [`PipeEventHub.PublishAsync`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L142)
+- [`PipeEventHub.PublishAsync`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L142)
   snapshots subscribers and awaits `Task.WhenAll`;
-- [`PipeEventHub.SendToSubscriber`](../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L202)
+- [`PipeEventHub.SendToSubscriber`](../../../../src/Pipes/NekoLib.Pipes/PipeEventHub.cs#L202)
   writes directly to the shared stream;
-- [`PipeFraming.WriteCore`](../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L149)
+- [`PipeFraming.WriteCore`](../../../../src/Pipes/NekoLib.Pipes/PipeFraming.cs#L149)
   writes length, payload, and flush separately.
 
 ### IPC-05 — Medium reliability — slow subscribers still backpressure each publisher
@@ -245,9 +256,9 @@ server while a handler is active.
 
 Evidence:
 
-- detached task creation at [`PipeServer.cs:88`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L88);
-- handler execution at [`PipeServer.cs:200`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L200);
-- disposal at [`PipeServer.cs:296`](../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L296).
+- detached task creation at [`PipeServer.cs:88`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L88);
+- handler execution at [`PipeServer.cs:200`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L200);
+- disposal at [`PipeServer.cs:296`](../../../../src/Pipes/NekoLib.Pipes/PipeServer.cs#L296).
 
 `PipeEventHub` has the same detached-accept ownership shape, although it does
 dispose all registered subscriber streams during shutdown.
@@ -388,7 +399,7 @@ decisions above.
 ## Reconciliation — 2026-08-08
 
 The proposed bounded disposition package was accepted and promoted to
-[`TODO.md`](../../TODO.md) Phase E5. The accepted contract and implementation
+[`TODO.md`](../../../../TODO.md) Phase E5. The accepted contract and implementation
 direction are:
 
 - generic Pipes is a local, same-machine transport for cooperative callers and

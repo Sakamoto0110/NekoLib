@@ -49,7 +49,7 @@ become current API or package authority.
 | F1-HTTP | [`http-public-api-review-2026-08-17.md`](../audit/http-public-api-review-2026-08-17.md) | [HTTP reference](../../src/Http/NekoLib.Http/README.md) |
 | F1-MVVM | [`public-api-review-2026-08-17.md`](../modules/Mvvm/audits/public-api-review-2026-08-17.md) | [Mvvm reference](../modules/Mvvm/REFERENCE.md) |
 | F1-DEV | [`devices-public-api-review-2026-08-17.md`](../audit/devices-public-api-review-2026-08-17.md) | [Devices reference](../../src/Devices/NekoLib.Devices/README.md) |
-| F1-PIPE | [`pipes-public-api-review-2026-08-18.md`](../audit/pipes-public-api-review-2026-08-18.md) | [Pipes reference](../../src/Pipes/NekoLib.Pipes/README.md) |
+| F1-PIPE | [`public-api-review-2026-08-18.md`](../modules/Pipes/audits/public-api-review-2026-08-18.md) | [Pipes reference](../modules/Pipes/REFERENCE.md) |
 | F1-WDOG | [`watchdog-public-api-review-2026-08-18.md`](../audit/watchdog-public-api-review-2026-08-18.md) | [Watchdog reference](../../src/Watchdog/NekoLib.Watchdog/README.md) |
 | F1-WDOG-HOST | [`watchdog-host-contract-review-2026-08-20.md`](../audit/watchdog-host-contract-review-2026-08-20.md) | [Watchdog Host reference](../../src/Watchdog/NekoLib.Watchdog.Host/README.md) |
 | F1-NAV | [`public-api-review-2026-08-20.md`](../modules/Navigation/audits/public-api-review-2026-08-20.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |

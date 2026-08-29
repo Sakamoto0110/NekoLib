@@ -1,18 +1,34 @@
 # Pipes Module — First-Pass Audit
 
+**Document ID:** PIPE-AUDIT-INITIAL
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
 **Subject:** Pipes first-pass review
 
+**Surface:** audit
+
+**Boundary:** pipes
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
 **Reference date:** 2026-06-04
 
 **Reference commit:** not recorded
 
+**Original path:** docs/audit/pipes-first-pass.md
+
 **Last reconciliation:** 2026-08-01
 
-**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
+**Current state:** [Pipes technical reference](../REFERENCE.md) and [`TODO.md`](../../../../TODO.md)
 
 **Branch:** `pipes/audit/first-pass`  
 **Date:** 2026-06-04  

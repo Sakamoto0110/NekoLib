@@ -13,12 +13,25 @@ namespace NekoLib.Pipes
         // Server
         // =========================
 
-        /// <summary>Records that an RPC client connected to a server pipe.</summary>
-        /// <param name="pipeName">Captured RPC pipe name.</param>
+        /// <summary>
+        /// Records that a peer connected to a server pipe. An event hub raises this
+        /// for each admitted subscriber, so a sink shared by a server and its hub
+        /// observes both RPC clients and event subscribers.
+        /// </summary>
+        /// <param name="pipeName">
+        /// Captured endpoint name: the RPC pipe name, or the event pipe name
+        /// including its <c>.events</c> suffix.
+        /// </param>
         void OnServerClientConnected(string pipeName);
 
-        /// <summary>Records that an RPC client disconnected from a server pipe.</summary>
-        /// <param name="pipeName">Captured RPC pipe name.</param>
+        /// <summary>
+        /// Records that a peer disconnected from a server pipe. An event hub raises
+        /// this for each removed subscriber.
+        /// </summary>
+        /// <param name="pipeName">
+        /// Captured endpoint name: the RPC pipe name, or the event pipe name
+        /// including its <c>.events</c> suffix.
+        /// </param>
         void OnServerClientDisconnected(string pipeName);
 
         /// <summary>Records receipt of an RPC request.</summary>

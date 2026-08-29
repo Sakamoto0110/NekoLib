@@ -18,7 +18,7 @@ the handoff state and the rules that are easy to get wrong.
 | Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`src/Diagnostics/NekoLib.Diagnostics/README.md`](src/Diagnostics/NekoLib.Diagnostics/README.md) |
 | Binding helper coercion, notification semantics, threading, and nullability | [`docs/modules/Mvvm/REFERENCE.md`](docs/modules/Mvvm/REFERENCE.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`src/Devices/NekoLib.Devices/README.md`](src/Devices/NekoLib.Devices/README.md) |
-| Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
+| Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |
 | Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](src/Watchdog/NekoLib.Watchdog.Host/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
@@ -184,7 +184,7 @@ before making a change.
 | Module | Current status | Historical detail |
 |---|---|---|
 | Watchdog | F1-WDOG finalized the application facade and supported advanced runtime, immutable configuration capture, terminal race-safe lifecycle, controller outcomes, bounded-evidence counters, crash finalization, and hotkey opt-out. The internal update wire command remains explicitly `not_implemented`; Host deployment and release finalization remain F1-WDOG-HOST. | `src/Watchdog/NekoLib.Watchdog/README.md` |
-| Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/audit/pipes-first-pass.md` |
+| Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/modules/Pipes/audits/initial-audit.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The versioned com0com runtime scenario now passes on both target families; physical UART/electrical behavior remains outside that evidence. | `docs/audit/devices-first-pass.md` |
 | Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |
 | Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/modules/Navigation/audits/initial-audit.md` |
@@ -198,7 +198,7 @@ Removed because every type they described was verified absent from the repo:
   `IDiagnosticContext`, `Neko.CreateBuilder()`, `NekoHost` and
   `IDiagnosticsBuilder`. None exist. Its one still-true item, the Pipes
   `connection_closed` breaking change, survives in
-  `docs/audit/pipes-first-pass.md`.
+  `docs/modules/Pipes/audits/initial-audit.md`.
 - **`src/Navigation/NekoLib.Navigation/TODO.md`** — dated 2026-02-25, truncated
   mid-code-block, broken encoding. Referred to `PageTimeoutController`,
   `WinFormsPageTimeoutAdapter`, `IPageTimeoutService` and

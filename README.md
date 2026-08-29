@@ -375,7 +375,7 @@ cycles.
 |---|---|
 | Navigation technical reference | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Inspection technical reference | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
-| Pipes technical reference | [`src/Pipes/NekoLib.Pipes/README.md`](src/Pipes/NekoLib.Pipes/README.md) |
+| Pipes technical reference | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |
 | Watchdog technical reference | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
 | Product direction, intentions, and the Inspection instrumentation freeze | [`ROADMAP.md`](ROADMAP.md) |
 | Formally promoted work and execution gates | [`TODO.md`](TODO.md) |

@@ -1903,7 +1903,7 @@ deployed sidecar layout.
 
 - [x] Reverify the current IPC boundary before promoting hardening work.
   Completed 2026-08-08 by the commit-bound
-  [`Pipes and Watchdog IPC hardening review`](../audit/pipes-ipc-hardening-review-2026-08-08.md)
+  [`Pipes and Watchdog IPC hardening review`](../modules/Pipes/audits/ipc-hardening-review-2026-08-08.md)
   against `941e17e`. The review confirms that current Pipes is a local transport,
   not an authorization boundary; Watchdog places read-only, ingestion, and
   process-changing commands on the same unauthenticated endpoint. It also
