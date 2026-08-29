@@ -1,25 +1,36 @@
 # Watchdog Public API Review — 2026-08-18
 
+**Document ID:** WDG-AUDIT-PUBLIC-API-20260818
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-WDOG compiled public surface, application and advanced-runtime
-entry points, configuration ownership, process lifecycle, control IPC, log and
-crash evidence, target behavior, security boundary, and library package
+**Subject:** F1-WDOG compiled public surface, application and advanced-runtime entry points, configuration ownership, process lifecycle, control IPC, log and crash evidence, target behavior, security boundary, and library package
 
-**Status:** review complete; all eight accepted dispositions implemented in
-`6580b6f6ece4bd7c90f4cc80cd7e1f01d47eace6`
+**Surface:** audit
+
+**Boundary:** watchdog
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Status:** review complete; all eight accepted dispositions implemented in `6580b6f6ece4bd7c90f4cc80cd7e1f01d47eace6`
 
 **Reference date:** 2026-08-18
 
 **Reference commit:** `075bb7520dedd80dc853d6dac57c53e9e5b8aea7`
 
+**Original path:** docs/audit/watchdog-public-api-review-2026-08-18.md
+
 **Last reconciliation:** 2026-08-18
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-WDOG is complete; the
-[Watchdog technical reference](../../src/Watchdog/NekoLib.Watchdog/README.md)
-owns the current contract, while F1-WDOG-HOST remains open
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-WDOG is complete; the [Watchdog technical reference](../REFERENCE.md) owns the current contract, while F1-WDOG-HOST remains open
 
 ## Baseline and worktree
 
@@ -218,9 +229,9 @@ referenced separately and owns its sidecar files and build targets.
 the tracked Supervisor481 consumer, which embeds the runtime and drives its RPC
 and event endpoints. The root module table already lists `WatchdogRuntime` and
 `WatchdogOptions` as main entry points
-([`Program.cs:16`](../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L16),
-[`MainForm.cs:65`](../../runtime_tests/Watchdog/Supervisor481/NekoLib.Watchdog.RuntimeTests.Supervisor481/MainForm.cs#L65),
-[`README.md`](../../README.md)).
+([`Program.cs:16`](../../../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L16),
+[`MainForm.cs:65`](../../../../runtime_tests/Watchdog/Supervisor481/NekoLib.Watchdog.RuntimeTests.Supervisor481/MainForm.cs#L65),
+[`README.md`](../../../../README.md)).
 
 **Risk or hypothesis.** Internalizing the runtime would force custom
 supervisors through the deployed Host and remove the only instance-owned
@@ -252,10 +263,10 @@ background loop. `Normalize` overwrites paths, `PipeName`, timing values, and
 creates directories. The class comment says options are immutable at runtime,
 but every property remains settable and `LogSinks` exposes the caller's mutable
 array
-([`WatchdogRuntime.cs:35`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L35),
-[`WatchdogRuntime.cs:86`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L86),
-[`WatchdogOptions.cs:18`](../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L18),
-[`WatchdogOptions.cs:119`](../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L119)).
+([`WatchdogRuntime.cs:35`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L35),
+[`WatchdogRuntime.cs:86`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L86),
+[`WatchdogOptions.cs:18`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L18),
+[`WatchdogOptions.cs:119`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L119)).
 
 **Risk to consumers.** Post-construction mutation can change the executable,
 working directory, kill waits, logging paths, sinks, or polling intervals while
@@ -290,9 +301,9 @@ A pre-start `Stop` completes the event queue and marks shutdown, but a later
 `Start` is still admitted because `_started` remains false. Concurrent `Start`
 calls can overwrite shared semaphore, RPC, and thread fields before the named
 semaphore loser runs cleanup
-([`WatchdogRuntime.cs:97`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L97),
-[`WatchdogRuntime.cs:183`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L183),
-[`WatchdogRuntime.cs:562`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L562)).
+([`WatchdogRuntime.cs:97`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L97),
+[`WatchdogRuntime.cs:183`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L183),
+[`WatchdogRuntime.cs:562`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L562)).
 
 **Risk to consumers.** A public advanced owner can observe partial startup,
 cleanup of another start attempt, a completed event queue attached to a
@@ -325,11 +336,11 @@ then returns. The shutdown path kills but does not reliably dispose the current
 child `Process`, and the force-kill `Process` is not disposed. The optional
 `exitHost` value changes only `_exiting`; both values otherwise stop the runtime,
 post the hotkey quit message, complete events, and tear down RPC
-([`WatchdogRuntime.cs:152`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L152),
-[`WatchdogRuntime.cs:183`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L183),
-[`WatchdogRuntime.cs:217`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L217),
-[`WatchdogRuntime.cs:666`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L666),
-[`WatchdogRuntime.cs:862`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L862)).
+([`WatchdogRuntime.cs:152`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L152),
+[`WatchdogRuntime.cs:183`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L183),
+[`WatchdogRuntime.cs:217`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L217),
+[`WatchdogRuntime.cs:666`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L666),
+[`WatchdogRuntime.cs:862`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L862)).
 
 **Risk to consumers.** `Dispose` can return while a foreground thread still
 keeps the process alive for roughly seven more seconds. Native process handles
@@ -360,10 +371,10 @@ process handle disposal. No such scenario ran during this review.
 creates the update directory; status reports updates as enabled. The only
 `update` handler always returns `not_implemented` when enabled, and the public
 command class does not expose that command
-([`WatchdogOptions.cs:90`](../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L90),
-[`WatchdogOptions.cs:191`](../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L191),
-[`WatchdogRuntime.cs:334`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L334),
-[`WatchdogRuntime.cs:457`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L457)).
+([`WatchdogOptions.cs:90`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L90),
+[`WatchdogOptions.cs:191`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogOptions.cs#L191),
+[`WatchdogRuntime.cs:334`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L334),
+[`WatchdogRuntime.cs:457`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L457)).
 
 **Risk to consumers.** The compiled package advertises configuration and an
 enabled status for a feature that cannot perform an update. It also creates a
@@ -396,11 +407,11 @@ separate rotation implementation; and `WatchdogLogPipeServer` is already
 obsolete and has no product consumer. `NotifyLogBatch` is called only by
 `WatchdogPipeLogSink`. The three non-control command constants are used only by
 Watchdog internals/tests
-([`CrashBundler.cs:17`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L17),
-[`WatchdogHotkeys.cs:9`](../../src/Watchdog/NekoLib.Watchdog/WatchdogHotkeys.cs#L9),
-[`WatchdogLogFile.cs:24`](../../src/Watchdog/NekoLib.Watchdog/WatchdogLogFile.cs#L24),
-[`WatchdogLogPipeServer.cs:9`](../../src/Watchdog/NekoLib.Watchdog/WatchdogLogPipeServer.cs#L9),
-[`WatchdogController.cs:187`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L187)).
+([`CrashBundler.cs:17`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L17),
+[`WatchdogHotkeys.cs:9`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogHotkeys.cs#L9),
+[`WatchdogLogFile.cs:24`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogLogFile.cs#L24),
+[`WatchdogLogPipeServer.cs:9`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogLogPipeServer.cs#L9),
+[`WatchdogController.cs:187`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L187)).
 
 **Risk to consumers.** Stabilizing them promises low-level crash filesystem,
 Win32 key enumeration, file rotation, raw pipe lifecycle, internal batching,
@@ -432,8 +443,8 @@ sentinels. `Status` returns that string and `Ping` reduces it to `bool`, while
 `Pause`, `Resume`, `Stop`, and `Restart` discard it entirely. A call therefore
 returns normally whether the Host accepted the operation, rejected it, timed
 out, or was absent
-([`WatchdogController.cs:103`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L103),
-[`WatchdogController.cs:144`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L144)).
+([`WatchdogController.cs:103`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L103),
+[`WatchdogController.cs:144`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L144)).
 
 **Risk to consumers.** An application can report that supervision was paused,
 resumed, restarted, or stopped when no command reached the Host. This is more
@@ -463,9 +474,9 @@ API review.
 non-null but its public constructor initializes none of them. Missing wire
 fields assign null. On `net481`, `Meta` is a Newtonsoft `JToken`; on the modern
 target it is a string produced from `JsonElement`. Replay has the same split
-([`WatchdogController.cs:25`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L25),
-[`WatchdogController.cs:237`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L237),
-[`WatchdogController.cs:304`](../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L304)). The current build emits corresponding nullable warnings.
+([`WatchdogController.cs:25`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L25),
+[`WatchdogController.cs:237`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L237),
+[`WatchdogController.cs:304`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogController.cs#L304)). The current build emits corresponding nullable warnings.
 
 Replay runs before live subscription, so events produced in between may be
 missed. Replay callbacks run synchronously on the subscribing thread; live
@@ -499,8 +510,8 @@ replay/live gap documentation, and compiled nullability diff.
 to register global Ctrl+Alt+P, Ctrl+Alt+R, and Ctrl+Alt+Q. There is no option to
 disable them, registration results are ignored, and Ctrl+Alt+Q invokes stop.
 The public `WatchdogHotkeys` helper is not used by this code
-([`WatchdogRuntime.cs:159`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L159),
-[`WatchdogRuntime.cs:1086`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L1086)).
+([`WatchdogRuntime.cs:159`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L159),
+[`WatchdogRuntime.cs:1086`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L1086)).
 
 **Risk to consumers.** A custom supervisor always claims process-wide key
 combinations and exposes a physical stop path. Conflicts fail silently, so the
@@ -528,7 +539,7 @@ the enabled chords work. No interactive probe ran here.
 **Observed fact.** The force path starts `taskkill` by bare name, inherits the
 runtime environment/search behavior, waits for it, and does not dispose the
 returned `Process`
-([`WatchdogRuntime.cs:862`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L862)).
+([`WatchdogRuntime.cs:862`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L862)).
 
 **Risk or hypothesis.** A conflicting executable earlier in Windows process
 search can be launched instead of the system utility, particularly when a
@@ -559,12 +570,12 @@ publication failures are swallowed without increment. `WatchdogPipeLogSink`
 counts only local queue saturation, not failed batches or entries abandoned by
 disposal. `restartCount` increments on the first launched child, but remains
 zero for an initially attached child until its first restart
-([`WatchdogRuntime.cs:32`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L32),
-[`WatchdogRuntime.cs:696`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L696),
-[`WatchdogRuntime.cs:737`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L737),
-[`WatchdogRuntime.cs:781`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L781),
-[`WatchdogRuntime.cs:937`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L937),
-[`WatchdogPipeLogSink.cs:56`](../../src/Watchdog/NekoLib.Watchdog/WatchdogPipeLogSink.cs#L56)).
+([`WatchdogRuntime.cs:32`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L32),
+[`WatchdogRuntime.cs:696`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L696),
+[`WatchdogRuntime.cs:737`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L737),
+[`WatchdogRuntime.cs:781`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L781),
+[`WatchdogRuntime.cs:937`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L937),
+[`WatchdogPipeLogSink.cs:56`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogPipeLogSink.cs#L56)).
 
 **Risk to consumers.** Status can understate lost operational evidence and gives
 different restart-count meaning depending on bootstrap mode. Consumers cannot
@@ -596,11 +607,11 @@ failures are swallowed. A finalized log is still emitted after optional
 failures. If the caller's `log` callback throws, the top-level catch calls that
 same callback again and a second throw escapes. The manifest uses handwritten
 escaping that handles backslash and quote but not all JSON control characters
-([`CrashBundler.cs:47`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L47),
-[`CrashBundler.cs:66`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L66),
-[`CrashBundler.cs:76`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L76),
-[`CrashBundler.cs:82`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L82),
-[`CrashBundler.cs:151`](../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L151)).
+([`CrashBundler.cs:47`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L47),
+[`CrashBundler.cs:66`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L66),
+[`CrashBundler.cs:76`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L76),
+[`CrashBundler.cs:82`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L82),
+[`CrashBundler.cs:151`](../../../../src/Watchdog/NekoLib.Watchdog/CrashBundler.cs#L151)).
 
 **Risk to consumers.** Runtime logs can claim a complete bundle while evidence
 is missing or the manifest is invalid. A supposedly fail-soft `Try` helper can

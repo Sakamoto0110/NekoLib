@@ -123,7 +123,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   complete, partial, or failed outcomes internally. Targets, dependencies,
   deterministic target identity, current-user pipe policy, cooperative
   same-user security model, and separate Host packaging remain unchanged. See
-  the [F1-WDOG migration guide](docs/migrations/f1-watchdog.md).
+  the [F1-WDOG migration guide](docs/modules/Watchdog/migrations/f1.md).
 - **NekoLib.Pipes — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Removed the no-op
   `IDisposable`/`IAsyncDisposable` surface from stateless `PipeClient`; each

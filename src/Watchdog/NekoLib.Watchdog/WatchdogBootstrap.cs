@@ -69,7 +69,7 @@ namespace NekoLib.Watchdog
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="handshakeTimeoutMs"/> is less than 1.</exception>
         /// <exception cref="FileNotFoundException">The deployed Host executable cannot be found.</exception>
         /// <exception cref="TimeoutException">The Host does not confirm the expected attachment within the budget.</exception>
-        /// <exception cref="InvalidOperationException">Process identity cannot be resolved or a running Host reports a different target PID.</exception>
+        /// <exception cref="InvalidOperationException">Process identity cannot be resolved, a running Host reports a different target PID, the Host uses an incompatible protocol version, or a launched Host exited before confirming the attachment.</exception>
         public static void EnsureStarted(string[] arguments, int handshakeTimeoutMs)
         {
             if (IsRunningUnderWatchdog())

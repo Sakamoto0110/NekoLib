@@ -39,7 +39,8 @@ the [global documentation index](../README.md).
 | Navigation / WinForms / Wpf | Populated module-first boundary | [`Navigation/MANIFEST.md`](Navigation/MANIFEST.md) |
 | Pipes | Populated module-first boundary | [`Pipes/MANIFEST.md`](Pipes/MANIFEST.md) |
 | Telemetry | Not migrated | Current source-adjacent reference |
-| Watchdog / Host | Not migrated | Current source-adjacent references |
+| Watchdog | Populated module-first boundary | [`Watchdog/MANIFEST.md`](Watchdog/MANIFEST.md) |
+| Watchdog Host | Not migrated | Current source-adjacent reference |
 
 Payments remains a proposal, not an active module. Logging, Telemetry, and
 Inspection remain separate capabilities; this index does not create an

@@ -50,7 +50,7 @@ become current API or package authority.
 | F1-MVVM | [`public-api-review-2026-08-17.md`](../modules/Mvvm/audits/public-api-review-2026-08-17.md) | [Mvvm reference](../modules/Mvvm/REFERENCE.md) |
 | F1-DEV | [`public-api-review-2026-08-17.md`](../modules/Devices/audits/public-api-review-2026-08-17.md) | [Devices reference](../modules/Devices/REFERENCE.md) |
 | F1-PIPE | [`public-api-review-2026-08-18.md`](../modules/Pipes/audits/public-api-review-2026-08-18.md) | [Pipes reference](../modules/Pipes/REFERENCE.md) |
-| F1-WDOG | [`watchdog-public-api-review-2026-08-18.md`](../audit/watchdog-public-api-review-2026-08-18.md) | [Watchdog reference](../../src/Watchdog/NekoLib.Watchdog/README.md) |
+| F1-WDOG | [`public-api-review-2026-08-18.md`](../modules/Watchdog/audits/public-api-review-2026-08-18.md) | [Watchdog reference](../modules/Watchdog/REFERENCE.md) |
 | F1-WDOG-HOST | [`watchdog-host-contract-review-2026-08-20.md`](../audit/watchdog-host-contract-review-2026-08-20.md) | [Watchdog Host reference](../../src/Watchdog/NekoLib.Watchdog.Host/README.md) |
 | F1-NAV | [`public-api-review-2026-08-20.md`](../modules/Navigation/audits/public-api-review-2026-08-20.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |
 | F1-NAV-WF | [`winforms-public-api-review-2026-08-21.md`](../modules/Navigation/audits/winforms-public-api-review-2026-08-21.md) | [Navigation reference](../modules/Navigation/REFERENCE.md) |

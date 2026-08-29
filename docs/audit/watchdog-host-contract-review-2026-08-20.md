@@ -382,7 +382,7 @@ payload architecture, selection order, opt-out, and runtime prerequisite. The
 Watchdog reference explicitly defers Host package, build target, argument, and
 protocol details to F1-WDOG-HOST
 ([`README.md:262`](../../README.md#L262),
-[`NekoLib.Watchdog/README.md:221`](../../src/Watchdog/NekoLib.Watchdog/README.md#L221)).
+[`NekoLib.Watchdog/README.md:221`](../modules/Watchdog/REFERENCE.md)).
 There is no Host README. The Host assembly correctly exports zero public types,
 so a compiled public API manifest would be empty and would not baseline the
 real contract.

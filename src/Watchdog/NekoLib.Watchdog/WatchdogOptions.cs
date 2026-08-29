@@ -33,11 +33,21 @@ namespace NekoLib.Watchdog
 
         /// <summary>Gets or sets whether the runtime writes its own rolling log file. The default is <c>true</c>.</summary>
         public bool EnableFileLogging { get; set; } = true;
-        /// <summary>Gets or sets the runtime log path, or <c>null</c>/blank for <c>watchdog.log</c> in the working directory.</summary>
+        /// <summary>
+        /// Gets or sets the runtime log path. When <see cref="EnableFileLogging"/>
+        /// is <c>true</c>, a <c>null</c>/blank value defaults to <c>watchdog.log</c>
+        /// in the working directory; with file logging disabled a blank value stays
+        /// unset.
+        /// </summary>
         public string? LogPath { get; set; }
         /// <summary>Gets or sets the rolling live-file size. Values below 64 KiB are normalized to 64 KiB.</summary>
         public long MaxLogBytes { get; set; } = 2 * 1024 * 1024;
-        /// <summary>Gets or sets additional caller-owned synchronous sinks. The outer array is copied; sink instances are not disposed.</summary>
+        /// <summary>
+        /// Gets or sets additional caller-owned synchronous sinks. The outer array
+        /// is copied; sink instances are not disposed. A <see cref="WatchdogPipeLogSink"/>
+        /// placed here is skipped, because forwarding the runtime's own entries onto
+        /// its control pipe would feed them straight back into this runtime.
+        /// </summary>
         public ILogSink?[]? LogSinks { get; set; } = new ILogSink?[0];
         /// <summary>Gets or sets optional caller-owned telemetry used for Watchdog operations.</summary>
         public ITelemetry? Telemetry { get; set; }
@@ -51,7 +61,12 @@ namespace NekoLib.Watchdog
         /// <summary>Gets or sets the forced-termination helper budget in milliseconds. Values below 100 are normalized to 100.</summary>
         public int ForceKillTimeoutMs { get; set; } = 1000;
 
-        /// <summary>Set to 0 to disable heartbeat logging.</summary>
+        /// <summary>
+        /// Gets or sets the interval between heartbeat log entries and telemetry
+        /// publications while a target is alive. A non-positive value disables the
+        /// heartbeat. The value is not clamped, and the beat is observed on a
+        /// <see cref="MonitorPollMs"/> boundary rather than on an exact timer.
+        /// </summary>
         public int HeartbeatIntervalMs { get; set; } = 5000;
 
         /// <summary>Gets or sets whether a failed duplicate start best-effort activates the existing target window.</summary>

@@ -116,7 +116,11 @@ namespace NekoLib.Watchdog
             _pipeMetrics = new SimplePipeMetrics();
         }
 
-        /// <summary>The effective RPC and event pipe identity for this runtime.</summary>
+        /// <summary>
+        /// The effective control-pipe identity for this runtime, derived from the
+        /// captured target path. It names the RPC endpoint; the event endpoint is
+        /// its <c>.events</c> sibling.
+        /// </summary>
         public string PipeName => _o.PipeName;
 
         internal WatchdogRuntimeOptions CapturedOptions => _o;

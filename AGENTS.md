@@ -19,7 +19,7 @@ the handoff state and the rules that are easy to get wrong.
 | Binding helper coercion, notification semantics, threading, and nullability | [`docs/modules/Mvvm/REFERENCE.md`](docs/modules/Mvvm/REFERENCE.md) |
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`docs/modules/Devices/REFERENCE.md`](docs/modules/Devices/REFERENCE.md) |
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |
-| Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`src/Watchdog/NekoLib.Watchdog/README.md`](src/Watchdog/NekoLib.Watchdog/README.md) |
+| Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`docs/modules/Watchdog/REFERENCE.md`](docs/modules/Watchdog/REFERENCE.md) |
 | Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](src/Watchdog/NekoLib.Watchdog.Host/README.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Product direction, intentions, and current freezes | [`ROADMAP.md`](ROADMAP.md) |
@@ -183,7 +183,7 @@ before making a change.
 
 | Module | Current status | Historical detail |
 |---|---|---|
-| Watchdog | F1-WDOG finalized the application facade and supported advanced runtime, immutable configuration capture, terminal race-safe lifecycle, controller outcomes, bounded-evidence counters, crash finalization, and hotkey opt-out. The internal update wire command remains explicitly `not_implemented`; Host deployment and release finalization remain F1-WDOG-HOST. | `src/Watchdog/NekoLib.Watchdog/README.md` |
+| Watchdog | F1-WDOG finalized the application facade and supported advanced runtime, immutable configuration capture, terminal race-safe lifecycle, controller outcomes, bounded-evidence counters, crash finalization, and hotkey opt-out. The internal update wire command remains explicitly `not_implemented`; Host deployment and release finalization remain F1-WDOG-HOST. | `docs/modules/Watchdog/REFERENCE.md` |
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/modules/Pipes/audits/initial-audit.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The versioned com0com runtime scenario now passes on both target families; physical UART/electrical behavior remains outside that evidence. | `docs/modules/Devices/audits/initial-audit.md` |
 | Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |

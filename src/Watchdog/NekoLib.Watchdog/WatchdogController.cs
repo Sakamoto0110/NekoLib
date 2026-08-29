@@ -214,6 +214,11 @@ namespace NekoLib.Watchdog
         /// entries and all pipe or protocol failures are ignored.
         /// </summary>
         /// <param name="entry">Caller-owned log entry, or <c>null</c>.</param>
+        /// <remarks>
+        /// The Host records the forwarded entry at info severity and carries the
+        /// original level and category in its metadata. Exception text is sent but
+        /// is not retained by the Host.
+        /// </remarks>
         public static void NotifyLog(LogEntry? entry)
         {
             if (entry == null)
