@@ -58,7 +58,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Data gateway technical contract | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | Data source, tests, and provider scenarios |
 | Diagnostics and Diagnostics.Windows technical contract | [`docs/modules/Diagnostics/REFERENCE.md`](modules/Diagnostics/REFERENCE.md) | Diagnostics source, four accepted API manifests, and the dual-target Diagnostics tests |
 | Logging technical contract | [`docs/modules/Logging/REFERENCE.md`](modules/Logging/REFERENCE.md) | Logging source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
-| Telemetry pipeline technical contract | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | Telemetry source, tests, and the Observability scenario |
+| Telemetry technical contract | [`docs/modules/Telemetry/REFERENCE.md`](modules/Telemetry/REFERENCE.md) | Telemetry source, dual-target tests, the compiled public API manifests, and the shared Observability scenario |
 | Inspection runtime technical contract | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | Inspection source, tests, and the Observability scenario |
 | Pipes technical contract | [`docs/modules/Pipes/REFERENCE.md`](modules/Pipes/REFERENCE.md) | Pipes source, dual-target tests, and the compiled public API manifests |
 | Watchdog technical contract | [`docs/modules/Watchdog/REFERENCE.md`](modules/Watchdog/REFERENCE.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
@@ -160,7 +160,16 @@ reference commit.
 | [`docs/modules/Logging/VALIDATION_REQUIREMENTS.md`](modules/Logging/VALIDATION_REQUIREMENTS.md) | reference | current | Logging evidence contract derived from the inherited validation profiles |
 | [`docs/modules/Logging/VALIDATIONS.md`](modules/Logging/VALIDATIONS.md) | reference | current | Logging executed-evidence registry |
 | [`src/Logging/NekoLib.Logging/README.md`](../src/Logging/NekoLib.Logging/README.md) | reference | current | Pointer-only source portal to the canonical Logging technical reference |
-| [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | reference | current | Telemetry pipeline composition, ownership, operation lifecycle, time semantics, dimensions, bounded retention, snapshots, and sink dispatch |
+| [`docs/modules/Telemetry/MANIFEST.md`](modules/Telemetry/MANIFEST.md) | reference | current | Telemetry identity, routing, project/package topology, API oracles, and evidence locations |
+| [`docs/modules/Telemetry/README.md`](modules/Telemetry/README.md) | reference | current | Concise Telemetry consumer introduction |
+| [`docs/modules/Telemetry/REFERENCE.md`](modules/Telemetry/REFERENCE.md) | reference | current | Telemetry pipeline composition, ownership, operation lifecycle, time semantics, dimensions, bounded retention, snapshots, and sink dispatch |
+| [`docs/modules/Telemetry/HISTORY.md`](modules/Telemetry/HISTORY.md) | reference | current | Append-only factual Telemetry chronology |
+| [`docs/modules/Telemetry/CHANGELOG.md`](modules/Telemetry/CHANGELOG.md) | reference | current | Telemetry-specific consumer-visible evolution |
+| [`docs/modules/Telemetry/ISSUES.md`](modules/Telemetry/ISSUES.md) | reference | current | Confirmed Telemetry defects registry |
+| [`docs/modules/Telemetry/FINDINGS.md`](modules/Telemetry/FINDINGS.md) | reference | current | Non-normative Telemetry findings registry |
+| [`docs/modules/Telemetry/VALIDATION_REQUIREMENTS.md`](modules/Telemetry/VALIDATION_REQUIREMENTS.md) | reference | current | Telemetry evidence contract derived from the inherited validation profiles |
+| [`docs/modules/Telemetry/VALIDATIONS.md`](modules/Telemetry/VALIDATIONS.md) | reference | current | Telemetry executed-evidence registry |
+| [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | reference | current | Pointer-only source portal to the canonical Telemetry technical reference |
 | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | reference | current | Passive Inspection composition, recording, provider identity and ordering, snapshot budgets, owner diagnostics, lifecycle, and experimental actions |
 | [`docs/modules/Navigation/MANIFEST.md`](modules/Navigation/MANIFEST.md) | reference | current | Navigation family identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Navigation/README.md`](modules/Navigation/README.md) | reference | current | Concise consumer introduction, package route, bootstrap entry point, and boundary non-goals |
@@ -194,7 +203,7 @@ reference commit.
 | [`docs/modules/WatchdogHost/migrations/f1.md`](modules/WatchdogHost/migrations/f1.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
 | [`docs/modules/Logging/migrations/f1.md`](modules/Logging/migrations/f1.md) | guide | current | Migration from the initial Logging candidate surface to the accepted F1-LOG pipeline, flush, disposal, and sink behavior |
 | [`docs/migrations/f1-inspection.md`](migrations/f1-inspection.md) | guide | current | Migration from the initial Inspection candidate surface to the accepted passive runtime and experimental action boundary |
-| [`docs/migrations/f1-telemetry.md`](migrations/f1-telemetry.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
+| [`docs/modules/Telemetry/migrations/f1.md`](modules/Telemetry/migrations/f1.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
 | [`docs/modules/Navigation/migrations/f1.md`](modules/Navigation/migrations/f1.md) | guide | current | Migration from the initial Navigation candidate family to the accepted core facade, adapter compatibility, ownership, disposal, and nullability contracts |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
 | [`docs/audit/core-public-api-review-2026-08-17.md`](audit/core-public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review, accepted decisions, and implementation reconciliation |
@@ -214,7 +223,7 @@ reference commit.
 | [`docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md`](audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md) | audit | historical | NekoMarketplace external-consumer evidence intake; F-009/F-026 are promoted, F-022 is an active roadmap decision, and remaining records stay historical |
 | [`docs/audit/payments-pix-design-review-2026-08-16.md`](audit/payments-pix-design-review-2026-08-16.md) | audit | historical | Phase G2 code-first design review preserved as dated input to the unpromoted Payments/Pix proposal |
 | [`docs/modules/Pipes/audits/public-api-review-2026-08-18.md`](modules/Pipes/audits/public-api-review-2026-08-18.md) | audit | historical | F1-PIPE compiled-surface review, accepted decisions, implementation reconciliation, and residual release-evidence gaps |
-| [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
+| [`docs/modules/Telemetry/audits/public-api-review-2026-08-17.md`](modules/Telemetry/audits/public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Watchdog/audits/initial-audit.md`](modules/Watchdog/audits/initial-audit.md) | audit | historical | Watchdog first-pass review preserved at its recorded baseline |
 | [`docs/modules/Watchdog/audits/public-api-review-2026-08-18.md`](modules/Watchdog/audits/public-api-review-2026-08-18.md) | audit | historical | F1-WDOG compiled public surface, accepted decisions, implementation reconciliation, and residual Host/release-evidence gaps |
 | [`docs/modules/WatchdogHost/audits/contract-review-2026-08-20.md`](modules/WatchdogHost/audits/contract-review-2026-08-20.md) | audit | historical | F1-WDOG-HOST deployment package and protocol review, accepted implementation reconciliation, and immutable package evidence |

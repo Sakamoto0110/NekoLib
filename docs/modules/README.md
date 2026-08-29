@@ -38,7 +38,7 @@ the [global documentation index](../README.md).
 | Logging | Populated module-first boundary | [`Logging/MANIFEST.md`](Logging/MANIFEST.md) |
 | Navigation / WinForms / Wpf | Populated module-first boundary | [`Navigation/MANIFEST.md`](Navigation/MANIFEST.md) |
 | Pipes | Populated module-first boundary | [`Pipes/MANIFEST.md`](Pipes/MANIFEST.md) |
-| Telemetry | Not migrated | Current source-adjacent reference |
+| Telemetry | Populated module-first boundary | [`Telemetry/MANIFEST.md`](Telemetry/MANIFEST.md) |
 | Watchdog | Populated module-first boundary | [`Watchdog/MANIFEST.md`](Watchdog/MANIFEST.md) |
 | Watchdog Host | Populated module-first boundary | [`WatchdogHost/MANIFEST.md`](WatchdogHost/MANIFEST.md) |
 

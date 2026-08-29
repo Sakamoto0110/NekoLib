@@ -77,7 +77,7 @@ optional unless one of their documented dependents brings them transitively.
 |---|---|
 | [`NekoLib.Core`](src/Core/NekoLib.Core/README.md) | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
 | [`NekoLib.Logging`](docs/modules/Logging/REFERENCE.md) | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
-| [`NekoLib.Telemetry`](src/Telemetry/NekoLib.Telemetry/README.md) | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
+| [`NekoLib.Telemetry`](docs/modules/Telemetry/REFERENCE.md) | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
 | `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
 | `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
 | `NekoLib.Http` | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
@@ -176,7 +176,7 @@ technical manual.
 |---|---|---|---|
 | [Core](src/Core/NekoLib.Core/README.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
 | [Logging](docs/modules/Logging/REFERENCE.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
-| [Telemetry](src/Telemetry/NekoLib.Telemetry/README.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
+| [Telemetry](docs/modules/Telemetry/REFERENCE.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
 | [Inspection](src/Inspection/NekoLib.Inspection/README.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
 | [Diagnostics](docs/modules/Diagnostics/REFERENCE.md) | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; options are captured at construction, disposal is terminal and releases the process hooks, bundles may be partial, and a failed bundle raises `CrashBundleFailed` | `NekoLib.Diagnostics.Tests.Unit` |
 | [Diagnostics.Windows](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |

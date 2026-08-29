@@ -282,7 +282,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   root operation has no parent — a whitespace parent previously read as a real
   correlation link. `TelemetryPipeline` now copies the supplied sink array, so a
   caller mutating its own array can no longer re-target a live pipeline. See the
-  [F1-TEL migration guide](docs/migrations/f1-telemetry.md).
+  [F1-TEL migration guide](docs/modules/Telemetry/migrations/f1.md).
 - **NekoLib.Logging — behavioral pre-stable candidate correction for the first
   `1.0.0` stable family release.** No public type, member, signature,
   nullability annotation, default value, namespace, target, or dependency

@@ -1,12 +1,24 @@
 # Telemetry Public API Review — 2026-08-17
 
+**Document ID:** TEL-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-TEL compiled public surface, pipeline and options ownership,
-operation lifecycle, dimension and measurement semantics, bounded retention,
-snapshot and sink-dispatch contracts, and compatibility boundaries
+**Subject:** F1-TEL compiled public surface, pipeline and options ownership, operation lifecycle, dimension and measurement semantics, bounded retention, snapshot and sink-dispatch contracts, and compatibility boundaries
+
+**Surface:** audit
+
+**Boundary:** telemetry
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions accepted, implemented, and package-validated
 
@@ -14,9 +26,11 @@ snapshot and sink-dispatch contracts, and compatibility boundaries
 
 **Reference commit:** `6480c9e57a42af3490eeda55b0f66400e75782cd`
 
+**Original path:** `docs/audit/telemetry-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-17
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-TEL
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-TEL
 
 ## Baseline and authority
 
@@ -76,7 +90,7 @@ Excluded:
 
 ## Package, ownership, and lifecycle boundary
 
-[`NekoLib.Telemetry.csproj`](../../src/Telemetry/NekoLib.Telemetry/NekoLib.Telemetry.csproj)
+[`NekoLib.Telemetry.csproj`](../../../../src/Telemetry/NekoLib.Telemetry/NekoLib.Telemetry.csproj)
 targets `net481;net9.0`, enables nullable annotations, disables implicit usings,
 declares `NEKOLIB` plus the conditional `NETFRAMEWORK` / `NET_9` symbols, and
 references only `NekoLib.Core`. No source file uses `#if`, so there is no
@@ -137,9 +151,9 @@ contracts.
 
 | Consumer | Current use | Compatibility consequence |
 |---|---|---|
-| `NekoLib.Navigation` — [`NavigationTelemetryObserver.cs`](../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationTelemetryObserver.cs) | Receives `ITelemetry`, starts one correlated `page_switch` operation per request, adds `page_switch_started` / `page_ready` checkpoints, and completes with an explicit outcome; isolates `Complete` failures and cancels outstanding operations at teardown. | The heaviest producer. It depends on explicit-terminal semantics, checkpoint ordering, and `Complete` never throwing into the navigation lifecycle. |
-| `NekoLib.Watchdog` — [`WatchdogRuntime.cs:1017`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs) | Optional `ITelemetry`; starts and immediately completes short operations. | Uses only the start/complete pair; unaffected by retention or snapshot shape. |
-| `NekoLib.Diagnostics` — [`CrashHandler.cs`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs) | Consumes `ITelemetrySnapshotSource.GetRecentOperations(MaxRecentTelemetryOperations)` under a contributor budget and formats operations and checkpoints into the crash bundle. | Depends on the snapshot being non-null, bounded, cheap, and not blocked by sinks. TEL-06 matters directly here. |
+| `NekoLib.Navigation` — [`NavigationTelemetryObserver.cs`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationTelemetryObserver.cs) | Receives `ITelemetry`, starts one correlated `page_switch` operation per request, adds `page_switch_started` / `page_ready` checkpoints, and completes with an explicit outcome; isolates `Complete` failures and cancels outstanding operations at teardown. | The heaviest producer. It depends on explicit-terminal semantics, checkpoint ordering, and `Complete` never throwing into the navigation lifecycle. |
+| `NekoLib.Watchdog` — [`WatchdogRuntime.cs:1017`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs) | Optional `ITelemetry`; starts and immediately completes short operations. | Uses only the start/complete pair; unaffected by retention or snapshot shape. |
+| `NekoLib.Diagnostics` — [`CrashHandler.cs`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs) | Consumes `ITelemetrySnapshotSource.GetRecentOperations(MaxRecentTelemetryOperations)` under a contributor budget and formats operations and checkpoints into the crash bundle. | Depends on the snapshot being non-null, bounded, cheap, and not blocked by sinks. TEL-06 matters directly here. |
 | `runtime_tests/Observability/LongRunningRecovery` | Eight Telemetry checks: concurrency, bounded retention, checkpoint ordering, correlation chains, terminal outcomes, snapshot boundaries, abandoned scopes, and returned-model immutability. | The richest behavioral evidence in the repository. It is manual, is not run by `dotnet test`, and was **not** run for this review. |
 | `runtime_tests/Data/FarmDatabase` | Builds one application `TelemetryPipeline` and hands `ITelemetry` to its metrics reporter. | Depends on construction and on retention capacity only. |
 | `tests/NekoLib.PackageConsumers/WinFormsSmokeProgram.cs` | Loads `typeof(NekoLib.Telemetry.TelemetryPipeline)` as a reachability probe and writes a hand-built `TelemetryOperation` to a Core-typed sink. | Proves package load and compile reachability on both target families. It constructs no pipeline and completes no operation, so it is not behavioral evidence. |
@@ -153,7 +167,7 @@ Release-built assemblies; they added no repository file.
 ### TEL-01 — The sink array is aliased rather than copied
 
 The constructor stores the supplied array directly
-([`TelemetryPipeline.cs:30`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
+([`TelemetryPipeline.cs:30`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
 Ordinary `params` call syntax is safe by accident because the compiler
 synthesizes a fresh array, but a caller passing an explicit `ITelemetrySink[]`
 keeps a live reference into the pipeline.
@@ -177,7 +191,7 @@ shared array.
 
 `Complete` sets `_completed = true` and stops the stopwatch **before** copying
 the caller's terminal dimensions and measurements
-([`TelemetryPipeline.cs:166-198`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
+([`TelemetryPipeline.cs:166-198`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
 `Copy` materializes into a `Dictionary`, so a caller-supplied
 `IReadOnlyDictionary` that enumerates a null key — or whose enumerator throws —
 throws out of `Complete` after the operation has already been marked terminal
@@ -213,7 +227,7 @@ produces a record.
 
 `StartOperation` normalizes a null-or-whitespace `operationId` into a generated
 32-character GUID, but assigns `parentOperationId` directly
-([`TelemetryPipeline.cs:49-52`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
+([`TelemetryPipeline.cs:49-52`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
 
 Observed: a parent of `"   "` was retained as `"   "`; a blank `operationId`
 became a generated ID.
@@ -231,7 +245,7 @@ This is a small behavioral correction with no signature change.
 ### TEL-04 — `Complete` is synchronous through sink fanout, and a slow sink applies backpressure
 
 `Record` holds `_dispatchGate` across both retention and the entire sink loop
-([`TelemetryPipeline.cs:71-88`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)),
+([`TelemetryPipeline.cs:71-88`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)),
 and `Complete` calls it before returning. There is no budget, queue, or timeout
 anywhere — unlike Logging, which has a bounded `Flush`.
 
@@ -290,7 +304,7 @@ Observed:
 **Recommended disposition:** retain and document: every sink observes one
 identical order, retention order equals that order, and the first completion
 wins under contention. Sink failures are isolated
-([`TelemetryPipeline.cs:84-85`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs))
+([`TelemetryPipeline.cs:84-85`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs))
 and the existing focused test covers that.
 
 ### TEL-08 — Retained order is dispatch order and is not derivable from the models
@@ -346,7 +360,7 @@ arrange it itself.
 
 `Checkpoint` returns `_watch.Elapsed` without recording when the operation is
 already complete
-([`TelemetryPipeline.cs:146-157`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
+([`TelemetryPipeline.cs:146-157`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs)).
 Because the stopwatch is stopped, that value is exactly the operation's final
 duration. Observed: one checkpoint recorded, and the late call returned the same
 value as `Duration`.
@@ -394,8 +408,8 @@ the supported contract, and cover them with regressions.
 ### TEL-15 — Telemetry has no current technical reference
 
 Telemetry contracts are currently split between a one-row entry in the root
-[`README.md`](../../README.md) and the *Core* contract descriptions in
-[`src/Core/NekoLib.Core/README.md`](../../src/Core/NekoLib.Core/README.md). Core
+[`README.md`](../../../../README.md) and the *Core* contract descriptions in
+[`src/Core/NekoLib.Core/README.md`](../../../../src/Core/NekoLib.Core/README.md). Core
 legitimately owns the interfaces; nothing owns the concrete pipeline's ordering,
 backpressure, reentrancy, retention, dimension-merge, time, and abandonment
 semantics. Core, Data, Logging, HTTP, and Navigation each have a module README;
@@ -403,7 +417,7 @@ Telemetry does not, and most dispositions above end in "document this".
 
 **Recommended disposition:** add
 `src/Telemetry/NekoLib.Telemetry/README.md` as the module's current technical
-reference and register it in [`docs/README.md`](../README.md) and the
+reference and register it in [`docs/README.md`](../../../README.md) and the
 `AGENTS.md` routing table, exactly as F1-LOG did. Historical audits must not
 become the live contract.
 
@@ -563,7 +577,7 @@ One narrow F1-TEL implementation should:
 4. add focused dual-target regressions for those three corrections plus the
    coverage gaps listed in TEL-16;
 5. add `src/Telemetry/NekoLib.Telemetry/README.md`, register it in
-   [`docs/README.md`](../README.md) and the `AGENTS.md` routing table, and
+   [`docs/README.md`](../../../README.md) and the `AGENTS.md` routing table, and
    reconcile the root `README.md` Telemetry entry (TEL-04 through TEL-15);
 6. update `CHANGELOG.md` with the behavioral corrections, and add
    `docs/migrations/f1-telemetry.md` only if the accepted corrections actually
@@ -642,7 +656,7 @@ implementation is confined to method bodies and documentation:
 - **TEL-04 to TEL-14** — retained and documented, with XML summaries on the
   contract-significant members and the full contract in the new module
   reference.
-- **TEL-15** — [`src/Telemetry/NekoLib.Telemetry/README.md`](../../src/Telemetry/NekoLib.Telemetry/README.md)
+- **TEL-15** — [`src/Telemetry/NekoLib.Telemetry/README.md`](../../../../src/Telemetry/NekoLib.Telemetry/README.md)
   is the module's current technical reference, registered in the documentation
   index and the `AGENTS.md` routing table.
 - **TEL-16** — sixteen focused regressions were added, taking the suite from 6
@@ -651,8 +665,8 @@ implementation is confined to method bodies and documentation:
 As the review predicted, **both accepted API manifests verified unchanged**; no
 baseline was updated. The accepted work therefore carries no source or binary
 compatibility break, only the behavioral corrections recorded in
-[`CHANGELOG.md`](../../CHANGELOG.md) and
-[`docs/migrations/f1-telemetry.md`](../migrations/f1-telemetry.md).
+[`CHANGELOG.md`](../../../../CHANGELOG.md) and
+[`docs/modules/Telemetry/migrations/f1.md`](../migrations/f1.md).
 
 One process note worth preserving: the first draft of the concurrency
 regressions introduced two `xUnit1031` analyzer warnings by blocking on tasks
