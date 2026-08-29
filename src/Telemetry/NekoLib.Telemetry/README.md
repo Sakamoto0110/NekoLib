@@ -51,8 +51,8 @@ sinks.
 **The pipeline is deliberately not `IDisposable`.** It owns no handle, no buffer
 that outlives a call, and no background worker, so there is nothing to flush and
 no shutdown step. This is an intentional difference from
-[`Logger`](../../Logging/NekoLib.Logging/README.md), which owns sink disposal and
-a bounded flush because its sinks buffer.
+[`Logger`](../../../docs/modules/Logging/REFERENCE.md), which owns sink disposal
+and a bounded flush because its sinks buffer.
 
 | Option | Default | Contract |
 |---|---|---|

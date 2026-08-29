@@ -41,7 +41,7 @@ become current API or package authority.
 |---|---|---|
 | F1-DATA | [`data-public-api-review-2026-08-17.md`](../audit/data-public-api-review-2026-08-17.md) | [Data reference](../../src/Data/NekoLib.Data/README.md) |
 | F1-CORE | [`core-public-api-review-2026-08-17.md`](../audit/core-public-api-review-2026-08-17.md) | [Core reference](../../src/Core/NekoLib.Core/README.md) |
-| F1-LOG | [`logging-public-api-review-2026-08-17.md`](../audit/logging-public-api-review-2026-08-17.md) | [Logging reference](../../src/Logging/NekoLib.Logging/README.md) |
+| F1-LOG | [`public-api-review-2026-08-17.md`](../modules/Logging/audits/public-api-review-2026-08-17.md) | [Logging reference](../modules/Logging/REFERENCE.md) |
 | F1-TEL | [`telemetry-public-api-review-2026-08-17.md`](../audit/telemetry-public-api-review-2026-08-17.md) | [Telemetry reference](../../src/Telemetry/NekoLib.Telemetry/README.md) |
 | F1-INSP | [`inspection-public-api-review-2026-08-17.md`](../audit/inspection-public-api-review-2026-08-17.md) | [Inspection reference](../../src/Inspection/NekoLib.Inspection/README.md) |
 | F1-DIAG | [`public-api-review-2026-08-17.md`](../modules/Diagnostics/audits/public-api-review-2026-08-17.md) | [Diagnostics reference](../modules/Diagnostics/REFERENCE.md) |

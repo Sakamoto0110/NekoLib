@@ -12,7 +12,7 @@ the handoff state and the rules that are easy to get wrong.
 | Core contracts, ownership, null objects, and experimental action marker | [`src/Core/NekoLib.Core/README.md`](src/Core/NekoLib.Core/README.md) |
 | Typed HTTP catalogs, ownership, and response boundaries | [`src/Http/NekoLib.Http/README.md`](src/Http/NekoLib.Http/README.md) |
 | Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
-| Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`src/Logging/NekoLib.Logging/README.md`](src/Logging/NekoLib.Logging/README.md) |
+| Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`docs/modules/Logging/REFERENCE.md`](docs/modules/Logging/REFERENCE.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`src/Telemetry/NekoLib.Telemetry/README.md`](src/Telemetry/NekoLib.Telemetry/README.md) |
 | Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`src/Inspection/NekoLib.Inspection/README.md`](src/Inspection/NekoLib.Inspection/README.md) |
 | Crash handler lifecycle, evidence budgets and bounds, redaction, bundle layout, and the Windows adapter | [`docs/modules/Diagnostics/REFERENCE.md`](docs/modules/Diagnostics/REFERENCE.md) |

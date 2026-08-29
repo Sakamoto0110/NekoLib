@@ -303,7 +303,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   final disposal flush or returns `false` when its budget expires. `Logger` now
   copies the supplied sink array, so a caller
   mutating its own array can no longer re-target a live pipeline. See the
-  [F1-LOG migration guide](docs/migrations/f1-logging.md).
+  [F1-LOG migration guide](docs/modules/Logging/migrations/f1.md).
 - **NekoLib.Core — behavioral and experimental pre-stable candidate correction
   for the first `1.0.0` stable family release.** `TelemetryCheckpoint`,
   `TelemetryOperation`, and `InspectionSnapshot` now defensively copy and wrap

@@ -65,6 +65,11 @@ namespace NekoLib.Logging.Sinks
         /// <summary>
         /// Appends one formatted line, rotating first when the encoded line would
         /// exceed the configured bound. Error and Fatal entries force a disk flush.
+        /// <para/>
+        /// The target directory is created when it is missing. The constructor
+        /// normalizes the path but never touches the filesystem, so an unusable
+        /// location first fails here, as a sink failure the owning pipeline
+        /// absorbs.
         /// </summary>
         /// <param name="entry">Entry to persist.</param>
         /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <c>null</c>.</exception>

@@ -1,12 +1,24 @@
 # Logging Public API Review — 2026-08-17
 
+**Document ID:** LOG-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-LOG compiled public surface, pipeline ownership, sink lifecycle,
-flush and disposal contracts, rolling-file persistence, and compatibility
-boundaries
+**Subject:** F1-LOG compiled public surface, pipeline ownership, sink lifecycle, flush and disposal contracts, rolling-file persistence, and compatibility boundaries
+
+**Surface:** audit
+
+**Boundary:** logging
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions accepted, implemented, and package-validated
 
@@ -14,9 +26,11 @@ boundaries
 
 **Reference commit:** `c7967e784914b56863a1b2da97cfafecb32ea494`
 
+**Original path:** `docs/audit/logging-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-17
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-LOG
+**Current state:** [`TODO.md`](../../../../TODO.md) F1-LOG
 
 ## Baseline and authority
 
@@ -80,7 +94,7 @@ Excluded:
 
 ## Package, ownership, and lifecycle boundary
 
-[`NekoLib.Logging.csproj`](../../src/Logging/NekoLib.Logging/NekoLib.Logging.csproj)
+[`NekoLib.Logging.csproj`](../../../../src/Logging/NekoLib.Logging/NekoLib.Logging.csproj)
 targets `net481;net9.0`, enables nullable annotations, disables implicit
 usings, declares `NEKOLIB` plus the conditional `NETFRAMEWORK` / `NET_9`
 symbols, and references only `NekoLib.Core`. No source file in the module uses
@@ -102,7 +116,7 @@ F1-LOG scope statement is "without adding global state" and one of them already
 exists:
 
 - `RollingFileLogSink` keeps a `static` path-gate dictionary
-  ([`RollingFileLogSink.cs:15-17`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
+  ([`RollingFileLogSink.cs:15-17`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
   which is what makes two sinks on one normalized path serialize inside a
   process;
 - `DebugLogSink` writes to the process-wide debug/trace channel.
@@ -152,7 +166,7 @@ composition root.
 | `tests/NekoLib.PackageConsumers/WinFormsSmokeProgram.cs` | Loads `typeof(NekoLib.Logging.Logger)` as a PackageReference reachability probe; exercises `ILogSink.Write` through a Core-typed sink. | Proves package load and compile reachability on both target families. It constructs no `Logger`, no options, and no shipped sink, so it is not behavioral evidence. |
 | `runtime_tests/Observability/LongRunningRecovery` | Thirteen Logging checks: ordering, concurrent writers, filtering, bounded snapshots, sink-failure isolation, rotation, retention, bounded flush, `DisposeSinks` both ways, shutdown after sink failure, and repeated lifecycles. | The richest behavioral evidence in the repository. It is manual, is not run by `dotnet test`, and was **not** run for this review. |
 | `runtime_tests/Data/FarmDatabase` | Builds one application `Logger` over a `RollingFileLogSink` with `DisposeSinks = true`, and hands `ILogger` to `SimMetrics`. | Depends on the current disposal-ownership default and on a windowed write cadence chosen because the file sink opens and closes per entry. |
-| Root [`README.md`](../../README.md) | The "ordinary logging" example constructs `RollingFileLogSink` plus `Logger(LogLevel, params)` and calls `logger.Info`. | The published example is the de facto supported entry point and must keep compiling and behaving as written. |
+| Root [`README.md`](../../../../README.md) | The "ordinary logging" example constructs `RollingFileLogSink` plus `Logger(LogLevel, params)` and calls `logger.Info`. | The published example is the de facto supported entry point and must keep compiling and behaving as written. |
 | `.local/` legacy demos (ignored) | `new Logger(LogLevel.Debug, new DebugLogSink())`, described as output for the debugger/DebugView window. | Not versioned evidence, but it does establish that `DebugLogSink` had a real intended consumer use, which is the case LOG-01 breaks. |
 
 No repository consumer constructs `DebugLogSink`, and no automated test
@@ -169,7 +183,7 @@ Release-built and packaged assemblies; they added no repository file.
 ### LOG-01 — `DebugLogSink` writes nothing in any shipped package
 
 `DebugLogSink.Write` calls `System.Diagnostics.Debug.WriteLine`
-([`DebugLogSink.cs:13`](../../src/Logging/NekoLib.Logging/Sinks/DebugLogSink.cs)).
+([`DebugLogSink.cs:13`](../../../../src/Logging/NekoLib.Logging/Sinks/DebugLogSink.cs)).
 That method is `[Conditional("DEBUG")]`, so the call is removed at the call
 site's compilation whenever `DEBUG` is not defined. `DefineConstants` for this
 project is `TRACE;NEKOLIB;NETFRAMEWORK;RELEASE` and `TRACE;NEKOLIB;NET_9;RELEASE`
@@ -205,7 +219,7 @@ contract. Add a focused regression that asserts observable output from a
 
 `Logger.Flush` runs each flushable sink as `Task.Run((Action)flushable.Flush)`
 and waits with the remaining budget
-([`Logger.cs:118-120`](../../src/Logging/NekoLib.Logging/Logger.cs)). When the
+([`Logger.cs:118-120`](../../../../src/Logging/NekoLib.Logging/Logger.cs)). When the
 wait times out, the method returns `false` and the `finally` releases `_gate`,
 but the task keeps running. Two consequences follow, both observed:
 
@@ -216,7 +230,7 @@ but the task keeps running. Two consequences follow, both observed:
   Observability scenario both use.
 - if the abandoned flush later throws, nothing observes the task. The probe
   recorded exactly one `TaskScheduler.UnobservedTaskException`. NekoLib's own
-  [`CrashHandler.cs:201-206`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs)
+  [`CrashHandler.cs:201-206`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs)
   subscribes to that event and dispatches it as a crash from source
   `TaskScheduler.UnobservedTaskException`.
 
@@ -237,11 +251,11 @@ contract already states that `false` does not promise cancellation, and
 ### LOG-03 — `Flush` does not isolate sink failures, unlike `Log` and `Dispose`
 
 `Log` isolates every sink exception and continues
-([`Logger.cs:68-72`](../../src/Logging/NekoLib.Logging/Logger.cs)). `Dispose`
+([`Logger.cs:68-72`](../../../../src/Logging/NekoLib.Logging/Logger.cs)). `Dispose`
 isolates every flush and dispose exception and continues
-([`Logger.cs:143-153`](../../src/Logging/NekoLib.Logging/Logger.cs)). `Flush`
+([`Logger.cs:143-153`](../../../../src/Logging/NekoLib.Logging/Logger.cs)). `Flush`
 does neither: its `catch { return false; }`
-([`Logger.cs:122-125`](../../src/Logging/NekoLib.Logging/Logger.cs)) exits the
+([`Logger.cs:122-125`](../../../../src/Logging/NekoLib.Logging/Logger.cs)) exits the
 whole loop.
 
 Observed: with a throwing sink registered first and a healthy flushable sink
@@ -263,7 +277,7 @@ continuing past the budget would violate the bound.
 ### LOG-04 — The sink array is aliased rather than copied
 
 The constructor stores the supplied array directly
-([`Logger.cs:39`](../../src/Logging/NekoLib.Logging/Logger.cs)). With ordinary
+([`Logger.cs:39`](../../../../src/Logging/NekoLib.Logging/Logger.cs)). With ordinary
 `params` call syntax the compiler synthesizes a fresh array, so most calls are
 safe by accident. A caller that passes an explicit `ILogSink[]` keeps a live
 reference into the pipeline.
@@ -284,7 +298,7 @@ deliberately mutating a shared array.
 ### LOG-05 — `Flush` after `Dispose` flushes disposed sinks and reports success
 
 `Log` becomes inert after disposal
-([`Logger.cs:49`](../../src/Logging/NekoLib.Logging/Logger.cs)), but `Flush` has
+([`Logger.cs:49`](../../../../src/Logging/NekoLib.Logging/Logger.cs)), but `Flush` has
 no disposal check.
 
 Observed: after `Dispose` with `DisposeSinks = true`, the sink had been flushed
@@ -309,7 +323,7 @@ that disposal already performed the final flush. Retain post-disposal
 ### LOG-06 — `Dispose` is unbounded while `Flush` is bounded
 
 `Dispose` calls `flushable.Flush()` synchronously, on the caller's thread, with
-no budget ([`Logger.cs:145`](../../src/Logging/NekoLib.Logging/Logger.cs)). A
+no budget ([`Logger.cs:145`](../../../../src/Logging/NekoLib.Logging/Logger.cs)). A
 sink that blocks in `Flush()` hangs shutdown indefinitely. The Observability
 scenario exercises its blocking sink only through `Flush(timeout)`, never
 through `Dispose`, so this path has no evidence at all.
@@ -327,7 +341,7 @@ Two ownership facts, both observed and both currently documented only inside
 scenario source comments:
 
 - the default is `DisposeSinks = true`
-  ([`LoggerOptions.cs:9`](../../src/Logging/NekoLib.Logging/LoggerOptions.cs)),
+  ([`LoggerOptions.cs:9`](../../../../src/Logging/NekoLib.Logging/LoggerOptions.cs)),
   so by default constructing a `Logger` transfers sink disposal ownership to it;
 - `Dispose` flushes every flushable sink **regardless** of `DisposeSinks`, and
   disposes only when it is `true`. The probe recorded a borrowed sink flushed
@@ -345,7 +359,7 @@ a contract, and both runtime scenarios already depend on these exact semantics.
 ### LOG-08 — Timestamp order is not delivery order
 
 `LogEntry` is constructed before the dispatch lock is taken
-([`Logger.cs:52-59`](../../src/Logging/NekoLib.Logging/Logger.cs)), so under
+([`Logger.cs:52-59`](../../../../src/Logging/NekoLib.Logging/Logger.cs)), so under
 concurrent writers `TimestampUtc` ordering may disagree with delivery ordering.
 The Observability scenario already records this as a deliberate observation
 rather than an assertion.
@@ -359,7 +373,7 @@ key for consumers reading the file.
 ### LOG-09 — `Timeout.InfiniteTimeSpan` is rejected
 
 `Flush` throws `ArgumentOutOfRangeException` for any negative `TimeSpan`
-([`Logger.cs:93-94`](../../src/Logging/NekoLib.Logging/Logger.cs)), which
+([`Logger.cs:93-94`](../../../../src/Logging/NekoLib.Logging/Logger.cs)), which
 includes `Timeout.InfiniteTimeSpan`. Confirmed by probe.
 
 **Recommended disposition:** retain — an unbounded "bounded completion request"
@@ -381,9 +395,9 @@ the convention instead.
 ### LOG-11 — The two shipped sinks disagree on null entries
 
 `DebugLogSink.Write(null)` returns silently
-([`DebugLogSink.cs:10-11`](../../src/Logging/NekoLib.Logging/Sinks/DebugLogSink.cs));
+([`DebugLogSink.cs:10-11`](../../../../src/Logging/NekoLib.Logging/Sinks/DebugLogSink.cs));
 `RollingFileLogSink.Write(null)` throws `ArgumentNullException`
-([`RollingFileLogSink.cs:58-59`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
+([`RollingFileLogSink.cs:58-59`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
 Both confirmed by probe. `Logger` never passes null, so only a custom pipeline
 or a direct call reaches either path.
 
@@ -399,7 +413,7 @@ under rejected alternatives.
 
 `RollingFileLogSink` holds a `static Dictionary<string, object>` keyed by
 normalized path with `OrdinalIgnoreCase`
-([`RollingFileLogSink.cs:15-17, 41-51`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
+([`RollingFileLogSink.cs:15-17, 41-51`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
 Entries are added on construction and never removed; the sink is not
 `IDisposable`, so there is no natural removal point.
 
@@ -425,7 +439,7 @@ already exists.
 ### LOG-13 — A relative `FilePath` binds to the working directory at construction
 
 `Path.GetFullPath(options.FilePath)`
-([`RollingFileLogSink.cs:36`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs))
+([`RollingFileLogSink.cs:36`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs))
 resolves against the process working directory at the moment the sink is built.
 For an unattended shell whose working directory is not the install directory,
 that is a trap.
@@ -439,7 +453,7 @@ exactly where it landed.
 
 `Rotate` deletes `path.N`, shifts `path.{N-1}` upward, then moves the live file
 to `path.1`
-([`RollingFileLogSink.cs:97-113`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
+([`RollingFileLogSink.cs:97-113`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
 `RetainedFileCount` is therefore the number of retained **archives**, excluding
 the live file; with `4` a consumer ends up with five files. Validation rejects
 `RetainedFileCount < 1` and `MaximumFileBytes < 1024`, so neither rotation nor
@@ -454,7 +468,7 @@ the `.1`…`.N` naming, the oldest-first eviction, and the two floors.
 ### LOG-15 — Write failures are silently absorbed, and cross-process writers are rejected
 
 The append stream uses `FileShare.Read`
-([`RollingFileLogSink.cs:77-81`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
+([`RollingFileLogSink.cs:77-81`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
 so a second process opening the same path fails with a sharing violation. The
 resulting exception propagates out of `Write` into `Logger.Log`, which swallows
 it. Rotation failures — a held archive, a denied delete — behave the same way.
@@ -471,7 +485,7 @@ best-effort and `Flush` is the only completion signal.
 ### LOG-16 — Durability is level-dependent
 
 `stream.Flush(true)` is issued only for `Error` and above
-([`RollingFileLogSink.cs:86-87`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
+([`RollingFileLogSink.cs:86-87`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)).
 Lower levels rely on the managed flush plus stream close, which survives process
 death but not necessarily machine death.
 
@@ -481,7 +495,7 @@ would dominate the cost of the sink — and document the two tiers explicitly.
 ### LOG-17 — The encoding preamble is not counted toward the rolling threshold
 
 The threshold uses `_encoding.GetByteCount(line)`
-([`RollingFileLogSink.cs:62`](../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
+([`RollingFileLogSink.cs:62`](../../../../src/Logging/NekoLib.Logging/Sinks/RollingFileLogSink.cs)),
 which excludes any preamble `StreamWriter` emits when it first creates the file.
 The default `UTF8Encoding(false)` has no preamble, so the default path is exact;
 a consumer supplying `Encoding.UTF8` or a UTF-16 encoding makes the threshold
@@ -495,8 +509,8 @@ That is a caller assertion, consistent with the accepted Core stance.
 ### LOG-18 — Logging has no current technical reference
 
 Logging contracts are currently spread across a one-row entry and one snippet in
-the root [`README.md`](../../README.md) and the *Core* contract descriptions in
-[`src/Core/NekoLib.Core/README.md`](../../src/Core/NekoLib.Core/README.md).
+the root [`README.md`](../../../../README.md) and the *Core* contract descriptions in
+[`src/Core/NekoLib.Core/README.md`](../../../../src/Core/NekoLib.Core/README.md).
 Core legitimately owns the interfaces; nothing owns the concrete pipeline's
 ownership, ordering, flush, disposal, rotation, retention, durability, and
 failure semantics. Data, Core, HTTP, and Navigation each have a module README;
@@ -504,7 +518,7 @@ Logging does not, and almost every disposition above ends in "document this".
 
 **Recommended disposition:** add
 `src/Logging/NekoLib.Logging/README.md` as the module's current technical
-reference and register it in [`docs/README.md`](../README.md). It is the only
+reference and register it in [`docs/README.md`](../../../README.md). It is the only
 place the corrected `DebugLogSink` contract, the flush overlap requirement for
 custom sinks, the disposal-ownership default, and the rolling-file boundaries
 can be owned without duplicating Core.
@@ -538,7 +552,7 @@ integration-scoped inside the Unit project; that classification stays correct.
 Both manifests are byte-identical, no source file uses conditional compilation,
 and no behavior differs by target. One cosmetic asymmetry exists: the csproj
 adds `NoWarn 1591` on `net481` only
-([`NekoLib.Logging.csproj:34`](../../src/Logging/NekoLib.Logging/NekoLib.Logging.csproj)).
+([`NekoLib.Logging.csproj:34`](../../../../src/Logging/NekoLib.Logging/NekoLib.Logging.csproj)).
 Because `GenerateDocumentationFile` is not set, CS1591 cannot fire on either
 target, so the suppression is inert. **Recommended disposition:** leave it
 alone in F1-LOG; it changes no compiled surface and removing it belongs to a
@@ -660,7 +674,7 @@ One narrow F1-LOG implementation should:
    ownership and constructor gaps listed in LOG-19, ensuring the `DebugLogSink`
    regression is meaningful in a Release build;
 5. add `src/Logging/NekoLib.Logging/README.md`, register it in
-   [`docs/README.md`](../README.md), add its row to the `AGENTS.md` routing
+   [`docs/README.md`](../../../README.md), add its row to the `AGENTS.md` routing
    table, and reconcile the root `README.md` Logging entry (LOG-06 through
    LOG-10, LOG-12 through LOG-18);
 6. update `CHANGELOG.md` with the behavioral corrections, naming the documented
@@ -740,7 +754,7 @@ implementation is confined to method bodies and documentation:
   expires first.
 - **LOG-06 to LOG-10 and LOG-12 to LOG-17** — retained and documented, with
   XML summaries on the contract-significant members.
-- **LOG-18** — [`src/Logging/NekoLib.Logging/README.md`](../../src/Logging/NekoLib.Logging/README.md)
+- **LOG-18** — [`src/Logging/NekoLib.Logging/README.md`](../../../../src/Logging/NekoLib.Logging/README.md)
   is the module's current technical reference, registered in the documentation
   index and the `AGENTS.md` routing table.
 - **LOG-19** — twenty-one focused regressions were added, taking the suite from
@@ -751,8 +765,8 @@ implementation is confined to method bodies and documentation:
 As the review predicted, **both accepted API manifests verified unchanged**; no
 baseline was updated. The accepted work therefore carries no source or binary
 compatibility break, only the behavioral corrections recorded in
-[`CHANGELOG.md`](../../CHANGELOG.md) and
-[`docs/migrations/f1-logging.md`](../migrations/f1-logging.md).
+[`CHANGELOG.md`](../../../../CHANGELOG.md) and
+[`docs/modules/Logging/migrations/f1.md`](../migrations/f1.md).
 
 No repository consumer or runtime scenario source required migration. The
 Observability `LongRunningRecovery` scenario compiles unchanged against the

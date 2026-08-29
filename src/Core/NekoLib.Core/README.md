@@ -52,7 +52,7 @@ interface required by each producer or consumer.
 For most applications the narrower sink/provider seams are preferable to
 reimplementing a whole capability. The supplied behavior and ownership rules
 remain documented by the concrete
-[`NekoLib.Logging`](../../Logging/NekoLib.Logging/README.md),
+[`NekoLib.Logging`](../../../docs/modules/Logging/REFERENCE.md),
 [`NekoLib.Telemetry`](../../Telemetry/NekoLib.Telemetry/README.md), and
 [`NekoLib.Inspection`](../../Inspection/NekoLib.Inspection/README.md) packages.
 
