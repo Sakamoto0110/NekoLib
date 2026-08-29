@@ -22,7 +22,7 @@
 
 `NekoLib.Inspection` is the concrete opt-in runtime behind the Core Inspection
 contracts. It targets `net481` and `net9.0` with one public surface and
-references only [`NekoLib.Core`](../../../src/Core/NekoLib.Core/README.md).
+references only [`NekoLib.Core`](../Core/REFERENCE.md).
 
 The stable product is passive: modules record bounded operation evidence and
 register pull-based state providers; readers capture that evidence through the

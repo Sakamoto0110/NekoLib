@@ -354,7 +354,7 @@ does not dispose
 Core says action registration alone is experimental and that authorization,
 discovery/invocation, async, cancellation, timeout, UI marshalling, and adoption
 are unstable
-([`NekoLib.Core/README.md:115-136`](../../../../src/Core/NekoLib.Core/README.md)).
+([`NekoLib.Core reference`](../../Core/REFERENCE.md)).
 No feature module registers an action, and the roadmap rejects rollout
 ([`TODO.md:175-188`](../../../../TODO.md)). Concrete `RegisterAction`,
 `TryInvokeAction`, `ActionKeys`, and `ActionCount` currently appear stable.

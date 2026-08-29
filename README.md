@@ -75,7 +75,7 @@ optional unless one of their documented dependents brings them transitively.
 
 | Module | What it gives you |
 |---|---|
-| [`NekoLib.Core`](src/Core/NekoLib.Core/README.md) | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
+| [`NekoLib.Core`](docs/modules/Core/REFERENCE.md) | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
 | [`NekoLib.Logging`](docs/modules/Logging/REFERENCE.md) | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
 | [`NekoLib.Telemetry`](docs/modules/Telemetry/REFERENCE.md) | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
 | `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
@@ -174,7 +174,7 @@ technical manual.
 
 | Module | Main public entry points | Important boundary | Focused validation |
 |---|---|---|---|
-| [Core](src/Core/NekoLib.Core/README.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
+| [Core](docs/modules/Core/REFERENCE.md) | `ILogger`, `ITelemetry`, `IInspectionRecorder`, snapshot contracts, null objects | Contracts only; no concrete pipeline or feature-module knowledge | `NekoLib.Core.Tests.Unit` |
 | [Logging](docs/modules/Logging/REFERENCE.md) | `Logger`, `LoggerOptions`, `DebugLogSink`, `RollingFileLogSink` | Synchronous ordered writes; callers own sink composition, and `DisposeSinks` defaults to transferring sink disposal to the logger | `NekoLib.Logging.Tests.Unit` |
 | [Telemetry](docs/modules/Telemetry/REFERENCE.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
 | [Inspection](docs/modules/Inspection/REFERENCE.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
@@ -374,6 +374,7 @@ cycles.
 
 | | |
 |---|---|
+| Core technical reference | [`docs/modules/Core/REFERENCE.md`](docs/modules/Core/REFERENCE.md) |
 | Navigation technical reference | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Inspection technical reference | [`docs/modules/Inspection/REFERENCE.md`](docs/modules/Inspection/REFERENCE.md) |
 | Pipes technical reference | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |

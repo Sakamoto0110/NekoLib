@@ -83,7 +83,7 @@ truth, and the accepted manifests remain the stable public API oracle.
 - Focused tests: [`tests/NekoLib.Logging.Tests/`](../../../tests/NekoLib.Logging.Tests/)
 - Shared runtime scenario: [`runtime_tests/Observability/LongRunningRecovery/`](../../../runtime_tests/Observability/LongRunningRecovery/)
 - Package consumers: [`tests/NekoLib.PackageConsumers/`](../../../tests/NekoLib.PackageConsumers/)
-- Core logging contracts: [`src/Core/NekoLib.Core/README.md`](../../../src/Core/NekoLib.Core/README.md)
+- Core logging contracts: [`docs/modules/Core/REFERENCE.md`](../Core/REFERENCE.md)
 - Coordinated changelog: [`CHANGELOG.md`](../../../CHANGELOG.md)
 - Product direction and freezes: [`ROADMAP.md`](../../../ROADMAP.md)
 - Promoted work: [`TODO.md`](../../../TODO.md)

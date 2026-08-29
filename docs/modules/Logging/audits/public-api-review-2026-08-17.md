@@ -510,7 +510,7 @@ That is a caller assertion, consistent with the accepted Core stance.
 
 Logging contracts are currently spread across a one-row entry and one snippet in
 the root [`README.md`](../../../../README.md) and the *Core* contract descriptions in
-[`src/Core/NekoLib.Core/README.md`](../../../../src/Core/NekoLib.Core/README.md).
+[`docs/modules/Core/REFERENCE.md`](../../Core/REFERENCE.md).
 Core legitimately owns the interfaces; nothing owns the concrete pipeline's
 ownership, ordering, flush, disposal, rotation, retention, durability, and
 failure semantics. Data, Core, HTTP, and Navigation each have a module README;

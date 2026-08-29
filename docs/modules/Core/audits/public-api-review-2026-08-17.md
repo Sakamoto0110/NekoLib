@@ -1,11 +1,24 @@
 # Core Public API Review — 2026-08-17
 
+**Document ID:** CORE-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-CORE compiled public surface, ownership, lifecycle, extension,
-null-object, snapshot, payload, and compatibility boundaries
+**Subject:** F1-CORE compiled public surface, ownership, lifecycle, extension, null-object, snapshot, payload, and compatibility boundaries
+
+**Surface:** audit
+
+**Boundary:** core
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all dispositions implemented
 
@@ -13,9 +26,11 @@ null-object, snapshot, payload, and compatibility boundaries
 
 **Reference commit:** `0ad3840b29d749c25e157ae15db450bf82d17011`
 
+**Original path:** `docs/audit/core-public-api-review-2026-08-17.md`
+
 **Last reconciliation:** 2026-08-17
 
-**Current state:** [`TODO.md`](../../TODO.md) F1-CORE
+**Current state:** F1-CORE completed; see the [current Core reference](../REFERENCE.md) and [F1 history](../../../history/phase-f1-public-api-release-stability-2026-08-21.md)
 
 ## Baseline and authority
 
@@ -67,7 +82,7 @@ Excluded:
 
 ## Package, ownership, and lifecycle boundary
 
-[`NekoLib.Core.csproj`](../../src/Core/NekoLib.Core/NekoLib.Core.csproj) targets
+[`NekoLib.Core.csproj`](../../../../src/Core/NekoLib.Core/NekoLib.Core.csproj) targets
 `net481;net9.0`, enables nullable annotations, and declares no `PackageReference`
 or `ProjectReference`. The SDK's automatic .NET Framework reference-assembly
 restore is tooling, not an authored Core package dependency. Core contains
@@ -153,14 +168,14 @@ its unresolved behavior is final or inventing a new action abstraction now.
 | Watchdog | `WatchdogOptions` accepts `ILogSink[]` and optional `ITelemetry`; the runtime constructs Core `LogEntry`, writes sinks, and emits short completed telemetry operations. | Watchdog needs the sink/model/factory contracts but has no Inspection dependency or producer. Arbitrary telemetry values stay local to the supplied pipeline. |
 
 Tight source evidence includes
-[`Logger.cs`](../../src/Logging/NekoLib.Logging/Logger.cs),
-[`TelemetryPipeline.cs`](../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs),
-[`InspectionRuntime.cs`](../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs),
-[`CrashHandler.cs`](../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs),
-[`PageNavBootstrap.cs`](../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs),
-[`NavigationTelemetryObserver.cs`](../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationTelemetryObserver.cs),
-[`InspectionNavigationObserver.cs`](../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs), and
-[`WatchdogRuntime.cs`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs).
+[`Logger.cs`](../../../../src/Logging/NekoLib.Logging/Logger.cs),
+[`TelemetryPipeline.cs`](../../../../src/Telemetry/NekoLib.Telemetry/TelemetryPipeline.cs),
+[`InspectionRuntime.cs`](../../../../src/Inspection/NekoLib.Inspection/InspectionRuntime.cs),
+[`CrashHandler.cs`](../../../../src/Diagnostics/NekoLib.Diagnostics/CrashHandler.cs),
+[`PageNavBootstrap.cs`](../../../../src/Navigation/NekoLib.Navigation/Bootstrap/PageNavBootstrap.cs),
+[`NavigationTelemetryObserver.cs`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/NavigationTelemetryObserver.cs),
+[`InspectionNavigationObserver.cs`](../../../../src/Navigation/NekoLib.Navigation/Diagnostics/InspectionNavigationObserver.cs), and
+[`WatchdogRuntime.cs`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs).
 
 ### Package-consumer reachability
 
@@ -182,7 +197,7 @@ evidence.
 
 ### Structural immutability currently leaks caller-owned collections
 
-[`TelemetryCheckpoint`](../../src/Core/NekoLib.Core/Telemetry/TelemetryCheckpoint.cs)
+[`TelemetryCheckpoint`](../../../../src/Core/NekoLib.Core/Telemetry/TelemetryCheckpoint.cs)
 assigns the supplied dimensions directly. `TelemetryOperation` does the same
 for checkpoints, dimensions, and measurements, including mutable dictionaries
 as shared empty instances. `InspectionSnapshot` likewise assigns its supplied
@@ -264,7 +279,7 @@ already-completed-operation contract tests during implementation.
 
 ### The global Inspection slot has a real cross-package purpose
 
-[`InspectionProvider`](../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs)
+[`InspectionProvider`](../../../../src/Core/NekoLib.Core/Inspection/InspectionProvider.cs)
 starts at `NullInspection.Instance`, publishes through volatile/interlocked
 access, rejects null or disabled recorders, admits only one enabled recorder,
 rolls back a recorder that disables during installation, and returns an

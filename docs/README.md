@@ -55,6 +55,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Solution membership | `NekoLib.sln` | `dotnet sln NekoLib.sln list` and solution build |
 | Public API and runtime behavior | Current source code | Executable tests and runtime scenarios |
 | Product purpose and concise module map | [`README.md`](../README.md) | Project files and source |
+| Core technical contract | [`docs/modules/Core/REFERENCE.md`](modules/Core/REFERENCE.md) | Core source, focused tests, the two accepted API manifests, and concrete capability references |
 | Data gateway technical contract | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | Data source, tests, and provider scenarios |
 | Diagnostics and Diagnostics.Windows technical contract | [`docs/modules/Diagnostics/REFERENCE.md`](modules/Diagnostics/REFERENCE.md) | Diagnostics source, four accepted API manifests, and the dual-target Diagnostics tests |
 | HTTP technical contract | [`docs/modules/Http/REFERENCE.md`](modules/Http/REFERENCE.md) | HTTP source, deterministic dual-target tests, the compiled public API manifests, and the separate TheCatAPI provider scenario |
@@ -89,7 +90,16 @@ reference commit.
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Formally promoted work, execution order, gates, and completion criteria |
 | [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
 | [`docs/proposals/README.md`](proposals/README.md) | reference | current | One-file unpromoted proposal index and non-exclusive promotion rule |
-| [`src/Core/NekoLib.Core/README.md`](../src/Core/NekoLib.Core/README.md) | reference | current | Core capability contracts, ownership, snapshots, null objects, and experimental action marker |
+| [`docs/modules/Core/MANIFEST.md`](modules/Core/MANIFEST.md) | reference | current | Core identity, routing, project/package topology, API oracles, experimental marker, and evidence locations |
+| [`docs/modules/Core/README.md`](modules/Core/README.md) | reference | current | Concise Core consumer introduction |
+| [`docs/modules/Core/REFERENCE.md`](modules/Core/REFERENCE.md) | reference | current | Shared capability contracts, ownership, completion, snapshots, null objects, extension seams, and the Inspection provider slot |
+| [`docs/modules/Core/HISTORY.md`](modules/Core/HISTORY.md) | reference | current | Append-only factual Core chronology |
+| [`docs/modules/Core/CHANGELOG.md`](modules/Core/CHANGELOG.md) | reference | current | Core-specific consumer-visible evolution |
+| [`docs/modules/Core/ISSUES.md`](modules/Core/ISSUES.md) | reference | current | Confirmed Core defects registry |
+| [`docs/modules/Core/FINDINGS.md`](modules/Core/FINDINGS.md) | reference | current | Non-normative Core findings registry |
+| [`docs/modules/Core/VALIDATION_REQUIREMENTS.md`](modules/Core/VALIDATION_REQUIREMENTS.md) | reference | current | Core evidence contract derived from the standard-library profile and boundary risks |
+| [`docs/modules/Core/VALIDATIONS.md`](modules/Core/VALIDATIONS.md) | reference | current | Core executed-evidence registry |
+| [`src/Core/NekoLib.Core/README.md`](../src/Core/NekoLib.Core/README.md) | reference | current | Pointer-only source portal to the canonical Core technical reference |
 | [`src/Data/NekoLib.Data/README.md`](../src/Data/NekoLib.Data/README.md) | reference | current | Data gateway composition, ownership, capabilities, mapping, sessions, events, and target-specific streaming |
 | [`docs/modules/Diagnostics/MANIFEST.md`](modules/Diagnostics/MANIFEST.md) | reference | current | Diagnostics identity, routing, project/package topology, API oracles, and evidence locations |
 | [`docs/modules/Diagnostics/README.md`](modules/Diagnostics/README.md) | reference | current | Concise Diagnostics-family consumer introduction |
@@ -209,7 +219,7 @@ reference commit.
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/stable-release-1.0.0.md`](stable-release-1.0.0.md) | reference | current | First stable family baseline, qualifying package provenance, hashes, validation, and distribution boundaries |
-| [`docs/migrations/f1-core.md`](migrations/f1-core.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
+| [`docs/modules/Core/migrations/f1.md`](modules/Core/migrations/f1.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
 | [`docs/migrations/f1-data.md`](migrations/f1-data.md) | guide | current | Migration from the initial Data candidate surface to the accepted F1-DATA gateway contract |
 | [`docs/migrations/querybuilder-structured-api.md`](migrations/querybuilder-structured-api.md) | guide | current | Migration to the canonical structured QueryBuilder API and its warning-only compatibility window |
 | [`docs/migrations/data-type-adaptation.md`](migrations/data-type-adaptation.md) | guide | current | Adoption of explicit input promotion, provider decay/loss policies, schema discovery, and sanitized adaptation hooks |
@@ -225,7 +235,7 @@ reference commit.
 | [`docs/modules/Telemetry/migrations/f1.md`](modules/Telemetry/migrations/f1.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
 | [`docs/modules/Navigation/migrations/f1.md`](modules/Navigation/migrations/f1.md) | guide | current | Migration from the initial Navigation candidate family to the accepted core facade, adapter compatibility, ownership, disposal, and nullability contracts |
 | [`docs/audit/README.md`](audit/README.md) | reference | current | Audit registry and snapshot rules |
-| [`docs/audit/core-public-api-review-2026-08-17.md`](audit/core-public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review, accepted decisions, and implementation reconciliation |
+| [`docs/modules/Core/audits/public-api-review-2026-08-17.md`](modules/Core/audits/public-api-review-2026-08-17.md) | audit | historical | F1-CORE compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/data-public-api-review-2026-08-17.md`](audit/data-public-api-review-2026-08-17.md) | audit | historical | F1-DATA compiled-surface review, accepted decisions, and implementation reconciliation |
 | [`docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md`](audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md) | audit | historical | Accepted and completed Data type-adaptation policy and QueryBuilder API normalization, including DTO temporal materialization |
 | [`docs/modules/Devices/audits/public-api-review-2026-08-17.md`](modules/Devices/audits/public-api-review-2026-08-17.md) | audit | historical | F1-DEV compiled-surface review, accepted implementation reconciliation, and immutable package evidence |

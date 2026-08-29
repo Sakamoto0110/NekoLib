@@ -28,7 +28,7 @@ the [global documentation index](../README.md).
 | Boundary | Status | Entry point |
 |---|---|---|
 | Mvvm | Populated module-first boundary | [`Mvvm/MANIFEST.md`](Mvvm/MANIFEST.md) |
-| Core | Not migrated | Current source-adjacent reference |
+| Core | Populated module-first boundary | [`Core/MANIFEST.md`](Core/MANIFEST.md) |
 | Data | Not migrated | Current source-adjacent reference |
 | Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |
 | Diagnostics / Windows | Populated module-first boundary | [`Diagnostics/MANIFEST.md`](Diagnostics/MANIFEST.md) |

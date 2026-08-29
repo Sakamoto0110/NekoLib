@@ -409,7 +409,7 @@ the supported contract, and cover them with regressions.
 
 Telemetry contracts are currently split between a one-row entry in the root
 [`README.md`](../../../../README.md) and the *Core* contract descriptions in
-[`src/Core/NekoLib.Core/README.md`](../../../../src/Core/NekoLib.Core/README.md). Core
+[`docs/modules/Core/REFERENCE.md`](../../Core/REFERENCE.md). Core
 legitimately owns the interfaces; nothing owns the concrete pipeline's ordering,
 backpressure, reentrancy, retention, dimension-merge, time, and abandonment
 semantics. Core, Data, Logging, HTTP, and Navigation each have a module README;

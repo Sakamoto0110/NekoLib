@@ -22,7 +22,7 @@
 
 `NekoLib.Logging` is the concrete pipeline behind the Core logging contracts. It
 targets `net481` and `net9.0` with one identical public surface, references only
-[`NekoLib.Core`](../../../src/Core/NekoLib.Core/README.md), and has no global
+[`NekoLib.Core`](../Core/REFERENCE.md), and has no global
 logger, provider, registry, or static facade.
 
 Core owns the interfaces — `ILogger`, `ILogSink`, `IFlushableLogSink`,

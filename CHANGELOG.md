@@ -312,7 +312,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `NEKOEXP0001`, with concrete action behavior and module adoption deferred to
   each module's future F1 review. No Core type, member, target, dependency, or
   null-object behavior was removed. See the
-  [F1-CORE migration guide](docs/migrations/f1-core.md).
+  [F1-CORE migration guide](docs/modules/Core/migrations/f1.md).
 - **NekoLib.Data — breaking pre-stable candidate correction for the first
   `1.0.0` stable family release.** Moved `DatabaseGateway` from
   `NekoLib.Data.Internal.Gateway` to `NekoLib.Data.Gateway` without a shim;

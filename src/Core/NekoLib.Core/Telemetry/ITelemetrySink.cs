@@ -1,6 +1,6 @@
 namespace NekoLib.Core.Telemetry
 {
-    /// <summary>Receives immutable completed telemetry operations.</summary>
+    /// <summary>Receives structurally read-only completed telemetry operations.</summary>
     /// <remarks>
     /// This is the usual consumer implementation seam for export or aggregation.
     /// The composing telemetry implementation owns dispatch ordering, threading,

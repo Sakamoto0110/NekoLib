@@ -83,7 +83,7 @@ the accepted manifests remain the stable public API oracle.
 - Focused tests: [`tests/NekoLib.Telemetry.Tests/`](../../../tests/NekoLib.Telemetry.Tests/)
 - Shared runtime scenario: [`runtime_tests/Observability/LongRunningRecovery/`](../../../runtime_tests/Observability/LongRunningRecovery/README.md)
 - Package consumers: [`tests/NekoLib.PackageConsumers/`](../../../tests/NekoLib.PackageConsumers/)
-- Core telemetry contracts: [`src/Core/NekoLib.Core/README.md`](../../../src/Core/NekoLib.Core/README.md)
+- Core telemetry contracts: [`docs/modules/Core/REFERENCE.md`](../Core/REFERENCE.md)
 - First in-repository producer: [`docs/modules/Navigation/REFERENCE.md`](../Navigation/REFERENCE.md)
 - Coordinated changelog: [`CHANGELOG.md`](../../../CHANGELOG.md)
 - Product direction and freezes: [`ROADMAP.md`](../../../ROADMAP.md)

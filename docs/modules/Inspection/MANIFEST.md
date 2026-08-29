@@ -93,7 +93,7 @@ instrumentation and action rollout remains frozen in
 - Focused tests: [`tests/NekoLib.Inspection.Tests/`](../../../tests/NekoLib.Inspection.Tests/)
 - Shared runtime scenario: [`runtime_tests/Observability/LongRunningRecovery/`](../../../runtime_tests/Observability/LongRunningRecovery/README.md)
 - Package consumers: [`tests/NekoLib.PackageConsumers/`](../../../tests/NekoLib.PackageConsumers/)
-- Core Inspection contracts and the process-wide slot: [`src/Core/NekoLib.Core/README.md`](../../../src/Core/NekoLib.Core/README.md)
+- Core Inspection contracts and the process-wide slot: [`docs/modules/Core/REFERENCE.md`](../Core/REFERENCE.md)
 - Only in-repository producer: [`docs/modules/Navigation/REFERENCE.md`](../Navigation/REFERENCE.md)
 - Read-only evidence consumer: [`docs/modules/Diagnostics/REFERENCE.md`](../Diagnostics/REFERENCE.md)
 - Coordinated changelog: [`CHANGELOG.md`](../../../CHANGELOG.md)

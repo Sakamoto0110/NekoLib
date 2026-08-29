@@ -22,7 +22,7 @@
 
 `NekoLib.Telemetry` is the concrete pipeline behind the Core telemetry
 contracts. It targets `net481` and `net9.0` with one identical public surface,
-references only [`NekoLib.Core`](../../../src/Core/NekoLib.Core/README.md), and
+references only [`NekoLib.Core`](../Core/REFERENCE.md), and
 has no global pipeline, provider, registry, or static facade.
 
 Core owns the contracts — `ITelemetry`, `ITelemetryOperation`, `ITelemetrySink`,
