@@ -156,7 +156,7 @@ not confirm. It never terminates a Host it did not start.
 The launch command line is an internal contract between the coordinated
 `NekoLib.Watchdog` and `NekoLib.Watchdog.Host` packages; its options, the
 `protocol_version` exchange, and the attachment shape are owned by the
-[Host reference](../../../src/Watchdog/NekoLib.Watchdog.Host/README.md).
+[Host reference](../WatchdogHost/REFERENCE.md).
 Applications do not construct it.
 
 ## Configuration ownership and capture

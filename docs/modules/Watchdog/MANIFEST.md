@@ -96,7 +96,7 @@ covered by the API baselines above.
 - Deployed-Host crash and recovery scenario: [`runtime_tests/Watchdog/CrashRecovery/`](../../../runtime_tests/Watchdog/CrashRecovery/)
 - Interactive in-process supervisor scenario: [`runtime_tests/Watchdog/Supervisor481/`](../../../runtime_tests/Watchdog/Supervisor481/)
 - Transport boundary: [`Pipes manifest`](../Pipes/MANIFEST.md)
-- Deployment boundary: [`Watchdog Host reference`](../../../src/Watchdog/NekoLib.Watchdog.Host/README.md)
+- Deployment boundary: [`Watchdog Host manifest`](../WatchdogHost/MANIFEST.md)
 - Coordinated changelog: [`CHANGELOG.md`](../../../CHANGELOG.md)
 - Product direction and freezes: [`ROADMAP.md`](../../../ROADMAP.md)
 - Promoted work: [`TODO.md`](../../../TODO.md)

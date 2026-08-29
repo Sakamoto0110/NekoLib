@@ -178,7 +178,7 @@ The executed records follow.
 
 **Result:** PASS
 
-**Artifacts:** `docs/audit/watchdog-host-contract-review-2026-08-20.md`; `NekoLib.Watchdog.1.0.0-local.21.nupkg` SHA-256 `BB7A68F7CD056E7EB3EAE94FC51D36AF91F301FD9AE1C76F94B84E4B77712D2D`
+**Artifacts:** `docs/modules/WatchdogHost/audits/contract-review-2026-08-20.md`; `NekoLib.Watchdog.1.0.0-local.21.nupkg` SHA-256 `BB7A68F7CD056E7EB3EAE94FC51D36AF91F301FD9AE1C76F94B84E4B77712D2D`
 
 **Gaps:** The focused suite passed 106 tests per target, both compiled baselines verified unchanged, and the full serial solution test gate passed inside the pack flow. The package-only campaign is the one run in which this library's `WatchdogBootstrap`, `WatchdogController`, and protocol handling executed from a package rather than from repository build output: a coordinated pair started, answered `ping` and `status`, and stopped cleanly on both target families, and a deliberately mismatched protocol produced the version-specific failure instead of a timeout. That closes the protocol requirement for the shipped same-target pairing only. The campaign did not exercise crash loops, forced termination, hotkeys, cross-user access, or long-running supervision, and it predates XML documentation delivery, so it does not satisfy `WDG-VALREQ-001` and satisfies `WDG-VALREQ-008` only for assets and consumption, not for the XML pairing.
 

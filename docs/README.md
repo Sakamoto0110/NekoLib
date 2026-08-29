@@ -62,7 +62,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Inspection runtime technical contract | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | Inspection source, tests, and the Observability scenario |
 | Pipes technical contract | [`docs/modules/Pipes/REFERENCE.md`](modules/Pipes/REFERENCE.md) | Pipes source, dual-target tests, and the compiled public API manifests |
 | Watchdog technical contract | [`docs/modules/Watchdog/REFERENCE.md`](modules/Watchdog/REFERENCE.md) | Watchdog source, dual-target tests, and the compiled public API manifests |
-| Watchdog Host deployment contract | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | Host source, dual-target tests, package target, and package-only consumers |
+| Watchdog Host deployment contract | [`docs/modules/WatchdogHost/REFERENCE.md`](modules/WatchdogHost/REFERENCE.md) | Host source, dual-target tests, package target, and package-only consumers |
 | Navigation technical contract | [`docs/modules/Navigation/REFERENCE.md`](modules/Navigation/REFERENCE.md) | Navigation source, adapters, tests, and compiled public API manifests |
 | Mvvm technical contract | [`docs/modules/Mvvm/REFERENCE.md`](modules/Mvvm/REFERENCE.md) | Mvvm source, focused tests, and compiled public API manifests |
 | Product direction, intentions, planning horizons, guardrails, and freezes | [`ROADMAP.md`](../ROADMAP.md) | Current implementation, accepted boundaries, and owner direction |
@@ -131,7 +131,16 @@ reference commit.
 | [`docs/modules/Watchdog/VALIDATION_REQUIREMENTS.md`](modules/Watchdog/VALIDATION_REQUIREMENTS.md) | reference | current | Watchdog evidence contract derived from the inherited validation profiles |
 | [`docs/modules/Watchdog/VALIDATIONS.md`](modules/Watchdog/VALIDATIONS.md) | reference | current | Watchdog executed-evidence registry |
 | [`src/Watchdog/NekoLib.Watchdog/README.md`](../src/Watchdog/NekoLib.Watchdog/README.md) | reference | current | Pointer-only source portal to the canonical Watchdog technical reference |
-| [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | reference | current | Watchdog Host deployment package, payload selection, build/publish behavior, protocol v1, fatal evidence, security, and release validation |
+| [`docs/modules/WatchdogHost/MANIFEST.md`](modules/WatchdogHost/MANIFEST.md) | reference | current | Watchdog Host identity, routing, project/package topology, deployment evidence locations, and the deliberate absence of an API baseline |
+| [`docs/modules/WatchdogHost/README.md`](modules/WatchdogHost/README.md) | reference | current | Concise Watchdog Host consumer introduction |
+| [`docs/modules/WatchdogHost/REFERENCE.md`](modules/WatchdogHost/REFERENCE.md) | reference | current | Watchdog Host deployment package, payload selection, build/publish behavior, protocol v1, fatal evidence, security, and release validation |
+| [`docs/modules/WatchdogHost/HISTORY.md`](modules/WatchdogHost/HISTORY.md) | reference | current | Append-only factual Watchdog Host chronology |
+| [`docs/modules/WatchdogHost/CHANGELOG.md`](modules/WatchdogHost/CHANGELOG.md) | reference | current | Watchdog Host-specific consumer-visible evolution |
+| [`docs/modules/WatchdogHost/ISSUES.md`](modules/WatchdogHost/ISSUES.md) | reference | current | Confirmed Watchdog Host defects registry |
+| [`docs/modules/WatchdogHost/FINDINGS.md`](modules/WatchdogHost/FINDINGS.md) | reference | current | Non-normative Watchdog Host findings registry |
+| [`docs/modules/WatchdogHost/VALIDATION_REQUIREMENTS.md`](modules/WatchdogHost/VALIDATION_REQUIREMENTS.md) | reference | current | Watchdog Host evidence contract derived from the inherited deployment-package profile |
+| [`docs/modules/WatchdogHost/VALIDATIONS.md`](modules/WatchdogHost/VALIDATIONS.md) | reference | current | Watchdog Host executed-evidence registry |
+| [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](../src/Watchdog/NekoLib.Watchdog.Host/README.md) | reference | current | Pointer-only source portal to the canonical Watchdog Host deployment reference |
 | [`src/Logging/NekoLib.Logging/README.md`](../src/Logging/NekoLib.Logging/README.md) | reference | current | Logging pipeline composition, ownership, delivery ordering, snapshots, flush and disposal contracts, and the shipped sinks |
 | [`src/Telemetry/NekoLib.Telemetry/README.md`](../src/Telemetry/NekoLib.Telemetry/README.md) | reference | current | Telemetry pipeline composition, ownership, operation lifecycle, time semantics, dimensions, bounded retention, snapshots, and sink dispatch |
 | [`src/Inspection/NekoLib.Inspection/README.md`](../src/Inspection/NekoLib.Inspection/README.md) | reference | current | Passive Inspection composition, recording, provider identity and ordering, snapshot budgets, owner diagnostics, lifecycle, and experimental actions |
@@ -164,7 +173,7 @@ reference commit.
 | [`docs/modules/Mvvm/migrations/f1.md`](modules/Mvvm/migrations/f1.md) | guide | current | Migration from the initial Mvvm candidate surface to the accepted F1-MVVM nullability contract and virtual notification funnel |
 | [`docs/modules/Pipes/migrations/f1.md`](modules/Pipes/migrations/f1.md) | guide | current | Migration from the initial Pipes candidate surface to the accepted F1-PIPE ownership, lifecycle, event, metrics, error, and target contracts |
 | [`docs/modules/Watchdog/migrations/f1.md`](modules/Watchdog/migrations/f1.md) | guide | current | Migration from the initial Watchdog candidate surface to the accepted F1-WDOG application, advanced-runtime, lifecycle, control, evidence, and ownership contracts |
-| [`docs/migrations/f1-watchdog-host.md`](migrations/f1-watchdog-host.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
+| [`docs/modules/WatchdogHost/migrations/f1.md`](modules/WatchdogHost/migrations/f1.md) | guide | current | Migration from the initial Watchdog Host candidate package to direct-only deployment, protocol v1, fail-fast workdir validation, and bounded fatal evidence |
 | [`docs/migrations/f1-logging.md`](migrations/f1-logging.md) | guide | current | Migration from the initial Logging candidate surface to the accepted F1-LOG pipeline, flush, disposal, and sink behavior |
 | [`docs/migrations/f1-inspection.md`](migrations/f1-inspection.md) | guide | current | Migration from the initial Inspection candidate surface to the accepted passive runtime and experimental action boundary |
 | [`docs/migrations/f1-telemetry.md`](migrations/f1-telemetry.md) | guide | current | Migration from the initial Telemetry candidate surface to the accepted F1-TEL completion, correlation, and sink-capture behavior |
@@ -190,7 +199,7 @@ reference commit.
 | [`docs/audit/telemetry-public-api-review-2026-08-17.md`](audit/telemetry-public-api-review-2026-08-17.md) | audit | historical | F1-TEL compiled-surface review, accepted dispositions, implementation reconciliation, and immutable package evidence |
 | [`docs/modules/Watchdog/audits/initial-audit.md`](modules/Watchdog/audits/initial-audit.md) | audit | historical | Watchdog first-pass review preserved at its recorded baseline |
 | [`docs/modules/Watchdog/audits/public-api-review-2026-08-18.md`](modules/Watchdog/audits/public-api-review-2026-08-18.md) | audit | historical | F1-WDOG compiled public surface, accepted decisions, implementation reconciliation, and residual Host/release-evidence gaps |
-| [`docs/audit/watchdog-host-contract-review-2026-08-20.md`](audit/watchdog-host-contract-review-2026-08-20.md) | audit | historical | F1-WDOG-HOST deployment package and protocol review, accepted implementation reconciliation, and immutable package evidence |
+| [`docs/modules/WatchdogHost/audits/contract-review-2026-08-20.md`](modules/WatchdogHost/audits/contract-review-2026-08-20.md) | audit | historical | F1-WDOG-HOST deployment package and protocol review, accepted implementation reconciliation, and immutable package evidence |
 | [`docs/history/README.md`](history/README.md) | reference | current | Completed roadmap and implementation-history index |
 | [`docs/history/architecture-roadmap-through-phase-d-2026-08-01.md`](history/architecture-roadmap-through-phase-d-2026-08-01.md) | roadmap/status | historical | Completed Phases A, B, and D plus the Phase C handoff snapshot |
 | [`docs/history/phase-c-repository-hygiene-2026-08-01.md`](history/phase-c-repository-hygiene-2026-08-01.md) | roadmap/status | historical | Phase C completion, commit-bound validation, and residual gaps |

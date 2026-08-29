@@ -40,7 +40,7 @@ the [global documentation index](../README.md).
 | Pipes | Populated module-first boundary | [`Pipes/MANIFEST.md`](Pipes/MANIFEST.md) |
 | Telemetry | Not migrated | Current source-adjacent reference |
 | Watchdog | Populated module-first boundary | [`Watchdog/MANIFEST.md`](Watchdog/MANIFEST.md) |
-| Watchdog Host | Not migrated | Current source-adjacent reference |
+| Watchdog Host | Populated module-first boundary | [`WatchdogHost/MANIFEST.md`](WatchdogHost/MANIFEST.md) |
 
 Payments remains a proposal, not an active module. Logging, Telemetry, and
 Inspection remain separate capabilities; this index does not create an

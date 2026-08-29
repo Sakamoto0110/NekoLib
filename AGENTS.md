@@ -20,7 +20,7 @@ the handoff state and the rules that are easy to get wrong.
 | Hardware engine, transports, operation boundaries, and device protocol contracts | [`docs/modules/Devices/REFERENCE.md`](docs/modules/Devices/REFERENCE.md) |
 | Named-pipe RPC/events, lifecycle, framing, metrics, errors, and security boundary | [`docs/modules/Pipes/REFERENCE.md`](docs/modules/Pipes/REFERENCE.md) |
 | Watchdog bootstrap, advanced runtime, lifecycle, control, evidence, security, and package boundary | [`docs/modules/Watchdog/REFERENCE.md`](docs/modules/Watchdog/REFERENCE.md) |
-| Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`src/Watchdog/NekoLib.Watchdog.Host/README.md`](src/Watchdog/NekoLib.Watchdog.Host/README.md) |
+| Watchdog Host payloads, deployment targets, protocol, fatal evidence, and package validation | [`docs/modules/WatchdogHost/REFERENCE.md`](docs/modules/WatchdogHost/REFERENCE.md) |
 | Navigation internals — lifecycle, guards, adapters, APIs | [`docs/modules/Navigation/REFERENCE.md`](docs/modules/Navigation/REFERENCE.md) |
 | Product direction, intentions, and current freezes | [`ROADMAP.md`](ROADMAP.md) |
 | Formally promoted work and execution gates | [`TODO.md`](TODO.md) |

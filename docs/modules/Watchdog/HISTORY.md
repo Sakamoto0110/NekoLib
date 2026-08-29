@@ -123,7 +123,7 @@ it.
 - The library's internal `update` command kept its explicit `not_implemented`
   response so a coordinated pair answers deterministically.
 
-**Evidence:** [`../../audit/watchdog-host-contract-review-2026-08-20.md`](../../audit/watchdog-host-contract-review-2026-08-20.md)
+**Evidence:** [`../WatchdogHost/audits/contract-review-2026-08-20.md`](../WatchdogHost/audits/contract-review-2026-08-20.md)
 
 ## 2026-08-21 — WDG-HISTORY-007 — First stable family baseline
 

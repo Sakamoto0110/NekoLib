@@ -85,7 +85,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Mvvm`](src/Mvvm/NekoLib.Mvvm/README.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | [`NekoLib.Pipes`](src/Pipes/NekoLib.Pipes/README.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
 | [`NekoLib.Watchdog`](docs/modules/Watchdog/REFERENCE.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
-| [`NekoLib.Watchdog.Host`](src/Watchdog/NekoLib.Watchdog.Host/README.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
+| [`NekoLib.Watchdog.Host`](docs/modules/WatchdogHost/REFERENCE.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
 | [`NekoLib.Devices`](docs/modules/Devices/REFERENCE.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | [`NekoLib.Inspection`](src/Inspection/NekoLib.Inspection/README.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
 
@@ -327,7 +327,7 @@ together. Bootstrap checks the version before accepting the versioned
 with an incompatible-protocol diagnostic. Explicit working directories must
 already exist. Fatal Host startup evidence is bounded under
 `%LOCALAPPDATA%\NekoLib\Watchdog\watchdog-host-fatal.log`; see the
-[Host technical reference](src/Watchdog/NekoLib.Watchdog.Host/README.md).
+[Host technical reference](docs/modules/WatchdogHost/REFERENCE.md).
 
 The package-consumer probes live under `tests/NekoLib.PackageConsumers/` and
 cover single- and multi-target WinForms plus WPF without any `ProjectReference`.

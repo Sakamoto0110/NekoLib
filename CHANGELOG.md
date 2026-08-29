@@ -101,7 +101,7 @@ approved assets. Package hashes and qualifying evidence are recorded in
   AnyCPU `net481` and framework-dependent x86/x64 .NET 9 payload roots, owned
   output directory, opt-out property, runtime requirements, and cooperative
   same-user security boundary remain. See the
-  [F1-WDOG-HOST migration guide](docs/migrations/f1-watchdog-host.md).
+  [F1-WDOG-HOST migration guide](docs/modules/WatchdogHost/migrations/f1.md).
 - **NekoLib.Watchdog — breaking, additive, and behavioral pre-stable candidate
   correction for the first `1.0.0` stable family release.** Retained
   `WatchdogBootstrap` as the ordinary application entry and

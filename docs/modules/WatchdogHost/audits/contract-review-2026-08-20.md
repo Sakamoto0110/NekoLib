@@ -1,12 +1,24 @@
 # Watchdog Host Contract Review — 2026-08-20
 
+**Document ID:** WDGHOST-AUDIT-CONTRACT-20260820
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-WDOG-HOST deployment package, payload layout, build and publish
-targets, bootstrap arguments, Host/application protocol, startup evidence,
-target behavior, security boundary, and release validation
+**Subject:** F1-WDOG-HOST deployment package, payload layout, build and publish targets, bootstrap arguments, Host/application protocol, startup evidence, target behavior, security boundary, and release validation
+
+**Surface:** audit
+
+**Boundary:** watchdog.host
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all six accepted dispositions implemented and package-validated
 
@@ -14,11 +26,11 @@ target behavior, security boundary, and release validation
 
 **Reference commit:** `3ec2c63e2d60d96a8462c1a91483dea863015c01`
 
+**Original path:** docs/audit/watchdog-host-contract-review-2026-08-20.md
+
 **Last reconciliation:** 2026-08-20
 
-**Current state:** [`TODO.md`](../../TODO.md) records F1-WDOG-HOST as complete;
-the [Host technical reference](../../src/Watchdog/NekoLib.Watchdog.Host/README.md)
-owns the implemented deployment and protocol contract
+**Current state:** [`TODO.md`](../../../../TODO.md) records F1-WDOG-HOST as complete; the [Host technical reference](../REFERENCE.md) owns the implemented deployment and protocol contract
 
 ## Baseline and worktree
 
@@ -101,18 +113,18 @@ used to classify the payload architecture.
 Packing is deliberately conditional on `NekoLibWatchdogHostPayloadRoot`.
 `IncludeBuildOutput` is false, package validation is disabled because this is a
 tools/build package, and the package contains no `lib/` compile asset
-([`NekoLib.Watchdog.Host.csproj:11`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L11),
-[`NekoLib.Watchdog.Host.csproj:18`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L18),
-[`NekoLib.Watchdog.Host.csproj:34`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L34)).
+([`NekoLib.Watchdog.Host.csproj:11`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L11),
+[`NekoLib.Watchdog.Host.csproj:18`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L18),
+[`NekoLib.Watchdog.Host.csproj:34`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L34)).
 
 The canonical pack flow requires a clean Git tree by default, publishes one
 `net481` payload plus framework-dependent `win-x86` and `win-x64` modern
 payloads, packs the coordinated family version, runs PackageReference-only
 smoke consumers, and refuses to overwrite an immutable version
-([`pack-local.ps1:103`](../../eng/pack-local.ps1#L103),
-[`pack-local.ps1:173`](../../eng/pack-local.ps1#L173),
-[`pack-local.ps1:185`](../../eng/pack-local.ps1#L185),
-[`pack-local.ps1:243`](../../eng/pack-local.ps1#L243)).
+([`pack-local.ps1:103`](../../../../eng/pack-local.ps1#L103),
+[`pack-local.ps1:173`](../../../../eng/pack-local.ps1#L173),
+[`pack-local.ps1:185`](../../../../eng/pack-local.ps1#L185),
+[`pack-local.ps1:243`](../../../../eng/pack-local.ps1#L243)).
 
 ## Contract inventory and classification
 
@@ -120,7 +132,7 @@ The compiled Host assemblies export zero public types on both targets. There
 is therefore no Host compiled-API manifest to approve. The public package
 contract is instead the following deployment and protocol surface, as required
 by the release policy
-([`public-api-release-policy.md:20`](../public-api-release-policy.md#L20)).
+([`public-api-release-policy.md:20`](../../../public-api-release-policy.md#L20)).
 
 | Contract element | Current behavior | Proposed classification |
 |---|---|---|
@@ -157,10 +169,10 @@ publish, the package owns exactly the `NekoLib.Watchdog.Host` child directory
 under the consumer output. It removes and recreates that directory to prevent
 old payload files from surviving an upgrade; disabling deployment and cleaning
 remove the same owned directory
-([`NekoLib.Watchdog.Host.Package.targets:36`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L36),
-[`NekoLib.Watchdog.Host.Package.targets:53`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L53),
-[`NekoLib.Watchdog.Host.Package.targets:70`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L70),
-[`NekoLib.Watchdog.Host.Package.targets:88`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L88)).
+([`NekoLib.Watchdog.Host.Package.targets:36`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L36),
+[`NekoLib.Watchdog.Host.Package.targets:53`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L53),
+[`NekoLib.Watchdog.Host.Package.targets:70`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L70),
+[`NekoLib.Watchdog.Host.Package.targets:88`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.Package.targets#L88)).
 
 The package does not own its parent application output, application settings,
 credentials, target executable, target working directory, .NET runtime
@@ -177,9 +189,9 @@ within one total handshake budget. It terminates only the unconfirmed Host
 process that it launched. Once the exact PID/token attachment is confirmed, the
 Host owns `WatchdogRuntime`, blocks in `WaitForExit`, and the finalized F1-WDOG
 runtime owns process supervision and shutdown
-([`WatchdogBootstrap.cs:132`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L132),
-[`WatchdogBootstrap.cs:149`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L149),
-[`Program.cs:14`](../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L14)).
+([`WatchdogBootstrap.cs:132`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L132),
+[`WatchdogBootstrap.cs:149`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L149),
+[`Program.cs:14`](../../../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L14)).
 
 The Host adds no independent worker or event thread. Its main thread blocks in
 the runtime and returns zero after orderly completion. Fatal exceptions are
@@ -190,9 +202,9 @@ isolated at the executable boundary and return one.
 The bootstrap launch uses exact, case-sensitive, single-occurrence options.
 The parser rejects missing values, duplicates, unknown options, missing target
 files, non-positive PIDs, and incomplete PID/token pairs
-([`HostArgumentParser.cs:20`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L20),
-[`HostArgumentParser.cs:71`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L71),
-[`HostArgumentParser.cs:75`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L75)).
+([`HostArgumentParser.cs:20`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L20),
+[`HostArgumentParser.cs:71`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L71),
+[`HostArgumentParser.cs:75`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L75)).
 Command-line quoting is centralized in the application library and has a
 Windows round-trip regression. Bootstrap connection and request operations are
 bounded by the caller's one handshake timeout; there is no public asynchronous
@@ -226,10 +238,10 @@ local cooperative sidecar contract.
 working-directory options. The Host parser accepts exactly those names. The
 attachment identity is the unversioned string `attached:<pid>:<token>` and both
 the initial wait and already-running-Host preflight parse that shape
-([`WatchdogBootstrap.cs:135`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L135),
-[`HostArgumentParser.cs:22`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L22),
-[`WatchdogBootstrap.cs:202`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L202),
-[`WatchdogBootstrap.cs:290`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L290)).
+([`WatchdogBootstrap.cs:135`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L135),
+[`HostArgumentParser.cs:22`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L22),
+[`WatchdogBootstrap.cs:202`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L202),
+[`WatchdogBootstrap.cs:290`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L290)).
 
 **Risk or hypothesis.** Coordinated packaging reduces mismatch likelihood but
 cannot prevent a stale copied or already-running Host, an independently
@@ -265,12 +277,12 @@ deliberately mismatched pair fails with a version-specific diagnostic.
 **Observed fact.** The project packs the deployment target under both `build/`
 and `buildTransitive/`. The transitive asset imports the direct build target
 through the public-looking `NekoLibWatchdogHostTargetsImported` guard
-([`NekoLib.Watchdog.Host.csproj:44`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L44),
-[`NekoLib.Watchdog.Host.csproj:47`](../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L47),
-[`buildTransitive/NekoLib.Watchdog.Host.targets:1`](../../src/Watchdog/NekoLib.Watchdog.Host/buildTransitive/NekoLib.Watchdog.Host.targets#L1)).
+([`NekoLib.Watchdog.Host.csproj:44`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L44),
+[`NekoLib.Watchdog.Host.csproj:47`](../../../../src/Watchdog/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.csproj#L47),
+[`buildTransitive/NekoLib.Watchdog.Host.targets:1`](../../../../src/Watchdog/NekoLib.Watchdog.Host/buildTransitive/NekoLib.Watchdog.Host.targets#L1)).
 Current consumer documentation instead requires a direct reference from the
 executable project
-([`README.md:262`](../../README.md#L262)).
+([`README.md:262`](../../../../README.md#L262)).
 
 **Risk to consumers.** A wrapper library can cause an executable to receive a
 sidecar it did not select, including targets that replace and delete a directory
@@ -304,11 +316,11 @@ file `watchdog_host_fatal.log` with local wall-clock time. Append failures are
 correctly swallowed so evidence cannot replace the original failure, but there
 is no size bound, rotation, deterministic user-data location, process identity,
 or discovery hint
-([`Program.cs:24`](../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L24),
-[`Program.cs:31`](../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L31)).
+([`Program.cs:24`](../../../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L24),
+[`Program.cs:31`](../../../../src/Watchdog/NekoLib.Watchdog.Host/Program.cs#L31)).
 The supported bootstrap launches the Host with the package-owned sidecar
 directory as its working directory
-([`WatchdogBootstrap.cs:152`](../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L152)).
+([`WatchdogBootstrap.cs:152`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogBootstrap.cs#L152)).
 
 **Risk to consumers.** The log can grow without limit, can be unwritable under a
 machine installation, and is deleted when the package replaces its owned
@@ -342,11 +354,11 @@ documented file is produced without changing the Host exit code.
 **Observed fact.** The parser confirms that the target file exists but converts
 `--workdir` only with `Path.GetFullPath`; it does not require an existing
 directory
-([`HostArgumentParser.cs:75`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L75),
-[`HostArgumentParser.cs:89`](../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L89)).
+([`HostArgumentParser.cs:75`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L75),
+[`HostArgumentParser.cs:89`](../../../../src/Watchdog/NekoLib.Watchdog.Host/HostArgumentParser.cs#L89)).
 Runtime configuration preserves that path and process launches use it
-([`WatchdogRuntimeOptions.cs:62`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntimeOptions.cs#L62),
-[`WatchdogRuntime.cs:869`](../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L869)).
+([`WatchdogRuntimeOptions.cs:62`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntimeOptions.cs#L62),
+[`WatchdogRuntime.cs:869`](../../../../src/Watchdog/NekoLib.Watchdog/WatchdogRuntime.cs#L869)).
 
 **Risk to consumers.** Attach-mode startup can confirm the already-running
 application before the directory is needed. A later restart can then enter
@@ -381,8 +393,8 @@ and target/workdir paths containing spaces on both targets.
 payload architecture, selection order, opt-out, and runtime prerequisite. The
 Watchdog reference explicitly defers Host package, build target, argument, and
 protocol details to F1-WDOG-HOST
-([`README.md:262`](../../README.md#L262),
-[`NekoLib.Watchdog/README.md:221`](../modules/Watchdog/REFERENCE.md)).
+([`README.md:262`](../../../../README.md#L262),
+[`NekoLib.Watchdog/README.md:221`](../../Watchdog/REFERENCE.md)).
 There is no Host README. The Host assembly correctly exports zero public types,
 so a compiled public API manifest would be empty and would not baseline the
 real contract.
@@ -423,12 +435,12 @@ executables, no `lib/` assets, and correct PE machine values for the modern
 package entries. It builds/runs PackageReference-only consumers, checks stale
 directory replacement, builds and publishes both target families, verifies
 deployment opt-out/re-enable, and cleans the sidecar
-([`test-local-packages.ps1:164`](../../eng/test-local-packages.ps1#L164),
-[`test-local-packages.ps1:188`](../../eng/test-local-packages.ps1#L188),
-[`test-local-packages.ps1:250`](../../eng/test-local-packages.ps1#L250),
-[`test-local-packages.ps1:282`](../../eng/test-local-packages.ps1#L282),
-[`test-local-packages.ps1:323`](../../eng/test-local-packages.ps1#L323),
-[`test-local-packages.ps1:371`](../../eng/test-local-packages.ps1#L371)).
+([`test-local-packages.ps1:164`](../../../../eng/test-local-packages.ps1#L164),
+[`test-local-packages.ps1:188`](../../../../eng/test-local-packages.ps1#L188),
+[`test-local-packages.ps1:250`](../../../../eng/test-local-packages.ps1#L250),
+[`test-local-packages.ps1:282`](../../../../eng/test-local-packages.ps1#L282),
+[`test-local-packages.ps1:323`](../../../../eng/test-local-packages.ps1#L323),
+[`test-local-packages.ps1:371`](../../../../eng/test-local-packages.ps1#L371)).
 It does not explicitly select `NekoLibWatchdogHostRid=win-x86` and inspect the
 deployed file, prove the x64 default and unsupported-RID failure, assert the
 `net481` deployed executable is AnyCPU, exercise direct-only deployment, or
@@ -543,11 +555,11 @@ Review-time commands were intentionally focused:
 
 The intermittent `net481` result is not attributed to test parallelism: the
 assembly explicitly disables test parallelization
-([`AssemblyInfo.cs:3`](../../tests/NekoLib.Watchdog.Tests/Unit/AssemblyInfo.cs#L3)).
+([`AssemblyInfo.cs:3`](../../../../tests/NekoLib.Watchdog.Tests/Unit/AssemblyInfo.cs#L3)).
 The affected fixture binds a deterministic current-process pipe and the failure
 did not reproduce in isolation or in the final full run
-([`WatchdogControllerTests.cs:55`](../../tests/NekoLib.Watchdog.Tests/Unit/WatchdogControllerTests.cs#L55),
-[`WatchdogControllerTests.cs:159`](../../tests/NekoLib.Watchdog.Tests/Unit/WatchdogControllerTests.cs#L159)).
+([`WatchdogControllerTests.cs:55`](../../../../tests/NekoLib.Watchdog.Tests/Unit/WatchdogControllerTests.cs#L55),
+[`WatchdogControllerTests.cs:159`](../../../../tests/NekoLib.Watchdog.Tests/Unit/WatchdogControllerTests.cs#L159)).
 The exact environmental or cleanup cause remains unconfirmed; it is a residual
 validation limitation, not a confirmed Host product defect.
 
@@ -605,7 +617,7 @@ Package-probe corrections landed in
    exist and be a directory before supervision begins. Omitting it still selects
    the target executable's directory.
 5. **Current contract authority (WDHOST-05).** The dedicated
-   [Host README](../../src/Watchdog/NekoLib.Watchdog.Host/README.md) now owns
+   [Host README](../REFERENCE.md) now owns
    payload, property, argument, protocol, lifecycle, ownership, evidence,
    security, target-difference, package-content, and non-goal documentation.
    No empty compiled public API manifest was created for the executable.
