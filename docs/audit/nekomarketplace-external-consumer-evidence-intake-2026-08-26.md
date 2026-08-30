@@ -630,7 +630,7 @@ other registered type families.
 Promotion permission, provider adaptation/decay, loss authorization, schema
 discovery, provider profiles, sanitized failure evidence, and an observational
 adaptation hook are now separated explicitly in the
-[`Data type-adaptation and QueryBuilder API review`](data-type-adaptation-querybuilder-api-review-2026-08-26.md).
+[`Data type-adaptation and QueryBuilder API review`](../modules/Data/audits/type-adaptation-querybuilder-api-review-2026-08-26.md).
 The accepted implementation work is promoted to [`TODO.md`](../../TODO.md)
 Phase G3. This resolves the owner-intent dispute recorded in the original
 `P-001` section without rewriting that historical section.

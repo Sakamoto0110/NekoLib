@@ -6,6 +6,8 @@
 
 **Owner:** `NekoLib.Data` (also exercises `NekoLib.Mvvm` and `NekoLib.Navigation.WinForms`)
 
+**Technical contract:** [`docs/modules/Data/REFERENCE.md`](../../../docs/modules/Data/REFERENCE.md)
+
 **OS / target:** Windows, `net481` and `net9.0-windows`, **x64 only**
 
 **Prerequisites:** Microsoft Access Database Engine 2016 Redistributable (ACE OLEDB),

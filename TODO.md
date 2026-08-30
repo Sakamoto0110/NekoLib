@@ -56,7 +56,7 @@ an explicit implementation gate after promotion.
 **Source:** external finding `F-026`, reconciled in the
 [`NekoMarketplace evidence intake`](docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md),
 the accepted
-[`Data QueryBuilder decision`](docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md),
+[`Data QueryBuilder decision`](docs/modules/Data/audits/type-adaptation-querybuilder-api-review-2026-08-26.md),
 and the owner's direct promotion decision on 2026-08-27.
 
 **Accepted scope:** keep `JoinOn(...)` and `JoinTrusted(...)` as the canonical
@@ -96,7 +96,7 @@ and closure are preserved in the historical
 `DATA-ADAPT-QB-001` completed on 2026-08-27. Its accepted decisions,
 implementation reconciliation, provider/package evidence, and closure are
 preserved in the historical
-[`Data type-adaptation and QueryBuilder review`](docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md).
+[`Data type-adaptation and QueryBuilder review`](docs/modules/Data/audits/type-adaptation-querybuilder-api-review-2026-08-26.md).
 
 Items in [`docs/proposals/`](docs/proposals/README.md), module findings or
 issues, audit recommendations, and [`ROADMAP.md`](ROADMAP.md) intentions remain

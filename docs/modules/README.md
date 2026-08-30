@@ -29,7 +29,7 @@ the [global documentation index](../README.md).
 |---|---|---|
 | Mvvm | Populated module-first boundary | [`Mvvm/MANIFEST.md`](Mvvm/MANIFEST.md) |
 | Core | Populated module-first boundary | [`Core/MANIFEST.md`](Core/MANIFEST.md) |
-| Data | Not migrated | Current source-adjacent reference |
+| Data | Populated module-first boundary | [`Data/MANIFEST.md`](Data/MANIFEST.md) |
 | Devices | Populated module-first boundary | [`Devices/MANIFEST.md`](Devices/MANIFEST.md) |
 | Diagnostics / Windows | Populated module-first boundary | [`Diagnostics/MANIFEST.md`](Diagnostics/MANIFEST.md) |
 | Hosting | Not migrated; unshipped | Current project/source evidence |

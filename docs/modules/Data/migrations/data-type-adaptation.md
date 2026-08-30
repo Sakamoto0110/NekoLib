@@ -1,17 +1,32 @@
 # Data Type-Adaptation Migration
 
+**Document ID:** DATA-MIGRATION-TYPE-ADAPTATION
+
+**Schema version:** 1
+
 **Kind:** guide
 
 **Lifecycle:** current
 
-**Subject:** adopting explicit input promotion, provider representation decay,
-DTO temporal materialization, schema discovery, and sanitized adaptation reporting
+**Subject:** adopting explicit input promotion, provider representation decay, DTO temporal materialization, schema discovery, and sanitized adaptation reporting
+
+**Surface:** migration
+
+**Boundary:** data
+
+**Authority role:** non-normative
+
+**Mutation:** authored
 
 **Affected package:** `NekoLib.Data`
 
 **Affected release:** unreleased compatible minor after `1.0.0`
 
 **Indexing:** include
+
+**Reference date:** 2026-08-27
+
+The current contract is owned by the [Data technical reference](../REFERENCE.md).
 
 The public type-adaptation surface is additive. Existing QueryBuilder values continue
 to bind with their supplied CLR types under the default

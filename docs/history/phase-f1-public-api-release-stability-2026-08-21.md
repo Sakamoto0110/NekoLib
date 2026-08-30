@@ -39,7 +39,7 @@ become current API or package authority.
 
 | F1 item | Accepted historical record | Current contract |
 |---|---|---|
-| F1-DATA | [`data-public-api-review-2026-08-17.md`](../audit/data-public-api-review-2026-08-17.md) | [Data reference](../../src/Data/NekoLib.Data/README.md) |
+| F1-DATA | [`public-api-review-2026-08-17.md`](../modules/Data/audits/public-api-review-2026-08-17.md) | [Data reference](../modules/Data/REFERENCE.md) |
 | F1-CORE | [`public-api-review-2026-08-17.md`](../modules/Core/audits/public-api-review-2026-08-17.md) | [Core reference](../modules/Core/REFERENCE.md) |
 | F1-LOG | [`public-api-review-2026-08-17.md`](../modules/Logging/audits/public-api-review-2026-08-17.md) | [Logging reference](../modules/Logging/REFERENCE.md) |
 | F1-TEL | [`public-api-review-2026-08-17.md`](../modules/Telemetry/audits/public-api-review-2026-08-17.md) | [Telemetry reference](../modules/Telemetry/REFERENCE.md) |

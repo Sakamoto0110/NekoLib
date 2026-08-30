@@ -7,7 +7,7 @@ namespace NekoLib.Data.Tests.Unit.Query
 {
     /// <summary>
     /// Translator output is pure text manipulation - covered by string assertions.
-    /// Finding #20 in docs/audit/data-first-pass.md flagged Access TOP DISTINCT ordering; these
+    /// Finding #20 in docs/modules/Data/audits/initial-audit.md flagged Access TOP DISTINCT ordering; these
     /// tests lock the expected provider syntax for each translator.
     /// </summary>
     public class TranslatorTests

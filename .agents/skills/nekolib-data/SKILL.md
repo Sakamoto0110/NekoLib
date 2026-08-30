@@ -12,9 +12,11 @@ provider-specific assumptions explicitly.
 
 1. Read `../../../AGENTS.md`.
 2. Inspect `../../../src/Data/NekoLib.Data/NekoLib.Data.csproj`.
-3. Read the affected implementation and its existing tests before proposing or
+3. Read `../../../docs/modules/Data/REFERENCE.md` for the current documented
+   contract, then verify affected claims against source and tests.
+4. Read the affected implementation and its existing tests before proposing or
    making a change.
-4. Consult `../../../docs/audit/data-first-pass.md` only for historical
+5. Consult `../../../docs/modules/Data/audits/initial-audit.md` only for historical
    leads. Reverify every finding against current source and tests before
    treating it as open.
 

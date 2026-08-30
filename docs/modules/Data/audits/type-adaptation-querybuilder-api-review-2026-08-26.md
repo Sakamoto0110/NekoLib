@@ -26,6 +26,8 @@
 
 **Reference commit:** `fc10319a439edc4943a1226fc66d0cf4ee2d2e2a`
 
+**Original path:** docs/audit/data-type-adaptation-querybuilder-api-review-2026-08-26.md
+
 **Last reconciliation:** 2026-08-27
 
 **Current state:** `DATA-ADAPT-QB-001` complete; QueryBuilder, write adaptation, provider validation, and DTO temporal materialization reconciliations appear below
@@ -74,7 +76,7 @@ Current source confirms that:
 
 The source and compiled assemblies remain authoritative for current behavior.
 The NekoMarketplace intake is consumer evidence; this document records the
-accepted direction; [`TODO.md`](../../TODO.md) is the live implementation owner.
+accepted direction; [`TODO.md`](../../../../TODO.md) is the live implementation owner.
 
 ## Accepted terminology and boundaries
 

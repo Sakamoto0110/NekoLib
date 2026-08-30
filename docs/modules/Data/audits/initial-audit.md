@@ -1,18 +1,34 @@
 # Data Module Audit — Historical Pass 1 Snapshot
 
+**Document ID:** DATA-AUDIT-INITIAL
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
 **Subject:** Data first-pass review
 
+**Surface:** audit
+
+**Boundary:** data
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
 **Reference date:** 2026-05-29, with pass 1.5 on 2026-05-31
 
 **Reference commit:** not recorded
 
+**Original path:** docs/audit/data-first-pass.md
+
 **Last reconciliation:** 2026-08-01
 
-**Current state:** [`README.md`](../../README.md) and [`TODO.md`](../../TODO.md)
+**Current state:** [Data technical reference](../REFERENCE.md) and [`TODO.md`](../../../../TODO.md)
 
 Date: 2026-05-29
 Scope: `src/Data/NekoLib.Data`

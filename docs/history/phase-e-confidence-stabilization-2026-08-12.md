@@ -204,7 +204,7 @@ different sequence.
 
 - [x] Complete a current, code-first, commit-bound review of `NekoLib.Data`.
   The review and its executable evidence are preserved in the historical
-  [`Data stabilization review`](../audit/data-stabilization-review-2026-08-01.md)
+  [`Data stabilization review`](../modules/Data/audits/stabilization-review-2026-08-01.md)
   against `master` at
   `628442a58cdf2e2374cc7e48fa10d394d3fc3b87`. Both target frameworks built,
   and the existing 23 tests passed on each target. No real provider execution

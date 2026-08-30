@@ -11,7 +11,7 @@ the handoff state and the rules that are easy to get wrong.
 | What the framework is, module map, compatibility | [`README.md`](README.md) |
 | Core contracts, ownership, null objects, and experimental action marker | [`docs/modules/Core/REFERENCE.md`](docs/modules/Core/REFERENCE.md) |
 | Typed HTTP catalogs, ownership, and response boundaries | [`docs/modules/Http/REFERENCE.md`](docs/modules/Http/REFERENCE.md) |
-| Data gateway, ownership, result shapes, and target differences | [`src/Data/NekoLib.Data/README.md`](src/Data/NekoLib.Data/README.md) |
+| Data gateway, ownership, result shapes, and target differences | [`docs/modules/Data/REFERENCE.md`](docs/modules/Data/REFERENCE.md) |
 | Logging pipeline, delivery ordering, flush/disposal, and the shipped sinks | [`docs/modules/Logging/REFERENCE.md`](docs/modules/Logging/REFERENCE.md) |
 | Telemetry operation lifecycle, dimensions, retention, snapshots, and sink dispatch | [`docs/modules/Telemetry/REFERENCE.md`](docs/modules/Telemetry/REFERENCE.md) |
 | Inspection recording, provider identity/order, snapshot budgets, lifecycle, and experimental actions | [`docs/modules/Inspection/REFERENCE.md`](docs/modules/Inspection/REFERENCE.md) |
@@ -186,7 +186,7 @@ before making a change.
 | Watchdog | F1-WDOG finalized the application facade and supported advanced runtime, immutable configuration capture, terminal race-safe lifecycle, controller outcomes, bounded-evidence counters, crash finalization, and hotkey opt-out. The internal update wire command remains explicitly `not_implemented`; Host deployment and release finalization remain F1-WDOG-HOST. | `docs/modules/Watchdog/REFERENCE.md` |
 | Pipes | Per-subscriber bounded event queue/drop policy, pipe ACL/security and graceful in-flight drain on `Dispose` remain future hardening. | `docs/modules/Pipes/audits/initial-audit.md` |
 | Devices | The four listed review items were all closed by `d352fa8`: nullable `ReadLine` timeout, config validation, `ThrowIfDisposed`, and documented ASCII behavior. The versioned com0com runtime scenario now passes on both target families; physical UART/electrical behavior remains outside that evidence. | `docs/modules/Devices/audits/initial-audit.md` |
-| Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/audit/data-first-pass.md` |
+| Data | The audit is materially stale: #1 (`NETFRAMEWORK` OleDb guard), #5 (subquery collision), #6 (DML build idempotence), and #21 (conditional event clearing) are fixed; #5/#6 have unit tests. Reverify every other finding before treating it as open. | `docs/modules/Data/audits/initial-audit.md` |
 | Navigation | NEW-12 namespace ergonomics and the last interactive prompt-close probe remain. NEW-13 `PageMetadataBuilder.Register<T>` and `AllowAnonymous` runtime enforcement are fixed. | `docs/modules/Navigation/audits/initial-audit.md` |
 
 ## Deleted on 2026-07-26 — do not resurrect
@@ -225,7 +225,9 @@ is why — **do not recreate them**:
   and mailboxes. Registry-listed adapters under `.claude/skills/` are
   repository guidance and are intended to be versioned. Root and module
   `CLAUDE.md` files are also versioned as of 2026-08-22, but remain migration
-  input until the planned current-state audit finalizes their thin routing role.
+  input until their current-state review finalizes a thin routing role. Data's
+  review completed on 2026-08-30 and its historical file now routes to
+  `docs/modules/Data/REFERENCE.md`.
 
 ## Facts that contradict older material
 

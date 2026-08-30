@@ -6,6 +6,8 @@
 
 **Owner:** `NekoLib.Data`
 
+**Technical contract:** [`docs/modules/Data/REFERENCE.md`](../../../docs/modules/Data/REFERENCE.md)
+
 **OS / target:** Windows, `net481` and `net9.0`, **x64 only**
 
 **Prerequisites:** a container engine, the adopted `nekolib-sqlserver` container,

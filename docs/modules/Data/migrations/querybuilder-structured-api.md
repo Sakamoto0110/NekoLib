@@ -1,17 +1,32 @@
 # QueryBuilder Structured API Migration
 
+**Document ID:** DATA-MIGRATION-QUERYBUILDER-STRUCTURED-API
+
+**Schema version:** 1
+
 **Kind:** guide
 
 **Lifecycle:** current
 
-**Subject:** migration from dictionary and condition-template QueryBuilder calls
-to the canonical structured fluent API
+**Subject:** migration from dictionary and condition-template QueryBuilder calls to the canonical structured fluent API
+
+**Surface:** migration
+
+**Boundary:** data
+
+**Authority role:** non-normative
+
+**Mutation:** authored
 
 **Affected package:** `NekoLib.Data`
 
 **Affected release:** unreleased compatible minor after `1.0.0`
 
 **Indexing:** include
+
+**Reference date:** 2026-08-27
+
+The current contract is owned by the [Data technical reference](../REFERENCE.md).
 
 `QueryBuilder` now separates ordinary structured calls from explicitly trusted
 SQL fragments. The new APIs are additive. Replaced overloads remain callable

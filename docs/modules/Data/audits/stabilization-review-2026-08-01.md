@@ -1,21 +1,34 @@
 # NekoLib.Data Stabilization Review — 2026-08-01
 
+**Document ID:** DATA-AUDIT-STABILIZATION-20260801
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** code-first review of query construction, execution, mapping,
-streaming, provider boundaries, sessions, transactions, and validation gaps
+**Subject:** code-first review of query construction, execution, mapping, streaming, provider boundaries, sessions, transactions, and validation gaps
+
+**Surface:** audit
+
+**Boundary:** data
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Reference date:** 2026-08-01
 
 **Reference commit:** `628442a58cdf2e2374cc7e48fa10d394d3fc3b87`
 
+**Original path:** docs/audit/data-stabilization-review-2026-08-01.md
+
 **Last reconciliation:** 2026-08-02
 
-**Current state:** accepted implementation work is authoritative in
-[`TODO.md`](../../TODO.md) Phase E1; real-provider validation is authoritative
-in Phase E4
+**Current state:** [Data technical reference](../REFERENCE.md), [`TODO.md`](../../../../TODO.md), and [Phase E history](../../../history/phase-e-confidence-stabilization-2026-08-12.md)
 
 **Reviewed baseline:** the `NekoLib.Data` product and test files at `HEAD`. The
 working tree already contained an unrelated modification to `TODO.md`; that file
@@ -82,7 +95,7 @@ every additional provider multiplies ambiguous behavior and test combinations.
 
 The review covered all tracked files under `src/Data/NekoLib.Data`, all current
 Data unit tests, the Data project files, and the historical
-[`data-first-pass.md`](data-first-pass.md) after the current code had
+[`initial-audit.md`](initial-audit.md) after the current code had
 been inspected. The historical audit was used only as a reconciliation list.
 
 Current project facts:
@@ -766,7 +779,8 @@ section records rationale only and does not own implementation status.
 ## Historical Data audit reconciliation
 
 The table below prevents old findings from being silently promoted as current
-work. Numbers refer to `docs/audit/data-first-pass.md`.
+work. Numbers refer to the original `docs/audit/data-first-pass.md`, now
+preserved as [`initial-audit.md`](initial-audit.md).
 
 | Historical item | Current disposition on 2026-08-01 |
 |---:|---|

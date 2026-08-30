@@ -24,7 +24,7 @@ remain under `docs/history/`.
   condition-template, and raw-join overloads remain available with
   `Obsolete(error: false)` and may be removed only in `2.0.0` or later. Named
   and positional binding behavior is unchanged. See the
-  [QueryBuilder migration guide](docs/migrations/querybuilder-structured-api.md).
+  [QueryBuilder migration guide](docs/modules/Data/migrations/querybuilder-structured-api.md).
 - **NekoLib.Data — explicit write and DTO temporal type adaptation.** Structured logical
   parameters now support exact promotion and decay rules. Gateway options add
   default `ExplicitOnly` promotion, strict-or-fallback decay, explicit lossy
@@ -40,7 +40,7 @@ remain under `docs/history/`.
   `AllowExplicitAndReport` before discarding an offset, precision, kind, or
   formatting intent. Exact DTO types and non-temporal mapping remain unchanged;
   arbitrary temporal parsing is no longer inferred. See the
-  [Data type-adaptation migration guide](docs/migrations/data-type-adaptation.md).
+  [Data type-adaptation migration guide](docs/modules/Data/migrations/data-type-adaptation.md).
 
 ## 1.0.0 — stable baseline declared 2026-08-21
 
@@ -323,14 +323,14 @@ approved assets. Package hashes and qualifying evidence are recorded in
   `net481`; internalized `DbDataReaderExtensions`; sealed concrete types whose
   extension seams are interfaces/composition; and propagated net9 DTO
   reflection metadata through the public interface and mapping paths. See the
-  [F1-DATA migration guide](docs/migrations/f1-data.md).
+  [F1-DATA migration guide](docs/modules/Data/migrations/f1.md).
 - **NekoLib.Data — additive fluent DELETE surface with a fail-closed behavioral
   guard.** Added `QueryBuilder.DeleteFrom`, `AllowAllRowsDelete`, and matching
   `IDmlGateway`/`DatabaseGateway` builder overloads. Deletes without predicates
   fail by default unless the current statement explicitly opts into all rows;
   builder deletes participate in translation and raise `OnSqlGenerated` before
   dispatch. Raw string overloads remain supported. See the
-  [F1-DATA migration guide](docs/migrations/f1-data.md).
+  [F1-DATA migration guide](docs/modules/Data/migrations/f1.md).
 
 ### Release governance
 

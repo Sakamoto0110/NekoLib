@@ -1,11 +1,24 @@
 # Data Public API Review — 2026-08-17
 
+**Document ID:** DATA-AUDIT-PUBLIC-API-20260817
+
+**Schema version:** 1
+
 **Kind:** audit
 
 **Lifecycle:** historical
 
-**Subject:** F1-DATA compiled public surface, gateway contract, target-specific
-streaming, ownership, extensibility, mapping, and migration boundary
+**Subject:** F1-DATA compiled public surface, gateway contract, target-specific streaming, ownership, extensibility, mapping, and migration boundary
+
+**Surface:** audit
+
+**Boundary:** data
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
 
 **Status:** all seven dispositions accepted and implemented
 
@@ -13,11 +26,11 @@ streaming, ownership, extensibility, mapping, and migration boundary
 
 **Reference commit:** `87b34b061f5db6cf50a28d3187070940b851e1be`
 
+**Original path:** docs/audit/data-public-api-review-2026-08-17.md
+
 **Last reconciliation:** 2026-08-17
 
-**Current state:** the [Data technical reference](../../src/Data/NekoLib.Data/README.md),
-the [F1-DATA migration guide](../migrations/f1-data.md), and
-[`TODO.md`](../../TODO.md) F1-DATA
+**Current state:** the [Data technical reference](../REFERENCE.md), [F1-DATA migration guide](../migrations/f1.md), and [`TODO.md`](../../../../TODO.md) F1-DATA
 
 ## Baseline and authority
 

@@ -11,13 +11,14 @@ migration input
 
 **Reference commit:** not recorded
 
-**Current state:** pending the planned current-state audit; not authoritative
+**Current state:** preserved historical input; the current contract is
+[`docs/modules/Data/REFERENCE.md`](../../docs/modules/Data/REFERENCE.md)
 
-> **Documentation migration notice (2026-08-22):** This previously local file
-> is now versioned as migration input and has not yet completed its planned
-> current-state audit. Reverify every technical claim against current source,
-> project files, tests, `TODO.md`, and the authoritative Data documentation
-> before relying on it.
+> **Documentation migration notice (updated 2026-08-30):** This previously local
+> file remains historical migration input. The module-first review has completed;
+> use the current [Data reference](../../docs/modules/Data/REFERENCE.md) instead.
+> The body below preserves its earlier guidance and has not been retrospectively
+> rewritten.
 
 Guidance for `NekoLib.Data` under `src/Data/`. Solution-wide rules (layering, compile-time constants, build commands) live in the root `CLAUDE.md`.
 
