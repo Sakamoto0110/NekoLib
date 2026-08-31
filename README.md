@@ -78,12 +78,12 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Core`](docs/modules/Core/REFERENCE.md) | Small contracts for independent Logging, Telemetry, and Inspection capabilities, plus their null implementations. Zero dependencies. |
 | [`NekoLib.Logging`](docs/modules/Logging/REFERENCE.md) | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
 | [`NekoLib.Telemetry`](docs/modules/Telemetry/REFERENCE.md) | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
-| `NekoLib.Diagnostics` | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
-| `NekoLib.Diagnostics.Windows` | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
-| `NekoLib.Http` | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
+| [`NekoLib.Diagnostics`](docs/modules/Diagnostics/REFERENCE.md) | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
+| [`NekoLib.Diagnostics.Windows`](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
+| [`NekoLib.Http`](docs/modules/Http/REFERENCE.md) | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
 | [`NekoLib.Data`](docs/modules/Data/REFERENCE.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
 | [`NekoLib.Mvvm`](docs/modules/Mvvm/REFERENCE.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
-| [`NekoLib.Pipes`](src/Pipes/NekoLib.Pipes/README.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
+| [`NekoLib.Pipes`](docs/modules/Pipes/REFERENCE.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
 | [`NekoLib.Watchdog`](docs/modules/Watchdog/REFERENCE.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
 | [`NekoLib.Watchdog.Host`](docs/modules/WatchdogHost/REFERENCE.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
 | [`NekoLib.Devices`](docs/modules/Devices/REFERENCE.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
@@ -180,10 +180,10 @@ technical manual.
 | [Inspection](docs/modules/Inspection/REFERENCE.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
 | [Diagnostics](docs/modules/Diagnostics/REFERENCE.md) | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; options are captured at construction, disposal is terminal and releases the process hooks, bundles may be partial, and a failed bundle raises `CrashBundleFailed` | `NekoLib.Diagnostics.Tests.Unit` |
 | [Diagnostics.Windows](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
-| HTTP | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
-| Data | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
+| [HTTP](docs/modules/Http/REFERENCE.md) | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
+| [Data](docs/modules/Data/REFERENCE.md) | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | [Mvvm](docs/modules/Mvvm/REFERENCE.md) | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency; coercion needs an exact runtime type match and `Execute` does not consult `CanExecute` | `NekoLib.Mvvm.Tests.Unit` |
-| [Pipes](src/Pipes/NekoLib.Pipes/README.md) | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; stateful shutdown is terminal and awaitable | `NekoLib.Pipes.Tests.Unit` |
+| [Pipes](docs/modules/Pipes/REFERENCE.md) | `PipeServer`, `PipeClient`, `PipeEventHub`, `PipeEventClient`, `IPipeMetrics` | Local cooperative-process transport, not an authorization boundary; current-user access is opt-in; event delivery is bounded/best-effort; stateful shutdown is terminal and awaitable | `NekoLib.Pipes.Tests.Unit` |
 | [Watchdog](docs/modules/Watchdog/REFERENCE.md) | `WatchdogBootstrap`, `WatchdogController`, `WatchdogRuntime`, `WatchdogOptions` | Default application bootstrap plus a deliberate advanced supervisor runtime; configuration is captured, shutdown is terminal, evidence is bounded/best-effort, and current-user RPC/events do not protect against a hostile same-user process | `NekoLib.Watchdog.Tests.Unit` |
 | [Devices](docs/modules/Devices/REFERENCE.md) | `HardwareEngine`, `ICommTransport`, serial/TCP/named-pipe transports, `ProtocolRaw` | Transport-neutral byte streams; a timed-out operation leaves an indeterminate receive state unless `CloseTransportOnNoResponse` is enabled; real COM-port behavior still needs explicit runtime validation | `NekoLib.Devices.Tests.Unit` |
 
@@ -345,7 +345,7 @@ require packages to have been produced first.
 | `NekoLib.Inspection` | `src/Inspection/NekoLib.Inspection/` | net481, net9.0 | Core |
 | `NekoLib.Diagnostics` | `src/Diagnostics/NekoLib.Diagnostics/` | net481, net9.0 | Core |
 | `NekoLib.Diagnostics.Windows` | `src/Diagnostics/NekoLib.Diagnostics.Windows/` | net481, net9.0-windows | Diagnostics |
-| `NekoLib.Http` | `src/Http/NekoLib.Http/` | net481, net9.0 | â€” |
+| `NekoLib.Http` | `src/Http/NekoLib.Http/` | net481, net9.0 | — |
 | `NekoLib.Navigation` | `src/Navigation/NekoLib.Navigation/` | net481, net9.0 | Core |
 | `NekoLib.Navigation.WinForms` | `src/Navigation/NekoLib.Navigation.WinForms/` | net481, net9.0-windows | Navigation |
 | `NekoLib.Navigation.Wpf` | `src/Navigation/NekoLib.Navigation.Wpf/` | net481, net9.0-windows | Navigation |
