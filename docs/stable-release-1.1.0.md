@@ -82,7 +82,9 @@ The complete gate is executed on Windows against one clean source commit:
 | PackageReference consumers | WinForms and WPF consumers passed on `net481` and `net9.0-windows` for both package sets |
 | Watchdog Host deployment/runtime | Package topology, unsupported `win-arm64` negative probe, protocol mismatch, startup, and stop passed on both target families for both package sets |
 | Interactive/native hardware/provider/soak | not added by this release gate; prior evidence remains scoped to its recorded source |
-| Git, NuGet.org, and GitHub Release | pending explicit publication stages |
+| Git | `origin/master` includes the release evidence; annotated `v1.1.0` resolves to source `1147f76beb412c3ae6368088bc0c22eb4653daa8` |
+| GitHub draft | Draft release ID `380040305` contains exactly 31 assets; GitHub digests recompute the approved stable aggregate |
+| NuGet.org and public GitHub Release | pending explicit publication stages |
 
 The complete local commands were:
 

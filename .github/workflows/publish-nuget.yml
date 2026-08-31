@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_publication:
-        description: Publish the approved NekoLib 1.0.0 package set to NuGet.org
+        description: Publish the approved NekoLib 1.1.0 package set to NuGet.org
         required: true
         default: false
         type: boolean
@@ -14,12 +14,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: publish-nuget-v1.0.0
+  group: publish-nuget-v1.1.0
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Publish approved 1.0.0 artifacts
+    name: Publish approved 1.1.0 artifacts
     runs-on: windows-latest
     environment: release
     timeout-minutes: 20
@@ -43,7 +43,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $releaseId = 374747427
+          $releaseId = 380040305
           $headers = @{
               Accept = "application/vnd.github+json"
               Authorization = "Bearer $env:GH_TOKEN"
@@ -54,11 +54,11 @@ jobs:
               -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/$releaseId" `
               -Headers $headers
           $assets = @($release.assets | Where-Object {
-              $_.name -match '^NekoLib\..+\.1\.0\.0\.(nupkg|snupkg)$'
+              $_.name -match '^NekoLib\..+\.1\.1\.0\.(nupkg|snupkg)$'
           })
 
-          if ($release.tag_name -ne "v1.0.0" -or -not $release.draft -or $assets.Count -ne 31) {
-              throw "The approved v1.0.0 draft release or its 31 package assets could not be resolved."
+          if ($release.tag_name -ne "v1.1.0" -or -not $release.draft -or $assets.Count -ne 31) {
+              throw "The approved v1.1.0 draft release or its 31 package assets could not be resolved."
           }
 
           New-Item -ItemType Directory -Force -Path artifacts/publish | Out-Null
@@ -73,7 +73,7 @@ jobs:
       - name: Verify the immutable package set
         shell: pwsh
         run: |
-          $expectedAggregate = "3E24185B9246BDB20BDE96C188CA67CAD2603209B861BF0C1A4D1889CBD72887"
+          $expectedAggregate = "C3E0764831636A74CD4969BDC609B16EAEF86FBE0A375C6741217F0F386E7F43"
           $files = @(Get-ChildItem -LiteralPath artifacts/publish -File | Sort-Object Name)
           $mainPackages = @($files | Where-Object { $_.Extension -eq ".nupkg" })
           $symbolPackages = @($files | Where-Object { $_.Extension -eq ".snupkg" })
