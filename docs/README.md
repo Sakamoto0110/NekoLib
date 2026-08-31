@@ -278,6 +278,7 @@ reference commit.
 | [`docs/history/phase-e-confidence-stabilization-2026-08-12.md`](history/phase-e-confidence-stabilization-2026-08-12.md) | roadmap/status | historical | Complete Phase E work log, outcome-first evidence boundaries, residual confidence, and final commit-bound validation |
 | [`docs/history/phase-g1-http-integration-2026-08-16.md`](history/phase-g1-http-integration-2026-08-16.md) | roadmap/status | historical | Phase G1 typed HTTP catalog completion, deterministic and package evidence, and the optional provider-evidence boundary |
 | [`docs/history/phase-f1-public-api-release-stability-2026-08-21.md`](history/phase-f1-public-api-release-stability-2026-08-21.md) | roadmap/status | historical | Phase F1 public API finalization and first stable coordinated package-family completion |
+| [`docs/history/governance-work-campaigns-premises-2026-08-31.md`](history/governance-work-campaigns-premises-2026-08-31.md) | roadmap/status | historical | Work-campaign coordination and scoped-premise governance completion |
 | [`tests/README.md`](../tests/README.md) | reference | current | Automated verification taxonomy and canonical entry points |
 | [`runtime_tests/README.md`](../runtime_tests/README.md) | guide | current | Shared manual runtime-scenario contract and inventory |
 | [`runtime_tests/SCENARIO_TEMPLATE.md`](../runtime_tests/SCENARIO_TEMPLATE.md) | guide | current | Required metadata and procedure template for new scenarios |

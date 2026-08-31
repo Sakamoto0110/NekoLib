@@ -6,9 +6,9 @@
 
 **Subject:** completed roadmap and implementation history
 
-**Reference date:** 2026-08-26
+**Reference date:** 2026-08-31
 
-**Reference commit:** working tree after `fc10319a439edc4943a1226fc66d0cf4ee2d2e2a`
+**Reference commit:** working tree after `94d799d4897ecb6627be61131549af31a4dab730`
 
 This directory preserves completed implementation logs and superseded roadmap
 snapshots. Historical files explain how the repository reached its current
@@ -21,6 +21,7 @@ shape; they do not own open work or current technical facts.
 | [`phase-e-confidence-stabilization-2026-08-12.md`](phase-e-confidence-stabilization-2026-08-12.md) | historical | Complete Phase E work log, outcome-first evidence boundaries, and final commit-bound validation | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-g1-http-integration-2026-08-16.md`](phase-g1-http-integration-2026-08-16.md) | historical | Typed HTTP catalog completion, deterministic and package evidence, and the optional provider-evidence boundary | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-f1-public-api-release-stability-2026-08-21.md`](phase-f1-public-api-release-stability-2026-08-21.md) | historical | Public API finalization and first stable coordinated family release | [`ROADMAP.md`](../../ROADMAP.md), [`TODO.md`](../../TODO.md) |
+| [`governance-work-campaigns-premises-2026-08-31.md`](governance-work-campaigns-premises-2026-08-31.md) | historical | Work-campaign coordination and scoped-premise governance completion | [`TODO.md`](../../TODO.md) |
 
 For historical review findings, use the separate
 [`docs/audit/` index](../audit/README.md).
