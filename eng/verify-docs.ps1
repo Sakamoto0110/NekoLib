@@ -367,6 +367,58 @@ try {
         }
     }
 
+    $workCampaignPaths = @(
+        'docs/governance/work-campaign-policy.md',
+        'docs/schemas/work-campaign-schema.json',
+        'docs/templates/work-campaign.example.json',
+        'eng/invoke-work-campaign.ps1')
+    foreach ($workCampaignPath in $workCampaignPaths) {
+        if (-not (Test-Path -LiteralPath $workCampaignPath -PathType Leaf) -or
+            -not (Test-VersionedCandidatePath $workCampaignPath)) {
+            Add-VerificationError "Work-campaign contract path is absent or non-versioned: $workCampaignPath"
+        } elseif (-not (Test-RepositoryPathCase $workCampaignPath)) {
+            Add-VerificationError "Work-campaign contract path uses incorrect casing: $workCampaignPath"
+        }
+    }
+
+    $workCampaignRunnerPath = 'eng/invoke-work-campaign.ps1'
+    $workCampaignExamplePath = 'docs/templates/work-campaign.example.json'
+    if ((Test-Path -LiteralPath $workCampaignRunnerPath -PathType Leaf) -and
+        (Test-Path -LiteralPath $workCampaignExamplePath -PathType Leaf)) {
+        try {
+            & (Join-Path $repoRoot $workCampaignRunnerPath) `
+                -Campaign $workCampaignExamplePath -ValidateOnly *> $null
+            $notes.Add('Validated the canonical work-campaign example through the repository runner.')
+        } catch {
+            Add-VerificationError "Work-campaign example validation failed: $($_.Exception.Message)"
+        }
+    }
+
+    $premiseContractPaths = @(
+        'docs/governance/premise-policy.md',
+        'docs/premises/README.md',
+        'docs/schemas/premise-schema.json',
+        'docs/templates/premise.example.json',
+        'eng/verify-premises.ps1')
+    foreach ($premiseContractPath in $premiseContractPaths) {
+        if (-not (Test-Path -LiteralPath $premiseContractPath -PathType Leaf) -or
+            -not (Test-VersionedCandidatePath $premiseContractPath)) {
+            Add-VerificationError "Premise contract path is absent or non-versioned: $premiseContractPath"
+        } elseif (-not (Test-RepositoryPathCase $premiseContractPath)) {
+            Add-VerificationError "Premise contract path uses incorrect casing: $premiseContractPath"
+        }
+    }
+
+    $premiseVerifierPath = 'eng/verify-premises.ps1'
+    if (Test-Path -LiteralPath $premiseVerifierPath -PathType Leaf) {
+        try {
+            & (Join-Path $repoRoot $premiseVerifierPath) *> $null
+            $notes.Add('Validated scoped-premise schema, example, records, and effective status.')
+        } catch {
+            Add-VerificationError "Scoped-premise verification failed: $($_.Exception.Message)"
+        }
+    }
+
     if ($null -ne $documentationSchema) {
         if ($null -eq $documentationSchema.agentAuthoring) {
             Add-VerificationError "$documentationSchemaPath is missing the agentAuthoring contract."

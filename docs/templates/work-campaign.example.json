@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "campaignId": "EXAMPLE-WORK-CAMPAIGN",
+  "title": "Example documentation work campaign",
+  "kind": "documentation",
+  "authority": {
+    "kind": "owner-decision",
+    "source": "Replace with the exact accepted owner decision or promoted task.",
+    "references": []
+  },
+  "baseline": {
+    "branch": "master",
+    "commit": "0000000000000000000000000000000000000000",
+    "treeState": "clean",
+    "preExistingPaths": []
+  },
+  "scope": {
+    "includePaths": [
+      "AGENTS.md",
+      "README.md",
+      "ROADMAP.md",
+      "TODO.md",
+      "docs/*",
+      ".agents/*",
+      ".claude/skills/*",
+      "eng/*"
+    ],
+    "excludePaths": [],
+    "taskIds": []
+  },
+  "stages": [
+    {
+      "id": "author",
+      "description": "Complete the bounded documentation changes and focused checks.",
+      "completionCriteria": [
+        "Every changed claim is reconciled with its current authority.",
+        "Focused stage validation and remaining gaps are reported."
+      ]
+    },
+    {
+      "id": "close",
+      "description": "Run each selected aggregate finalizer once and review the complete change.",
+      "completionCriteria": [
+        "Every required pre-commit finalizer passes for the current fingerprint.",
+        "The complete diff and evidence boundaries are reviewed before commit authorization."
+      ]
+    }
+  ],
+  "finalizers": [
+    {
+      "id": "verify-docs",
+      "phase": "pre-commit",
+      "description": "Validate authored documentation metadata, links, schemas, and repository topology.",
+      "executable": "eng/verify-docs.ps1",
+      "arguments": [],
+      "workingDirectory": ".",
+      "whenChanged": [
+        "*.md",
+        "*.txt",
+        "docs/*",
+        ".agents/*",
+        ".claude/skills/*",
+        "eng/verify-docs.ps1"
+      ],
+      "requiredPaths": [
+        "eng/verify-docs.ps1"
+      ],
+      "required": true,
+      "requiresCleanTree": false,
+      "expectedExitCodes": [0]
+    },
+    {
+      "id": "verify-skills",
+      "phase": "pre-commit",
+      "description": "Validate repository-owned skill registration and declared parity structure when agent surfaces change.",
+      "executable": "eng/verify-skills.ps1",
+      "arguments": [],
+      "workingDirectory": ".",
+      "whenChanged": [
+        ".agents/skills/*",
+        ".claude/skills/*",
+        "docs/governance/agent-documentation-contract.md",
+        "docs/schemas/agent-skill-registry.json",
+        "eng/verify-skills.ps1"
+      ],
+      "requiredPaths": [
+        "eng/verify-skills.ps1"
+      ],
+      "required": true,
+      "requiresCleanTree": false,
+      "expectedExitCodes": [0]
+    },
+    {
+      "id": "diff-check",
+      "phase": "pre-commit",
+      "description": "Reject whitespace errors across the complete campaign change set.",
+      "executable": "git",
+      "arguments": [
+        "diff",
+        "--check",
+        "{baseline}"
+      ],
+      "workingDirectory": ".",
+      "whenChanged": ["*"],
+      "requiredPaths": [],
+      "required": true,
+      "requiresCleanTree": false,
+      "expectedExitCodes": [0]
+    },
+    {
+      "id": "refresh-local-documentation-index",
+      "phase": "post-commit",
+      "description": "Refresh the optional local Markdown/Text search snapshot after a clean committed documentation campaign.",
+      "executable": "python",
+      "arguments": [
+        ".local/documentation-migration/index_documents.py"
+      ],
+      "workingDirectory": ".",
+      "whenChanged": [
+        "*.md",
+        "*.txt"
+      ],
+      "requiredPaths": [
+        ".local/documentation-migration/index_documents.py"
+      ],
+      "required": false,
+      "requiresCleanTree": true,
+      "expectedExitCodes": [0]
+    }
+  ],
+  "notes": "Copy this file under .local/work-campaigns/<campaign-id>/campaign.json and replace every example value."
+}

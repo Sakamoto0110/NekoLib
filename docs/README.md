@@ -72,6 +72,8 @@ not infer or fabricate one from the file's first Git appearance.
 | Unpromoted proposal records | [`docs/proposals/`](proposals/README.md) | Linked investigations, findings, audits, issues, and owner decisions |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
 | Agent documentation authoring | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) and registered skills | Profiles share one output contract and do not replace public or technical documentation |
+| Multi-stage execution coordination | [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | Campaign manifests consume existing authority and coordinate local stages/finalizers without becoming work or evidence authority |
+| Scoped reasoning premises | [`docs/governance/premise-policy.md`](governance/premise-policy.md) and [`docs/premises/`](premises/README.md) | Premises may reduce redundant investigation only while effectively active; they never override current authority or evidence |
 | Repository skill identity, adapter paths, and parity intent | [`docs/schemas/agent-skill-registry.json`](schemas/agent-skill-registry.json) | Skill entrypoints and any shared contracts own procedures and interoperable semantics |
 | General agent workflow | [`AGENTS.md`](../AGENTS.md) and `.agents/skills/` | These files do not replace public or technical documentation |
 
@@ -223,8 +225,11 @@ reference commit.
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/governance/documentation-policy.md`](governance/documentation-policy.md) | reference | current | Module-first authority, lifecycle, conflict, migration, and indexing policy |
 | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) | reference | current | Interoperable output contract and permitted role variation for documentation skills |
+| [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | reference | current | Bounded multi-stage execution, local resumable state, and deduplicated campaign finalizers |
+| [`docs/governance/premise-policy.md`](governance/premise-policy.md) | reference | current | Scoped confidence premises, effective status, contradictions, freshness, and automatic suspension |
 | [`docs/governance/validation-policy.md`](governance/validation-policy.md) | reference | current | Validation taxonomy, profiles, requirement/evidence separation, and soak records |
-| [`docs/schemas/README.md`](schemas/README.md) | reference | current | Deterministic documentation and agent-skill schema index |
+| [`docs/schemas/README.md`](schemas/README.md) | reference | current | Deterministic documentation, agent-skill, campaign, and premise schema index |
+| [`docs/premises/README.md`](premises/README.md) | reference | current | One-record-per-file registry for accepted scoped premises and their preserved lifecycle |
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/stable-release-1.0.0.md`](stable-release-1.0.0.md) | reference | current | First stable family baseline, qualifying package provenance, hashes, validation, and distribution boundaries |

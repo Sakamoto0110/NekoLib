@@ -30,6 +30,8 @@ the handoff state and the rules that are easy to get wrong.
 | Documentation infrastructure, agent adapters, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Cross-agent documentation authoring contract | [`docs/governance/agent-documentation-contract.md`](docs/governance/agent-documentation-contract.md) |
+| Multi-stage work campaigns and deferred finalizers | [`docs/governance/work-campaign-policy.md`](docs/governance/work-campaign-policy.md) |
+| Scoped confidence premises and automatic suspension | [`docs/governance/premise-policy.md`](docs/governance/premise-policy.md) |
 | Agent skill registry and parity intent | [`docs/schemas/agent-skill-registry.json`](docs/schemas/agent-skill-registry.json) |
 | Historical audit records (reverify findings against code/tests) | [`docs/audit/`](docs/audit/) |
 | Completed roadmap history | [`docs/history/`](docs/history/) |
@@ -253,6 +255,37 @@ is why — **do not recreate them**:
 
 # Working rules
 
+## Work campaigns
+
+Use a work campaign only when the owner explicitly groups two or more bounded,
+already-authorized stages under shared baseline, scope, finalizer, or evidence
+coordination. The campaign consumes authority from `TODO.md`, an accepted
+decision, release policy, or an exact owner instruction; it never creates or
+widens that authority.
+
+Active manifests and their mutable deduplication state live under ignored
+`.local/work-campaigns/<campaign-id>/`. Read the
+[`work campaign policy`](docs/governance/work-campaign-policy.md), validate the
+manifest, and plan the requested phase before using
+`eng/invoke-work-campaign.ps1 -Execute`. The runner never authorizes or creates
+a commit, push, publication, package, or release. Do not manually repeat an
+already-passing finalizer for the same campaign fingerprint unless a changed
+risk or explicit instruction justifies `-Force`.
+
+## Scoped premises
+
+Use a premise only when a versioned record under `docs/premises/` has explicit
+acceptance, applies to the current path/boundary/campaign, permits the intended
+shortcut, and `eng/verify-premises.ps1` reports effective `active`. A premise
+may reduce repeated investigation; it never overrides source or evidence and
+never suppresses required validation or an authorization gate.
+
+Stop relying on a premise at the first qualifying contradiction and record that
+observation. Distinct ordinary failures or one critical contradiction derive
+`broken`; relevant path drift derives `stale`. Preserve broken and superseded
+records and their history. Never reactivate a broken ID—create a newly accepted
+premise that links it through `supersedes`.
+
 ## Build & test
 
 ```bash
@@ -267,6 +300,9 @@ compare emitted warning identities.
 Validate repository-owned skill registration, adapter identity, parity-policy
 structure, and declared common modes with `.\eng\verify-skills.ps1`. Semantic
 parity remains a review concern.
+
+Validate scoped-premise records, contradiction thresholds, checkout freshness,
+and declared/effective status with `.\eng\verify-premises.ps1`.
 
 Create and verify a new immutable local package version:
 

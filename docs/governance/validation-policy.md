@@ -29,6 +29,19 @@ The existing [test taxonomy](../../tests/README.md) remains authoritative for
 test placement and canonical commands. This policy defines the cross-document
 vocabulary used by module qualification records.
 
+## Scoped premises and validation
+
+An eligible [scoped premise](premise-policy.md) may prevent redundant
+investigation, but it never changes a requirement classification, evidence
+level, acceptance criterion, or validation gate. A previously passing test may
+support premise activation; it is not a reusable PASS for a later commit,
+target, environment, package, runtime, or release unless the normal evidence
+contract already permits that reuse.
+
+A contrary validation result wins over the premise immediately. Record the
+contradiction, suspend premise use, derive its effective status, and continue
+the failure investigation under the original validation requirements.
+
 ## Closed taxonomy
 
 | Axis | Values |

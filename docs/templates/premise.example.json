@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "premiseId": "GLOBAL-PREMISE-001",
+  "title": "Example high-confidence scoped premise",
+  "statement": "Replace this with one precise and falsifiable statement about the covered behavior.",
+  "status": "active",
+  "authority": {
+    "kind": "owner-decision",
+    "source": "Replace with the exact acceptance decision.",
+    "references": [
+      "TODO.md"
+    ]
+  },
+  "scope": {
+    "mode": "campaign",
+    "boundaries": [
+      "core"
+    ],
+    "includePaths": [
+      "src/Core/*"
+    ],
+    "excludePaths": [],
+    "campaignIds": [
+      "EXAMPLE-WORK-CAMPAIGN"
+    ],
+    "permittedUses": [
+      "skip-reinspection",
+      "narrow-investigation"
+    ]
+  },
+  "basis": {
+    "validatedAtCommit": "0000000000000000000000000000000000000000",
+    "validatedAtUtc": "2026-08-30T00:00:00Z",
+    "rationale": [
+      "Replace with the independent source and evidence reasons supporting unusually high confidence."
+    ],
+    "evidenceReferences": [
+      "docs/modules/Core/REFERENCE.md"
+    ]
+  },
+  "freshness": {
+    "invalidateWhenChanged": [
+      "src/Core/*",
+      "tests/NekoLib.Core.Tests/*"
+    ],
+    "expiresAtUtc": null
+  },
+  "invalidation": {
+    "distinctFailureThreshold": 2,
+    "distinctBy": "identity"
+  },
+  "contradictions": [],
+  "statusHistory": [
+    {
+      "status": "active",
+      "atUtc": "2026-08-30T00:00:00Z",
+      "reason": "Replace with the accepted activation decision and evidence summary.",
+      "evidenceReferences": [
+        "docs/modules/Core/REFERENCE.md"
+      ]
+    }
+  ],
+  "supersedes": []
+}

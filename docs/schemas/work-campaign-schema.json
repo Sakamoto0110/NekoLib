@@ -1,0 +1,292 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Sakamoto0110/NekoLib/docs/schemas/work-campaign-schema.json",
+  "schemaVersion": 1,
+  "title": "NekoLib work campaign",
+  "description": "Machine-readable coordination for already-authorized multi-stage repository work. The manifest selects and deduplicates finalizers; it is not task, product, API, or evidence authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "campaignId",
+    "title",
+    "kind",
+    "authority",
+    "baseline",
+    "scope",
+    "stages",
+    "finalizers"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "campaignId": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "documentation",
+        "implementation",
+        "validation",
+        "release",
+        "repository-maintenance",
+        "mixed"
+      ]
+    },
+    "authority": {
+      "$ref": "#/definitions/authority"
+    },
+    "baseline": {
+      "$ref": "#/definitions/baseline"
+    },
+    "scope": {
+      "$ref": "#/definitions/scope"
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/definitions/stage"
+      }
+    },
+    "finalizers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/finalizer"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "references"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "todo",
+            "owner-decision",
+            "accepted-review",
+            "release-policy"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "references": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryRelativePath"
+          }
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "commit", "treeState", "preExistingPaths"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "treeState": {
+                "const": "clean"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "preExistingPaths": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "preExistingPaths": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "treeState": {
+          "type": "string",
+          "enum": ["clean", "dirty"]
+        },
+        "preExistingPaths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryRelativePath"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["includePaths", "excludePaths", "taskIds"],
+      "properties": {
+        "includePaths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryPattern"
+          }
+        },
+        "excludePaths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryPattern"
+          }
+        },
+        "taskIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "completionCriteria"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completionCriteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "finalizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "phase",
+        "description",
+        "executable",
+        "arguments",
+        "workingDirectory",
+        "whenChanged",
+        "requiredPaths",
+        "required",
+        "requiresCleanTree",
+        "expectedExitCodes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["pre-commit", "post-commit"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "workingDirectory": {
+          "$ref": "#/definitions/repositoryRelativeDirectory"
+        },
+        "whenChanged": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryPattern"
+          }
+        },
+        "requiredPaths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/repositoryRelativePath"
+          }
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "requiresCleanTree": {
+          "type": "boolean"
+        },
+        "expectedExitCodes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "repositoryRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\.$)(?![A-Za-z]:)(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[?*\\[\\]]).+$"
+    },
+    "repositoryRelativeDirectory": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:\\.|(?![A-Za-z]:)(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[?*\\[\\]]).+)$"
+    },
+    "repositoryPattern": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\.$)(?![A-Za-z]:)(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}

@@ -63,6 +63,37 @@ Every agent-authored document must:
 The originating agent is not an authority category. Documents must not assign
 extra weight to a claim because Codex, Claude, or another tool authored it.
 
+## Work-campaign interoperability
+
+When an explicit work campaign is active, every profile reads the
+[work campaign policy](work-campaign-policy.md) and the same local manifest
+before acting. The manifest coordinates already-authorized stages and
+finalizers; it does not replace the requested mode, module boundary, `TODO.md`,
+or any product, API, validation, package, release, commit, or push gate.
+
+Profiles must preserve the manifest baseline, scope, pre-existing-path boundary,
+finalizer IDs, phases, and change-set fingerprint semantics. A recorded PASS may
+prevent redundant execution of the same finalizer for the same fingerprint, but
+it is not durable evidence and must not suppress a newly relevant focused check.
+Cross-profile handoff therefore needs only the shared repository documents plus
+the explicitly transported local campaign manifest/state; no model-private
+interpretation is allowed.
+
+## Scoped-premise interoperability
+
+Every profile applies the same
+[scoped premise policy](premise-policy.md). A premise may remove a redundant
+investigation step only when the shared record is effectively `active`, covers
+the current path, boundary, and campaign, and explicitly permits that shortcut.
+No profile may use it to weaken validation, evidence, authorization, conflict,
+or stop rules.
+
+Profiles stop relying on the premise at the first qualifying contradiction and
+record the same contradiction identity, classification, severity, context, and
+evidence fields. The evaluator's effective status controls eligibility even
+when the durable status has not yet been reconciled. Agent-specific confidence,
+memory, or prose cannot activate, preserve, break, or restore a premise.
+
 ## Permitted profile variation
 
 Profiles may differ in:

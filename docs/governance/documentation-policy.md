@@ -37,6 +37,7 @@ It extends the classification model in the [documentation index](../README.md).
 | Module routing and identity | `docs/modules/<Boundary>/MANIFEST.md` |
 | Product direction, intentions, planning horizons, guardrails, and freezes | Root `ROADMAP.md` |
 | Formally promoted work, execution order, gates, and completion criteria | Root `TODO.md` |
+| Scoped reasoning premises and their preserved lifecycle | `docs/governance/premise-policy.md` plus accepted records under `docs/premises/`; never implementation or evidence truth |
 | Confirmed defects | Module `ISSUES.md`; scheduling still requires explicit promotion to `TODO.md` |
 | Unconfirmed observations | Module `FINDINGS.md` |
 | Unpromoted proposals | One concise record per file under `docs/proposals/` |

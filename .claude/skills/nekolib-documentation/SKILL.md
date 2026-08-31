@@ -80,6 +80,16 @@ Stop at the requested module boundary.
    ignored or external evidence unless it is explicitly in scope.
 4. Confirm the module's projects, packages, targets, dependencies, solution
    membership, and accepted API baselines from project and build sources.
+5. If an explicit work-campaign manifest is in scope, read the
+   [work campaign policy](../../../docs/governance/work-campaign-policy.md) and
+   that manifest. Reconfirm its authority, branch, baseline, scope, and
+   pre-existing paths; the campaign coordinates execution but does not authorize
+   a mode, mutation, commit, push, package, or release.
+6. If a scoped premise is offered or applicable, read the
+   [premise policy](../../../docs/governance/premise-policy.md), the complete
+   premise record, and run `eng/verify-premises.ps1`. Use only effective
+   `active` for the exact permitted shortcut; never weaken validation or a stop
+   rule, and suspend use at the first qualifying contradiction.
 
 ## Module traversal
 
@@ -126,5 +136,12 @@ Apply the [stop rules](references/stop-rules.md) immediately when triggered.
 Before completion, perform the complete [self-review](references/self-review.md)
 and run `eng/verify-docs.ps1` plus `git diff --check`. When a skill adapter, the
 skill registry, or a shared skill contract changed, also run
-`eng/verify-skills.ps1`. Add build, test, API, runtime, or package validation
-only when the changed surface justifies it.
+`eng/verify-skills.ps1`. When an active work campaign applies, plan or execute
+only its authorized phase through `eng/invoke-work-campaign.ps1`; do not
+manually repeat a recorded PASS for the same finalizer and fingerprint unless
+changed risk or explicit instruction justifies `-Force`. When premises were
+created, changed, or consumed, run `eng/verify-premises.ps1` and report the IDs,
+effective statuses, omitted investigation, retained validation, and any
+contradictions. Never activate a premise from agent confidence alone. Add build,
+test, API, runtime, or package validation only when the changed surface
+justifies it.

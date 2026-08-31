@@ -31,6 +31,7 @@ current file is actually clean-clone evidence.
 | `docs/governance/` | Shared documentation authority, lifecycle, validation, and cross-agent authoring policies | yes |
 | `docs/schemas/` | Closed structural vocabulary plus repository skill identity, adapter topology, and parity intent | yes |
 | `docs/templates/` | Canonical shared document structures; examples are not repository evidence | yes |
+| `docs/premises/` | Accepted scoped-premise records, contradiction history, and lifecycle; not truth or evidence authority | yes |
 | `docs/proposals/` | Concise one-file unpromoted ideas; non-normative and not an exclusive promotion source | yes |
 | `docs/modules/` | Reviewed module-first boundaries and their manifests, current references, registers, audits, and migrations | yes |
 | `.agents/skills/` | Repository-owned Codex workflow adapters and routing; procedural, not product authority | yes |
@@ -40,7 +41,7 @@ current file is actually clean-clone evidence.
 | `eng/` | Build, validation, packaging, and repository-maintenance automation | yes |
 | `.github/workflows/` | Manual remote publication transport; no automatic build or validation trigger | yes |
 | `artifacts/` | Generated, disposable build/package/tool output | no |
-| `.local/` | Machine-only experiments, configuration, private prerequisites, and scratch data | no |
+| `.local/` | Machine-only experiments, active work-campaign manifests/state, configuration, private prerequisites, and scratch data | no |
 | Selected `.claude/` runtime paths | Machine permissions, locks, routines state, worktrees, checkpoints, mailboxes, and other paths explicitly listed in `.gitignore` | no |
 
 ## Documentation and agent adapters
@@ -66,6 +67,36 @@ specific `.gitignore` rules. Never infer that the entire directory is versioned
 or ignored. Confirm the exact path through `git ls-files`, `git status`, and
 `git check-ignore`. An untracked, non-ignored adapter is part of the current
 working-tree review but is not available in a clean clone until committed.
+
+## Work campaigns
+
+The [work campaign policy](governance/work-campaign-policy.md) owns the shared
+execution-coordination contract. Its schema and example are versioned under
+`docs/schemas/` and `docs/templates/`; the safe plan/execute entry point is
+[`eng/invoke-work-campaign.ps1`](../eng/invoke-work-campaign.ps1). An active
+`campaign.json` and mutable `state.json` live under ignored
+`.local/work-campaigns/<campaign-id>/` and are machine-local coordination, not
+clean-clone authority or evidence.
+
+This repository-wide work-campaign contract is distinct from the Phase E
+runtime scenario `campaign.json`, whose process orchestration remains owned by
+the relevant `runtime_tests/` scenario. Durable campaign outcomes stay in their
+existing source, documentation, validation, audit, history, package, or release
+owners.
+
+## Scoped premises
+
+The [scoped premise policy](governance/premise-policy.md) owns premise
+eligibility and lifecycle. Shared records live under `docs/premises/`, their
+closed structure is versioned under `docs/schemas/`, and
+[`eng/verify-premises.ps1`](../eng/verify-premises.ps1) derives checkout-specific
+effective status. Optional evaluator caches belong under ignored
+`.local/premises/` and never replace the durable record.
+
+Premise records may name work-campaign IDs, but they remain distinct from
+campaign manifests and state. Premises optimize investigation while campaigns
+coordinate execution; neither becomes source, validation, task, or release
+authority.
 
 ## Inventory snapshots
 
