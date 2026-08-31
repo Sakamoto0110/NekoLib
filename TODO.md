@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-08-30
+**Last promotion decision:** 2026-08-31
 
 ## Purpose and admission rule
 
@@ -48,6 +48,69 @@ Unchecked items are not automatically authorized to start. An entry may retain
 an explicit implementation gate after promotion.
 
 ## Current promoted work
+
+### `RELEASE-1.1.0` — qualify and release the next coordinated stable family
+
+**Status:** promoted; release candidate preparation may begin; stable
+materialization, tag, push, NuGet.org publication, and GitHub Release remain
+separate gates.
+
+**Source:** the owner's direct decision on 2026-08-31 that the additive
+QueryBuilder and Data type-adaptation changes completed after `1.0.0` are
+substantial enough to establish `1.1.0` as the next stable coordinated family
+version, reconciled with the
+[`Data QueryBuilder decision`](docs/modules/Data/audits/type-adaptation-querybuilder-api-review-2026-08-26.md),
+the coordinated [`CHANGELOG.md`](CHANGELOG.md), and the
+[`public API and release policy`](docs/public-api-release-policy.md).
+
+**Accepted scope:** qualify the complete coordinated package family at version
+`1.1.0`. The SemVer-minor justification is the compatible stable Data surface:
+structured QueryBuilder APIs with warning-only legacy overloads, explicit
+write/read temporal type-adaptation policy, and their migration guidance. The
+candidate also carries every other compatible post-`1.0.0` repository change,
+including the Logging disposal correction and package-owned managed XML
+documentation. This promotion does not remove any obsolete QueryBuilder
+overload, open the `2.0.0` window, or authorize unrelated product work.
+
+**Dependencies and gates:**
+
+1. Select and record one clean source commit after all intended `1.1.0`
+   documentation, indexing, and packaging inputs are committed; freeze the
+   candidate change set before qualification.
+2. Reconcile the coordinated and affected module changelogs from `Unreleased`
+   to `1.1.0` without rewriting historical candidate evidence.
+3. Run the complete Windows Release build/test gate, compare warning identities,
+   and verify all accepted public API manifests without baseline updates unless
+   a separately accepted API decision requires one.
+4. Produce a new immutable `1.1.0-local.N` candidate through
+   `eng/pack-local.ps1`; retain exact package hashes and require every managed
+   package to carry its matching XML asset. Reuse of `1.1.0-local.8` is evidence,
+   not a substitute for a candidate from the frozen release source commit.
+5. Pass the canonical isolated PackageReference consumers and the Watchdog Host
+   deployment/package probes. Preserve source, build, test, API, runtime,
+   interactive, package, release, and publication evidence as separate layers.
+6. Review the complete candidate diff and evidence before declaring the stable
+   baseline. Materializing exact `1.1.0` packages, creating `v1.1.0`, pushing,
+   trusted NuGet.org publication, and creating the GitHub Release each require
+   their explicit release gate; no campaign or successful package command
+   implies the next gate.
+
+**Completion criteria:**
+
+- the stable release record names the frozen source commit, all package and
+  symbol-package hashes, aggregate manifest hash, target/package topology, and
+  every executed and unexecuted evidence layer;
+- `CHANGELOG.md` and affected module changelogs describe `1.1.0` compatibility
+  and migration, while the accepted API baselines remain unchanged except for
+  an explicitly reviewed addition;
+- the clean immutable `1.1.0` family is byte-identical to the approved candidate
+  except for intentional version/provenance fields, and its PackageReference
+  consumers pass on both target families;
+- tag, repository history, NuGet.org assets, and GitHub Release assets resolve
+  to the recorded hashes after their separately authorized publication gates;
+  and
+- `NEKOMKT-F026` remains warning-only and blocked until an explicitly opened
+  `2.0.0` removal window.
 
 ### `NEKOMKT-F026` — retire the legacy SQL-inverted QueryBuilder join overload
 
