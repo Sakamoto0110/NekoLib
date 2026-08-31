@@ -10,7 +10,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write # GitHub requires write access to read draft release assets.
+  contents: read
   id-token: write
 
 concurrency:
