@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary and owns package hashes and release provenance. This file records
 Devices-specific consumer impact.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Devices`
 

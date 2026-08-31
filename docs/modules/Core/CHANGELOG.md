@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Core-specific consumer impact without duplicating
 package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Core`
 

@@ -14,6 +14,17 @@ remain under `docs/history/`.
 
 ## Unreleased
 
+No consumer-visible changes are currently recorded after `1.1.0`.
+
+## 1.1.0 — compatible minor candidate 2026-08-31
+
+NekoLib `1.1.0` is the approved first compatible minor of the coordinated stable family.
+It adds the structured QueryBuilder and explicit temporal type-adaptation
+surfaces, retains all four replaced QueryBuilder overloads as warning-only
+compatibility shims, and removes no stable API. Every package remains aligned
+on one family version; exact package provenance and hashes are recorded in the
+[`1.1.0` stable release record](docs/stable-release-1.1.0.md).
+
 ### Public API
 
 - **NekoLib.Data — additive stable API with warning-only deprecations, targeting
@@ -41,6 +52,23 @@ remain under `docs/history/`.
   formatting intent. Exact DTO types and non-temporal mapping remain unchanged;
   arbitrary temporal parsing is no longer inferred. See the
   [Data type-adaptation migration guide](docs/modules/Data/migrations/data-type-adaptation.md).
+
+### Behavioral corrections
+
+- **NekoLib.Logging — compatible budget-enforcement correction.** A sink that
+  exhausts `Logger.Flush(timeout)` now stops admission of later sink flushes
+  immediately. The returned result remains `false`, signatures and accepted API
+  manifests are unchanged, and no migration is required.
+
+### Documentation and packaging
+
+- All 15 managed library packages now carry matching XML documentation beside
+  every target assembly. The comments describe accepted behavior and consumer
+  extension seams but do not replace the normative module references, compiled
+  API baselines, tests, or runtime evidence.
+- Public XML comments were corrected across the coordinated family without
+  changing compiled signatures or runtime behavior. `NekoLib.Watchdog.Host`
+  remains a deployment package and carries no managed public-API XML asset.
 
 ## 1.0.0 — stable baseline declared 2026-08-21
 

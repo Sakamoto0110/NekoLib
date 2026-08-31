@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Navigation-specific consumer impact without
 duplicating package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Navigation`, `NekoLib.Navigation.WinForms`, `NekoLib.Navigation.Wpf`
 
@@ -34,11 +34,10 @@ duplicating package hashes or release provenance.
 
 **Migration:** none
 
-- Documentation-enabled builds now produce XML assets for all six target
-  assemblies. Immutable candidate `1.1.0-local.8` proved that each managed
-  package contains its package-owned XML file and that isolated
-  PackageReference consumers receive it. This candidate is evidence, not a
-  public stable release declaration.
+- Documentation-enabled builds produce XML assets for all six target
+  assemblies. Immutable candidate `1.1.0-local.9` is the qualifying package
+  evidence that each package contains its package-owned XML file and that
+  isolated PackageReference consumers receive it.
 
 ## 1.0.0
 

@@ -24,6 +24,22 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Telemetry-specific consumer impact without
 duplicating package hashes or release provenance.
 
+## 1.1.0
+
+**Packages:** `NekoLib.Telemetry`
+
+**Compatibility class:** documentation-only
+
+**Consumer impact:** The package now carries complete XML member documentation for both target assemblies; compiled signatures, accepted API baselines, dependencies, and runtime behavior are unchanged.
+
+**Migration:** none
+
+- XML comments define operation completion, dimensions, measurements, bounded
+  retention, snapshots, sink dispatch, ownership, and consumer extension
+  contracts.
+- Immutable `1.1.0-local.9` is the qualifying package evidence for the XML
+  delivery and stable release.
+
 ## 1.0.0
 
 **Packages:** `NekoLib.Telemetry`

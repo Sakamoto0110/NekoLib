@@ -24,6 +24,21 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records HTTP-specific consumer impact without duplicating
 package hashes or release provenance.
 
+## 1.1.0
+
+**Packages:** `NekoLib.Http`
+
+**Compatibility class:** documentation-only
+
+**Consumer impact:** The package now carries complete XML member documentation for both target assemblies; compiled signatures, accepted API baselines, dependencies, and runtime behavior are unchanged.
+
+**Migration:** none
+
+- XML comments define the catalog, client ownership, response evidence,
+  serialization, relative-URI, size-bound, and consumer extension contracts.
+- Immutable `1.1.0-local.9` is the qualifying package evidence for the XML
+  delivery and stable release.
+
 ## 1.0.0
 
 **Packages:** `NekoLib.Http`

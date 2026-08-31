@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Watchdog-specific consumer impact without duplicating
 package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Watchdog`
 
@@ -35,10 +35,9 @@ package hashes or release provenance.
 **Migration:** none
 
 - Documentation-enabled builds produce XML assets for both target assemblies.
-  Immutable candidate `1.1.0-local.8` proved that the managed package contains
-  its package-owned XML file and that isolated `PackageReference` consumers
-  receive it. This candidate is evidence, not a public stable release
-  declaration.
+  Immutable candidate `1.1.0-local.9` is the qualifying package evidence that
+  the managed package contains its package-owned XML file and that isolated
+  `PackageReference` consumers receive it.
 - Six public XML comments now describe behavior that already existed and was
   previously under-described: `WatchdogOptions.LogPath` defaults to
   `watchdog.log` only when file logging is enabled; a non-positive

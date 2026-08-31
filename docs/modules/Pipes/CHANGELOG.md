@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Pipes-specific consumer impact without duplicating
 package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Pipes`
 
@@ -35,10 +35,9 @@ package hashes or release provenance.
 **Migration:** none
 
 - Documentation-enabled builds produce XML assets for both target assemblies.
-  Immutable candidate `1.1.0-local.8` proved that the managed package contains
-  its package-owned XML file and that isolated `PackageReference` consumers
-  receive it. This candidate is evidence, not a public stable release
-  declaration.
+  Immutable candidate `1.1.0-local.9` is the qualifying package evidence that
+  the managed package contains its package-owned XML file and that isolated
+  `PackageReference` consumers receive it.
 - `IPipeMetrics.OnServerClientConnected` and
   `IPipeMetrics.OnServerClientDisconnected` now document that an event hub
   raises them with the `.events` endpoint name, so a sink shared with the RPC

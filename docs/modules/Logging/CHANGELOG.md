@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Logging-specific consumer impact without duplicating
 package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Logging`
 
@@ -44,9 +44,8 @@ package hashes or release provenance.
   bound is reached.
 - `RollingFileLogSink.Write` documents that it creates the target directory
   when it is missing, which construction does not do.
-- These changes were qualified in immutable candidate `1.1.0-local.8`. The
-  documentation-only comment above is later than that candidate, so no package
-  evidence covers it.
+- Immutable `1.1.0-local.9` is the qualifying package evidence for both the
+  behavioral correction and the final XML documentation.
 
 ## 1.0.0
 

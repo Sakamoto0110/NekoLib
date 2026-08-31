@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Data-specific consumer impact without duplicating
 package hashes or treating local candidates as public releases.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Data`
 
@@ -41,9 +41,9 @@ package hashes or treating local candidates as public releases.
 - Write promotion, provider decay, exact loss authorization, schema discovery,
   DTO temporal materialization, and value-free adaptation evidence are explicit
   policies rather than provider-call retries or implicit conversions.
-- Documentation-enabled builds now produce Data XML assets for both targets.
-  Immutable candidate `1.1.0-local.8` proved package content and isolated
-  PackageReference delivery; it is evidence, not a stable release declaration.
+- Documentation-enabled builds produce Data XML assets for both targets.
+  Immutable candidate `1.1.0-local.9` is the qualifying package evidence for
+  the stable release; earlier candidates remain historical evidence only.
 
 ## 1.0.0
 

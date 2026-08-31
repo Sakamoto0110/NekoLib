@@ -29,6 +29,21 @@ the payload layout, the MSBuild properties and their outcomes, the launch
 protocol, the exit codes, and the fatal-evidence path. A change to any of those
 belongs here.
 
+## 1.1.0
+
+**Packages:** `NekoLib.Watchdog.Host`
+
+**Compatibility class:** release-only
+
+**Consumer impact:** The deployment package advances with the coordinated family version. Payload layout, build targets, bootstrap arguments, protocol v1, runtime prerequisites, and deployment behavior are unchanged.
+
+**Migration:** none
+
+- Upgrade `NekoLib.Watchdog` and `NekoLib.Watchdog.Host` together to preserve
+  coordinated package and protocol identity.
+- Immutable `1.1.0-local.9` is the qualifying package evidence for the unchanged
+  payload topology and package-owned runtime probes.
+
 ## 1.0.0
 
 **Packages:** `NekoLib.Watchdog.Host`

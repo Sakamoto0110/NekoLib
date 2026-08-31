@@ -20,7 +20,7 @@
 
 **Affected package:** `NekoLib.Data`
 
-**Affected release:** unreleased compatible minor after `1.0.0`
+**Affected release:** `1.1.0`
 
 **Indexing:** include
 

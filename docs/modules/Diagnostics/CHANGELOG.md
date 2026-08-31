@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Diagnostics-specific consumer impact without
 duplicating package hashes or release provenance.
 
-## Unreleased
+## 1.1.0
 
 **Packages:** `NekoLib.Diagnostics`, `NekoLib.Diagnostics.Windows`
 
@@ -42,8 +42,8 @@ duplicating package hashes or release provenance.
 - `ExtraLines` is count-unbounded but time-bounded, redacted, and line-truncated.
 - A timed-out custom writer can finish late; event-time `DumpWritten` remains
   the outcome authority.
-- These source comments have not been qualified in a new package candidate.
-  Immutable `1.1.0-local.8` proves delivery of the prior XML bytes only.
+- Immutable `1.1.0-local.9` is the qualifying package evidence for these XML
+  corrections and the stable release.
 
 ## 1.0.0
 

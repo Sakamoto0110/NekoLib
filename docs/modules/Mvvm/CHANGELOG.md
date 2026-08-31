@@ -24,6 +24,27 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Mvvm-specific consumer impact without duplicating
 package hashes or release provenance.
 
+## 1.1.0
+
+**Packages:** `NekoLib.Mvvm`
+
+**Compatibility class:** documentation-only
+
+**Consumer impact:** Two XML comments now describe existing behavior more precisely. Compiled signatures, the accepted API baselines, and runtime behavior are unchanged.
+
+**Migration:** none
+
+- `RelayCommand<T>.Execute` no longer inherits its documentation from
+  `RelayCommand.Execute`. The inherited text said the delegate is invoked, which
+  is not what the generic overload does: it coerces first and is a silent no-op
+  when coercion fails. The member now documents that, and still records that
+  `Execute` does not consult `CanExecute`.
+- `ViewModelBase.SetProperty`'s `propertyName` parameter now states that the
+  compiler supplies it from the calling member and that a null or empty value is
+  forwarded unchanged, meaning "every property changed".
+- Immutable `1.1.0-local.9` is the qualifying package evidence for these XML
+  corrections and the stable release.
+
 ## 1.0.0
 
 **Packages:** `NekoLib.Mvvm`
@@ -56,24 +77,3 @@ package hashes or release provenance.
   supply null, so a lambda that dereferences the parameter without checking now
   emits `CS8602`. Use `RelayCommand<T>` when you want a parameter whose absence
   is handled for you.
-
-## Unreleased
-
-**Packages:** `NekoLib.Mvvm`
-
-**Compatibility class:** documentation-only
-
-**Consumer impact:** Two XML comments now describe existing behavior more precisely. Compiled signatures, the accepted API baselines, and runtime behavior are unchanged.
-
-**Migration:** none
-
-- `RelayCommand<T>.Execute` no longer inherits its documentation from
-  `RelayCommand.Execute`. The inherited text said the delegate is invoked, which
-  is not what the generic overload does: it coerces first and is a silent no-op
-  when coercion fails. The member now documents that, and still records that
-  `Execute` does not consult `CanExecute`.
-- `ViewModelBase.SetProperty`'s `propertyName` parameter now states that the
-  compiler supplies it from the calling member and that a null or empty value is
-  forwarded unchanged, meaning "every property changed".
-- These source comments have not been qualified in a new package candidate.
-  Immutable `1.1.0-local.8` proves delivery of the prior XML bytes only.

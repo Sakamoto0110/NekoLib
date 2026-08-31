@@ -234,6 +234,7 @@ reference commit.
 | [`docs/premises/README.md`](premises/README.md) | reference | current | One-record-per-file registry for accepted scoped premises and their preserved lifecycle |
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
+| [`docs/stable-release-1.1.0.md`](stable-release-1.1.0.md) | reference | current | Compatible minor release boundary, qualifying package provenance, hashes, validation, and distribution status |
 | [`docs/stable-release-1.0.0.md`](stable-release-1.0.0.md) | reference | current | First stable family baseline, qualifying package provenance, hashes, validation, and distribution boundaries |
 | [`docs/modules/Core/migrations/f1.md`](modules/Core/migrations/f1.md) | guide | current | Migration from the initial Core candidate surface to defensive outer snapshots and experimental action registration |
 | [`docs/modules/Data/migrations/f1.md`](modules/Data/migrations/f1.md) | guide | current | Migration from the initial Data candidate surface to the accepted F1-DATA gateway contract |
