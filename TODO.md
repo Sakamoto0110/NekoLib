@@ -51,9 +51,10 @@ an explicit implementation gate after promotion.
 
 ### `RELEASE-1.1.0` — qualify and release the next coordinated stable family
 
-**Status:** promoted; release candidate preparation may begin; stable
-materialization, tag, push, NuGet.org publication, and GitHub Release remain
-separate gates.
+**Status:** stable package family materialized and locally qualified from
+`1147f76beb412c3ae6368088bc0c22eb4653daa8`; tag, push, NuGet.org publication,
+public-package verification, and GitHub Release remain separate publication
+stages.
 
 **Source:** the owner's direct decision on 2026-08-31 that the additive
 QueryBuilder and Data type-adaptation changes completed after `1.0.0` are
