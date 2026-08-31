@@ -74,6 +74,7 @@ not infer or fabricate one from the file's first Git appearance.
 | Agent documentation authoring | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) and registered skills | Profiles share one output contract and do not replace public or technical documentation |
 | Multi-stage execution coordination | [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | Campaign manifests consume existing authority and coordinate local stages/finalizers without becoming work or evidence authority |
 | Scoped reasoning premises | [`docs/governance/premise-policy.md`](governance/premise-policy.md) and [`docs/premises/`](premises/README.md) | Premises may reduce redundant investigation only while effectively active; they never override current authority or evidence |
+| Local documentation retrieval | [`docs/governance/documentation-index-policy.md`](governance/documentation-index-policy.md) | The ignored SQLite/FTS snapshot accelerates Markdown and generated XML API search but never replaces authored or compiled authority |
 | Repository skill identity, adapter paths, and parity intent | [`docs/schemas/agent-skill-registry.json`](schemas/agent-skill-registry.json) | Skill entrypoints and any shared contracts own procedures and interoperable semantics |
 | General agent workflow | [`AGENTS.md`](../AGENTS.md) and `.agents/skills/` | These files do not replace public or technical documentation |
 
@@ -224,6 +225,7 @@ reference commit.
 | [`src/Http/NekoLib.Http/README.md`](../src/Http/NekoLib.Http/README.md) | reference | current | Pointer-only source portal to the canonical HTTP technical reference |
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/governance/documentation-policy.md`](governance/documentation-policy.md) | reference | current | Module-first authority, lifecycle, conflict, migration, and indexing policy |
+| [`docs/governance/documentation-index-policy.md`](governance/documentation-index-policy.md) | reference | current | Rebuildable local Markdown/XML API index, freshness, search, and authority boundary |
 | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) | reference | current | Interoperable output contract and permitted role variation for documentation skills |
 | [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | reference | current | Bounded multi-stage execution, local resumable state, and deduplicated campaign finalizers |
 | [`docs/governance/premise-policy.md`](governance/premise-policy.md) | reference | current | Scoped confidence premises, effective status, contradictions, freshness, and automatic suspension |

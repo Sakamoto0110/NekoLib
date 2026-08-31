@@ -175,10 +175,11 @@ identity, and current file content for every campaign-owned changed path. A
 successful finalizer with the same ID, phase, and fingerprint is skipped.
 `-Force` makes a deliberate repeat visible without deleting the prior run.
 
-A failed required finalizer is recorded and stops the phase. Missing optional
-local prerequisites are reported as skipped and never become PASS evidence.
-Changing content, stage scope, baseline, or finalizer identity prevents a stale
-success from satisfying the new state.
+A failed required finalizer is recorded and stops the phase. A failed optional
+finalizer is also recorded and reported, but execution continues and the
+failure never becomes PASS evidence. Missing optional local prerequisites are
+reported as skipped. Changing content, stage scope, baseline, or finalizer
+identity prevents a stale success from satisfying the new state.
 
 ## Evidence and completion
 

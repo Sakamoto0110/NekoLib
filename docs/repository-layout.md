@@ -41,7 +41,7 @@ current file is actually clean-clone evidence.
 | `eng/` | Build, validation, packaging, and repository-maintenance automation | yes |
 | `.github/workflows/` | Manual remote publication transport; no automatic build or validation trigger | yes |
 | `artifacts/` | Generated, disposable build/package/tool output | no |
-| `.local/` | Machine-only experiments, active work-campaign manifests/state, configuration, private prerequisites, and scratch data | no |
+| `.local/` | Machine-only experiments, active work-campaign manifests/state, the generated documentation search database, configuration, private prerequisites, and scratch data | no |
 | Selected `.claude/` runtime paths | Machine permissions, locks, routines state, worktrees, checkpoints, mailboxes, and other paths explicitly listed in `.gitignore` | no |
 
 ## Documentation and agent adapters
@@ -97,6 +97,24 @@ Premise records may name work-campaign IDs, but they remain distinct from
 campaign manifests and state. Premises optimize investigation while campaigns
 coordinate execution; neither becomes source, validation, task, or release
 authority.
+
+## Local documentation search index
+
+The [local documentation index policy](governance/documentation-index-policy.md)
+owns the retrieval boundary. Versioned maintenance lives in
+[`eng/documentation_index.py`](../eng/documentation_index.py),
+[`eng/refresh-documentation-index.ps1`](../eng/refresh-documentation-index.ps1),
+and [`eng/search-docs.ps1`](../eng/search-docs.ps1). The generated SQLite/FTS
+database remains under ignored `.local/documentation-migration/` and is never
+clean-clone evidence or documentation authority.
+
+One clean post-commit refresh indexes authored Markdown/Text plus generated XML
+members for each accepted managed package/target baseline. Search is read-only,
+reports commit/tree freshness and source authority, and rejects stale snapshots
+unless the caller explicitly requests diagnostic stale access. This retrieval
+index is distinct from the physical repository inventory below: inventory maps
+files and Git state, while the local index provides persisted lexical search and
+API-member lookup.
 
 ## Inventory snapshots
 

@@ -154,3 +154,6 @@ claims must not be rewritten as if the audit knew later outcomes.
 Keep runtime instructions with their executable scenarios and keep accepted API
 manifests under `eng/public-api/`. Generated indexes belong under
 `artifacts/documentation/` or ignored local storage and are never authority.
+The rebuildable local Markdown/XML search database follows the
+[local documentation index policy](documentation-index-policy.md); its freshness
+and search results do not replace any authored or compiled authority.

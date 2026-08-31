@@ -110,18 +110,22 @@
     {
       "id": "refresh-local-documentation-index",
       "phase": "post-commit",
-      "description": "Refresh the optional local Markdown/Text search snapshot after a clean committed documentation campaign.",
-      "executable": "python",
-      "arguments": [
-        ".local/documentation-migration/index_documents.py"
-      ],
+      "description": "Verify compiled API/XML assets and refresh the optional local Markdown/XML search snapshot after a clean committed documentation campaign.",
+      "executable": "eng/refresh-documentation-index.ps1",
+      "arguments": [],
       "workingDirectory": ".",
       "whenChanged": [
         "*.md",
-        "*.txt"
+        "*.txt",
+        "*.cs",
+        "*.csproj",
+        "Directory.Build.*",
+        "eng/public-api/*"
       ],
       "requiredPaths": [
-        ".local/documentation-migration/index_documents.py"
+        "eng/refresh-documentation-index.ps1",
+        "eng/documentation_index.py",
+        "eng/verify-public-api.ps1"
       ],
       "required": false,
       "requiresCleanTree": true,

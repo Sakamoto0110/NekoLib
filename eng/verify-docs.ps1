@@ -394,6 +394,20 @@ try {
         }
     }
 
+    $documentationIndexPaths = @(
+        'docs/governance/documentation-index-policy.md',
+        'eng/documentation_index.py',
+        'eng/refresh-documentation-index.ps1',
+        'eng/search-docs.ps1')
+    foreach ($documentationIndexPath in $documentationIndexPaths) {
+        if (-not (Test-Path -LiteralPath $documentationIndexPath -PathType Leaf) -or
+            -not (Test-VersionedCandidatePath $documentationIndexPath)) {
+            Add-VerificationError "Documentation-index contract path is absent or non-versioned: $documentationIndexPath"
+        } elseif (-not (Test-RepositoryPathCase $documentationIndexPath)) {
+            Add-VerificationError "Documentation-index contract path uses incorrect casing: $documentationIndexPath"
+        }
+    }
+
     $premiseContractPaths = @(
         'docs/governance/premise-policy.md',
         'docs/premises/README.md',

@@ -704,13 +704,23 @@ foreach ($finalizer in $selected) {
     } catch {
         Add-StateRun $state $id $Phase $fingerprint $head $treeState 'FAIL' $exitCode
         Save-State $statePath $state
-        throw "[$id] failed before reporting an accepted exit code: $($_.Exception.Message)"
+        $message = "[$id] failed before reporting an accepted exit code: $($_.Exception.Message)"
+        if ([bool]$finalizer.required) {
+            throw $message
+        }
+        Write-Warning "OPTIONAL $message"
+        continue
     }
 
     if ([int]$exitCode -notin @($finalizer.expectedExitCodes | ForEach-Object { [int]$_ })) {
         Add-StateRun $state $id $Phase $fingerprint $head $treeState 'FAIL' $exitCode
         Save-State $statePath $state
-        throw "[$id] failed with exit code $exitCode."
+        $message = "[$id] failed with exit code $exitCode."
+        if ([bool]$finalizer.required) {
+            throw $message
+        }
+        Write-Warning "OPTIONAL $message"
+        continue
     }
 
     Add-StateRun $state $id $Phase $fingerprint $head $treeState 'PASS' $exitCode

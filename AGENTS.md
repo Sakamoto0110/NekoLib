@@ -30,6 +30,7 @@ the handoff state and the rules that are easy to get wrong.
 | Documentation infrastructure, agent adapters, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Cross-agent documentation authoring contract | [`docs/governance/agent-documentation-contract.md`](docs/governance/agent-documentation-contract.md) |
+| Local Markdown/XML documentation search and freshness | [`docs/governance/documentation-index-policy.md`](docs/governance/documentation-index-policy.md) |
 | Multi-stage work campaigns and deferred finalizers | [`docs/governance/work-campaign-policy.md`](docs/governance/work-campaign-policy.md) |
 | Scoped confidence premises and automatic suspension | [`docs/governance/premise-policy.md`](docs/governance/premise-policy.md) |
 | Agent skill registry and parity intent | [`docs/schemas/agent-skill-registry.json`](docs/schemas/agent-skill-registry.json) |
@@ -303,6 +304,13 @@ parity remains a review concern.
 
 Validate scoped-premise records, contradiction thresholds, checkout freshness,
 and declared/effective status with `.\eng\verify-premises.ps1`.
+
+Inspect the optional local Markdown/XML API search snapshot with
+`.\eng\search-docs.ps1 -Status`. Use search results only when freshness is
+explicit, preserve their authority/provenance labels, and verify every claim
+against its normal source. Refresh once after an applicable clean committed
+campaign through `.\eng\refresh-documentation-index.ps1`; there is no automatic
+indexing trigger.
 
 Create and verify a new immutable local package version:
 

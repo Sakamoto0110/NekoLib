@@ -90,6 +90,11 @@ Stop at the requested module boundary.
    premise record, and run `eng/verify-premises.ps1`. Use only effective
    `active` for the exact permitted shortcut; never weaken validation or a stop
    rule, and suspend use at the first qualifying contradiction.
+7. An existing local documentation index may accelerate inventory and retrieval
+   only when `eng/search-docs.ps1 -Status` reports the current checkout. Read the
+   [index policy](../../../docs/governance/documentation-index-policy.md), retain
+   result provenance, and verify every claim against its normal authority. A
+   missing or stale index falls back to direct repository traversal.
 
 ## Module traversal
 
