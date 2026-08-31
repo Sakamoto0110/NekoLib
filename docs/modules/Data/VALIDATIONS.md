@@ -284,3 +284,31 @@ the versioned FarmDatabase and SQL Server procedures but did not launch SQLite,
 Access, SQL Server, Docker, or an interactive WinForms scenario. The validation
 stage executed only the commands recorded in `DATA-VALEVID-20260830-001`. It did
 not use the tracked `Pods.db` or `PodsDB` fixtures, which remain non-coverage.
+
+## DATA-VALEVID-20260831-001
+
+**Requirement IDs:** `DATA-VALREQ-001`, `DATA-VALREQ-002`, `DATA-VALREQ-003`, `DATA-VALREQ-011`, `DATA-VALREQ-012`, `DATA-VALREQ-013`, `DATA-VALREQ-014`
+
+**Version:** `1.1.0`
+
+**Commit:** package source `1147f76beb412c3ae6368088bc0c22eb4653daa8`; trusted-publication workflow source `1c7215c615410a7f5fc497cfdba897a1ab802611`
+
+**Tree state:** clean source and immutable GitHub Release assets; ignored fresh public-download feed for external verification
+
+**Environment:** Windows local qualification and public-feed verification; GitHub Actions Windows trusted-publication job; NuGet.org repository signing
+
+**Targets:** complete coordinated family, including Data `net481` and `net9.0` package assets and PackageReference consumers
+
+**Command or scenario:** Release rebuild and full solution tests; `eng/verify-public-api.ps1 -NoBuild`; candidate and stable `eng/pack-local.ps1`; trusted-publication run `33437988158`; `dotnet nuget verify --all`; `eng/test-local-packages.ps1 -PackageVersion 1.1.0`
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** `docs/stable-release-1.1.0.md`; public GitHub Release `v1.1.0`; NuGet.org `NekoLib.Data` `1.1.0`; fresh public package downloads under ignored `artifacts/release-1.1.0/public-packages`
+
+**Gaps:** The release rebuild reported 202 warning occurrences and 0 errors; all 1,787 solution tests and 30 API manifests passed; both 31-artifact local package sets passed; the 16 public main packages passed signature/content verification and the complete external consumer flow. This release gate did not rerun SQLite, Access/OleDb, SQL Server, Docker, interactive UI, performance, soak, recovery, or production-fleet scenarios. Public symbol acceptance is evidenced by the workflow `Created` responses because symbol packages are not exposed by the main-package flat-container endpoint.
+
+**Supersedes:** `DATA-VALEVID-20260828-002` as stable public package and XML-delivery evidence; provider evidence remains independently scoped

@@ -30,7 +30,7 @@ package hashes or treating local candidates as public releases.
 
 **Compatibility class:** additive
 
-**Consumer impact:** Structured QueryBuilder APIs, explicit write/read type-adaptation policy, and complete XML member documentation are available in post-1.0.0 source. Four legacy builder overloads remain warning-only compatibility shims; no current runtime contract or target surface was removed.
+**Consumer impact:** Structured QueryBuilder APIs, explicit write/read type-adaptation policy, and complete XML member documentation are available in stable release `1.1.0`. Four legacy builder overloads remain warning-only compatibility shims; no current runtime contract or target surface was removed.
 
 **Migration:** `docs/modules/Data/migrations/querybuilder-structured-api.md`, `docs/modules/Data/migrations/data-type-adaptation.md`
 

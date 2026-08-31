@@ -72,7 +72,7 @@ The complete gate is executed on Windows against one clean source commit:
 7. isolated PackageReference consumers and Watchdog Host package/runtime probes;
 8. individual and aggregate SHA-256 recording before any remote publication.
 
-| Evidence layer | Qualified local state |
+| Evidence layer | Qualified release state |
 |---|---|
 | Source and documentation | Clean source `1147f76beb412c3ae6368088bc0c22eb4653daa8`; documentation, skills, premises, and diff verification passed |
 | Build and warnings | Release rebuild passed with 202 warning occurrences, 0 errors, and no new normalized warning identity |
@@ -83,8 +83,8 @@ The complete gate is executed on Windows against one clean source commit:
 | Watchdog Host deployment/runtime | Package topology, unsupported `win-arm64` negative probe, protocol mismatch, startup, and stop passed on both target families for both package sets |
 | Interactive/native hardware/provider/soak | not added by this release gate; prior evidence remains scoped to its recorded source |
 | Git | `origin/master` includes the release evidence; annotated `v1.1.0` resolves to source `1147f76beb412c3ae6368088bc0c22eb4653daa8` |
-| GitHub draft | Draft release ID `380040305` contains exactly 31 assets; GitHub digests recompute the approved stable aggregate |
-| NuGet.org and public GitHub Release | pending explicit publication stages |
+| GitHub Release | Public [`v1.1.0`](https://github.com/Sakamoto0110/NekoLib/releases/tag/v1.1.0), release ID `380040305`, contains exactly 31 assets; GitHub digests recompute the approved stable aggregate |
+| NuGet.org | All 16 package IDs expose `1.1.0`; fresh repository-signed downloads passed signature, content, and complete external-consumer verification |
 
 The complete local commands were:
 
@@ -154,15 +154,64 @@ normalization. Content differences are limited to version-bearing nuspec/core
 properties, assemblies, symbols, executables, and Host dependency metadata;
 XML, README, build assets, and other static package content are byte-identical.
 
-## Publication boundary
+## Publication evidence
 
-Remote publication uses the manual-only
-`.github/workflows/publish-nuget.yml` trusted-publication transport. The workflow
-must be rebound to the immutable `v1.1.0` draft release ID and aggregate hash,
-must reject any asset-set mismatch before requesting an OIDC credential, and
-must be dispatched explicitly from `master` with publication confirmed.
+Remote publication used the manual-only
+`.github/workflows/publish-nuget.yml` trusted-publication transport bound to
+draft release ID `380040305`, annotated tag `v1.1.0`, and aggregate
+`C3E0764831636A74CD4969BDC609B16EAEF86FBE0A375C6741217F0F386E7F43`.
+The successful [workflow run `33437988158`](https://github.com/Sakamoto0110/NekoLib/actions/runs/33437988158)
+verified the 31 downloaded assets before requesting an OIDC credential, then
+received `Created` for all 16 main and 15 symbol packages.
 
-The annotated `v1.1.0` tag, branch push, draft release, workflow dispatch,
-NuGet.org publication, independent public download, and final GitHub Release are
-distinct evidence stages. Completion of an earlier stage does not imply a later
-one.
+Run `33437837425` preceded it and stopped safely while reading the draft release
+with `Resource not accessible by integration`. Hash verification, OIDC login,
+and package publication were skipped, so no partial publication occurred. The
+workflow then received the GitHub permission required to read draft assets;
+after the successful run, repository-token access was reduced to read-only
+again.
+
+After all 16 versions appeared in the NuGet.org flat container, each main
+package was downloaded into a fresh local feed and checked with:
+
+```powershell
+dotnet nuget verify --all <downloaded-package>
+.\eng\test-local-packages.ps1 `
+    -PackageVersion 1.1.0 `
+    -FeedPath artifacts\release-1.1.0\public-packages
+```
+
+All 16 repository signatures passed. ZIP-entry comparison proved that every
+entry from the approved GitHub/local `.nupkg` is byte-identical in the public
+download and that `.signature.p7s` is the only added entry. The external flow
+then passed PackageReference-only WinForms and WPF consumers on both target
+families, multi-target and transitive Host checks, the expected unsupported
+`win-arm64` failure, both packaged protocol-mismatch probes, both startup/stop
+probes, deployment opt-out/re-enable, and cleanup.
+
+NuGet.org repository signing intentionally changes each outer main-package
+hash. The independently downloaded signed hashes are:
+
+| Public signed package | SHA-256 |
+|---|---|
+| `NekoLib.Core.1.1.0.nupkg` | `D9AD994F99CB7BB7BBE44465D5E9AD719671FCB593B7389D8358DCFBE0BE558D` |
+| `NekoLib.Data.1.1.0.nupkg` | `F50B193DD2213F11D0925259819A77754892438934FE9BA803C3DE3AB3A7FA68` |
+| `NekoLib.Devices.1.1.0.nupkg` | `74DB70FA8782E691522189FC7B29C708ADFB31E97FB8197F167C3EC117982185` |
+| `NekoLib.Diagnostics.1.1.0.nupkg` | `39EBE5F43C471A6C4D34D0ADF54F1CE69259E339DFB65AD63BDDE3C3495D6AC7` |
+| `NekoLib.Diagnostics.Windows.1.1.0.nupkg` | `9BB6F0D45FD1AB74DD036637C2C5B14FAD2ABA48BA9079FEC9EFC649B191FE69` |
+| `NekoLib.Http.1.1.0.nupkg` | `0D7736D5707875A9B50D1DC216A0BCB831BC744141E38EA09B5C1F4D604E3B8A` |
+| `NekoLib.Inspection.1.1.0.nupkg` | `EA1F13DECDE1C17E8A72EA491B2550AE4B91B3953D9F3CF5626AD8D2E1B63FD5` |
+| `NekoLib.Logging.1.1.0.nupkg` | `F14BD240E63800B4369AF3903ABDF751C6D513A43B60A7F874CE018EB26DAF53` |
+| `NekoLib.Mvvm.1.1.0.nupkg` | `2E5C27D06F3C5C8E2DD7D1EC72DD6DEB56A624E43AA175B08F4E9848D08E2D18` |
+| `NekoLib.Navigation.1.1.0.nupkg` | `3C4E891CF208E0A3F0715C112FAD0D72A72CEAF6E7CA7E936BFA2AFCF88FE1EA` |
+| `NekoLib.Navigation.WinForms.1.1.0.nupkg` | `F2FDB8AB6DA645AD6073E43FE9D1F5DBC0ECECD605FA9559A447BC90CC9CFD05` |
+| `NekoLib.Navigation.Wpf.1.1.0.nupkg` | `6D8ACAC88EAD3028DC7A1973BAEC6590D5E42713B68DD972420BA18794B9552D` |
+| `NekoLib.Pipes.1.1.0.nupkg` | `EBDB3DA4A698F611B2FC56109B356C315891D694A86C4302EEAB5B84710711AE` |
+| `NekoLib.Telemetry.1.1.0.nupkg` | `5F7C9A54959009612775AECFCCDDE4C17ACD6F3641C7DF726FFE1D88EE6F8C6D` |
+| `NekoLib.Watchdog.1.1.0.nupkg` | `371418BA647E0DE21B904F53858D61D2BD3036F0A855117433DDCD149ED2B5F6` |
+| `NekoLib.Watchdog.Host.1.1.0.nupkg` | `24324F302A130EFC09D4DF65918F68F5885DF2FBB2A7626BE546A347BD8EB68D` |
+
+The GitHub Release preserves the unsigned approved bytes and all 31 original
+hashes. Public NuGet.org symbols were accepted by the successful workflow but
+are not exposed by the main-package flat-container endpoint; the workflow's
+`Created` responses are the retained remote symbol-publication evidence.

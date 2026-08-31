@@ -102,3 +102,15 @@ guides, runtime procedures, or release records that own the detailed evidence.
   PackageReference consumers.
 
 **Evidence:** [`../../audit/public-api-documentation-extensibility-review-2026-08-27.md`](../../audit/public-api-documentation-extensibility-review-2026-08-27.md)
+
+## 2026-08-31 — DATA-HISTORY-008 — First compatible minor published
+
+**Release:** `1.1.0`
+
+- The structured QueryBuilder, explicit write/read type-adaptation, temporal DTO
+  materialization, warning-only compatibility shims, and complete XML
+  documentation shipped in the coordinated stable family. The clean local
+  package set, repository-signed public downloads, and external consumers were
+  verified without changing the accepted Data API manifests.
+
+**Evidence:** [`../../stable-release-1.1.0.md`](../../stable-release-1.1.0.md), [`../../history/release-1.1.0-2026-08-31.md`](../../history/release-1.1.0-2026-08-31.md)

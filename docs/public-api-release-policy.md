@@ -260,3 +260,21 @@ stable family was subsequently published to NuGet.org through trusted
 publishing and independently restored by the tracked external consumers; that
 remote evidence does not replace the source, API-baseline, or local package
 qualification recorded here.
+
+## Current compatible minor release
+
+NekoLib `1.1.0` was released on 2026-08-31 as the first compatible minor of the
+coordinated stable family. Its SemVer-minor basis is the additive stable Data
+surface for structured QueryBuilder operations and explicit write/read type
+adaptation. The former QueryBuilder overloads remain available with
+warning-only deprecations and retain their `2.0.0` removal boundary.
+
+The exact stable family was produced from clean source commit
+`1147f76beb412c3ae6368088bc0c22eb4653daa8`, published through the manual
+trusted-publication workflow, independently downloaded from NuGet.org, and
+restored by the tracked external consumers on both target families. The
+accepted 30 compiled API manifests remain the compatibility authority; the
+release operation did not update them. Complete artifact hashes, commands,
+runtime/package probes, publication attempts, repository-signature evidence,
+and unexecuted layers are recorded in the
+[`1.1.0` stable release record](stable-release-1.1.0.md).

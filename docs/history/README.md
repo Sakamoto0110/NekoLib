@@ -8,7 +8,7 @@
 
 **Reference date:** 2026-08-31
 
-**Reference commit:** working tree after `94d799d4897ecb6627be61131549af31a4dab730`
+**Reference commit:** working tree after `49bd3ec243983ce7a19d222e0f698226e734cf09`
 
 This directory preserves completed implementation logs and superseded roadmap
 snapshots. Historical files explain how the repository reached its current
@@ -22,6 +22,7 @@ shape; they do not own open work or current technical facts.
 | [`phase-g1-http-integration-2026-08-16.md`](phase-g1-http-integration-2026-08-16.md) | historical | Typed HTTP catalog completion, deterministic and package evidence, and the optional provider-evidence boundary | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-f1-public-api-release-stability-2026-08-21.md`](phase-f1-public-api-release-stability-2026-08-21.md) | historical | Public API finalization and first stable coordinated family release | [`ROADMAP.md`](../../ROADMAP.md), [`TODO.md`](../../TODO.md) |
 | [`governance-work-campaigns-premises-2026-08-31.md`](governance-work-campaigns-premises-2026-08-31.md) | historical | Work-campaign coordination and scoped-premise governance completion | [`TODO.md`](../../TODO.md) |
+| [`release-1.1.0-2026-08-31.md`](release-1.1.0-2026-08-31.md) | historical | Qualification, publication, and external verification of the coordinated `1.1.0` family | [`docs/stable-release-1.1.0.md`](../stable-release-1.1.0.md), [`TODO.md`](../../TODO.md) |
 
 For historical review findings, use the separate
 [`docs/audit/` index](../audit/README.md).

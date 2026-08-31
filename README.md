@@ -230,15 +230,15 @@ deployment package are packaged together; tests, runtime scenarios,
 `BundlerTool`, and the constants-only
 `src/Hosting/NekoLib` project are not.
 
-NekoLib `1.0.0` is the first stable coordinated family support baseline. Its
-qualifying immutable local candidate, `1.0.0-local.22`, passed the clean
-canonical package flow from source commit
-`7090e40eed7c6b888ce8da732f21cbe10f1a936c`. The coordinated `1.0.0` package
-set was then materialized locally from clean source commit
-`db63529cafce11690a18a595e4abc6c0610b9b8e` and published to NuGet.org through
-the `v1.0.0` GitHub Release and the manual trusted-publication workflow. See the
-[`1.0.0` stable release record](docs/stable-release-1.0.0.md) for provenance,
-hashes, validation results, and evidence boundaries.
+NekoLib `1.1.0` is the current stable coordinated family. Its qualifying
+candidate, `1.1.0-local.9`, and exact stable package set passed the complete
+canonical flow from clean source commit
+`1147f76beb412c3ae6368088bc0c22eb4653daa8`. The 16 main packages and 15 symbol
+packages were published to NuGet.org through the manual trusted-publication
+workflow and the [`v1.1.0` GitHub Release](https://github.com/Sakamoto0110/NekoLib/releases/tag/v1.1.0).
+See the [`1.1.0` stable release record](docs/stable-release-1.1.0.md) for
+provenance, hashes, validation results, and evidence boundaries. `1.0.0`
+remains the [first stable family baseline](docs/stable-release-1.0.0.md).
 
 Use the packaging entry point instead of packing individual projects:
 
@@ -262,7 +262,7 @@ from uncommitted sources cannot carry exact Git/Source Link provenance.
 Install the public stable packages directly from NuGet.org:
 
 ```powershell
-dotnet add package NekoLib.Navigation.WinForms --version 1.0.0
+dotnet add package NekoLib.Navigation.WinForms --version 1.1.0
 ```
 
 For unpublished validation versions, register the generated local folder as a
@@ -270,7 +270,8 @@ source on a consumer machine:
 
 ```powershell
 dotnet nuget add source C:\path\to\NekoLib\artifacts\local-feed --name NekoLibLocal
-dotnet add package NekoLib.Navigation.WinForms --version 1.0.0
+$packageVersion = Read-Host "Enter the locally packed version"
+dotnet add package NekoLib.Navigation.WinForms --version $packageVersion
 ```
 
 The same verified package family can also be pushed under a distinct version to

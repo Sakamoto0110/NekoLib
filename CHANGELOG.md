@@ -16,7 +16,7 @@ remain under `docs/history/`.
 
 No consumer-visible changes are currently recorded after `1.1.0`.
 
-## 1.1.0 — compatible minor candidate 2026-08-31
+## 1.1.0 — compatible minor released 2026-08-31
 
 NekoLib `1.1.0` is the approved first compatible minor of the coordinated stable family.
 It adds the structured QueryBuilder and explicit temporal type-adaptation
