@@ -195,21 +195,6 @@
     "promotionSourceExclusive": false,
     "rule": "Proposal files are concise non-normative idea records. Promotion may also originate from findings, issues, audits, external evidence, or a direct owner decision when the accepted direction is formalized in TODO.md."
   },
-  "agentAuthoring": {
-    "contractPath": "docs/governance/agent-documentation-contract.md",
-    "skillRegistryPath": "docs/schemas/agent-skill-registry.json",
-    "logicalSkillId": "nekolib-documentation",
-    "requiredParityPolicy": "near-mirror",
-    "requiredSkillFields": [
-      "Documentation contract",
-      "Authoring profile"
-    ],
-    "requiredProfiles": [
-      "codex",
-      "claude"
-    ],
-    "interoperabilityRule": "All registered profiles produce documents with the same metadata, vocabulary, authority, lifecycle, provenance, and evidence meanings. Profile variation is limited to authoring emphasis, depth, sequencing, and presentation within the shared surface contract."
-  },
   "records": {
     "history": {
       "idPattern": "^[A-Z][A-Z0-9.]*-HISTORY-[0-9]{3}$",

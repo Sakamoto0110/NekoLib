@@ -71,12 +71,10 @@ not infer or fabricate one from the file's first Git appearance.
 | Formally promoted work, execution gates, and completion criteria | [`TODO.md`](../TODO.md) | Accepted decisions, current implementation, and validation |
 | Unpromoted proposal records | [`docs/proposals/`](proposals/README.md) | Linked investigations, findings, audits, issues, and owner decisions |
 | Historical findings | The audit at its recorded date and commit | Later outcomes appear only in reconciliation sections |
-| Agent documentation authoring | [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) and registered skills | Profiles share one output contract and do not replace public or technical documentation |
+| Development, compatibility, validation, review, and Git workflow | [`docs/development.md`](development.md) | Current source, projects, policies, and executable evidence remain authoritative for their respective facts |
 | Multi-stage execution coordination | [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | Campaign manifests consume existing authority and coordinate local stages/finalizers without becoming work or evidence authority |
 | Scoped reasoning premises | [`docs/governance/premise-policy.md`](governance/premise-policy.md) and [`docs/premises/`](premises/README.md) | Premises may reduce redundant investigation only while effectively active; they never override current authority or evidence |
 | Local documentation retrieval | [`docs/governance/documentation-index-policy.md`](governance/documentation-index-policy.md) | The ignored SQLite/FTS snapshot accelerates Markdown and generated XML API search but never replaces authored or compiled authority |
-| Repository skill identity, adapter paths, and parity intent | [`docs/schemas/agent-skill-registry.json`](schemas/agent-skill-registry.json) | Skill entrypoints and any shared contracts own procedures and interoperable semantics |
-| General agent workflow | [`AGENTS.md`](../AGENTS.md) and `.agents/skills/` | These files do not replace public or technical documentation |
 
 Each mutable fact has one owner. Other documents may summarize it and link to
 the owner, but must not maintain a competing list. In particular, current test,
@@ -226,11 +224,10 @@ reference commit.
 | [`docs/README.md`](README.md) | reference | current | Documentation governance and index |
 | [`docs/governance/documentation-policy.md`](governance/documentation-policy.md) | reference | current | Module-first authority, lifecycle, conflict, migration, and indexing policy |
 | [`docs/governance/documentation-index-policy.md`](governance/documentation-index-policy.md) | reference | current | Rebuildable local Markdown/XML API index, freshness, search, and authority boundary |
-| [`docs/governance/agent-documentation-contract.md`](governance/agent-documentation-contract.md) | reference | current | Interoperable output contract and permitted role variation for documentation skills |
 | [`docs/governance/work-campaign-policy.md`](governance/work-campaign-policy.md) | reference | current | Bounded multi-stage execution, local resumable state, and deduplicated campaign finalizers |
 | [`docs/governance/premise-policy.md`](governance/premise-policy.md) | reference | current | Scoped confidence premises, effective status, contradictions, freshness, and automatic suspension |
 | [`docs/governance/validation-policy.md`](governance/validation-policy.md) | reference | current | Validation taxonomy, profiles, requirement/evidence separation, and soak records |
-| [`docs/schemas/README.md`](schemas/README.md) | reference | current | Deterministic documentation, agent-skill, campaign, and premise schema index |
+| [`docs/schemas/README.md`](schemas/README.md) | reference | current | Deterministic documentation, campaign, and premise schema index |
 | [`docs/premises/README.md`](premises/README.md) | reference | current | One-record-per-file registry for accepted scoped premises and their preserved lifecycle |
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
@@ -299,21 +296,12 @@ reference commit.
 | [`runtime_tests/Navigation/WinFormsSmoke/README.md`](../runtime_tests/Navigation/WinFormsSmoke/README.md) | guide | current | Navigation WinForms interactive smoke scenario |
 | [`runtime_tests/Navigation/WpfSmoke/README.md`](../runtime_tests/Navigation/WpfSmoke/README.md) | guide | current | Navigation WPF interactive smoke scenario |
 | [`runtime_tests/Watchdog/Supervisor481/README.md`](../runtime_tests/Watchdog/Supervisor481/README.md) | guide | current | Watchdog/Pipes interactive supervisor scenario |
-| [`docs/repository-layout.md`](repository-layout.md) | reference | current | Documentation infrastructure, agent adapters, tool source, automation, generated-artifact, and machine-local ownership |
-| [`AGENTS.md`](../AGENTS.md) | guide | current | Versioned agent workflow; not public product authority |
-| [`.agents/skills/nekolib/SKILL.md`](../.agents/skills/nekolib/SKILL.md) | guide | current | Repository-wide NekoLib routing |
-| [`.agents/skills/nekolib-documentation/SKILL.md`](../.agents/skills/nekolib-documentation/SKILL.md) | guide | current | Codex documentation adapter with source, architecture, public API, and implementation emphasis |
-| [`.agents/skills/nekolib-data/SKILL.md`](../.agents/skills/nekolib-data/SKILL.md) | guide | current | Data workflow |
-| [`.agents/skills/nekolib-devices/SKILL.md`](../.agents/skills/nekolib-devices/SKILL.md) | guide | current | Devices workflow |
-| [`.agents/skills/nekolib-navigation/SKILL.md`](../.agents/skills/nekolib-navigation/SKILL.md) | guide | current | Navigation workflow |
-| [`.agents/skills/nekolib-repository-hygiene/SKILL.md`](../.agents/skills/nekolib-repository-hygiene/SKILL.md) | guide | current | Repository hygiene workflow |
-| [`.agents/skills/nekolib-repository-inventory/SKILL.md`](../.agents/skills/nekolib-repository-inventory/SKILL.md) | guide | current | Read-only file distribution, Git state/change sets, documentation and skill topology, and compact Markdown tree views |
-| [`.claude/skills/nekolib-documentation/SKILL.md`](../.claude/skills/nekolib-documentation/SKILL.md) | guide | current | Claude documentation adapter with an additional test and evidence emphasis |
+| [`docs/repository-layout.md`](repository-layout.md) | reference | current | Documentation infrastructure, tool source, automation, generated-artifact, and machine-local ownership |
+| [`docs/development.md`](development.md) | guide | current | Repository development, compatibility, validation, review, and Git workflow |
 | [`docs/audit/`](audit/README.md) | audit | historical or explicitly current | Dated review snapshots; each artifact is classified in the audit index |
 
-Local ignored guidance files are outside this registry. They may help a local
-tool, but they cannot own repository facts because a clean clone does not
-contain them.
+Local ignored files are outside this registry and cannot own repository facts
+because a clean clone does not contain them.
 
 ## Change flow
 
@@ -344,13 +332,10 @@ Run the repository documentation and topology checks from the root:
 
 ```powershell
 .\eng\verify-docs.ps1
-.\eng\verify-skills.ps1
 ```
 
-The documentation verifier checks authored document structure and links. The
-skill verifier separately checks repository-owned adapter coverage and the
-deterministic portions of the registered parity contract; semantic parity still
-requires a scoped review of the affected logical skill.
+The documentation verifier checks authored document structure and links without
+depending on an external authoring environment.
 
 Build the library family and compare every assembly-derived package/target API
 against the accepted candidate snapshots:

@@ -16,13 +16,10 @@
   },
   "scope": {
     "includePaths": [
-      "AGENTS.md",
       "README.md",
       "ROADMAP.md",
       "TODO.md",
       "docs/*",
-      ".agents/*",
-      ".claude/skills/*",
       "eng/*"
     ],
     "excludePaths": [],
@@ -58,33 +55,10 @@
         "*.md",
         "*.txt",
         "docs/*",
-        ".agents/*",
-        ".claude/skills/*",
         "eng/verify-docs.ps1"
       ],
       "requiredPaths": [
         "eng/verify-docs.ps1"
-      ],
-      "required": true,
-      "requiresCleanTree": false,
-      "expectedExitCodes": [0]
-    },
-    {
-      "id": "verify-skills",
-      "phase": "pre-commit",
-      "description": "Validate repository-owned skill registration and declared parity structure when agent surfaces change.",
-      "executable": "eng/verify-skills.ps1",
-      "arguments": [],
-      "workingDirectory": ".",
-      "whenChanged": [
-        ".agents/skills/*",
-        ".claude/skills/*",
-        "docs/governance/agent-documentation-contract.md",
-        "docs/schemas/agent-skill-registry.json",
-        "eng/verify-skills.ps1"
-      ],
-      "requiredPaths": [
-        "eng/verify-skills.ps1"
       ],
       "required": true,
       "requiresCleanTree": false,

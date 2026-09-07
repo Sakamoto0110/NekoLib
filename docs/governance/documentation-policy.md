@@ -86,18 +86,16 @@ modules.
 deployment relationships that help traversal. It does not create or imply a
 project or package dependency; those remain separate manifest fields.
 
-## Agent authoring interoperability
+## Tool-independent authoring
 
-Agent-specific skills are adapters over one shared documentation contract. The
-[agent documentation contract](agent-documentation-contract.md) defines the
-common invariants, registered profiles, permitted role variation, and
-cross-profile handoff rules. A profile may add an architecture, implementation,
-test, or evidence lens, but it does not own a separate document format or
-authority model.
+Canonical documents use only the repository's shared schema, templates, paths,
+vocabulary, authority rules, and evidence meanings. They must remain
+self-contained and interpretable without a private prompt, external workspace,
+tool-specific metadata, or knowledge of which person or tool authored them.
 
-Documents remain interpretable without knowing which agent authored them.
-Role-specific procedures stay in skills; canonical documents use only the
-shared schema, templates, paths, vocabulary, and evidence meanings.
+External authoring procedures may add a source, architecture, implementation,
+test, or evidence emphasis. They do not own a separate document format,
+authority model, repository path, or acceptance criterion.
 
 ## Metadata and retrieval
 

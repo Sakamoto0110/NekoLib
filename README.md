@@ -208,7 +208,7 @@ and package/runtime exceptions are documented in
 |---|---|
 | Targets | `net481` and `net9.0` (`net9.0-windows` for the UI and Win32 modules) |
 | Language | C# `latest`; **no `record`** in types shared across targets — net481 lacks `IsExternalInit` |
-| Nullable | Configured per module; preserve the existing setting documented in `AGENTS.md` |
+| Nullable | Configured per project; preserve the setting declared by the affected `*.csproj` |
 | Tooling | Visual Studio 2022 or the `dotnet` CLI. Builds and validation are manual; GitHub Actions is used only for manually dispatched NuGet.org trusted publication |
 | Platform | `net481` and every `-windows` target build on Windows only |
 
@@ -386,10 +386,10 @@ cycles.
 | Documentation authority and lifecycle | [`docs/README.md`](docs/README.md) |
 | Automated verification taxonomy | [`tests/README.md`](tests/README.md) |
 | Shared manual runtime scenarios | [`runtime_tests/README.md`](runtime_tests/README.md) |
-| Documentation infrastructure, agent adapters, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
+| Repository documentation, tools, artifacts, and local data | [`docs/repository-layout.md`](docs/repository-layout.md) |
+| Development, compatibility, validation, review, and Git workflow | [`docs/development.md`](docs/development.md) |
 | Historical audits and the active-review index | [`docs/audit/README.md`](docs/audit/README.md) |
 | Completed roadmap history | [`docs/history/README.md`](docs/history/README.md) |
-| Working agreements for coding agents | [`AGENTS.md`](AGENTS.md) |
 
 Automated suites and package probes are classified in
 [`tests/README.md`](tests/README.md). Manual runtime scenarios are separate and

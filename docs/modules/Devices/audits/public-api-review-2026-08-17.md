@@ -42,9 +42,8 @@ entries. The worktree and index were clean before this artifact was added, the
 branch was 27 commits ahead of `origin/phase-e/sqlserver-and-orchestration`, and
 nothing was pushed.
 
-The review followed
-[`.agents/skills/nekolib-devices/SKILL.md`](../../../../.agents/skills/nekolib-devices/SKILL.md)
-throughout. The reviewed authority is the `NekoLib.Devices` project, all eight of
+The review followed the historical
+`.agents/skills/nekolib-devices/SKILL.md` workflow throughout. The reviewed authority is the `NekoLib.Devices` project, all eight of
 its source files, its project file, the two assembly-derived manifests under
 [`eng/public-api/NekoLib.Devices/`](../../../../eng/public-api/NekoLib.Devices), the
 dual-target tests, the

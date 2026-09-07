@@ -14,6 +14,8 @@ $warningBaselinePath = Join-Path $PSScriptRoot "warning-baseline.txt"
 $errors = New-Object System.Collections.Generic.List[string]
 $notes = New-Object System.Collections.Generic.List[string]
 $utf8Encoding = New-Object System.Text.UTF8Encoding -ArgumentList $false, $true
+$historicalLinkCache = @{}
+$historicalLinkEvidenceCount = 0
 
 function Add-VerificationError([string]$message) {
     $script:errors.Add($message)
@@ -243,6 +245,36 @@ function Test-PathAtCommit([string]$commit, [string]$relativePath) {
     return $LASTEXITCODE -eq 0
 }
 
+function Test-LinkWasValidInRepositoryHistory(
+    [string]$documentPath,
+    [string]$target,
+    [string]$relativePath) {
+    $cacheKey = "$documentPath|$target|$relativePath"
+    if ($script:historicalLinkCache.ContainsKey($cacheKey)) {
+        return [bool]$script:historicalLinkCache[$cacheKey]
+    }
+
+    $isHistoricalLink = $false
+    $commits = @(& git -C $script:repoRoot log --format=%H -- $documentPath)
+    foreach ($commit in $commits) {
+        if (-not (Test-PathAtCommit $commit $relativePath) -or
+            -not (Test-PathAtCommit $commit $documentPath)) {
+            continue
+        }
+
+        $historicalText = (& git -C $script:repoRoot show ($commit + ':' + $documentPath)) -join "`n"
+        $matchingTargets = @(Get-MarkdownTargets $historicalText |
+            Where-Object { $_ -ceq $target })
+        if ($matchingTargets.Count -gt 0) {
+            $isHistoricalLink = $true
+            break
+        }
+    }
+
+    $script:historicalLinkCache[$cacheKey] = $isHistoricalLink
+    return $isHistoricalLink
+}
+
 function Normalize-Set([string[]]$values) {
     return @($values | Where-Object { $null -ne $_ } |
         ForEach-Object { $_.Trim() } | Where-Object { $_ } | Sort-Object -Unique)
@@ -433,107 +465,6 @@ try {
         }
     }
 
-    if ($null -ne $documentationSchema) {
-        if ($null -eq $documentationSchema.agentAuthoring) {
-            Add-VerificationError "$documentationSchemaPath is missing the agentAuthoring contract."
-        } else {
-            $agentContractPath = ([string]$documentationSchema.agentAuthoring.contractPath).Replace('\', '/')
-            if (-not $agentContractPath) {
-                Add-VerificationError "$documentationSchemaPath agentAuthoring contractPath is empty."
-            } elseif (-not (Test-Path -LiteralPath $agentContractPath) -or
-                -not (Test-VersionedCandidatePath $agentContractPath)) {
-                Add-VerificationError "$documentationSchemaPath points to absent or non-versioned agent contract '$agentContractPath'."
-            } elseif (-not (Test-RepositoryPathCase $agentContractPath)) {
-                Add-VerificationError "$documentationSchemaPath uses incorrect casing for agent contract '$agentContractPath'."
-            }
-
-            $skillRegistryPath = ([string]$documentationSchema.agentAuthoring.skillRegistryPath).Replace('\', '/')
-            $logicalSkillId = [string]$documentationSchema.agentAuthoring.logicalSkillId
-            $requiredParityPolicy = [string]$documentationSchema.agentAuthoring.requiredParityPolicy
-            $agentSkillRegistry = $null
-            if (-not $skillRegistryPath) {
-                Add-VerificationError "$documentationSchemaPath agentAuthoring skillRegistryPath is empty."
-            } elseif (-not (Test-Path -LiteralPath $skillRegistryPath) -or
-                -not (Test-VersionedCandidatePath $skillRegistryPath)) {
-                Add-VerificationError "$documentationSchemaPath points to absent or non-versioned skill registry '$skillRegistryPath'."
-            } elseif (-not (Test-RepositoryPathCase $skillRegistryPath)) {
-                Add-VerificationError "$documentationSchemaPath uses incorrect casing for skill registry '$skillRegistryPath'."
-            } else {
-                try {
-                    $agentSkillRegistry = Read-Utf8Text $skillRegistryPath | ConvertFrom-Json
-                    if ($agentSkillRegistry.schemaVersion -ne 1) {
-                        Add-VerificationError "$skillRegistryPath has unsupported schemaVersion '$($agentSkillRegistry.schemaVersion)'."
-                    }
-                } catch {
-                    Add-VerificationError "$skillRegistryPath is not valid JSON: $($_.Exception.Message)"
-                }
-            }
-
-            if ($null -ne $agentSkillRegistry) {
-                $logicalSkills = @($agentSkillRegistry.skills | Where-Object { $_.id -ceq $logicalSkillId })
-                if ($logicalSkills.Count -ne 1) {
-                    Add-VerificationError "$skillRegistryPath must register logical skill '$logicalSkillId' exactly once."
-                } else {
-                    $logicalSkill = $logicalSkills[0]
-                    if ([string]$logicalSkill.parityPolicy -cne $requiredParityPolicy) {
-                        Add-VerificationError "$skillRegistryPath logical skill '$logicalSkillId' uses parity '$($logicalSkill.parityPolicy)', expected '$requiredParityPolicy'."
-                    }
-                    $registeredContract = ([string]$logicalSkill.sharedContract).Replace('\', '/')
-                    if ($registeredContract -cne $agentContractPath) {
-                        Add-VerificationError "$skillRegistryPath logical skill '$logicalSkillId' uses shared contract '$registeredContract', expected '$agentContractPath'."
-                    }
-
-                    $profileProperties = @($logicalSkill.adapters.PSObject.Properties)
-                    $profileNames = @($profileProperties | ForEach-Object { $_.Name })
-                    Compare-StringSets 'Registered documentation authoring profiles' `
-                        @($documentationSchema.agentAuthoring.requiredProfiles) $profileNames
-                    Compare-StringSets 'Documentation logical skill required profiles' `
-                        @($documentationSchema.agentAuthoring.requiredProfiles) @($logicalSkill.requiredProfiles)
-
-                    $skillPaths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-                    foreach ($profileProperty in $profileProperties) {
-                        $profileName = [string]$profileProperty.Name
-                        $skillPath = ([string]$profileProperty.Value.path).Replace('\', '/')
-                        $expectedSkillName = [string]$profileProperty.Value.declaredName
-                        if (-not $skillPaths.Add($skillPath)) {
-                            Add-VerificationError "Documentation authoring profiles reuse skill path '$skillPath'."
-                        }
-                        if (-not (Test-Path -LiteralPath $skillPath) -or
-                            -not (Test-VersionedCandidatePath $skillPath)) {
-                            Add-VerificationError "Documentation authoring profile '$profileName' points to absent or non-versioned skill '$skillPath'."
-                            continue
-                        }
-                        if (-not (Test-RepositoryPathCase $skillPath)) {
-                            Add-VerificationError "Documentation authoring profile '$profileName' uses incorrect skill casing for '$skillPath'."
-                        }
-
-                        $skillText = Read-Utf8Text $skillPath
-                        $declaredNameMatch = [regex]::Match($skillText, '(?m)^name:[ \t]*(?<value>[^\r\n]+?)[ \t]*\r?$')
-                        if (-not $declaredNameMatch.Success -or
-                            $declaredNameMatch.Groups['value'].Value.Trim() -cne $expectedSkillName) {
-                            Add-VerificationError "$skillPath does not declare registered skill name '$expectedSkillName'."
-                        }
-                        foreach ($field in @($documentationSchema.agentAuthoring.requiredSkillFields)) {
-                            if (-not (Get-MetadataValue $skillText ([string]$field))) {
-                                Add-VerificationError "$skillPath is missing agent authoring field '$field'."
-                            } elseif (-not (Test-MetadataValueIsSingleLine $skillText ([string]$field))) {
-                                Add-VerificationError "$skillPath agent authoring field '$field' must use one physical line."
-                            }
-                        }
-                        $declaredContract = ((Get-MetadataValue $skillText 'Documentation contract') -replace '`', '').Trim().Replace('\', '/')
-                        if ($declaredContract -cne $agentContractPath) {
-                            Add-VerificationError "$skillPath declares Documentation contract '$declaredContract', expected '$agentContractPath'."
-                        }
-                        $declaredProfile = ((Get-MetadataValue $skillText 'Authoring profile') -replace '`', '').Trim()
-                        if ($declaredProfile -cne $profileName) {
-                            Add-VerificationError "$skillPath declares Authoring profile '$declaredProfile', expected '$profileName'."
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     $registryFiles = @(
         'docs/README.md',
         'docs/audit/README.md',
@@ -575,9 +506,7 @@ try {
             $markdownFile.StartsWith('docs/governance/') -or
             $markdownFile.StartsWith('docs/proposals/') -or
             $markdownFile.StartsWith('docs/schemas/') -or
-            $markdownFile.StartsWith('docs/templates/') -or
-            $markdownFile.StartsWith('.agents/skills/nekolib-documentation/') -or
-            $markdownFile.StartsWith('.claude/skills/nekolib-documentation/')
+            $markdownFile.StartsWith('docs/templates/')
 
         $hasEmbeddedClassification = $kind -and $lifecycle -and $subject
         if (-not $hasEmbeddedClassification -and -not $registered.Contains($markdownFile)) {
@@ -920,10 +849,19 @@ try {
                         continue
                     }
                 }
+                if ($mutation -eq 'append-only' -and
+                    (Test-LinkWasValidInRepositoryHistory $markdownFile $target $resolved.RelativePath)) {
+                    $historicalLinkEvidenceCount++
+                    continue
+                }
 
                 Add-VerificationError "$markdownFile`:$lineNumber links to absent path '$($resolved.RelativePath)'."
             }
         }
+    }
+
+    if ($historicalLinkEvidenceCount -gt 0) {
+        $notes.Add("Accepted $historicalLinkEvidenceCount retired append-only link(s) with repository-history proof.")
     }
 
     $readme = Read-Utf8Text 'README.md'

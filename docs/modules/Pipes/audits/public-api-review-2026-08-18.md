@@ -51,9 +51,8 @@ ea7c476 feat(http): finalize F1 public API
 efd0a88 feat(diagnostics): finalize F1 public API
 ```
 
-The review followed [the NekoLib routing
-skill](../../../../.agents/skills/nekolib/SKILL.md) and the
-[repository-hygiene workflow](../../../../.agents/skills/nekolib-repository-hygiene/SKILL.md).
+The review followed the historical NekoLib routing skill and
+repository-hygiene workflow that then lived under `.agents/skills/`.
 Pipes has no specialized module skill, so the current source, project, tests,
 compiled manifests, public API policy, and current repository documentation are
 the operative authorities.
