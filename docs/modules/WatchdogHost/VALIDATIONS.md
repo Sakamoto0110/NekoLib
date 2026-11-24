@@ -237,3 +237,33 @@ The executed records follow.
 **Gaps:** Native UI consumers run x64. x86 Host selection and package bytes are checked, but no x86 desktop recovery matrix is claimed. Host return-code, other consumer framework versions, absent-runtime and security/install campaigns remain independently scoped.
 
 **Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
+
+## WDGHOST-VALEVID-20261124-002
+
+**Requirement IDs:** `WDGHOST-VALREQ-002`, `WDGHOST-VALREQ-003`, `WDGHOST-VALREQ-004`, `WDGHOST-VALREQ-005`, `WDGHOST-VALREQ-006`
+
+**Version:** coordinated stable family `1.3.0`
+
+**Commit:** clean package source `39450335adfb007a13123d331399e84e7048f314`
+
+**Tree state:** clean integrated source; independent signed downloads and new private consumer caches
+
+**Environment:** Windows x64; .NET 9.0.22 / CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms on `net481` and `net9.0-windows`
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.3.0 -KeepIntermediateArtifacts`; all 30 API checks; `eng/verify-docs.ps1`; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against signed public downloads
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.3.0.md), public evidence archive, exact source/public consumer result sets and trusted publication run
+
+**Observed:** Canonical payload layout, direct ownership, RID selection/rejection, build/publish/rebuild/clean and legacy protocol checks pass. Optional automatic Sidecar mode repeats normal return, detach, repeated global re-enable, shutdown active/disabled and fatal recovery on every desktop/target pair. SameExecutable mode requires no Host package or payload. Existing manual startup remains qualified.
+
+**Gaps:** Heartbeat reports process existence, not UI responsiveness. No automatic hang, x86 desktop, restricted-token, cross-user/elevation, mixed-runtime, human visual or nominal-duration soak campaign is claimed. Shutdown uses Environment.Exit after confirmed detach; callers own prior graceful cleanup. The pre-existing Inspection shared-budget timing issue remains open; its earlier failed attempt is retained.
+
+**Supersedes:** `WDGHOST-VALEVID-20261124-001` only at this newer exact version and observed scope; historical exclusions remain separate

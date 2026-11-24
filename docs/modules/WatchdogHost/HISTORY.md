@@ -120,3 +120,14 @@ it.
   package target, payload layout, protocol, or package version changed.
 
 **Evidence:** [`MANIFEST.md`](MANIFEST.md), [`REFERENCE.md`](REFERENCE.md), [`FINDINGS.md`](FINDINGS.md), [`VALIDATIONS.md`](VALIDATIONS.md)
+
+## 2026-11-24 — WDGHOST-HISTORY-007 — Automatic desktop supervision delivered
+
+**Release:** 1.3.0
+
+- Delivered the accepted automatic same-executable hosting and optional sidecar
+  compatibility boundary with global application controls. Exact clean-source,
+  API, package, public distribution and process qualification are recorded by
+  the release owner rather than inferred from build or type-loading checks.
+
+**Evidence:** [stable release record](../../stable-release-1.3.0.md), [executed qualification](VALIDATIONS.md#wdghost-valevid-20261124-002), [accepted contract](../../watchdog-auto-bootstrap.md)

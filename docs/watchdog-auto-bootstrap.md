@@ -109,3 +109,11 @@ case passed on both targets when rerun; its timing behavior and Inspection
 implementation are unchanged by this Watchdog scope. Final release qualification
 must still pass the complete family suite and retain the failed attempt as
 bounded evidence rather than claim the issue was corrected.
+
+## Delivered release
+
+WDG-AUTOBOOT-001 completed in the coordinated 1.3.0 family. The
+[stable release record](stable-release-1.3.0.md) records the exact integrated
+source, immutable artifacts, trusted publication and isolated public-package
+qualification. The [completion history](history/watchdog-auto-bootstrap-2026-11-24.md)
+routes the finished work; the contracts and exclusions above remain in force.

@@ -232,7 +232,8 @@ reference commit.
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/watchdog-auto-bootstrap.md`](watchdog-auto-bootstrap.md) | reference | current | Accepted opt-in same-executable desktop supervision, optional configuration/cancellation, API review and bounded qualification |
-| [`docs/stable-release-1.2.1.md`](stable-release-1.2.1.md) | reference | current | Active desktop family, compatible API/behavior decisions, exact provenance/hashes, four-way runtime recovery and independently verified public distribution |
+| [`docs/stable-release-1.3.0.md`](stable-release-1.3.0.md) | reference | current | Active same-executable Watchdog family, global controls, exact artifacts and independent public-package qualification |
+| [`docs/stable-release-1.2.1.md`](stable-release-1.2.1.md) | reference | current | Preceding desktop family, compatible API/behavior decisions, exact provenance/hashes, four-way runtime recovery and independently verified public distribution |
 | [`docs/desktop-readiness-1.2.0.md`](desktop-readiness-1.2.0.md) | reference | current | Accepted 1.2 desktop APIs, 17-class adapter parity review, compatibility and bounded unattended qualification |
 | [`docs/desktop-readiness-1.2.1.md`](desktop-readiness-1.2.1.md) | reference | current | Compatible modal enabled-binding correction and immutable 1.2.0 supersession |
 | [`docs/stable-release-1.1.0.md`](stable-release-1.1.0.md) | reference | current | Preceding compatible minor, qualifying package provenance, hashes, validation, and public distribution evidence |

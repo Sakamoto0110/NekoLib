@@ -324,3 +324,33 @@ The executed records follow.
 **Gaps:** The helper is test-only and windowless. Heartbeat measures process existence, not UI responsiveness. No automatic UI-hang, restricted-token, cross-user/elevation, hotkey, mixed-runtime pairing or nominal-duration soak campaign was run.
 
 **Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
+
+## WDG-VALEVID-20261124-002
+
+**Requirement IDs:** `WDG-VALREQ-001`, `WDG-VALREQ-002`, `WDG-VALREQ-006`, `WDG-VALREQ-008`
+
+**Version:** coordinated stable family `1.3.0`
+
+**Commit:** clean package source `39450335adfb007a13123d331399e84e7048f314`
+
+**Tree state:** clean integrated source; independent signed downloads and new private consumer caches
+
+**Environment:** Windows x64; .NET 9.0.22 / CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms on `net481` and `net9.0-windows`
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.3.0 -KeepIntermediateArtifacts`; all 30 API checks; `eng/verify-docs.ps1`; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against signed public downloads
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.3.0.md), public evidence archive, exact source/public consumer result sets and trusted publication run
+
+**Observed:** Same-executable hosting, automatic entry routing, configuration/cancellation, global disable/re-enable/shutdown, warnings, nonterminating detach and fatal/kill/restart recovery pass on all four desktop/target combinations. Default deployment has no Host payload. SDK 9.0.319 / C# 7.3 entry builds pass on both targets. Other runtime, security and soak requirements are not closed.
+
+**Gaps:** Heartbeat reports process existence, not UI responsiveness. No automatic hang, x86 desktop, restricted-token, cross-user/elevation, mixed-runtime, human visual or nominal-duration soak campaign is claimed. Shutdown uses Environment.Exit after confirmed detach; callers own prior graceful cleanup. The pre-existing Inspection shared-budget timing issue remains open; its earlier failed attempt is retained.
+
+**Supersedes:** `WDG-VALEVID-20261124-001` only at this newer exact version and observed scope; historical exclusions remain separate

@@ -279,9 +279,9 @@ runtime/package probes, publication attempts, repository-signature evidence,
 and unexecuted layers are recorded in the
 [`1.1.0` stable release record](stable-release-1.1.0.md).
 
-## Current stable family
+## Preceding desktop family
 
-NekoLib `1.2.1`, released on 2026-11-24, is the active coordinated stable family.
+NekoLib `1.2.1`, released on 2026-11-24, was the preceding coordinated stable family.
 The 1.2 minor added scoped WPF crash forwarding, explicit interaction observer
 policies and a bootstrap observer factory without removing stable APIs. The
 compatible 1.2.1 patch restores modal ownership during enabled-state binding
@@ -297,3 +297,21 @@ verification and package-only runtime evidence on all four desktop/target
 combinations. Version 1.2.0 remains immutable and superseded for desktop
 readiness. Align Watchdog and its directly referenced Host deployment package
 with the rest of the family.
+
+## Current stable family
+
+NekoLib `1.3.0`, released on 2026-11-24, is the active coordinated stable family.
+Its compatible minor adds opt-in automatic same-executable Watchdog hosting,
+portable startup configuration and global Disable/Enable/Shutdown controls.
+Only the two accepted Watchdog manifests add reviewed declarations; the other
+28 remain unchanged. Legacy manual sidecar startup and target-terminating Stop
+retain their contracts. Existing deprecations, experimental markers and the
+closed 2.0 removal boundary remain in force.
+
+The clean tagged package source is `39450335adfb007a13123d331399e84e7048f314`.
+The [stable release record](stable-release-1.3.0.md) owns exact artifact hashes,
+trusted publication, independent signed public-package verification and isolated
+four-way desktop qualification. Automatic UI-hang detection remains a separate
+next step: heartbeat reports process existence. Align the family versions;
+Sidecar mode requires a direct same-version Host reference, while the default
+SameExecutable mode deploys no Host payload.
