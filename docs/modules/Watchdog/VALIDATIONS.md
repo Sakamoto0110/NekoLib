@@ -384,3 +384,33 @@ The executed records follow.
 **Gaps:** The native contract follows one observed window thread; missing windows and pre-activation startup do not confirm a hang. It does not certify all dispatchers/workers or business progress. No cross-user/elevation, restricted-token, mixed-runtime, x86 desktop, human visual or nominal-window soak campaign is claimed. The owner stopped public GUI repetition after four native module consumers and six WinForms net481 recovery checks; 162 public checks remain unexecuted or interrupted, including the public UI-hang repeat required by WDG-VALREQ-015. Exact signed public payload identity passed for all 16 packages. This record closes the executed local scope and does not claim the complete public native matrix. Existing provider, hardware and Inspection issue exclusions remain separate.
 
 **Supersedes:** `WDG-VALEVID-20261124-002` only at this exact newer version and observed scope; older exclusions retain their evidence boundaries
+
+## WDG-VALEVID-20261124-004
+
+**Requirement IDs:** `WDG-VALREQ-015`
+
+**Version:** coordinated stable family `1.4.0`
+
+**Commit:** package `86340ab27ade1322225a3ae2005b6a32c59ab005`; qualification fixture `a5ee0b2f03b944f9ae1a13b785d57360384d105b`
+
+**Tree state:** committed qualification-only placement/resume changes; unchanged signed public packages; new isolated feed/cache/output
+
+**Environment:** Windows x64 after reboot; own-window placement at `(2700, 100)` without computer-use tools
+
+**Targets:** WPF and WinForms on net481 and net9.0-windows, SameExecutable and Sidecar
+
+**Command or scenario:** retained six public recovery passes plus `resume-public-matrix.ps1` from the completion archive, executing the remaining 18 legacy and 144 automatic cases
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [public completion supplement](../../stable-release-1.4.0-public-qualification.md), public completion archive, 162 new result records, six unchanged historical records, native rectangles and all 16 restored-public-package hashes
+
+**Observed:** All 168 distinct public recovery/control identities pass, including 56 native UI conditions (16 sustained-hang recoveries and 40 negative cases), global controls, fatal/recoverable policy, one primary window, supervisor-preserving termination and process/endpoint cleanup. All four previously completed public native module consumers are retained.
+
+**Gaps:** This completes the paused public scope of record 003. Native window-message responsiveness does not certify every dispatcher/worker or business progress. Missing-window and pre-activation targets, x86, cross-user/elevation, restricted-token, mixed-runtime, human visual acceptance, nominal-duration soak and live external-provider coverage remain outside this campaign.
+
+**Supersedes:** `WDG-VALEVID-20261124-003` only for its paused public-repeat limitation; source/package identity and all other exclusions remain unchanged

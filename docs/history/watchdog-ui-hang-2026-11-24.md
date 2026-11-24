@@ -27,15 +27,17 @@ qualified WPF/WinForms on both targets and both hosting modes. Brief stalls,
 initialization grace, native modal loops, paused monitoring and detection disable
 continued without false-positive replacements in the clean local matrices.
 Independently downloaded signed packages matched every qualified payload entry;
-their GUI repetition was stopped at the owner's execution limit. The first development attempt exposed
+their GUI repetition initially stopped at the owner's execution limit, then
+completed all 162 remaining cases after explicitly authorized continuation.
+The [completion supplement](../stable-release-1.4.0-public-qualification.md)
+records the combined 168 distinct public passes and qualification-only placement. The first development attempt exposed
 the launcher's SW_HIDE fixture setting; qualification now exposes actual native
 offscreen windows and rejects vacuous no-window negative-case results.
 
 The policy follows one observed native UI thread, not all workers or business
-operation progress. The owner stopped the public GUI repetition after four
-native consumers and six recovery/control cases; 162 public checks remain
-unexecuted or interrupted. Exact signed public payload identity is verified,
-but no complete public native repeat is claimed. No-window targets,
+operation progress. The public matrix combines six retained cases and 162 newly executed passes;
+all four UI/framework pairs and both hosting modes are covered from signed
+public packages. The earlier paused results remain unchanged historical evidence. No-window targets,
 pre-activation startup and the other
 release-record exclusions remain outside the observed coverage. No final demo,
 companion, console fault protocol or synchronization engine was added.
