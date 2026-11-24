@@ -49,6 +49,19 @@ an explicit implementation gate after promotion.
 
 ## Current promoted work
 
+### `WDG-UIHANG-001` — external UI-hang recovery
+
+**Status:** promoted; implementation, integration and immutable publication authorized.
+
+**Source:** owner's direct instruction on 2026-11-24 and the
+[accepted UI-hang policy](docs/watchdog-ui-hang-detection.md).
+
+Implement bounded external UI message probing with configurable timeout/grace,
+compatible manual defaults, automatic desktop activation and global controls.
+Close with dual-target timing/API regressions, four-way native package recovery
+and negative cases, retained old package behavior, clean family publication and
+independent public consumption. Preserve unrelated edits and delete the work branch.
+
 `WDG-AUTOBOOT-001` completed with the coordinated 1.3.0 release. Its
 [completion record](docs/history/watchdog-auto-bootstrap-2026-11-24.md) owns
 the integrated scope, published evidence and remaining boundaries.

@@ -14,8 +14,21 @@ namespace WatchdogAutoWpf
             var window = new MainWindow();
             window.Closing += (sender, args) => { if (WatchdogAutoProbe.VetoClose) args.Cancel = true; };
             window.Show();
+            if (WatchdogAutoProbe.Mode.StartsWith("ui-", StringComparison.Ordinal))
+            {
+                // The native UI probe needs an observable HWND, not SW_HIDE.
+                window.Hide();
+                window.Show();
+            }
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            timer.Tick += (sender, args) => WatchdogAutoProbe.Tick(Windows.Count, window.Close);
+            timer.Tick += (sender, args) => WatchdogAutoProbe.Tick(Windows.Count, window.Close, () =>
+            {
+                var modal = new Window { Owner = window, Title = "Responsive modal qualification", ShowInTaskbar = false, Left = -20000, Top = -20000, Width = 200, Height = 100 };
+                var modalTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3200) };
+                modalTimer.Tick += (s, args2) => { modalTimer.Stop(); modal.Close(); };
+                modalTimer.Start();
+                modal.ShowDialog();
+            });
             timer.Start();
         }
     }

@@ -16,6 +16,14 @@ remain under `docs/history/`.
 
 - No unreleased package changes.
 
+## 1.4.0 — compatible minor released 2026-11-24
+
+- **Watchdog UI-hang recovery:** automatic desktop bootstrap enables bounded
+  external window-message probes. Configurable timeout/startup grace, native
+  responsiveness status and the existing restart path recover a sustained UI
+  hang without application Main calls. Manual runtimes remain opt-in. See the
+  [policy and migration contract](docs/watchdog-ui-hang-detection.md).
+
 ## 1.3.0 — compatible minor released 2026-11-24
 
 - **1.3 compatible minor:** opt-in Watchdog auto bootstrap for WPF/WinForms,

@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$PackageVersion,
     [Parameter(Mandatory)][string]$SessionRoot,
-    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release'
+    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
+    [switch]$UiScenariosOnly
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -69,7 +70,7 @@ function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
             $expectedArgs = @($arguments | ForEach-Object { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_)) })
             $actualArgs = @(Get-Content (Join-Path $directory initial.args))
             if (($expectedArgs -join '|') -cne ($actualArgs -join '|')) { throw 'Initial entry arguments were changed.' }
-            if ($Hosting -eq 'SameExecutable' -and $Mode -in @('kill', 'restart', 'restart-soft', 'stop')) {
+            if ($Hosting -eq 'SameExecutable' -and $Mode -in @('kill', 'restart', 'restart-soft', 'stop', 'ui-hang', 'ui-hang-long')) {
                 $supervisors = @(Get-Owned $Exe $hostPath | Where-Object { $_.ProcessId -ne $initialPid -and $_.CommandLine -like '*--nekolib-watchdog-supervisor*' })
                 if ($supervisors.Count -ne 1 -or $supervisors[0].ExecutablePath -ne $Exe) { throw 'Expected exactly one supervisor using the application executable.' }
                 $supervisor = [Diagnostics.Process]::GetProcessById($supervisors[0].ProcessId)
@@ -81,7 +82,16 @@ function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
             if ($Mode -eq 'kill') { Stop-Process -Id $initialPid -Force }
             if ($Mode -in @('restart', 'restart-soft') -and (Invoke-Control $Exe 'restart') -ne 'True') { throw 'Restart was rejected.' }
             if ($Mode -eq 'stop' -and (Invoke-Control $Exe 'stop') -ne 'True') { throw 'Stop was rejected.' }
-            if ($Mode -in @('crash', 'kill', 'restart', 'restart-soft')) {
+            if ($Mode -like 'ui-*') {
+                if ($Mode -eq 'ui-paused') { Wait-File (Join-Path $directory ui-paused.ready) }
+                $status = Invoke-Control $Exe 'status'
+                $status | Set-Content (Join-Path $directory ui-live-status.json) -Encoding utf8
+                $live = $status | ConvertFrom-Json
+                if ($Mode -notin @('ui-hang', 'ui-hang-long') -and $live.childPid -ne $initialPid) { throw 'The control pipe did not observe the live initial target during the UI scenario.' }
+                if ($Mode -eq 'ui-paused' -and $live.state -ne 'paused') { throw 'Pause did not suppress UI recovery.' }
+                if ($Mode -eq 'ui-detection-disabled' -and $live.uiResponsiveness.enabled) { throw 'UI detection opt-out was not transferred.' }
+            }
+            if ($Mode -in @('crash', 'kill', 'restart', 'restart-soft', 'ui-hang', 'ui-hang-long')) {
                 Wait-File (Join-Path $directory replacement.ready)
                 $replacementPid = [int](Get-Content (Join-Path $directory replacement.ready) -Raw)
                 if ($initialPid -eq $replacementPid) { throw 'Recovery did not replace the process.' }
@@ -97,6 +107,17 @@ function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
             if ($Mode -eq 'warning' -and -not (Test-Path (Join-Path $directory warnings.txt))) { throw 'Missing fail-open activation warning.' }
             if ($Mode -notin @('defaults', 'disable-before', 'shutdown-disabled', 'warning') -and -not (Test-Path (Join-Path $directory watchdog.log))) { throw 'Optional runtime configuration was not transferred.' }
             if ($Mode -eq 'restart' -and (Get-Content (Join-Path $directory watchdog.log) -Raw) -notmatch 'attached_tree_preserving_supervisor') { throw 'Forced same-executable/sidecar attached restart was not observed.' }
+            if ($Mode -like 'ui-*') {
+                $final = Get-Content (Join-Path $directory ui-final-status.json) -Raw | ConvertFrom-Json
+                $hang = $Mode -in @('ui-hang', 'ui-hang-long')
+                if ($final.restartCount -ne $(if ($hang) {1} else {0})) { throw 'Unexpected UI recovery count.' }
+                if ($hang -and ($final.restartReason -ne 'ui_hang' -or $final.uiResponsiveness.state -ne 'responsive')) { throw 'Hang recovery did not restore a responsive UI with the correct reason.' }
+                if (-not $hang -and $Mode -ne 'ui-detection-disabled' -and $final.uiResponsiveness.state -ne 'responsive') { throw 'A negative UI scenario did not exercise a responsive native window.' }
+                if (-not $hang -and -not (Test-Path (Join-Path $directory ui-action.completed))) { throw 'A negative UI scenario did not continue on its original UI thread.' }
+                $runtimeLog = Get-Content (Join-Path $directory watchdog.log) -Raw
+                if (($runtimeLog -match '\[ui_hang\]') -ne $hang) { throw 'Unexpected/missing UI-hang recovery diagnostic.' }
+                if ($hang -and $runtimeLog -notmatch 'attached_tree_preserving_supervisor') { throw 'Hung initial target termination did not preserve its supervisor.' }
+            }
         }
         $watch = [Diagnostics.Stopwatch]::StartNew()
         do {
@@ -134,9 +155,12 @@ foreach ($projectName in @('WatchdogAutoForms', 'WatchdogAutoWpf')) {
             if ($hosting -eq 'SameExecutable' -and (Test-Path $hostDirectory)) { throw 'Same-executable mode deployed a separate Host payload.' }
             if ($hosting -eq 'Sidecar' -and -not (Test-Path $hostDirectory)) { throw 'Explicit sidecar payload is missing.' }
             $modes = if ($hosting -eq 'SameExecutable') { @('defaults', 'normal', 'disable-before', 'disable-after', 'enable-before', 'toggle', 'shutdown', 'shutdown-disabled', 'warning', 'crash', 'kill', 'restart', 'restart-soft', 'stop', 'invalid') } else { @('normal', 'disable-after', 'toggle', 'shutdown', 'shutdown-disabled', 'crash') }
+            if ($UiScenariosOnly) { $modes = @() }
+            $modes += @('ui-hang', 'ui-hang-long', 'ui-stall', 'ui-grace', 'ui-modal', 'ui-paused', 'ui-detection-disabled')
             foreach ($mode in $modes) { Invoke-Case $exe $hosting $mode }
         }
     }
+    if ($UiScenariosOnly) { continue }
     $disabledOutput = Join-Path $root "bin/$projectName/Disabled/"
     $disabledIntermediate = Join-Path $root "obj/$projectName/Disabled/"
     $disabledProperties = @("-p:NekoLibPackageVersion=$PackageVersion", '-p:NekoLibWatchdogAutoBootstrap=false', "-p:BaseOutputPath=$disabledOutput", "-p:BaseIntermediateOutputPath=$disabledIntermediate")

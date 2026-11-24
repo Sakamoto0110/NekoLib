@@ -11,7 +11,9 @@
 The owner authorized this scope after the 1.2.1 desktop release. The primary
 composition uses the application executable in a second, headless supervisor
 process. The existing deployed Host and manual bootstrap remain supported.
-Automatic UI-hang detection remains a separate next step.
+The 1.3.0 hosting release did not implement UI-hang detection. Its separately
+authorized 1.4 addition is owned by the [UI-hang policy](watchdog-ui-hang-detection.md),
+including its new automatic defaults and configurable initialization grace.
 
 ## Integration contract
 

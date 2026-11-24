@@ -22,9 +22,12 @@ namespace NekoLib.Watchdog.Tests.Unit
         {
             var options = new WatchdogAutoBootstrapOptions();
             options.RuntimeOptions.RestartDelayMs = 321;
+            options.RuntimeOptions.UiHangTimeoutMs = 7890;
             var copy = WatchdogSupervisorLaunch.Copy(options);
             options.RuntimeOptions.RestartDelayMs = 999;
             Assert.Equal(321, copy.RuntimeOptions.RestartDelayMs);
+            Assert.Equal(7890, copy.RuntimeOptions.UiHangTimeoutMs);
+            Assert.True(copy.RuntimeOptions.EnableUiHangDetection);
             Assert.Equal(WatchdogHostingMode.SameExecutable, copy.HostingMode);
             Assert.False(copy.RuntimeOptions.EnableHotkeys);
             options.RuntimeOptions.InitialProcessId = 123;

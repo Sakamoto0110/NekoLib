@@ -134,6 +134,40 @@ trimming and NativeAOT are outside this first integration. See the
 [accepted decision](../../watchdog-auto-bootstrap.md) for process boundaries,
 configuration transfer, API review and qualification gates.
 
+**UI-hang recovery** is enabled by automatic desktop bootstrap starting with
+1.4.0. Its defaults are a 15-second consecutive failed-window-probe interval and
+a 30-second initialization grace. Manual runtime options leave it disabled.
+Configure may change this policy before activation, or while globally disabled:
+
+```csharp
+WatchdogAutoBootstrap.Configure(options =>
+{
+    options.RuntimeOptions.EnableUiHangDetection = true;
+    options.RuntimeOptions.UiHangTimeoutMs = 15000;
+    options.RuntimeOptions.UiHangStartupGraceMs = 30000;
+});
+```
+
+The separate supervisor probes one discovered native window thread using a
+bounded WM_NULL acknowledgement. It recovers a sustained unresponsive UI through
+the existing graceful/forced restart path, including supervisor-preserving
+termination of the initially attached tree. It does not depend on an application
+worker sending a heartbeat. Status adds `uiResponsiveness`; its states are
+`waiting`, `warming_up`, `responsive`, `unresponsive`, `no_window`, `unavailable`,
+`paused` and `disabled`. The object records enabled policy, observed PID/HWND,
+consecutive failure duration, effective timeout/grace and native error code.
+Recovery logs `[ui_hang]` and sets `restartReason` to `ui_hang`.
+
+Pause discards failure history; Resume grants fresh grace. Disable detaches and
+stops probing, Enable starts a fresh session, and Shutdown retains its confirmed
+detach-before-exit contract. A probe result from before pause/resume cannot commit
+termination after the new session boundary. Successful probes, changed HWND/PID
+or unavailable observations clear the failure interval. No observed window does
+not imply a hang. Modal loops remain responsive; intentionally blocked UI work
+longer than the policy is recoverable regardless of its business intent.
+See the [accepted detector contract](../../watchdog-ui-hang-detection.md) for
+native bounds, startup, worker-health and multi-dispatcher limits.
+
 **The manual application path** calls `WatchdogBootstrap.EnsureStarted` near the start
 of `Main`. Bootstrap locates the deployed Host below the application base
 directory, starts it, hands over the current process, and returns. The
@@ -253,6 +287,8 @@ Capture then normalizes:
 | `RestartDelayMs` | at least 200 |
 | `GracefulKillTimeoutMs` | at least 0 |
 | `ForceKillTimeoutMs` | at least 100 |
+| `UiHangTimeoutMs` | at least 1,000 |
+| `UiHangStartupGraceMs` | at least 0 |
 | `PendingCrashRoot` | full path; defaults to `crash/pending` under the working directory |
 | `BundleRoot` | full path; defaults to `crash/bundles` under the working directory |
 | `LogSinks` | outer array cloned; `null` becomes empty |
@@ -360,8 +396,10 @@ The monitor loop runs until shutdown:
    log and a telemetry publication when `HeartbeatIntervalMs` has elapsed. The
    heartbeat is therefore observed on a poll boundary, not on an exact timer,
    and only while a target is alive.
-   It measures process existence through WaitForExit, not UI responsiveness;
-   an unresponsive message loop does not itself trigger a restart.
+   It measures process existence through WaitForExit. Independently enabled
+   UI-hang recovery samples the window between short wait slices and can
+   terminate a sustained unresponsive target, even while its process and
+   background control pipe remain alive.
 4. On exit it records the exit code, logs `[child_exit]`, finalizes crash
    evidence, disposes the target handle, applies crash-loop accounting, waits
    `RestartDelayMs`, and publishes telemetry.
