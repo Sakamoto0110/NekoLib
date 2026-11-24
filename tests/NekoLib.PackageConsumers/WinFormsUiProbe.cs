@@ -112,8 +112,14 @@ namespace NekoLib.PackageConsumers
             return exit;
         }
 
-        private static Form NewForm() => new Form
-        { Text = "NekoLib package qualification", Size = new Size(640, 480), Location = new Point(-32000, 0), StartPosition = FormStartPosition.Manual, ShowInTaskbar = false };
+        private static Form NewForm()
+        {
+            var form = new Form
+            { Text = "NekoLib package qualification", Size = new Size(640, 480), Location = new Point(QualificationWindowPlacement.X(-32000), QualificationWindowPlacement.Y(0)), StartPosition = FormStartPosition.Manual, ShowInTaskbar = false };
+            form.HandleCreated += (_, __) => QualificationWindowPlacement.Apply(form.Handle);
+            form.Shown += (_, __) => QualificationWindowPlacement.Apply(form.Handle);
+            return form;
+        }
     }
 
     public sealed class FormsIdlePage : PageView { }

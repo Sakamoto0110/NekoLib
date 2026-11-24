@@ -50,8 +50,19 @@ packages into a new empty feed and pass that feed with another new consumer
 cache. Package provenance and payloads must also be compared against the
 qualified family; a successful restore alone does not prove package identity.
 
-An interactive Windows session is required even though qualification windows
-are placed off-screen. net481 targeting/runtime support and the .NET 9 Windows
+An interactive Windows session is required. Qualification windows default to
+off-screen coordinates. To select a monitor, set both
+`NEKOLIB_QUALIFICATION_WINDOW_X` and `NEKOLIB_QUALIFICATION_WINDOW_Y` in the
+driver environment before launching the tests (for example, `2700` and `100`).
+The executables position their own initial, replacement and native modal windows
+without moving the pointer or requesting focus. Set
+`NEKOLIB_QUALIFICATION_WINDOW_EVIDENCE` to an evidence directory to record and
+assert each native window rectangle. Restarted children inherit these settings.
+These are qualification settings, not package behavior or application APIs.
+`eng/test-desktop-recovery.ps1 -SkipPassedResultsPath <prior-results.json>`
+skips matching passed executable/framework/mode identities while retaining the
+original evidence; its new result file contains only the newly executed cases.
+net481 targeting/runtime support and the .NET 9 Windows
 Desktop runtime must be installed. The deterministic HTTP handler contacts no
 external API. The ADO.NET fake does not prove live SQL Server or ACE behavior.
 Use `eng/check-desktop-prerequisites.ps1` to inventory local provider bitness.
