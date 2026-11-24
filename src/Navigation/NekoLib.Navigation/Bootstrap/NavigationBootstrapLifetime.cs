@@ -19,6 +19,7 @@ namespace NekoLib.Navigation.Bootstrap
     {
         private readonly IInteractionObserverService? _observer;
         private readonly ITimerAdapter _timer;
+        private readonly IEventDispatcherAdapter? _dispatcher;
         private readonly Func<Task> _navigateIdle;
         private readonly bool _verifyIdleReached;
         private readonly object _idleSync = new object();
@@ -38,10 +39,12 @@ namespace NekoLib.Navigation.Bootstrap
         public NavigationBootstrapLifetime(
             IInteractionObserverService? observer,
             ITimerAdapter timer,
-            Func<Task>? navigateIdle = null)
+            Func<Task>? navigateIdle = null,
+            IEventDispatcherAdapter? dispatcher = null)
         {
             _observer = observer;
             _timer = timer ?? throw new ArgumentNullException(nameof(timer));
+            _dispatcher = dispatcher;
             _verifyIdleReached = navigateIdle == null;
             _navigateIdle = navigateIdle ?? (() => NavigationService.GoIdleAsync());
         }
@@ -254,6 +257,13 @@ namespace NekoLib.Navigation.Bootstrap
         /// </summary>
         internal void StopIdle()
         {
+            if (Volatile.Read(ref _idleStopped) != 0) return;
+            if (_dispatcher != null) _dispatcher.Invoke(StopIdleCore);
+            else StopIdleCore();
+        }
+
+        private void StopIdleCore()
+        {
             Action? interactionHandler;
             Action? tickHandler;
 
@@ -368,10 +378,17 @@ namespace NekoLib.Navigation.Bootstrap
 
         public void Dispose()
         {
+            if (Volatile.Read(ref _disposed) != 0) return;
+            if (_dispatcher != null) _dispatcher.Invoke(DisposeCore);
+            else DisposeCore();
+        }
+
+        private void DisposeCore()
+        {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
-            StopIdle();
+            StopIdleCore();
 
             try { _timer.Dispose(); }
             catch { }

@@ -25,6 +25,20 @@ namespace NekoLib.Navigation.Wpf.Toolkit
         public INavigationSurface Surface { get; }
 
         /// <inheritdoc />
-        public void FocusSurface() => _host.Focus();
+        public void FocusSurface()
+        {
+            var dispatcher = _host.Dispatcher;
+            if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                return;
+
+            if (dispatcher.CheckAccess())
+                _host.Focus();
+            else
+                dispatcher.BeginInvoke((Action)(() =>
+                {
+                    if (!dispatcher.HasShutdownStarted && _host.IsLoaded)
+                        _host.Focus();
+                }));
+        }
     }
 }

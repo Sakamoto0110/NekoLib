@@ -6,4 +6,14 @@
          from manual IDE/CLI builds excluded from the SDK compile globs. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Wpf9' Or '$(MSBuildProjectName)' == 'Wpf481' Or '$(MSBuildProjectName)' == 'WinForms9' Or '$(MSBuildProjectName)' == 'WinForms481' Or '$(MSBuildProjectName)' == 'WinFormsMultiTarget'">
+    <Compile Include="$(MSBuildThisFileDirectory)ModuleProbe.cs" Link="ModuleProbe.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)RecoveryProbe.cs" Link="RecoveryProbe.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\NekoLib.Data.Tests\Unit\Gateway\FakeNonQueryProvider.cs" Link="Qualification\FakeNonQueryProvider.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'WinForms9' Or '$(MSBuildProjectName)' == 'WinForms481' Or '$(MSBuildProjectName)' == 'WinFormsMultiTarget'">
+    <Compile Include="$(MSBuildThisFileDirectory)WinFormsUiProbe.cs" Link="WinFormsUiProbe.cs" />
+  </ItemGroup>
 </Project>

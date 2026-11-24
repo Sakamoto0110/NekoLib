@@ -34,6 +34,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
     public sealed class WpfInteractionObserver : NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService, System.IDisposable
     {
         public WpfInteractionObserver(System.Windows.UIElement root) { }
+        public WpfInteractionObserver(System.Windows.UIElement root, NekoLib.Navigation.Contracts.Runtime.InteractionObservationMode mode) { }
         public event System.Action? InteractionDetected;
         public void Dispose() { }
     }

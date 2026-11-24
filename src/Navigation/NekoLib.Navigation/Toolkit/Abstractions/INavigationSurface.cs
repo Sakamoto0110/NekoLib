@@ -10,11 +10,11 @@ namespace NekoLib.Navigation.Toolkit.Abstractions
     /// </summary>
     public interface INavigationSurface
     {
-        /// <summary>Gets client bounds in platform-independent integer coordinates.</summary>
+        /// <summary>Gets client bounds in native surface coordinates: WPF DIPs or WinForms client units. Read on the UI thread.</summary>
         Rectangle ClientBounds { get; }
         /// <summary>Gets the platform scale factor applied to the surface.</summary>
         float Scale { get; }
-        /// <summary>Gets whether the owning window is currently active.</summary>
+        /// <summary>Gets whether the surface is visible and enabled; this does not report foreground-window activation.</summary>
         bool IsActive { get; }
         /// <summary>Resolves a named anchor to a point within <see cref="ClientBounds"/>.</summary>
         /// <param name="anchor">Named surface anchor.</param>

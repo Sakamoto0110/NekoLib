@@ -297,6 +297,8 @@ The monitor loop runs until shutdown:
    log and a telemetry publication when `HeartbeatIntervalMs` has elapsed. The
    heartbeat is therefore observed on a poll boundary, not on an exact timer,
    and only while a target is alive.
+   It measures process existence through WaitForExit, not UI responsiveness;
+   an unresponsive message loop does not itself trigger a restart.
 4. On exit it records the exit code, logs `[child_exit]`, finalizes crash
    evidence, disposes the target handle, applies crash-loop accounting, waits
    `RestartDelayMs`, and publishes telemetry.
@@ -318,7 +320,15 @@ path is deliberate: the forced path never honors an alternate `taskkill` from
 the process search path. Because the graceful request is issued
 unconditionally, a target with no main window always spends the full
 `GracefulKillTimeoutMs` before the forced path runs. `/T` terminates the
-target's process tree, not only the target.
+target's process tree, not only the target. The initially attached application
+is an exception to the `/T` mechanism: `EnsureStarted` launches the Host as that
+application's descendant, so `/T` would kill the supervisor too. On that first
+attached process, Watchdog snapshots process parents and directly terminates
+the target branch from leaves to root while excluding the Host and its branch.
+If the snapshot fails, it forces only the target root rather than risking the
+supervisor. Descendant enumeration remains best effort under concurrent process
+creation/exit. Later replacement processes are launched by the Host and retain
+the absolute `taskkill /T /F` mechanism. No public API or wire protocol changes.
 
 Every stage of termination is best effort and swallows its own failures; the
 graceful and forced attempts are logged.

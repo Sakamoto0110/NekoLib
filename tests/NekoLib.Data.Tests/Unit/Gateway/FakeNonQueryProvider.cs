@@ -1,3 +1,5 @@
+#nullable disable
+#pragma warning disable WFO1000 // Test-only ADO.NET components are never serialized by a WinForms designer.
 using System;
 using System.Collections;
 using System.Collections.Generic;

@@ -6,10 +6,19 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NekoLib.Data" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Inspection" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Devices" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Diagnostics.Windows" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Http" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Logging" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Mvvm" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Navigation.Wpf" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Telemetry" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" />
   </ItemGroup>
 </Project>

@@ -32,6 +32,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
     public sealed class WinFormsInteractionObserver : NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService, System.IDisposable
     {
         public WinFormsInteractionObserver(System.Windows.Forms.Control root) { }
+        public WinFormsInteractionObserver(System.Windows.Forms.Control root, NekoLib.Navigation.Contracts.Runtime.InteractionObservationMode mode) { }
         public event System.Action? InteractionDetected;
         public void Dispose() { }
     }

@@ -25,13 +25,11 @@ namespace NekoLib.Navigation.Contracts.Platform
     /// <see cref="InvalidOperationException"/> otherwise. Never run the action on the
     /// calling thread as a substitute, because it would execute page lifecycle and
     /// view mutation off the UI thread. Callers may react to that exception: the
-    /// runtime's teardown path catches it and disposes inline, so a dead message pump
-    /// still completes shutdown.
-    /// </para>
-    /// <para>
-    /// A platform whose UI framework reports its own shutdown may additionally treat
-    /// that signal as a documented teardown fallback and complete the action inline;
-    /// the WPF adapter does this when its <c>Dispatcher</c> has shut down.
+    /// runtime's teardown path reports dispatch failure without running UI cleanup
+    /// on a worker. Await shutdown on the owning thread before destroying the host
+    /// or stopping its message loop. Already accepted asynchronous posts require a
+    /// live message loop until completion; this interface cannot acknowledge a post
+    /// abandoned by the native framework during shutdown.
     /// </para>
     /// </remarks>
     public interface IEventDispatcherAdapter

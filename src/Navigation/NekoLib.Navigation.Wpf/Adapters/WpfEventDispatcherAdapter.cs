@@ -7,7 +7,8 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// <summary>
     /// Marshals callbacks onto the WPF UI thread via the host's <see cref="Dispatcher"/>.
     /// Mirrors WinFormsEventDispatcherAdapter: runs inline when already on the UI
-    /// thread and the dispatcher is alive; otherwise posts via BeginInvoke.
+    /// thread; otherwise marshals while the dispatcher is alive. During shutdown
+    /// only its owner may run callbacks inline; workers fail without execution.
     /// </summary>
     public sealed class WpfEventDispatcherAdapter : IEventDispatcherAdapter
     {
@@ -27,6 +28,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
             if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
             {
+                _dispatcher.VerifyAccess();
                 action();
                 return;
             }
@@ -42,10 +44,11 @@ namespace NekoLib.Navigation.Wpf.Adapters
         {
             if (action == null) return;
 
-            // Dispatcher torn down (e.g. app shutdown). Run inline as a best-effort
-            // fallback so DisposeAsync paths still complete (A-4 analogue).
+            // Teardown can run inline only on the owning thread. A dead dispatcher
+            // never licenses callbacks to mutate WPF objects on a worker thread.
             if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
             {
+                _dispatcher.VerifyAccess();
                 action();
                 return;
             }

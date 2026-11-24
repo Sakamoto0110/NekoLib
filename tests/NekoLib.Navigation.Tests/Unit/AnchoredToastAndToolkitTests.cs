@@ -108,32 +108,29 @@ namespace NekoLib.Navigation.Tests.Unit
         // The registration shape the item accepted: the same `host as ...` probe
         // bootstrap already uses for IViewHost, resolved from a mounted context.
         [Fact]
-        public async Task Start_MountedContext_ResolvesTheNavigationToolkit()
+        public void Start_MountedContext_ResolvesTheNavigationToolkit()
         {
-            NavigationContext context = null;
-            System.Windows.Forms.Panel root = null;
-
-            try
+            RunSta(() =>
             {
-                RunSta(() =>
+                using (var root = new System.Windows.Forms.Panel { Width = 800, Height = 600 })
                 {
-                    root = new System.Windows.Forms.Panel { Width = 800, Height = 600 };
-                    context = PageNavBootstrap
+                    var context = PageNavBootstrap
                         .Use<WinFormsPlatformAdapter>(root)
                         .Start();
-                });
-
-                Assert.True(context.Services.CanResolve(typeof(INavigationToolkit)));
-
-                var toolkit = (INavigationToolkit)context.Services.Get(typeof(INavigationToolkit));
-                Assert.Same(context.Host, toolkit);
-                Assert.Equal(root.ClientRectangle, toolkit.Surface.ClientBounds);
-            }
-            finally
-            {
-                await NavigationService.Shutdown();
-                root?.Dispose();
-            }
+                    try
+                    {
+                        Assert.True(context.Services.CanResolve(typeof(INavigationToolkit)));
+                        var toolkit = (INavigationToolkit)context.Services.Get(typeof(INavigationToolkit));
+                        Assert.Same(context.Host, toolkit);
+                        Assert.Equal(root.ClientRectangle, toolkit.Surface.ClientBounds);
+                    }
+                    finally
+                    {
+                        // A handle-less root must shut down on its owning STA.
+                        NavigationService.Shutdown().GetAwaiter().GetResult();
+                    }
+                }
+            });
         }
 
         private class ProbeToast : ToastViewBase

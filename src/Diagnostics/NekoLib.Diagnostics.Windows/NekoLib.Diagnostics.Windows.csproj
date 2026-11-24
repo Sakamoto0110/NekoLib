@@ -13,8 +13,8 @@
 		<IsPackable>true</IsPackable>
 		<PackageId>NekoLib.Diagnostics.Windows</PackageId>
 		<Title>NekoLib Diagnostics for Windows</Title>
-		<Description>Windows minidumps, WER suppression and WinForms exception integration for NekoLib.Diagnostics.</Description>
-		<PackageTags>nekolib;diagnostics;windows;minidump;winforms</PackageTags>
+		<Description>Windows minidumps, WER suppression and WPF/WinForms exception integration for NekoLib.Diagnostics.</Description>
+		<PackageTags>nekolib;diagnostics;windows;minidump;winforms;wpf</PackageTags>
 
 		<!-- Assembly metadata: generated ONCE -->
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -36,6 +36,7 @@
 
 	<PropertyGroup>
 		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
 		<DefineConstants>$(DefineConstants);WINFORMS</DefineConstants>
 	</PropertyGroup>
 

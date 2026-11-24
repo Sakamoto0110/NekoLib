@@ -1,12 +1,14 @@
 using System;
 using System.Threading;
 using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Windows.Threading;
 
 namespace NekoLib.Diagnostics.Windows
 {
     /// <summary>
     /// Wires the Windows-only crash facilities (dbghelp.dll minidump writer and the
-    /// WinForms <c>Application.ThreadException</c> hook) into the cross-platform
+    /// WinForms and WPF exception hooks) into the cross-platform
     /// <see cref="NekoLib.Diagnostics.CrashHandler"/>. Keeping these here lets
     /// NekoLib.Diagnostics stay net9.0 (no -windows) while OS-specific behaviour
     /// is opt-in via this package.
@@ -17,6 +19,99 @@ namespace NekoLib.Diagnostics.Windows
     {
         private static readonly object WinFormsHookLock = new object();
         private static bool _winFormsHookInstalled;
+        private static readonly Dictionary<Dispatcher, WpfHook> WpfHooks = new Dictionary<Dispatcher, WpfHook>();
+
+        /// <summary>
+        /// Observes one WPF dispatcher's unhandled exceptions. By default reports a
+        /// terminating incident and leaves native exception propagation unchanged.
+        /// Reporting does not itself terminate the process.
+        /// </summary>
+        /// <param name="dispatcher">Dispatcher to observe, called on its owning thread.</param>
+        /// <param name="markHandled">Explicit recovery policy: report a nonterminating incident and mark it handled. Use only when continuing is safe.</param>
+        /// <returns>A reference-counted subscription. Dispose on the owning thread to uninstall the last subscription.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="dispatcher"/> is null.</exception>
+        /// <exception cref="InvalidOperationException">Called off the owning thread, after shutdown, or with a policy conflicting with an existing subscription.</exception>
+        /// <remarks>
+        /// Install a CrashHandler separately. Repeated subscriptions with the same
+        /// policy forward once per dispatcher event. A terminating report latches
+        /// each installed handler, preventing a second AppDomain report of the
+        /// same fatal incident. Prehandled events are ignored. Native termination,
+        /// explicit exit codes and Watchdog notification remain application policy.
+        /// Other subscribers must not reverse the chosen handling policy afterwards.
+        /// </remarks>
+        public static IDisposable HookWpf(Dispatcher dispatcher, bool markHandled = false)
+        {
+            if (dispatcher == null) throw new ArgumentNullException(nameof(dispatcher));
+            dispatcher.VerifyAccess();
+            if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                throw new InvalidOperationException("Cannot observe a dispatcher that is shutting down.");
+
+            lock (WpfHooks)
+            {
+                if (!WpfHooks.TryGetValue(dispatcher, out var hook))
+                {
+                    hook = new WpfHook(dispatcher, markHandled);
+                    WpfHooks.Add(dispatcher, hook);
+                }
+                else if (hook.MarkHandled != markHandled)
+                    throw new InvalidOperationException("The dispatcher already has a different exception handling policy.");
+
+                hook.References++;
+                return new WpfLease(hook);
+            }
+        }
+
+        private sealed class WpfHook
+        {
+            internal readonly Dispatcher Dispatcher;
+            internal readonly bool MarkHandled;
+            internal int References;
+
+            internal WpfHook(Dispatcher dispatcher, bool markHandled)
+            {
+                Dispatcher = dispatcher;
+                MarkHandled = markHandled;
+                dispatcher.UnhandledException += OnException;
+                dispatcher.ShutdownFinished += OnShutdown;
+            }
+
+            private void OnException(object sender, DispatcherUnhandledExceptionEventArgs e)
+            {
+                if (e.Handled) return;
+                CrashHandler.ReportExternalCrash("Dispatcher.UnhandledException", e.Exception, !MarkHandled);
+                if (MarkHandled) e.Handled = true;
+            }
+
+            private void OnShutdown(object sender, EventArgs e)
+            {
+                lock (WpfHooks) Remove();
+            }
+
+            internal void Remove()
+            {
+                Dispatcher.UnhandledException -= OnException;
+                Dispatcher.ShutdownFinished -= OnShutdown;
+                WpfHooks.Remove(Dispatcher);
+            }
+        }
+
+        private sealed class WpfLease : IDisposable
+        {
+            private WpfHook _hook;
+            internal WpfLease(WpfHook hook) { _hook = hook; }
+            public void Dispose()
+            {
+                var hook = _hook;
+                if (hook == null) return;
+                hook.Dispatcher.VerifyAccess();
+                lock (WpfHooks)
+                {
+                    if (_hook == null) return;
+                    _hook = null;
+                    if (--hook.References == 0) hook.Remove();
+                }
+            }
+        }
 
         /// <summary>
         /// Routes crash dumps through the dbghelp.dll minidump writer. Call before

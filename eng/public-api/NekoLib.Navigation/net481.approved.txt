@@ -30,6 +30,7 @@ namespace NekoLib.Navigation.Bootstrap
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseIdleTimeout(int milliseconds) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInspection() { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInspection(NekoLib.Core.Inspection.IInspectionRecorder inspection) { }
+        public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInteractionObserver(System.Func<NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService> factory) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseLogging(NekoLib.Core.Logging.ILogger logger) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseRegistry(NekoLib.Navigation.Runtime.Registry.PageRegistry registry) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseTelemetry(NekoLib.Core.Telemetry.ITelemetry telemetry) { }
@@ -238,6 +239,11 @@ namespace NekoLib.Navigation.Contracts.Runtime
         void DismissCurrentToast();
         void ShowToast<TToast>(object? payload = null, int durationMs = 3000)
             where TToast :  class, NekoLib.Navigation.Contracts.Pages.IToastView;
+    }
+    public enum InteractionObservationMode
+    {
+        InputOnly = 0,
+        InputAndControlChanges = 1,
     }
 }
 namespace NekoLib.Navigation.Diagnostics

@@ -38,6 +38,13 @@ namespace NekoLib.Navigation.WinForms.Adapters
             if (action == null)
                 return;
 
+            if (_root.IsDisposed || _root.Disposing)
+            {
+                EnsureOwningThread();
+                action();
+                return;
+            }
+
             // A live handle makes InvokeRequired authoritative: it compares against the
             // thread that actually owns that handle.
             if (_root.IsHandleCreated)
@@ -62,6 +69,13 @@ namespace NekoLib.Navigation.WinForms.Adapters
             if (action == null)
                 return;
 
+            if (_root.IsDisposed || _root.Disposing)
+            {
+                EnsureOwningThread();
+                action();
+                return;
+            }
+
             // The control's handle must exist before we can post to its message queue.
             if (_root.IsHandleCreated)
             {
@@ -77,8 +91,8 @@ namespace NekoLib.Navigation.WinForms.Adapters
         /// Throws unless the caller is the thread this adapter was built on. Used only
         /// when the host has no handle, where marshaling is impossible: running the
         /// action here anyway would execute page lifecycle and view mutation on the
-        /// calling thread. Throwing lets callers react — the runtime's dispose path
-        /// catches it and tears down inline instead of silently corrupting UI state.
+        /// calling thread. Throwing lets callers react; runtime shutdown returns
+        /// the failure without disposing native UI on the worker.
         /// </summary>
         private void EnsureOwningThread()
         {

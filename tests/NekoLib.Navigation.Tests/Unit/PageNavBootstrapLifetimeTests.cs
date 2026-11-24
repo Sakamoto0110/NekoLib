@@ -16,6 +16,36 @@ namespace NekoLib.Navigation.Tests.Unit
     [Collection("NavigationServiceFacade")]
     public class PageNavBootstrapLifetimeTests
     {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ExplicitObserverFactory_OwnsResultOnShutdownAndFailedStartup(bool failStartup)
+        {
+            await NavigationService.Shutdown();
+            var replacement = new TrackingObserver();
+            var created = 0;
+            var bootstrap = PageNavBootstrap.Use<TrackingPlatformAdapter>(new object())
+                .UseInteractionObserver(() => { created++; return replacement; });
+            var adapter = TrackingPlatformAdapter.LastCreated;
+            if (failStartup)
+                bootstrap.ConfigureServices((_, __) => throw new InvalidOperationException("startup failed"));
+            try
+            {
+                if (failStartup) Assert.Throws<InvalidOperationException>(() => bootstrap.Start());
+                else
+                {
+                    var context = bootstrap.Start();
+                    Assert.Same(replacement, context.Services.Get<IInteractionObserverService>());
+                    await NavigationService.Shutdown();
+                }
+                Assert.Equal(1, created);
+                Assert.True(replacement.IsDisposed);
+                // The unused platform observer was never acquired or owned.
+                Assert.False(adapter.Observer.IsDisposed);
+            }
+            finally { await NavigationService.Shutdown(); }
+        }
+
         [Fact]
         public async Task Shutdown_DisposesIdleTimerObserverAndSubscriptions()
         {
