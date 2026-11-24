@@ -62,6 +62,11 @@ These are qualification settings, not package behavior or application APIs.
 `eng/test-desktop-recovery.ps1 -SkipPassedResultsPath <prior-results.json>`
 skips matching passed executable/framework/mode identities while retaining the
 original evidence; its new result file contains only the newly executed cases.
+Both desktop recovery and automatic-bootstrap drivers accept `-Resume` to
+retain their own passed records and skip those identities. Resume only with
+the same sealed package inputs, output paths and evidence root; the caller
+must verify package identity. Scenario directories use compact GUID names
+so Framework evidence files stay within legacy path-length limits.
 net481 targeting/runtime support and the .NET 9 Windows
 Desktop runtime must be installed. The deterministic HTTP handler contacts no
 external API. The ADO.NET fake does not prove live SQL Server or ACE behavior.

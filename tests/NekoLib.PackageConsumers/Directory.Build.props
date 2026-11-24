@@ -7,7 +7,7 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Wpf9' Or '$(MSBuildProjectName)' == 'Wpf481' Or '$(MSBuildProjectName)' == 'WinForms9' Or '$(MSBuildProjectName)' == 'WinForms481' Or '$(MSBuildProjectName)' == 'WinFormsMultiTarget' Or '$(MSBuildProjectName)' == 'WatchdogAutoForms' Or '$(MSBuildProjectName)' == 'WatchdogAutoWpf'">
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Wpf9' Or '$(MSBuildProjectName)' == 'Wpf481' Or '$(MSBuildProjectName)' == 'WinForms9' Or '$(MSBuildProjectName)' == 'WinForms481' Or '$(MSBuildProjectName)' == 'WinFormsMultiTarget' Or '$(MSBuildProjectName)' == 'WatchdogAutoForms'">
     <Compile Include="$(MSBuildThisFileDirectory)QualificationWindowPlacement.cs" Link="QualificationWindowPlacement.cs" />
   </ItemGroup>
 
