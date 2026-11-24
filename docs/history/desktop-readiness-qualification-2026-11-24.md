@@ -60,6 +60,15 @@ It is disposable prequalification. The stable release must be rebuilt without
 that switch from an identified clean integrated commit, and its downloaded
 published packages must be qualified independently.
 
+The final pre-release candidate `1.2.0-local.7` subsequently passed the entire
+canonical flow without `-AllowDirty`, from clean commit
+`26e9602fa3f92a9cdef050b4050e4c55cdb7475c`. It repeated all 1,821 tests and all
+24 process scenarios, including test-owned child termination and observed
+graceful/forced Host logs. All four consumers record x64 execution; the .NET 9
+processes report runtime 9.0.22. Its consumer session is
+`artifacts/package-smoke/sessions/5864c7f27f3747e29bbb75c815c97283/`, and the
+canonical log is `artifacts/e2e-readiness/candidate-7-clean.log`.
+
 Commands and local evidence are retained under `artifacts/e2e-readiness/`:
 `full-tests-final.log`, `api-final.log`, `docs-final.log`, `candidate-6.log`, the
 four `ui-*.log` files, and `prerequisites.json`. The candidate's private consumer

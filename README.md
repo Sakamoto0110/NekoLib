@@ -230,15 +230,18 @@ deployment package are packaged together; tests, runtime scenarios,
 `BundlerTool`, and the constants-only
 `src/Hosting/NekoLib` project are not.
 
-NekoLib `1.1.0` is the current stable coordinated family. Its qualifying
-candidate, `1.1.0-local.9`, and exact stable package set passed the complete
-canonical flow from clean source commit
-`1147f76beb412c3ae6368088bc0c22eb4653daa8`. The 16 main packages and 15 symbol
-packages were published to NuGet.org through the manual trusted-publication
-workflow and the [`v1.1.0` GitHub Release](https://github.com/Sakamoto0110/NekoLib/releases/tag/v1.1.0).
-See the [`1.1.0` stable release record](docs/stable-release-1.1.0.md) for
-provenance, hashes, validation results, and evidence boundaries. `1.0.0`
-remains the [first stable family baseline](docs/stable-release-1.0.0.md).
+NekoLib releases one coordinated family of 16 main packages and 15 symbol
+packages. Use the [published GitHub releases](https://github.com/Sakamoto0110/NekoLib/releases)
+for the current stable version and its distribution status. Release records
+preserve source provenance, immutable package hashes, validation results and
+evidence boundaries; publication uses a manually dispatched trusted-publishing
+workflow. Align every NekoLib reference to the same family version.
+
+The [desktop integration contract](docs/desktop-readiness-1.2.0.md) describes
+the 1.2 additions and compatibility decisions. The
+[1.1.0 record](docs/stable-release-1.1.0.md) preserves the preceding compatible
+minor; `1.0.0` remains the
+[first stable family baseline](docs/stable-release-1.0.0.md).
 
 Use the packaging entry point instead of packing individual projects:
 
@@ -262,7 +265,7 @@ from uncommitted sources cannot carry exact Git/Source Link provenance.
 Install the public stable packages directly from NuGet.org:
 
 ```powershell
-dotnet add package NekoLib.Navigation.WinForms --version 1.1.0
+dotnet add package NekoLib.Navigation.WinForms
 ```
 
 For unpublished validation versions, register the generated local folder as a
