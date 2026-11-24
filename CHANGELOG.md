@@ -15,8 +15,8 @@ remain under `docs/history/`.
 ## Unreleased
 
 - **1.3 compatible minor:** opt-in Watchdog auto bootstrap for WPF/WinForms,
-  same-executable supervisor mode, optional startup configuration/cancellation
-  and nonterminating Detach. Existing sidecar/manual defaults remain available.
+  same-executable supervisor mode, optional startup configuration/cancellation,
+  global Disable/Enable/Shutdown and nonterminating Detach. Existing sidecar/manual defaults remain available.
   See the [accepted integration decision](docs/watchdog-auto-bootstrap.md).
   Automatic UI-hang detection remains a separate next step.
 

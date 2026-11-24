@@ -29,19 +29,20 @@ namespace NekoLib.Watchdog
         /// <summary>
         /// Changes a private configuration copy before activation. Retaining the
         /// callback's options does not allow later mutation of captured policy.
+        /// Configuration is also allowed after Disable, before a later Enable.
         /// Target identity and process-local sinks are not configurable here.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Bootstrap was not prepared, is activating, active or disabled.</exception>
+        /// <exception cref="InvalidOperationException">Bootstrap was not prepared, is activating or active.</exception>
         public static void Configure(Action<WatchdogAutoBootstrapOptions> configure)
         {
             if (configure == null) throw new ArgumentNullException(nameof(configure));
             lock (Gate)
             {
-                if (_options == null || _active || _activating || _disabled)
+                if (_options == null || _active || _activating)
                     throw new InvalidOperationException("Configure automatic Watchdog policy after preparation and before activation.");
                 var copy = WatchdogSupervisorLaunch.Copy(_options);
                 configure(copy);
-                if (_disabled || _active || _activating)
+                if (_active || _activating)
                     throw new InvalidOperationException("Bootstrap state changed during configuration.");
                 _options = WatchdogSupervisorLaunch.Copy(copy);
             }
@@ -61,7 +62,7 @@ namespace NekoLib.Watchdog
                 if (_activating) throw new InvalidOperationException("Cannot disable during automatic activation.");
                 _disabled = true;
                 if (_detached) return;
-                if (_active || WatchdogBootstrap.IsRunningUnderWatchdog())
+                if (_active || WatchdogBootstrap.IsRunningUnderWatchdog() || IsCurrentProcessSupervised())
                     Detach(_options?.HandshakeTimeoutMs ?? 5000);
                 _active = false;
                 _detached = true;
@@ -85,28 +86,65 @@ namespace NekoLib.Watchdog
         /// Repeated calls and calls after Disable do not start another supervisor.
         /// </summary>
         public static void Activate()
+            => ActivateCore(explicitEnable: false);
+
+        /// <summary>
+        /// Explicitly enables prepared automatic supervision, including after
+        /// Disable. Starts a fresh supervisor session using the current copied
+        /// configuration. Returns false and emits Warning if activation fails.
+        /// </summary>
+        public static bool Enable()
+            => ActivateCore(explicitEnable: true);
+
+        private static bool ActivateCore(bool explicitEnable)
         {
             string? warning = null;
             lock (Gate)
             {
-                if (_disabled || _active || _activating) return;
+                if (_active) return true;
+                if ((_disabled && !explicitEnable) || _activating) return false;
+                _disabled = false;
                 _activating = true;
                 try
                 {
                     if (_options == null) throw new InvalidOperationException("Automatic bootstrap was not prepared. Enable the package build integration.");
-                    StartSupervisor(_options);
+                    StartSupervisor(_options, ignoreInheritedSupervisor: _detached);
                     _active = true;
+                    _detached = false;
                 }
                 catch (Exception ex) { _disabled = true; warning = "Automatic Watchdog activation failed; the application is not confirmed supervised. " + ex.Message; }
                 finally { _activating = false; }
             }
             if (warning != null) Warn(warning);
+            return IsActive;
+        }
+
+        /// <summary>
+        /// Confirms that supervision is disabled, then terminates the current
+        /// application with Environment.Exit. Callable from any thread. Complete
+        /// application-owned cleanup before calling; this is process exit, not a
+        /// framework window-close notification. If detachment fails, the method
+        /// throws and does not exit into an unconfirmed restart race.
+        /// </summary>
+        public static void Shutdown(int exitCode = 0)
+        {
+            Disable();
+            Environment.Exit(exitCode);
         }
 
         /// <summary>Infrastructure normal-return cleanup. Fatal/abrupt exits must not call this method.</summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void CompleteApplication()
         {
+            // A controller-only invocation never started supervision and must
+            // not detach a different live application using the same executable.
+            lock (Gate)
+                if (!_active && !WatchdogBootstrap.IsRunningUnderWatchdog())
+                {
+                    _disabled = true;
+                    _detached = true;
+                    return;
+                }
             try { Disable(); }
             catch (SupervisorTerminationException) { /* Let an accepted supervisor-owned stop/restart finish. */ }
             catch (Exception ex) { Warn("Normal-return Watchdog detachment failed. " + ex.Message); }
@@ -139,7 +177,7 @@ namespace NekoLib.Watchdog
             return true;
         }
 
-        private static void StartSupervisor(WatchdogAutoBootstrapOptions options)
+        private static void StartSupervisor(WatchdogAutoBootstrapOptions options, bool ignoreInheritedSupervisor)
         {
             var elapsed = Stopwatch.StartNew();
             using (var current = Process.GetCurrentProcess())
@@ -148,7 +186,7 @@ namespace NekoLib.Watchdog
                 if (string.Equals(Path.GetFileNameWithoutExtension(target), "dotnet", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Launch the application apphost .exe directly; dotnet application.dll is not supported by automatic bootstrap.");
                 var pipe = WatchdogController.ResolvePipeNameForTarget(target);
-                if (WatchdogBootstrap.IsRunningUnderWatchdog())
+                if (!ignoreInheritedSupervisor && WatchdogBootstrap.IsRunningUnderWatchdog())
                 {
                     WaitForCurrentAttachment(pipe, current.Id, options.HandshakeTimeoutMs);
                     return;
@@ -202,6 +240,15 @@ namespace NekoLib.Watchdog
             var result = new string[Math.Max(0, args.Length - 1)];
             if (result.Length != 0) Array.Copy(args, 1, result, 0, result.Length);
             return result;
+        }
+
+        private static bool IsCurrentProcessSupervised()
+        {
+            using var current = Process.GetCurrentProcess();
+            var target = current.MainModule?.FileName;
+            if (string.IsNullOrWhiteSpace(target)) throw new InvalidOperationException("Cannot resolve the current executable for supervision control.");
+            var pipe = WatchdogController.ResolvePipeNameForTarget(target);
+            return WatchdogBootstrap.TryGetAttachedProcessId(pipe, Math.Min(100, _options?.HandshakeTimeoutMs ?? 5000), out var pid) && pid == current.Id;
         }
 
         private static void Detach(int timeoutMs)

@@ -32,14 +32,20 @@ before the native loop is not a supervised hang-detection window.
 Cancellation before activation prevents startup. Disabling active supervision
 detaches the supervisor without terminating the application. This differs from
 the existing Stop command, which retains its target-termination semantics.
+The owner's additional global-control requirement is exposed through static
+WatchdogController.Enable/Disable/Shutdown. Any application component can
+turn supervision off, turn it on again, or turn it off and exit without retaining
+an instance or editing Main. Disable may be followed by Configure and explicit
+Enable for a fresh session. Shutdown confirms detach before Environment.Exit;
+application-owned graceful cleanup must complete before that process-exit call.
 Normal return from the original Main detaches supervision; an exception escaping
 Main, abrupt process exit or external termination remains recoverable by the
 external supervisor. Environment.Exit does not run this normal-return path.
 
 Configuration is captured when supervision starts and belongs to that supervisor
-session. Optional Configure calls after activation are rejected; cancellation
-remains available. Configuration is portable scalar process/runtime policy;
-in-process sink and telemetry objects cannot be transferred to another process.
+session. Optional Configure calls while active are rejected; Disable permits
+configuration before the next explicit Enable. Configuration is portable scalar
+process/runtime policy; in-process sink and telemetry objects cannot be transferred to another process.
 Target identity, original arguments, attach PID and token remain bootstrap-owned.
 
 ## Diagnostics and compatibility
@@ -71,7 +77,8 @@ both processes; application-only side effects must not be placed there.
 
 The authorized compatible minor adds `WatchdogHostingMode`,
 `WatchdogAutoBootstrapOptions`, `WatchdogAutoBootstrap` and
-`WatchdogRuntime.Detach()`. Both compiled Watchdog target diffs contain only
+`WatchdogRuntime.Detach()`, plus the controller Enable/Disable/Shutdown forwarders.
+Both compiled Watchdog target diffs contain only
 these additions; every existing declaration is retained. Prepare,
 CompleteApplication and TryRunSupervisor are deliberate public generated-code
 contracts, not hidden implementation APIs. The two Watchdog manifests may be
@@ -93,3 +100,12 @@ before/after activation, invalid invocation and warnings, one-window recovery,
 normal shutdown, self-host packaging without Host payload, and optional sidecar
 deployment on both target families. Preserve the original checkout's unrelated
 Devices edit. Integrate the completed change and delete the work branch.
+
+## Qualification boundary for existing Inspection timing
+
+One full-family attempt reproduced the existing sub-millisecond shared snapshot
+budget edge tracked by [INSP-ISSUE-001](modules/Inspection/ISSUES.md). The focused
+case passed on both targets when rerun; its timing behavior and Inspection
+implementation are unchanged by this Watchdog scope. Final release qualification
+must still pass the complete family suite and retain the failed attempt as
+bounded evidence rather than claim the issue was corrected.

@@ -30,7 +30,7 @@ package hashes or release provenance.
 
 **Compatibility class:** additive
 
-**Consumer impact:** Explicit project opt-in generates automatic desktop entry routing and same-executable supervision; optional Configure/Disable and Runtime Detach provide nonterminating control while legacy manual sidecar and Stop retain their behavior.
+**Consumer impact:** Explicit project opt-in generates automatic desktop entry routing and same-executable supervision; optional Configure plus global Enable/Disable/Shutdown and Runtime Detach provide explicit control while legacy manual sidecar and Stop retain their behavior.
 
 **Migration:** None for existing consumers. Opt in with `NekoLibWatchdogAutoBootstrap=true`; choose SameExecutable or Sidecar, with a direct same-version Host reference for Sidecar. See the [integration contract](REFERENCE.md#supported-composition-paths).
 

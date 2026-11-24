@@ -91,9 +91,11 @@ function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
             }
             if (-not $process.WaitForExit(15000)) { throw 'Initial application did not complete its scenario.' }
             if ($Mode -eq 'crash' -and $process.ExitCode -ne 71) { throw 'Fatal qualification exit code was not preserved.' }
+            if ($Mode -in @('shutdown', 'shutdown-disabled') -and $process.ExitCode -ne 23) { throw 'Global disable-and-exit did not preserve its requested exit code.' }
+            if ($Mode -in @('toggle', 'crash') -and (-not (Test-Path (Join-Path $directory reenabled-alive.txt)) -or -not (Test-Path (Join-Path $directory watchdog-reenabled.log)))) { throw 'Global disable/reconfigure/enable did not preserve the application or start a new configured supervisor.' }
             if ($Mode -eq 'disable-after' -and -not (Test-Path (Join-Path $directory disabled-alive.txt))) { throw 'Active cancellation did not leave the application alive.' }
             if ($Mode -eq 'warning' -and -not (Test-Path (Join-Path $directory warnings.txt))) { throw 'Missing fail-open activation warning.' }
-            if ($Mode -notin @('defaults', 'disable-before', 'warning') -and -not (Test-Path (Join-Path $directory watchdog.log))) { throw 'Optional runtime configuration was not transferred.' }
+            if ($Mode -notin @('defaults', 'disable-before', 'shutdown-disabled', 'warning') -and -not (Test-Path (Join-Path $directory watchdog.log))) { throw 'Optional runtime configuration was not transferred.' }
             if ($Mode -eq 'restart' -and (Get-Content (Join-Path $directory watchdog.log) -Raw) -notmatch 'attached_tree_preserving_supervisor') { throw 'Forced same-executable/sidecar attached restart was not observed.' }
         }
         $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -131,7 +133,7 @@ foreach ($projectName in @('WatchdogAutoForms', 'WatchdogAutoWpf')) {
             $hostDirectory = Join-Path (Split-Path $exe -Parent) 'NekoLib.Watchdog.Host'
             if ($hosting -eq 'SameExecutable' -and (Test-Path $hostDirectory)) { throw 'Same-executable mode deployed a separate Host payload.' }
             if ($hosting -eq 'Sidecar' -and -not (Test-Path $hostDirectory)) { throw 'Explicit sidecar payload is missing.' }
-            $modes = if ($hosting -eq 'SameExecutable') { @('defaults', 'normal', 'disable-before', 'disable-after', 'warning', 'crash', 'kill', 'restart', 'restart-soft', 'stop', 'invalid') } else { @('normal', 'disable-after', 'crash') }
+            $modes = if ($hosting -eq 'SameExecutable') { @('defaults', 'normal', 'disable-before', 'disable-after', 'enable-before', 'toggle', 'shutdown', 'shutdown-disabled', 'warning', 'crash', 'kill', 'restart', 'restart-soft', 'stop', 'invalid') } else { @('normal', 'disable-after', 'toggle', 'shutdown', 'shutdown-disabled', 'crash') }
             foreach ($mode in $modes) { Invoke-Case $exe $hosting $mode }
         }
     }

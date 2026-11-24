@@ -11,7 +11,9 @@ namespace NekoLib.Watchdog
         public static void CompleteApplication() { }
         public static void Configure(System.Action<NekoLib.Watchdog.WatchdogAutoBootstrapOptions> configure) { }
         public static void Disable() { }
+        public static bool Enable() { }
         public static void Prepare(NekoLib.Watchdog.WatchdogAutoBootstrapOptions options) { }
+        public static void Shutdown(int exitCode = 0) { }
         public static bool TryRunSupervisor(string[] arguments, out int exitCode) { }
     }
     public sealed class WatchdogAutoBootstrapOptions
@@ -41,6 +43,8 @@ namespace NekoLib.Watchdog
     }
     public static class WatchdogController
     {
+        public static void Disable() { }
+        public static bool Enable() { }
         public static void NotifyException(string? type, string? message, string? source) { }
         public static void NotifyExceptionForTarget(string targetPath, string? type, string? message, string? source) { }
         public static void NotifyLog(NekoLib.Core.Logging.LogEntry? entry) { }
@@ -49,6 +53,7 @@ namespace NekoLib.Watchdog
         public static string ResolvePipeNameForTarget(string targetPath) { }
         public static bool Restart() { }
         public static bool Resume() { }
+        public static void Shutdown(int exitCode = 0) { }
         public static string Status() { }
         public static bool Stop() { }
         public static System.IDisposable SubscribeLogLines(System.Action<string> onLine) { }

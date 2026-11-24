@@ -417,6 +417,10 @@ namespace NekoLib.Watchdog
                         return PipeErrorResponse("termination_in_progress", "A supervisor-owned termination has already started.");
                     if (expectedPid < 1 || _child == null || _child.Id != expectedPid)
                         return PipeErrorResponse("target_mismatch", "Detach must identify the currently supervised application PID.");
+                    // Once detach is accepted, an application exit cannot race
+                    // a delayed cleanup worker into launching a replacement.
+                    _shutdownRequested = true;
+                    _attachStatusReady = false;
                 }
                 LogWarn("[cmd] detach", new { pid = expectedPid });
                 ThreadPool.QueueUserWorkItem(_ =>

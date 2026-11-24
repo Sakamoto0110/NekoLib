@@ -51,7 +51,12 @@ internal static class WatchdogAutoProbe
                 if (Mode == "warning") options.HostingMode = WatchdogHostingMode.Sidecar;
             });
         }
-        if (Mode == "disable-before") WatchdogAutoBootstrap.Disable();
+        if (Mode == "disable-before" || Mode == "shutdown-disabled") WatchdogController.Disable();
+        if (Mode == "enable-before")
+        {
+            WatchdogController.Disable();
+            if (!WatchdogController.Enable()) throw new InvalidOperationException("Explicit enable before the native loop failed.");
+        }
     }
 
     internal static bool VetoClose => Initial && Mode == "restart";
@@ -66,7 +71,7 @@ internal static class WatchdogAutoProbe
             if (!File.Exists(Path.Combine(DirectoryPath, "warnings.txt"))) return;
             if (active) throw new InvalidOperationException("Failed activation claimed active supervision.");
         }
-        else if (Mode == "disable-before")
+        else if (Mode == "disable-before" || Mode == "shutdown-disabled")
         {
             if (active) throw new InvalidOperationException("Cancelled bootstrap activated.");
         }
@@ -83,10 +88,34 @@ internal static class WatchdogAutoProbe
             if (WatchdogAutoBootstrap.IsActive) throw new InvalidOperationException("Disable did not clear active supervision.");
             File.WriteAllText(Path.Combine(DirectoryPath, "disabled-alive.txt"), "Application remains alive after nonterminating detach.");
         }
+        if (Mode == "toggle" || (!Initial && Mode == "crash")) GlobalWatchdogControls.ToggleAndReconfigure();
+        if (Mode == "shutdown" || Mode == "shutdown-disabled")
+        {
+            _finished = true;
+            GlobalWatchdogControls.ShutdownFromWorker();
+            return;
+        }
         if (Initial && (Mode == "kill" || Mode == "restart" || Mode == "restart-soft" || Mode == "stop")) return;
         if (Initial && Mode == "crash") Environment.Exit(71);
         _finished = true;
         File.WriteAllText(Path.Combine(DirectoryPath, Initial ? "initial.done" : "replacement.done"), "Normal application return.");
         close();
     }
+}
+
+internal static class GlobalWatchdogControls
+{
+    internal static void ToggleAndReconfigure()
+    {
+        WatchdogController.Disable();
+        if (WatchdogAutoBootstrap.IsActive) throw new InvalidOperationException("Global disable left supervision active.");
+        WatchdogAutoBootstrap.Configure(options => options.RuntimeOptions.LogPath = Path.Combine(WatchdogAutoProbe.DirectoryPath, "watchdog-reenabled.log"));
+        if (!WatchdogController.Enable()) throw new InvalidOperationException("Global enable failed after detach.");
+        WatchdogController.Disable();
+        if (!WatchdogController.Enable()) throw new InvalidOperationException("Repeated global enable failed.");
+        File.WriteAllText(Path.Combine(WatchdogAutoProbe.DirectoryPath, "reenabled-alive.txt"), "Application remains alive after two disable/enable cycles.");
+    }
+
+    internal static void ShutdownFromWorker()
+        => System.Threading.ThreadPool.QueueUserWorkItem(_ => WatchdogController.Shutdown(23));
 }

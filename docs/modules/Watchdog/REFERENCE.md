@@ -103,7 +103,13 @@ WatchdogAutoBootstrap.Configure(options =>
 
 Alternatively, `WatchdogAutoBootstrap.Disable()` prevents startup or detaches
 already active supervision while keeping the application running. Repeated
-Disable calls are safe. It differs from `WatchdogController.Stop()`, which still
+Disable calls are safe. `WatchdogController.Disable()` forwards the same global
+operation, and `WatchdogController.Enable()` explicitly starts it again. While
+disabled, Configure may change policy for the next session. All are static and
+callable from any application component. `WatchdogController.Shutdown(exitCode)`
+confirms detachment and calls Environment.Exit; finish application-owned cleanup
+first. A detach failure throws instead of exiting into an unconfirmed restart
+race. This differs from `WatchdogController.Stop()`, which still
 terminates the target. `IsActive` means attachment was confirmed; it is not a
 continuous liveness probe. `Warning` callbacks, Trace/standard error and the
 bounded per-user `NekoLib/Watchdog/auto-bootstrap.log` report activation errors.
@@ -114,7 +120,8 @@ exit leaves recovery to the supervisor; Environment.Exit bypasses normal-return
 cleanup. A supervisor-requested stop/restart takes precedence over automatic
 normal-return detach. Startup before the UI callback is not supervised hang
 detection. Configuration is snapshotted for a supervisor session; Configure
-after activation is rejected and does not mutate that running session.
+while active is rejected and does not mutate that running session; disable and
+re-enable explicitly to use a new configuration.
 
 `SameExecutable` is the new opt-in default. `Sidecar` selects the existing Host
 and requires its direct same-version package reference. Referencing the package
