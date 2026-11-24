@@ -90,3 +90,30 @@ business rule, companion window or final console-control protocol was added.
 Those application requirements remain separate. Watchdog heartbeat measures
 process existence, not UI responsiveness. No new long soak, manual visual
 acceptance or multi-monitor DPI campaign was performed.
+
+## Stable delivery and completion
+
+`DESKTOP-E2E-001` completed with the coordinated **1.2.1** family. The
+[stable release record](../stable-release-1.2.1.md) owns exact source, hashes,
+publication and final evidence. PRs 16 and 17 were merged; the immutable
+package source is `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0` (`v1.2.1`). Clean
+candidate and stable gates each passed 1,837 tests across 24 suites and all 30
+API manifests. Each gate ran all four package-only native consumers and 24
+recovery scenarios.
+
+Trusted-publication run `45329130534` accepted the 16 main and 15 symbol
+packages. All 16 independent NuGet downloads passed repository-signature,
+provenance and non-signature ZIP-entry comparisons; a new feed/cache then
+passed all four native consumers and all 24 recovery cases again. Public
+consumer session: `1013a79ad8114e6f84c9dc033567d3da`.
+
+The intermediate 1.2.0 family remains immutable and superseded. Its original
+qualification passed, but an additional enabled-binding refresh case later
+failed against its signed WPF and WinForms packages. The compatible 1.2.1 patch
+restores the existing modal ownership contract and adds those regressions.
+The final evidence archive preserves the positive and negative records.
+
+Application-specific synchronization rules and later console fault actions
+remain separate future requirements. The single-window scope and the provider,
+manual visual, security-campaign and long-soak limitations remain explicit;
+no companion UI or automatic hang-detection claim was introduced.

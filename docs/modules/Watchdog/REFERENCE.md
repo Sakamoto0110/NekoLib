@@ -585,7 +585,10 @@ is promoted to [`TODO.md`](../../../TODO.md).
 Two limits are worth stating here, because they bound how far this document's
 claims have been demonstrated. The `CurrentUserOnly` boundary has never been
 observed denying a cross-user or cross-elevation peer; present evidence is
-same-user success plus the Pipes implementation. Global hotkey registration,
-window activation, and real forced termination have never been observed
-interactively — the focused suite asserts the resolved system `taskkill` path
-rather than an actual kill.
+same-user success plus the Pipes implementation. Global hotkey registration
+and window activation have not been exercised. The 1.2.1 desktop package
+campaign executes actual forced termination after graceful-close vetoes,
+checks descendant cleanup and supervisor survival, and observes the absolute
+system `taskkill` replacement-tree path on both targets. That automated runtime
+evidence is recorded in [`VALIDATIONS.md`](VALIDATIONS.md); it is not a human
+interactive or UI-hang-detection claim.

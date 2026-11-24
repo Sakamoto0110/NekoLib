@@ -398,6 +398,13 @@ Semantics worth knowing:
   while blocked: background views remain disabled and only the top modal stays
   interactive. Ownership is published before calling a platform blocker, so a
   synchronous/reentrant UI callback cannot corrupt the modal depth.
+- Enabled-state binding refreshes cannot re-enable an owned background view or
+  an earlier modal. Bind enabled state as a view-model output (WPF's default
+  one-way `IsEnabled`, WinForms `DataSourceUpdateMode.Never`). On release, the
+  native blockers refresh the current bound source value. WinForms temporarily
+  suspends tracked Enabled target-to-source writes and restores each binding's
+  original update mode, including bindings replaced during the modal scope.
+  See the [modal binding correction](../../desktop-readiness-1.2.1.md).
 - View pattern: the service creates the view via `PageFactory`, adds it through
   `IViewHost`, calls `OnShownAsync(payload)`, and completion flows back through
   `BindCompletion(callback)`.

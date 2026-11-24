@@ -130,7 +130,7 @@ architecture and risk, not from the tests that happen to exist; several are
 
 **Targets:** `net481` and `net9.0-windows`
 
-**Acceptance criteria:** A target that ignores the graceful close request is terminated by the forced path within the configured bound, its process tree is terminated with it, the helper process handle is released, and the graceful and forced attempts are both logged. Resolution of the system `taskkill.exe` must be observed as an executed termination, not only as a resolved path string.
+**Acceptance criteria:** A target that ignores the graceful close request is terminated by the forced path within the configured bound, its application-owned descendants are terminated with it, the helper process handle is released, and the graceful and forced attempts are both logged. For an initially attached application that launched its supervisor, the supervisor and its own branch must survive. The initial protected-tree path and the system `taskkill.exe` replacement-tree path must be observed as executed termination, not only as resolved path strings.
 
 **Required evidence level:** automated-runtime
 

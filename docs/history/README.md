@@ -16,7 +16,7 @@ shape; they do not own open work or current technical facts.
 
 | Artifact | Lifecycle | Subject | Current state |
 |---|---|---|---|
-| [`desktop-readiness-qualification-2026-11-24.md`](desktop-readiness-qualification-2026-11-24.md) | historical | WPF/WinForms integration corrections and four-way package/application recovery qualification | [`desktop integration decision`](../desktop-readiness-1.2.0.md) |
+| [`desktop-readiness-qualification-2026-11-24.md`](desktop-readiness-qualification-2026-11-24.md) | historical | Completed WPF/WinForms integration, modal patch and four-way public-package/application recovery qualification | [`1.2.1 stable release`](../stable-release-1.2.1.md), [`desktop integration decision`](../desktop-readiness-1.2.0.md) |
 | [`architecture-roadmap-through-phase-d-2026-08-01.md`](architecture-roadmap-through-phase-d-2026-08-01.md) | historical | Full roadmap snapshot containing completed Phases A, B, and D plus the Phase C handoff state | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-c-repository-hygiene-2026-08-01.md`](phase-c-repository-hygiene-2026-08-01.md) | historical | Phase C completion, commit-bound validation, and residual gaps | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-e-confidence-stabilization-2026-08-12.md`](phase-e-confidence-stabilization-2026-08-12.md) | historical | Complete Phase E work log, outcome-first evidence boundaries, and final commit-bound validation | [`ROADMAP.md`](../../ROADMAP.md) |

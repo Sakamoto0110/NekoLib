@@ -312,3 +312,33 @@ not use the tracked `Pods.db` or `PodsDB` fixtures, which remain non-coverage.
 **Gaps:** The release rebuild reported 202 warning occurrences and 0 errors; all 1,787 solution tests and 30 API manifests passed; both 31-artifact local package sets passed; the 16 public main packages passed signature/content verification and the complete external consumer flow. This release gate did not rerun SQLite, Access/OleDb, SQL Server, Docker, interactive UI, performance, soak, recovery, or production-fleet scenarios. Public symbol acceptance is evidenced by the workflow `Created` responses because symbol packages are not exposed by the main-package flat-container endpoint.
 
 **Supersedes:** `DATA-VALEVID-20260828-002` as stable public package and XML-delivery evidence; provider evidence remains independently scoped
+
+## DATA-VALEVID-20261124-001
+
+**Requirement IDs:** `DATA-VALREQ-001`, `DATA-VALREQ-002`, `DATA-VALREQ-003`
+
+**Version:** coordinated stable family `1.2.1`
+
+**Commit:** clean package source `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`
+
+**Tree state:** clean canonical source; independent signed downloads and fresh isolated consumer caches
+
+**Environment:** Windows x64; modern consumers on .NET 9.0.22 and net481 consumers on CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms, each on `net481` and `net9.0-windows`; matching module package assets
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.2.1`; all 30 API checks; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against the downloaded feed
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.2.1.md), public release evidence archive, canonical/published package logs and their 24-case recovery result sets
+
+**Observed:** Complete Data suites pass 177 net481 and 186 net9.0 tests. Shared package-only probes on all four desktop consumers exercise SQL Server/Access translation, repeated positional parameter values, commit/rollback and propagation without automatic replay of a failed write. The same probes execute from downloaded signed public packages.
+
+**Gaps:** ADO.NET is a deterministic fake provider. Merged user/machine ClassesRoot checks found no ACE 12/16 in either bitness; no local SQL service or LocalDB command was found. No real SQL/Access connection, schema or synchronization business workflow was run. Pending operations, conflicts, duplicates and interrupted replay belong to the future application.
+
+**Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence

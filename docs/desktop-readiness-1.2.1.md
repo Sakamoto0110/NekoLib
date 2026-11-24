@@ -56,7 +56,7 @@ WinForms bindings across all three update modes, source changes on release,
 binding replacement, initially disabled WPF pages and nested WPF modals. The
 complete Navigation suite passes 312 tests on each target.
 
-The final stable release record must identify the clean patch source, full
-family qualification, new immutable package hashes, publication and independent
-downloaded-package qualification. None of those pending stages is implied by
-the focused test result alone.
+The [final stable release record](stable-release-1.2.1.md) identifies the clean
+patch source, full family qualification, new immutable package hashes,
+publication and independent downloaded-package qualification. Those separate
+stages supply the final delivery evidence beyond the focused regression result.

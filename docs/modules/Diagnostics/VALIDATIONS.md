@@ -190,3 +190,33 @@ audit, package record, or external review remains the detailed owner.
 **Gaps:** No package candidate, PackageReference consumer, real native minidump, WER/WinForms interactive scenario, long-running crash soak, or deployment-specific security-policy validation is authorized in this pass.
 
 **Supersedes:** none
+
+## DIAG-VALEVID-20261124-001
+
+**Requirement IDs:** `DIAG-VALREQ-001`, `DIAG-VALREQ-002`, `DIAG-VALREQ-003`, `DIAG-VALREQ-005`, `DIAG-VALREQ-008`, `DIAG-VALREQ-009`, `DIAG-VALREQ-010`
+
+**Version:** coordinated stable family `1.2.1`
+
+**Commit:** clean package source `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`
+
+**Tree state:** clean canonical source; independent signed downloads and fresh isolated consumer caches
+
+**Environment:** Windows x64; modern consumers on .NET 9.0.22 and net481 consumers on CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms, each on `net481` and `net9.0-windows`; matching module package assets
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.2.1`; all 30 API checks; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against the downloaded feed
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.2.1.md), public release evidence archive, canonical/published package logs and their 24-case recovery result sets
+
+**Observed:** Both focused test targets passed 25 tests each. Scoped WPF forwarding tests cover policy, compatible/conflicting leases, owner-thread disposal and prehandled events. Real native package recovery cases assert fatal report de-duplication, terminating flag/source, application-owned exit 71, one finalized incident bundle and recoverable UI continuation without restart.
+
+**Gaps:** Reporting never terminates a process. WinForms fatal qualification uses an application-owned forwarder, not the legacy nonterminating hook alongside it. No new full WER, real-minidump-level, human interactive or long-soak campaign is claimed.
+
+**Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence

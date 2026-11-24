@@ -49,22 +49,6 @@ an explicit implementation gate after promotion.
 
 ## Current promoted work
 
-### `DESKTOP-E2E-001` — desktop package readiness
-
-**Status:** promoted; implementation and release authorized by the owner.
-
-**Source and narrow unfreeze:** [desktop integration decision](docs/desktop-readiness-1.2.0.md).
-The [modal binding patch](docs/desktop-readiness-1.2.1.md) adds the confirmed
-background re-enable correction before final desktop delivery.
-
-Complete dispatcher/focus safety, scoped WPF diagnostics, explicit activity
-parity, native surface qualification and PackageReference-only behavior/recovery
-on WPF/WinForms with net481/net9.0-windows. Preserve legacy APIs and defaults.
-Close with both-target tests, API review, clean immutable family packaging,
-isolated consumers, publication and independent published-package consumption.
-Application synchronization business rules and console controls are deferred to
-the owner's later demonstration requirements.
-
 ### `NEKOMKT-F026` — retire the legacy SQL-inverted QueryBuilder join overload
 
 **Status:** promoted; release and implementation gates closed.

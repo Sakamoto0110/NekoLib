@@ -261,7 +261,7 @@ publishing and independently restored by the tracked external consumers; that
 remote evidence does not replace the source, API-baseline, or local package
 qualification recorded here.
 
-## Current compatible minor release
+## Preceding compatible minor release
 
 NekoLib `1.1.0` was released on 2026-08-31 as the first compatible minor of the
 coordinated stable family. Its SemVer-minor basis is the additive stable Data
@@ -278,3 +278,22 @@ release operation did not update them. Complete artifact hashes, commands,
 runtime/package probes, publication attempts, repository-signature evidence,
 and unexecuted layers are recorded in the
 [`1.1.0` stable release record](stable-release-1.1.0.md).
+
+## Current stable family
+
+NekoLib `1.2.1`, released on 2026-11-24, is the active coordinated stable family.
+The 1.2 minor added scoped WPF crash forwarding, explicit interaction observer
+policies and a bootstrap observer factory without removing stable APIs. The
+compatible 1.2.1 patch restores modal ownership during enabled-state binding
+refreshes; it changes no compiled public API or accepted manifest. Existing
+defaults, warning-only deprecations, experimental markers and the closed 2.0
+removal boundary remain in force.
+
+The clean tagged package source is
+`85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`. The
+[stable release record](stable-release-1.2.1.md) identifies all 31 original
+artifact hashes, trusted publication, independent signed public-package
+verification and package-only runtime evidence on all four desktop/target
+combinations. Version 1.2.0 remains immutable and superseded for desktop
+readiness. Align Watchdog and its directly referenced Host deployment package
+with the rest of the family.

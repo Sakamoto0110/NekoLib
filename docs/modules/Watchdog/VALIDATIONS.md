@@ -34,7 +34,6 @@ Requirements with no executed evidence at this baseline:
 
 | Requirement | Status | Why |
 |---|---|---|
-| `WDG-VALREQ-006` | NOT_RUN | No run has observed an actual forced termination. The focused suite asserts that the resolved `taskkill` path ignores the process search path; it does not execute a kill, and no evidence covers the `/T` tree flag or an unresponsive target. |
 | `WDG-VALREQ-009` | NOT_RUN | No cross-user or cross-elevation denial probe has ever been attempted for the Watchdog endpoints. Present evidence is same-user success plus source inspection of the Pipes per-target protection. |
 | `WDG-VALREQ-011` | NOT_RUN | Every executed run used the developer account. No run has started a runtime under a restricted standard-user token, which is what `WDG-FINDING-001` needs to resolve. |
 | `WDG-VALREQ-012` | NOT_RUN | No interactive hotkey registration, conflict, or window-activation probe has been executed. The F1-WDOG review and the crash-recovery scenario both record this exclusion explicitly. |
@@ -295,3 +294,33 @@ The executed records follow.
 **Gaps:** Both targets rebuilt with zero warnings and zero errors, both `NekoLib.Watchdog.xml` files were produced beside their assemblies and carry every corrected member, and both accepted manifests verified without a baseline update — which is what proves the six XML-comment corrections changed no compiled metadata. A mechanical check confirmed that every changed source line is an XML comment line and that no project file, target, dependency, or baseline was touched. The warning comparison is scoped to this one project, so it establishes that this project emits no new identity and reports 175 unrelated baseline identities as not emitted; it is not a solution-wide warning result. This review executed no test, runtime scenario, package, package-consumer, security, interactive, or release run of its own, so it satisfies no other requirement: the standing focused-regression evidence remains `WDG-VALEVID-20260827-001`, and the seven requirements listed above as `NOT_RUN` are unchanged by it.
 
 **Supersedes:** `WDG-VALEVID-20260827-001` for the build and API-compatibility requirements at this newer baseline only; that record's focused-regression result stands.
+
+## WDG-VALEVID-20261124-001
+
+**Requirement IDs:** `WDG-VALREQ-001`, `WDG-VALREQ-002`, `WDG-VALREQ-006`, `WDG-VALREQ-008`
+
+**Version:** coordinated stable family `1.2.1`
+
+**Commit:** clean package source `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`
+
+**Tree state:** clean canonical source; independent signed downloads and fresh isolated consumer caches
+
+**Environment:** Windows x64; modern consumers on .NET 9.0.22 and net481 consumers on CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms, each on `net481` and `net9.0-windows`; matching module package assets
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.2.1`; all 30 API checks; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against the downloaded feed
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.2.1.md), public release evidence archive, canonical/published package logs and their 24-case recovery result sets
+
+**Observed:** Package-deployed external Host recovery passes UI/worker fatal, external kill, restart, recoverable continuation and clean stop for every desktop/target pair. Close-veto cases execute forced initial attached-tree termination while preserving the supervisor, then execute absolute system taskkill replacement-tree termination. Windowless helpers terminate, initial/replacement window count remains one and owned targets/Host are cleaned up.
+
+**Gaps:** The helper is test-only and windowless. Heartbeat measures process existence, not UI responsiveness. No automatic UI-hang, restricted-token, cross-user/elevation, hotkey, mixed-runtime pairing or nominal-duration soak campaign was run.
+
+**Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence

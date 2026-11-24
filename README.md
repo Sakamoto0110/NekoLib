@@ -240,7 +240,9 @@ workflow. Align every NekoLib reference to the same family version.
 The [desktop integration contract](docs/desktop-readiness-1.2.0.md) describes
 the 1.2 additions and compatibility decisions. The
 [modal binding correction](docs/desktop-readiness-1.2.1.md) records the desktop
-readiness patch. The
+readiness patch. The [1.2.1 release record](docs/stable-release-1.2.1.md)
+contains the final four-way package/recovery matrix, publication and independent
+public-download evidence. The
 [1.1.0 record](docs/stable-release-1.1.0.md) preserves the preceding compatible
 minor; `1.0.0` remains the
 [first stable family baseline](docs/stable-release-1.0.0.md).

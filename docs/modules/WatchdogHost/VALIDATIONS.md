@@ -207,3 +207,33 @@ The executed records follow.
 **Gaps:** Both targets rebuilt with zero warnings and zero errors, and the repository's own public-API generator reported **zero type declarations on each target** — only three assembly-level attributes on `net481` and five on `net9.0-windows`. That re-asserts at the current baseline the property `WDGHOST-VALEVID-20260820-002` established before implementation, and it is what justifies this boundary having no accepted API manifest; `eng/public-api/` was confirmed to contain no `NekoLib.Watchdog.Host` directory. The run also incidentally confirmed the payload-form claim: on `net481` the built `.exe` is itself the loadable managed assembly, while on `net9.0-windows` the `.exe` is a native apphost and the managed code is the sibling `.dll`. This review executed no package, package-consumer, deployment, protocol, runtime, or release run of its own and created no package version, so it satisfies no other requirement; the standing package and protocol evidence remains `WDGHOST-VALEVID-20260828-001` and `WDGHOST-VALEVID-20260820-001`.
 
 **Supersedes:** `WDGHOST-VALEVID-20260820-002` for the zero-exported-types requirement at this newer baseline; that record's `GetPEKind` observation stands.
+
+## WDGHOST-VALEVID-20261124-001
+
+**Requirement IDs:** `WDGHOST-VALREQ-002`, `WDGHOST-VALREQ-003`, `WDGHOST-VALREQ-004`, `WDGHOST-VALREQ-005`, `WDGHOST-VALREQ-006`
+
+**Version:** coordinated stable family `1.2.1`
+
+**Commit:** clean package source `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`
+
+**Tree state:** clean canonical source; independent signed downloads and fresh isolated consumer caches
+
+**Environment:** Windows x64; modern consumers on .NET 9.0.22 and net481 consumers on CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms, each on `net481` and `net9.0-windows`; matching module package assets
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.2.1`; all 30 API checks; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against the downloaded feed
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.2.1.md), public release evidence archive, canonical/published package logs and their 24-case recovery result sets
+
+**Observed:** Canonical package probes validate payload layout/PE metadata and exact deployment bytes, direct-reference ownership, wrapper nontransitivity, RID selection/rejection, publish/build/rebuild/clean behavior, deployment disable/re-enable, and real protocol startup/stop on both targets. All four native consumers directly reference the same-version Host and execute six recovery scenarios each.
+
+**Gaps:** Native UI consumers run x64. x86 Host selection and package bytes are checked, but no x86 desktop recovery matrix is claimed. Host return-code, other consumer framework versions, absent-runtime and security/install campaigns remain independently scoped.
+
+**Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence

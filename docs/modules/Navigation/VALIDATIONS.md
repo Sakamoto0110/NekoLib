@@ -190,3 +190,33 @@ audit, scenario, and release record remains the detailed owner of each result.
 **Gaps:** This was immutable local package and consumer evidence, not a public stable release, native interactive run, or long-running recovery run.
 
 **Supersedes:** `1.1.0-local.7`, which is retained as negative immutable evidence because its managed packages omitted XML files
+
+## NAV-VALEVID-20261124-001
+
+**Requirement IDs:** `NAV-VALREQ-001`, `NAV-VALREQ-002`, `NAV-VALREQ-003`, `NAV-VALREQ-007`, `NAV-VALREQ-009`
+
+**Version:** coordinated stable family `1.2.1`
+
+**Commit:** clean package source `85c1fc8227edc7b5c6ba643bb48dc4afc88922c0`
+
+**Tree state:** clean canonical source; independent signed downloads and fresh isolated consumer caches
+
+**Environment:** Windows x64; modern consumers on .NET 9.0.22 and net481 consumers on CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms, each on `net481` and `net9.0-windows`; matching module package assets
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.2.1`; all 30 API checks; `eng/verify-published-packages.ps1`; `eng/test-local-packages.ps1` against the downloaded feed
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.2.1.md), public release evidence archive, canonical/published package logs and their 24-case recovery result sets
+
+**Observed:** All six Navigation assemblies and 312 tests per test target passed. Four package-only native consumers exercise actual pages, toast routing/auto-dismiss/focus/geometry, prompt/popover completion, modal enabled-binding refresh/restoration, InputOnly activity and awaited owner-thread teardown.
+
+**Gaps:** Automated native behavior is not human evidence for NAV-VALREQ-004. Designer interaction, human visual/accessibility approval, multi-monitor DPI and new long soaks were not run; the desktop decision records the unattended release exception.
+
+**Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
