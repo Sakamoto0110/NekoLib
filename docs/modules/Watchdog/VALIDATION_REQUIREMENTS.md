@@ -279,3 +279,21 @@ architecture and risk, not from the tests that happen to exist; several are
 **Required evidence level:** automated-runtime
 
 **Rationale:** Watchdog is designed to run for the life of an unattended terminal. Log rotation, bundle retention, the replay history, and the three loss counters are all bounded mechanisms whose behavior only becomes visible over time, and the best available run records itself as below its specified window.
+
+## WDG-VALREQ-015
+
+**Classification:** REQUIRED
+
+**Trigger:** every change to native UI probing, UI timeout/grace/defaults, pause/resume or the UI-hang termination decision; every release carrying UI-hang recovery
+
+**Category:** runtime
+
+**Boundary:** process
+
+**Targets:** WPF and WinForms on net481 and net9.0-windows, using SameExecutable and optional Sidecar supervision
+
+**Acceptance criteria:** Deterministic monotonic regressions cover failure/grace boundaries, successful/no-window/unavailable reset, changed HWND/PID and invalidation after pause/resume. Exact package consumers recover sustained native UI hangs with different replacement PIDs and responsive replacement windows, without classifying brief stalls, initialization grace, native modal loops, paused supervision or explicit detection disable as hangs. The supervisor survives forced attached-tree termination, old global controls and fatal recovery remain functional, and all owned processes/endpoints are cleaned up. Public distribution claims repeat these scenarios from independently verified signed package downloads.
+
+**Required evidence level:** automated-runtime
+
+**Rationale:** A live process or background IPC server does not prove that its UI thread handles messages. False-positive termination loses application state, while an orphaned supervisor or stale decision across pause/resume can undo an accepted cancellation. Native window observation and actual replacement must therefore be qualified separately from process heartbeat, compilation and fake observations.

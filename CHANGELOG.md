@@ -14,6 +14,10 @@ remain under `docs/history/`.
 
 ## Unreleased
 
+- No unreleased package changes.
+
+## 1.4.0 — compatible minor released 2026-11-24
+
 - **Watchdog UI-hang recovery:** automatic desktop bootstrap enables bounded
   external window-message probes. Configurable timeout/startup grace, native
   responsiveness status and the existing restart path recover a sustained UI
