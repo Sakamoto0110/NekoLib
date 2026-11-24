@@ -247,7 +247,7 @@ namespace NekoLib.Watchdog
             using var current = Process.GetCurrentProcess();
             var target = current.MainModule?.FileName;
             if (string.IsNullOrWhiteSpace(target)) throw new InvalidOperationException("Cannot resolve the current executable for supervision control.");
-            var pipe = WatchdogController.ResolvePipeNameForTarget(target);
+            var pipe = WatchdogController.ResolvePipeNameForTarget(target!);
             return WatchdogBootstrap.TryGetAttachedProcessId(pipe, Math.Min(100, _options?.HandshakeTimeoutMs ?? 5000), out var pid) && pid == current.Id;
         }
 

@@ -127,6 +127,15 @@ publish, and clean outcomes are stable.
 
 ## Bootstrap protocol v1
 
+Version 1.3 additionally accepts the library-generated automatic supervisor
+invocation before parsing the existing manual arguments. It consumes a bounded,
+one-shot configuration file from the per-user owned bootstrap directory and
+runs the same WatchdogRuntime used by same-executable mode. The existing manual
+arguments and protocol version remain unchanged. Automatic Sidecar consumers
+must align Host and library versions; SameExecutable consumers do not require
+this deployment package. See the
+[automatic application contract](../Watchdog/REFERENCE.md#supported-composition-paths).
+
 The executable command line is an internal protocol between the coordinated
 `NekoLib.Watchdog` and `NekoLib.Watchdog.Host` packages. It is not an end-user
 CLI. Host and library package versions must be updated together and the

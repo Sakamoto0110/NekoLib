@@ -24,7 +24,7 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Watchdog-specific consumer impact without duplicating
 package hashes or release provenance.
 
-## Unreleased
+## 1.3.0
 
 **Packages:** `NekoLib.Watchdog`
 
