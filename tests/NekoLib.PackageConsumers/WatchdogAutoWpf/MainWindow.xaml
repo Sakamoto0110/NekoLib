@@ -1,0 +1,8 @@
+<Window x:Class="WatchdogAutoWpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WatchdogAutoWpf"
+        Title="Watchdog automatic qualification" Left="-20000" Top="-20000"
+        Width="240" Height="120" WindowStartupLocation="Manual">
+    <local:QualificationLabel Text="Single application window" />
+</Window>

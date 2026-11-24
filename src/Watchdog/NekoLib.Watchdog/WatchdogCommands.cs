@@ -20,6 +20,8 @@ namespace NekoLib.Watchdog
         /// <summary>Command that stops the runtime and its supervised target.</summary>
         public const string Stop = "stop";
 
+        internal const string Detach = "detach";
+
         internal const string LogHistory = "log_history";
         internal const string ExceptionNotify = "exception_notify";
         internal const string ProtocolVersion = "protocol_version";

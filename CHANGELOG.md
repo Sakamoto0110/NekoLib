@@ -16,6 +16,14 @@ remain under `docs/history/`.
 
 - No unreleased package changes.
 
+## 1.3.0 — compatible minor released 2026-11-24
+
+- **1.3 compatible minor:** opt-in Watchdog auto bootstrap for WPF/WinForms,
+  same-executable supervisor mode, optional startup configuration/cancellation,
+  global Disable/Enable/Shutdown and nonterminating Detach. Existing sidecar/manual defaults remain available.
+  See the [accepted integration decision](docs/watchdog-auto-bootstrap.md).
+  Automatic UI-hang detection remains a separate next step.
+
 ## 1.2.1 — compatible patch released 2026-11-24
 
 - **1.2.1 compatible patch:** native interaction blockers hold background views

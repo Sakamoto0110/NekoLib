@@ -3,6 +3,26 @@
 [assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8.1", FrameworkDisplayName=".NET Framework 4.8.1")]
 namespace NekoLib.Watchdog
 {
+    public static class WatchdogAutoBootstrap
+    {
+        public static bool IsActive { get; }
+        public static event System.Action<string>? Warning;
+        public static void Activate() { }
+        public static void CompleteApplication() { }
+        public static void Configure(System.Action<NekoLib.Watchdog.WatchdogAutoBootstrapOptions> configure) { }
+        public static void Disable() { }
+        public static bool Enable() { }
+        public static void Prepare(NekoLib.Watchdog.WatchdogAutoBootstrapOptions options) { }
+        public static void Shutdown(int exitCode = 0) { }
+        public static bool TryRunSupervisor(string[] arguments, out int exitCode) { }
+    }
+    public sealed class WatchdogAutoBootstrapOptions
+    {
+        public WatchdogAutoBootstrapOptions() { }
+        public int HandshakeTimeoutMs { get; set; }
+        public NekoLib.Watchdog.WatchdogHostingMode HostingMode { get; set; }
+        public NekoLib.Watchdog.WatchdogOptions RuntimeOptions { get; set; }
+    }
     public static class WatchdogBootstrap
     {
         public const string HostDirectoryName = "NekoLib.Watchdog.Host";
@@ -23,6 +43,8 @@ namespace NekoLib.Watchdog
     }
     public static class WatchdogController
     {
+        public static void Disable() { }
+        public static bool Enable() { }
         public static void NotifyException(string? type, string? message, string? source) { }
         public static void NotifyExceptionForTarget(string targetPath, string? type, string? message, string? source) { }
         public static void NotifyLog(NekoLib.Core.Logging.LogEntry? entry) { }
@@ -31,6 +53,7 @@ namespace NekoLib.Watchdog
         public static string ResolvePipeNameForTarget(string targetPath) { }
         public static bool Restart() { }
         public static bool Resume() { }
+        public static void Shutdown(int exitCode = 0) { }
         public static string Status() { }
         public static bool Stop() { }
         public static System.IDisposable SubscribeLogLines(System.Action<string> onLine) { }
@@ -44,6 +67,11 @@ namespace NekoLib.Watchdog
             public string? Msg { get; set; }
             public long TsUnixMs { get; set; }
         }
+    }
+    public enum WatchdogHostingMode
+    {
+        SameExecutable = 0,
+        Sidecar = 1,
     }
     public sealed class WatchdogOptions
     {
@@ -84,6 +112,7 @@ namespace NekoLib.Watchdog
     {
         public WatchdogRuntime(NekoLib.Watchdog.WatchdogOptions options) { }
         public string PipeName { get; }
+        public void Detach() { }
         public void Dispose() { }
         public void Start() { }
         public void Stop() { }

@@ -29,7 +29,18 @@ the payload layout, the MSBuild properties and their outcomes, the launch
 protocol, the exit codes, and the fatal-evidence path. A change to any of those
 belongs here.
 
+## 1.3.0
+
+**Packages:** `NekoLib.Watchdog.Host`
+
+**Compatibility class:** additive
+
+**Consumer impact:** The deployed Host additionally accepts the coordinated library's automatic configuration-file invocation; legacy manual arguments, protocol v1, RID selection and payload ownership remain unchanged.
+
+**Migration:** Keep Host and library aligned for explicit Sidecar mode. SameExecutable auto bootstrap needs no Host reference or payload.
+
 ## 1.1.0
+
 
 **Packages:** `NekoLib.Watchdog.Host`
 

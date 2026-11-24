@@ -189,6 +189,19 @@ namespace NekoLib.Watchdog
         /// <returns><c>true</c> only for <c>pong</c>; timeout, transport, protocol, and other responses return <c>false</c>.</returns>
         public static bool Ping() => Send(WatchdogCommands.Ping) == "pong";
 
+        /// <summary>Globally enables package-prepared supervision, including after Disable; emits a warning and returns false on failure.</summary>
+        public static bool Enable() => WatchdogAutoBootstrap.Enable();
+
+        /// <summary>Globally disables supervision without closing the application. It may later be re-enabled with Enable.</summary>
+        public static void Disable() => WatchdogAutoBootstrap.Disable();
+
+        /// <summary>
+        /// Globally disables supervision and exits the application with the given
+        /// code. Uses Environment.Exit after confirmed detach; caller-owned
+        /// cleanup must complete first. A failed detach throws without exiting.
+        /// </summary>
+        public static void Shutdown(int exitCode = 0) => WatchdogAutoBootstrap.Shutdown(exitCode);
+
         /// <summary>Requests the current Host status synchronously.</summary>
         /// <returns>Serialized status evidence, or an <c>error=...</c> value for unavailable, transport, or protocol failure.</returns>
         public static string Status() => Send(WatchdogCommands.Status);

@@ -64,14 +64,77 @@ assembly-level target and platform attributes. The modern assembly carries
 
 The `NekoLib.Watchdog` package contains its two target assemblies with their
 matching XML documentation files, plus dependency groups. It embeds no Host
-payload and exposes no `tools/` or `build/` asset. `eng/pack-local.ps1` enforces
+payload. Starting with 1.3, it also carries a direct-only `build` target and a
+build-only source generator for explicitly enabled automatic startup; neither
+adds a runtime compiler dependency. `eng/pack-local.ps1` enforces
 the XML pairing for every managed package as a permanent guard.
 
 ## Supported composition paths
 
-There are exactly two supported ways to use this library.
+There are three supported composition paths.
 
-**The application path** calls `WatchdogBootstrap.EnsureStarted` near the start
+**Automatic application startup** opts a C# WPF/WinForms executable into package
+entry routing. Reference `NekoLib.Watchdog` directly and enable:
+
+```xml
+<PropertyGroup>
+  <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
+  <NekoLibWatchdogHostingMode>SameExecutable</NekoLibWatchdogHostingMode>
+</PropertyGroup>
+```
+
+The generated STA entry handles supervisor mode before original application
+entry code. The same executable runs as a second, headless supervisor; it adds
+no companion window or separate Host payload. Application mode prepares policy
+before original Main and automatically activates on first WinForms idle or a
+WPF Loaded-priority callback. WPF's generated App.xaml Main and private/async
+explicit Main are supported. No application Main call is required.
+
+Optional startup configuration, before activation, can be placed in Main or
+WPF OnStartup:
+
+```csharp
+WatchdogAutoBootstrap.Configure(options =>
+{
+    options.HandshakeTimeoutMs = 10000;
+    options.RuntimeOptions.RestartDelayMs = 1500;
+});
+```
+
+Alternatively, `WatchdogAutoBootstrap.Disable()` prevents startup or detaches
+already active supervision while keeping the application running. Repeated
+Disable calls are safe. `WatchdogController.Disable()` forwards the same global
+operation, and `WatchdogController.Enable()` explicitly starts it again. While
+disabled, Configure may change policy for the next session. All are static and
+callable from any application component. `WatchdogController.Shutdown(exitCode)`
+confirms detachment and calls Environment.Exit; finish application-owned cleanup
+first. A detach failure throws instead of exiting into an unconfirmed restart
+race. This differs from `WatchdogController.Stop()`, which still
+terminates the target. `IsActive` means attachment was confirmed; it is not a
+continuous liveness probe. `Warning` callbacks, Trace/standard error and the
+bounded per-user `NekoLib/Watchdog/auto-bootstrap.log` report activation errors.
+The application continues without claiming confirmed supervision after failure.
+
+Normal return from Main automatically detaches. An escaping exception or abrupt
+exit leaves recovery to the supervisor; Environment.Exit bypasses normal-return
+cleanup. A supervisor-requested stop/restart takes precedence over automatic
+normal-return detach. Startup before the UI callback is not supervised hang
+detection. Configuration is snapshotted for a supervisor session; Configure
+while active is rejected and does not mutate that running session; disable and
+re-enable explicitly to use a new configuration.
+
+`SameExecutable` is the new opt-in default. `Sidecar` selects the existing Host
+and requires its direct same-version package reference. Referencing the package
+alone does not activate either mode. Ambiguous/unsupported entries produce
+NEKOWDG001/NEKOWDG002 diagnostics. A Roslyn 4.12-compatible compiler (.NET 9 SDK
+family or newer) is required. NEKOWDG003 warns when direct manual EnsureStarted
+calls overlap automatic startup. Excluding the package analyzer is rejected with
+NEKOWDG001; it cannot silently bypass the generated entry. Top-level statements,
+trimming and NativeAOT are outside this first integration. See the
+[accepted decision](../../watchdog-auto-bootstrap.md) for process boundaries,
+configuration transfer, API review and qualification gates.
+
+**The manual application path** calls `WatchdogBootstrap.EnsureStarted` near the start
 of `Main`. Bootstrap locates the deployed Host below the application base
 directory, starts it, hands over the current process, and returns. The
 application then uses `WatchdogController` to observe or control its own

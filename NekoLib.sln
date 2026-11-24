@@ -135,6 +135,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Unit", "Unit", "{1888D761-6
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Http.Tests.Unit", "tests\NekoLib.Http.Tests\Unit\NekoLib.Http.Tests.Unit.csproj", "{021B3052-0B91-4C97-83E3-4BC41BC2D2CE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NekoLib.Watchdog.Generators", "src\Watchdog\NekoLib.Watchdog.Generators\NekoLib.Watchdog.Generators.csproj", "{9E127B6D-B810-4EB5-9525-6AA8439AA25A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -481,6 +483,18 @@ Global
 		{021B3052-0B91-4C97-83E3-4BC41BC2D2CE}.Release|x64.Build.0 = Release|Any CPU
 		{021B3052-0B91-4C97-83E3-4BC41BC2D2CE}.Release|x86.ActiveCfg = Release|Any CPU
 		{021B3052-0B91-4C97-83E3-4BC41BC2D2CE}.Release|x86.Build.0 = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|x64.Build.0 = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Debug|x86.Build.0 = Debug|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|x64.ActiveCfg = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|x64.Build.0 = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|x86.ActiveCfg = Release|Any CPU
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -550,6 +564,7 @@ Global
 		{C2BF44EF-9145-EBD7-9415-21ABBE8988E8} = {48F8EB3B-CC93-4836-B56A-C5451A10F931}
 		{1888D761-61E4-F200-FD47-A69EA9AC8F54} = {C2BF44EF-9145-EBD7-9415-21ABBE8988E8}
 		{021B3052-0B91-4C97-83E3-4BC41BC2D2CE} = {1888D761-61E4-F200-FD47-A69EA9AC8F54}
+		{9E127B6D-B810-4EB5-9525-6AA8439AA25A} = {B67FD3C9-902C-4864-98B7-ECAEC027C563}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A6736775-B135-4E14-B467-8F36148928D4}

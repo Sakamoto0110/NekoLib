@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <NekoLibWatchdogAutoBootstrap Condition="'$(NekoLibWatchdogAutoBootstrap)' == ''">false</NekoLibWatchdogAutoBootstrap>
+    <NekoLibWatchdogHostingMode Condition="'$(NekoLibWatchdogHostingMode)' == ''">SameExecutable</NekoLibWatchdogHostingMode>
+    <NekoLibWatchdogUiFramework Condition="'$(NekoLibWatchdogUiFramework)' == '' and '$(UseWPF)' == 'true' and '$(UseWindowsForms)' != 'true'">Wpf</NekoLibWatchdogUiFramework>
+    <NekoLibWatchdogUiFramework Condition="'$(NekoLibWatchdogUiFramework)' == '' and '$(UseWindowsForms)' == 'true' and '$(UseWPF)' != 'true'">WinForms</NekoLibWatchdogUiFramework>
+    <NekoLibWatchdogOriginalStartupObject Condition="'$(NekoLibWatchdogAutoBootstrap)' == 'true' and '$(NekoLibWatchdogOriginalStartupCaptured)' != 'true'">$(StartupObject)</NekoLibWatchdogOriginalStartupObject>
+    <NekoLibWatchdogOriginalStartupCaptured Condition="'$(NekoLibWatchdogAutoBootstrap)' == 'true'">true</NekoLibWatchdogOriginalStartupCaptured>
+    <StartupObject Condition="'$(NekoLibWatchdogAutoBootstrap)' == 'true' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">NekoLib.Watchdog.Generated.ApplicationEntryPoint</StartupObject>
+    <NekoLibWatchdogMarkupTemporary Condition="'$(IsTemporaryTargetAssembly)' == 'true'">true</NekoLibWatchdogMarkupTemporary>
+  </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="NekoLibWatchdogAutoBootstrap" />
+    <CompilerVisibleProperty Include="NekoLibWatchdogHostingMode" />
+    <CompilerVisibleProperty Include="NekoLibWatchdogUiFramework" />
+    <CompilerVisibleProperty Include="NekoLibWatchdogOriginalStartupObject" />
+    <CompilerVisibleProperty Include="NekoLibWatchdogMarkupTemporary" />
+  </ItemGroup>
+  <Target Name="_NekoLibValidateAutomaticWatchdog" BeforeTargets="CoreCompile"
+          Condition="'$(NekoLibWatchdogAutoBootstrap)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsTemporaryTargetAssembly)' != 'true'">
+    <ItemGroup>
+      <_NekoLibWatchdogGenerator Include="@(Analyzer)" Condition="'%(Filename)' == 'NekoLib.Watchdog.Generators'" />
+      <_NekoLibWatchdogReference Include="@(PackageReference)" Condition="'%(Identity)' == 'NekoLib.Watchdog'" />
+    </ItemGroup>
+    <Error Condition="'$(OutputType)' != 'Exe' and '$(OutputType)' != 'WinExe'" Code="NEKOWDG001" Text="NekoLibWatchdogAutoBootstrap is supported only on executable projects." />
+    <Error Condition="'@(_NekoLibWatchdogGenerator)' == ''" Code="NEKOWDG001" Text="Automatic bootstrap requires the NekoLib.Watchdog package analyzer. Remove ExcludeAssets=analyzers from the direct package reference." />
+    <Error Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_NekoLibWatchdogReference.ExcludeAssets)', '(?i)(^|;)\s*(analyzers|all)\s*(;|$)'))" Code="NEKOWDG001" Text="Automatic bootstrap cannot be enabled while its package analyzers are explicitly excluded. Remove ExcludeAssets=analyzers from the NekoLib.Watchdog reference." />
+    <Error Condition="('$(NekoLibWatchdogUiFramework)' == 'Wpf' and '$(UseWPF)' != 'true') or ('$(NekoLibWatchdogUiFramework)' == 'WinForms' and '$(UseWindowsForms)' != 'true')" Code="NEKOWDG001" Text="The selected automatic Watchdog UI framework must be enabled on this executable project." />
+    <Error Condition="'$(PublishTrimmed)' == 'true' or '$(PublishAot)' == 'true'" Code="NEKOWDG001" Text="Automatic Watchdog entry routing does not support trimming or NativeAOT." />
+  </Target>
+</Project>

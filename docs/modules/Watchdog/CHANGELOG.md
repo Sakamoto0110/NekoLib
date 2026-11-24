@@ -24,7 +24,18 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Watchdog-specific consumer impact without duplicating
 package hashes or release provenance.
 
+## 1.3.0
+
+**Packages:** `NekoLib.Watchdog`
+
+**Compatibility class:** additive
+
+**Consumer impact:** Explicit project opt-in generates automatic desktop entry routing and same-executable supervision; optional Configure plus global Enable/Disable/Shutdown and Runtime Detach provide explicit control while legacy manual sidecar and Stop retain their behavior.
+
+**Migration:** None for existing consumers. Opt in with `NekoLibWatchdogAutoBootstrap=true`; choose SameExecutable or Sidecar, with a direct same-version Host reference for Sidecar. See the [integration contract](REFERENCE.md#supported-composition-paths).
+
 ## 1.1.0
+
 
 **Packages:** `NekoLib.Watchdog`
 

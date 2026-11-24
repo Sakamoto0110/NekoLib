@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net481;net9.0-windows</TargetFrameworks>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" Condition="'$(NekoLibWatchdogHostingMode)' == 'Sidecar'" />
+    <Compile Include="..\WatchdogAutoProbe.cs" Link="WatchdogAutoProbe.cs" />
+  </ItemGroup>
+</Project>

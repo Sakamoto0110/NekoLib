@@ -49,6 +49,20 @@ an explicit implementation gate after promotion.
 
 ## Current promoted work
 
+### `WDG-AUTOBOOT-001` — same-executable desktop supervision
+
+**Status:** promoted; implementation, integration and release authorized.
+
+**Source:** [accepted auto-bootstrap decision](docs/watchdog-auto-bootstrap.md)
+and the owner's direct instruction on 2026-11-24.
+
+Implement opt-in package activation without mandatory Main calls, same-executable
+supervisor routing, optional startup configuration/cancellation, global
+Disable/Enable/Shutdown, truthful diagnostics, and nonterminating detach. Preserve sidecar/manual compatibility.
+Close with both-target unit/API checks, four-way package-only behavior/recovery,
+clean immutable family publication and independent public consumption. Integrate
+and delete the work branch. Automatic UI-hang detection is a separate next step.
+
 ### `NEKOMKT-F026` — retire the legacy SQL-inverted QueryBuilder join overload
 
 **Status:** promoted; release and implementation gates closed.

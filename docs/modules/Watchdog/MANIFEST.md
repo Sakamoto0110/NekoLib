@@ -26,7 +26,7 @@
 
 **Targets:** `net481`, `net9.0-windows`
 
-**Project dependencies:** `NekoLib.Core`, `NekoLib.Pipes`
+**Project dependencies:** `NekoLib.Core`, `NekoLib.Pipes`, `NekoLib.Watchdog.Generators`
 
 **Package dependencies:** `Newtonsoft.Json`
 
@@ -64,6 +64,11 @@ stable public API oracle.
 `System.Text.Json` from the platform. Both targets reference `NekoLib.Core` for
 the public `ILogSink`, `LogEntry`, and `ITelemetry` contracts and `NekoLib.Pipes`
 for the control and event transport.
+
+`NekoLib.Watchdog.Generators` is a private build-time project. Its analyzer
+assembly is packaged as compiler infrastructure and its direct-only build
+targets require explicit application opt-in. It adds no runtime Roslyn or
+generator package dependency and is not another coordinated public package.
 
 This boundary is the managed supervision library only. The separately
 distributed `NekoLib.Watchdog.Host` sidecar owns deployment payloads, RID
