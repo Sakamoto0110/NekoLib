@@ -53,7 +53,9 @@ function Get-Owned([string]$Exe, [string]$HostPath) {
 }
 function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
     if (Test-Passed $Exe $Hosting $Mode) { Write-Host "SKIP previously passed automatic bootstrap $Hosting $Exe $Mode"; return }
-    $directory = Join-Path $root ('runs/' + [IO.Path]::GetFileNameWithoutExtension($Exe) + '-' + (Split-Path (Split-Path $Exe -Parent) -Leaf) + '-' + $Hosting + '-' + $Mode + '-' + [guid]::NewGuid().ToString('N'))
+    # Mode/framework/hosting identities are retained in results.json. A compact
+    # directory keeps Framework evidence writes below its legacy MAX_PATH limit.
+    $directory = Join-Path $root ('runs/' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $hostPath = Join-Path (Split-Path $Exe -Parent) 'NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.exe'
     $process = $null
