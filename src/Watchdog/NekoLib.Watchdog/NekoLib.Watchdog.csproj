@@ -10,8 +10,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>NekoLib.Watchdog</PackageId>
     <Title>NekoLib Watchdog</Title>
-    <Description>Process supervision, restart orchestration, crash bundling and RPC control for unattended applications.</Description>
-    <PackageTags>nekolib;watchdog;process-supervision;kiosk;pos</PackageTags>
+    <Description>Process supervision with opt-in same-executable desktop auto bootstrap, restart orchestration, crash bundling and RPC control.</Description>
+    <PackageTags>nekolib;watchdog;auto-bootstrap;self-host;process-supervision;kiosk;pos</PackageTags>
 
   </PropertyGroup>
 

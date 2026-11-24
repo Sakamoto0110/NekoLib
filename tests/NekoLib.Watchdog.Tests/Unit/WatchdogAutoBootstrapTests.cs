@@ -8,6 +8,15 @@ namespace NekoLib.Watchdog.Tests.Unit
 {
     public sealed class WatchdogAutoBootstrapTests
     {
+        public WatchdogAutoBootstrapTests()
+        {
+            // The RPC client and real runtime share one test process. Framework
+            // pipe accept/read adapters use pool workers; reserve capacity for
+            // the synchronous client independently of fixture execution order.
+            System.Threading.ThreadPool.GetMinThreads(out var workers, out var completions);
+            System.Threading.ThreadPool.SetMinThreads(Math.Max(64, workers), completions);
+        }
+
         [Fact]
         public void PortableConfiguration_IsCopiedAndRejectsBootstrapIdentity()
         {
@@ -113,7 +122,7 @@ namespace NekoLib.Watchdog.Tests.Unit
                 application = Process.Start(new ProcessStartInfo(options.TargetPath, options.TargetArguments) { UseShellExecute = false, CreateNoWindow = true });
                 options.InitialProcessId = application.Id;
                 options.AttachToken = "detach-test";
-                var runtime = new WatchdogRuntime(options);
+                using var runtime = new WatchdogRuntime(options);
                 runtime.Start();
                 var wrong = WatchdogTestUtil.Send(runtime.PipeName, WatchdogCommands.Detach, new { pid = -1 });
                 Assert.False(wrong.Ok);
@@ -126,7 +135,15 @@ namespace NekoLib.Watchdog.Tests.Unit
                 Assert.False(application.HasExited);
                 Assert.Throws<InvalidOperationException>(() => runtime.Start());
                 // The released instance slot must permit another supervisor for the same live target.
-                using (var next = new WatchdogRuntime(options)) { next.Start(); next.Detach(); }
+                options.MonitorPollMs = 30000;
+                using (var next = new WatchdogRuntime(options))
+                {
+                    next.Start();
+                    System.Threading.Thread.Sleep(200); // Allow the monitor to enter its configured long wait.
+                    var watch = Stopwatch.StartNew();
+                    next.Detach();
+                    Assert.True(watch.ElapsedMilliseconds < 2000, "A long monitor interval delayed nonterminating detachment.");
+                }
                 Assert.False(application.HasExited);
             }
             finally

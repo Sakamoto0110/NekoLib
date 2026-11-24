@@ -45,11 +45,21 @@ Target identity, original arguments, attach PID and token remain bootstrap-owned
 ## Diagnostics and compatibility
 
 Unsupported or ambiguous entry points fail with specific build diagnostics.
+NEKOWDG003 warns about direct manual EnsureStarted calls when auto bootstrap is
+enabled. Excluding the required analyzer produces NEKOWDG001 instead of silently
+skipping supervisor routing. Large monitor intervals do not delay cooperative
+detach: internal waits/sleeps observe shutdown in bounded slices while preserving
+the configured heartbeat poll boundary.
 Top-level statements, trimming and NativeAOT are outside this first desktop
 integration. Existing explicit entry points and WPF's generated App.xaml entry
 must qualify on net481 and net9.0-windows. Automatic startup failures emit a
 warning and leave the application running without claiming active supervision;
 invalid reserved supervisor invocation fails before opening application UI.
+
+The executable must directly reference the package with its build and analyzer
+assets enabled. Explicitly excluding the entire build integration also removes
+its validation hooks; the library cannot diagnose code that was excluded from
+the build. Automatic startup is never inferred from a transitive reference.
 
 The build integration requires a C# compiler compatible with Roslyn 4.12 or
 later (the .NET 9 SDK family). It preserves private Main, supported async Main,

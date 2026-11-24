@@ -120,8 +120,10 @@ after activation is rejected and does not mutate that running session.
 and requires its direct same-version package reference. Referencing the package
 alone does not activate either mode. Ambiguous/unsupported entries produce
 NEKOWDG001/NEKOWDG002 diagnostics. A Roslyn 4.12-compatible compiler (.NET 9 SDK
-family or newer) is required; top-level statements, trimming and NativeAOT are
-outside this first integration. See the
+family or newer) is required. NEKOWDG003 warns when direct manual EnsureStarted
+calls overlap automatic startup. Excluding the package analyzer is rejected with
+NEKOWDG001; it cannot silently bypass the generated entry. Top-level statements,
+trimming and NativeAOT are outside this first integration. See the
 [accepted decision](../../watchdog-auto-bootstrap.md) for process boundaries,
 configuration transfer, API review and qualification gates.
 

@@ -806,7 +806,7 @@ namespace NekoLib.Watchdog
                         break;
 
                     bool exited = false;
-                    try { exited = current.WaitForExit(_o.MonitorPollMs); }
+                    try { exited = WaitForExitOrShutdown(current); }
                     catch { exited = true; }
 
                     if (exited)
@@ -1035,12 +1035,24 @@ namespace NekoLib.Watchdog
             catch { return null; }
         }
 
+        private bool WaitForExitOrShutdown(Process process)
+        {
+            var remaining = _o.MonitorPollMs;
+            while (remaining > 0 && !_shutdownRequested)
+            {
+                var slice = Math.Min(100, remaining);
+                if (process.WaitForExit(slice)) return true;
+                remaining -= slice;
+            }
+            return false;
+        }
+
         private void SleepWithShutdown(int delayMs)
         {
             var remaining = delayMs;
             while (remaining > 0 && !_shutdownRequested)
             {
-                var slice = Math.Min(_o.MonitorPollMs, remaining);
+                var slice = Math.Min(100, Math.Min(_o.MonitorPollMs, remaining));
                 Thread.Sleep(slice);
                 remaining -= slice;
             }

@@ -111,6 +111,15 @@ namespace System.Windows.Threading {
         }
 
         [Fact]
+        public void ManualBootstrapOverlap_EmitsWarningWithoutChangingLegacyApi()
+        {
+            var result = Generate("class Original { static void Main() { NekoLib.Watchdog.WatchdogBootstrap.EnsureStarted(); } }" +
+                Infrastructure + "namespace NekoLib.Watchdog { public static class WatchdogBootstrap { public static void EnsureStarted() {} } }");
+            Assert.Contains(result.Item2, d => d.Id == "NEKOWDG003" && d.Severity == DiagnosticSeverity.Warning);
+            Assert.DoesNotContain(result.Item1.GetDiagnostics(), d => d.Severity == DiagnosticSeverity.Error);
+        }
+
+        [Fact]
         public void DisabledIntegration_DoesNotChangeEntryPoint()
         {
             var result = Generate("class Original { static void Main() {} }", enabled: false);

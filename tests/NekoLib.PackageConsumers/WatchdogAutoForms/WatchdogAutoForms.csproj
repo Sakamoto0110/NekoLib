@@ -10,7 +10,9 @@
     <StartupObject>WatchdogAutoForms.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibPackageVersion)" />
+    <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibPackageVersion)">
+      <ExcludeAssets Condition="'$(NekoLibWatchdogQualificationExcludeAnalyzer)' == 'true'">analyzers</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" Condition="'$(NekoLibWatchdogHostingMode)' == 'Sidecar'" />
     <Compile Include="..\WatchdogAutoProbe.cs" Link="WatchdogAutoProbe.cs" />
   </ItemGroup>

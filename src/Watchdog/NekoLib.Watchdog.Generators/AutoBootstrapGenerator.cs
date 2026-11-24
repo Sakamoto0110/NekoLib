@@ -20,6 +20,10 @@ namespace NekoLib.Watchdog.Generators
         private static readonly DiagnosticDescriptor InvalidEntry = new DiagnosticDescriptor(
             "NEKOWDG002", "Unsupported automatic Watchdog entry point", "{0}", "NekoLib.Watchdog",
             DiagnosticSeverity.Error, true);
+        private static readonly DiagnosticDescriptor ManualBootstrapConflict = new DiagnosticDescriptor(
+            "NEKOWDG003", "Manual and automatic Watchdog startup overlap",
+            "Automatic bootstrap is enabled. Remove the manual EnsureStarted call or disable auto bootstrap to keep manual startup ownership.",
+            "NekoLib.Watchdog", DiagnosticSeverity.Warning, true);
 
         /// <summary>Registers compilation and consumer-property inputs.</summary>
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -65,6 +69,16 @@ namespace NekoLib.Watchdog.Generators
             if (main == null || main.ContainingType.IsGenericType)
             {
                 Error(output, InvalidEntry, "Cannot identify one original application entry point. Set StartupObject to its type before the package targets are imported."); return;
+            }
+            foreach (var tree in application.SyntaxTrees)
+            {
+                var model = application.GetSemanticModel(tree);
+                foreach (var call in tree.GetRoot(output.CancellationToken).DescendantNodes().OfType<InvocationExpressionSyntax>())
+                {
+                    if (model.GetSymbolInfo(call, output.CancellationToken).Symbol is IMethodSymbol method &&
+                        method.Name == "EnsureStarted" && method.ContainingType.ToDisplayString() == "NekoLib.Watchdog.WatchdogBootstrap")
+                        output.ReportDiagnostic(Diagnostic.Create(ManualBootstrapConflict, call.GetLocation()));
+                }
             }
             var type = MetadataName(main.ContainingType);
             var hasArgs = main.Parameters.Length == 1;

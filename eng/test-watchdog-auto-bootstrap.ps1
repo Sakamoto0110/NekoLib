@@ -16,6 +16,12 @@ function Invoke-Build([string[]]$Arguments) {
     & dotnet @Arguments
     if ($LASTEXITCODE) { throw "dotnet failed: $($Arguments -join ' ')" }
 }
+function Invoke-BuildFailure([string[]]$Arguments, [string]$Diagnostic) {
+    $text = & dotnet @Arguments 2>&1 | Out-String
+    $code = $LASTEXITCODE
+    Write-Host $text
+    if ($code -eq 0 -or $text -notmatch [regex]::Escape($Diagnostic)) { throw "Expected a build failure naming $Diagnostic." }
+}
 function Wait-File([string]$Path) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
     while (-not (Test-Path -LiteralPath $Path)) {
@@ -63,6 +69,15 @@ function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
             $expectedArgs = @($arguments | ForEach-Object { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_)) })
             $actualArgs = @(Get-Content (Join-Path $directory initial.args))
             if (($expectedArgs -join '|') -cne ($actualArgs -join '|')) { throw 'Initial entry arguments were changed.' }
+            if ($Hosting -eq 'SameExecutable' -and $Mode -in @('kill', 'restart', 'restart-soft', 'stop')) {
+                $supervisors = @(Get-Owned $Exe $hostPath | Where-Object { $_.ProcessId -ne $initialPid -and $_.CommandLine -like '*--nekolib-watchdog-supervisor*' })
+                if ($supervisors.Count -ne 1 -or $supervisors[0].ExecutablePath -ne $Exe) { throw 'Expected exactly one supervisor using the application executable.' }
+                $supervisor = [Diagnostics.Process]::GetProcessById($supervisors[0].ProcessId)
+                try { if ($supervisor.MainWindowHandle -ne [IntPtr]::Zero) { throw 'Same-executable supervisor opened a main window.' } }
+                finally { $supervisor.Dispose() }
+                $supervisors[0].ProcessId | Set-Content (Join-Path $directory supervisor.pid)
+                $supervisors[0].ExecutablePath | Set-Content (Join-Path $directory supervisor.executable)
+            }
             if ($Mode -eq 'kill') { Stop-Process -Id $initialPid -Force }
             if ($Mode -in @('restart', 'restart-soft') -and (Invoke-Control $Exe 'restart') -ne 'True') { throw 'Restart was rejected.' }
             if ($Mode -eq 'stop' -and (Invoke-Control $Exe 'stop') -ne 'True') { throw 'Stop was rejected.' }
@@ -119,6 +134,29 @@ foreach ($projectName in @('WatchdogAutoForms', 'WatchdogAutoWpf')) {
             $modes = if ($hosting -eq 'SameExecutable') { @('defaults', 'normal', 'disable-before', 'disable-after', 'warning', 'crash', 'kill', 'restart', 'restart-soft', 'stop', 'invalid') } else { @('normal', 'disable-after', 'crash') }
             foreach ($mode in $modes) { Invoke-Case $exe $hosting $mode }
         }
+    }
+    $disabledOutput = Join-Path $root "bin/$projectName/Disabled/"
+    $disabledIntermediate = Join-Path $root "obj/$projectName/Disabled/"
+    $disabledProperties = @("-p:NekoLibPackageVersion=$PackageVersion", '-p:NekoLibWatchdogAutoBootstrap=false', "-p:BaseOutputPath=$disabledOutput", "-p:BaseIntermediateOutputPath=$disabledIntermediate")
+    Invoke-Build (@('restore', $project, '--configfile', (Join-Path $consumers NuGet.Config), '--force-evaluate', '--no-http-cache') + $disabledProperties)
+    Invoke-Build (@('build', $project, '-c', $Configuration, '--no-restore') + $disabledProperties)
+    foreach ($tfm in @('net481', 'net9.0-windows')) {
+        $exe = Join-Path $disabledOutput "$Configuration/$tfm/$projectName.exe"
+        $expectedEntry = if ($projectName -eq 'WatchdogAutoForms') { 'WatchdogAutoForms.Program' } else { 'WatchdogAutoWpf.App' }
+        if ((Invoke-Control $exe 'entry') -ne $expectedEntry) { throw 'Opt-out changed the original application entry point.' }
+        $results.Add([pscustomobject]@{ executable=$exe; hosting='Disabled'; mode='original-entry'; result='passed'; evidence=$disabledOutput })
+        $results | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $root results.json) -Encoding utf8
+        Write-Host "PASS automatic bootstrap opt-out $exe"
+    }
+    if ($projectName -eq 'WatchdogAutoForms') {
+        $negativeOutput = Join-Path $root "bin/$projectName/Negative/"
+        $negativeIntermediate = Join-Path $root "obj/$projectName/Negative/"
+        $negativeProperties = @("-p:NekoLibPackageVersion=$PackageVersion", "-p:BaseOutputPath=$negativeOutput", "-p:BaseIntermediateOutputPath=$negativeIntermediate")
+        Invoke-Build (@('restore', $project, '--configfile', (Join-Path $consumers NuGet.Config), '--force-evaluate', '--no-http-cache') + $negativeProperties)
+        Invoke-BuildFailure (@('build', $project, '-c', $Configuration, '--no-restore', '-p:NekoLibWatchdogHostingMode=Invalid') + $negativeProperties) 'NEKOWDG001'
+        $excluded = $negativeProperties + @('-p:NekoLibWatchdogQualificationExcludeAnalyzer=true')
+        Invoke-Build (@('restore', $project, '--configfile', (Join-Path $consumers NuGet.Config), '--force-evaluate', '--no-http-cache') + $excluded)
+        Invoke-BuildFailure (@('build', $project, '-c', $Configuration, '--no-restore') + $excluded) 'NEKOWDG001'
     }
 }
 Write-Host "Automatic Watchdog bootstrap passed: $($results.Count) scenarios."
