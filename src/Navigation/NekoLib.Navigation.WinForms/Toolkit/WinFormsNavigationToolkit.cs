@@ -27,11 +27,15 @@ namespace NekoLib.Navigation.WinForms.Toolkit
         /// <inheritdoc />
         public void FocusSurface()
         {
-            if (!_host.IsHandleCreated)
+            if (_host.IsDisposed || _host.Disposing || !_host.IsHandleCreated)
                 return;
 
             if (_host.InvokeRequired)
-                _host.BeginInvoke((Action)(() => _host.Focus()));
+                _host.BeginInvoke((Action)(() =>
+                {
+                    if (!_host.IsDisposed && !_host.Disposing && _host.IsHandleCreated)
+                        _host.Focus();
+                }));
             else
                 _host.Focus();
         }

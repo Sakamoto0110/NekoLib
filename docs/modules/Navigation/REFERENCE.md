@@ -25,6 +25,12 @@ registration, a deterministic navigation lifecycle, history, guards,
 idle/session behavior, overlays, and platform adapters, while keeping
 application pages framework-native.
 
+The [1.2 desktop integration contract](../../desktop-readiness-1.2.0.md)
+defines dispatcher teardown safety, explicit portable activity modes, native
+toast click behavior, focus marshaling and coordinate/DPI units. It supersedes
+older descriptions of worker-thread teardown fallback. Always await shutdown
+before destroying the host or ending the message loop.
+
 It is **not** a general UI framework, a dependency injection container, or a web
 routing model. The runtime owns page attach/detach, lifecycle calls, caching,
 overlay teardown, and navigation diagnostics — nothing else.
@@ -127,7 +133,8 @@ thread** (`IEventDispatcherAdapter.BeginInvoke`) and **serializes** mutation on 
   **not** take the gate: a modal awaits user input, and holding the gate would
   freeze navigation.
 - `DisposeAsync` uses `ExecuteSafeOnUiAsync`: if the message pump is already dead
-  at app shutdown, teardown runs inline instead of hanging forever.
+  at app shutdown, dispatch failure faults the awaiter without running teardown
+  on a worker. Await shutdown while the owning UI loop is still alive.
 
 ## Canonical lifecycle order (DO NOT CHANGE)
 
@@ -550,12 +557,11 @@ realized. WinForms captures the constructing thread because
 `Control.InvokeRequired` answers `false` on every thread while the host has no
 window handle. If a WinForms action cannot reach a handle and the caller is not
 that owner thread, dispatch throws instead of running normal Navigation lifecycle
-on a worker. WPF uses `Dispatcher.CheckAccess` while the dispatcher is alive; once
-dispatcher shutdown has started or finished, it runs the action inline only as a
-best-effort teardown fallback. That WPF fallback does not authorize normal page
-lifecycle on arbitrary threads. `DisposeAsync` remains bounded on either platform
-because `ExecuteSafeOnUiAsync` can reclaim resources inline when UI dispatch is no
-longer available.
+on a worker. WPF uses `Dispatcher.CheckAccess`; during or after dispatcher
+shutdown only its owner can execute inline. Worker calls fail without executing
+the callback. Runtime shutdown propagates dispatch failure. Native posts already
+accepted before teardown still require a live message loop until completion;
+the dispatcher interface cannot acknowledge an abandoned native post.
 
 **Navigation toolkit:** both shipped layered hosts also implement
 `INavigationToolkit`, and `Start()` registers the host under that contract with

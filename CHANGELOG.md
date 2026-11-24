@@ -14,7 +14,18 @@ remain under `docs/history/`.
 
 ## Unreleased
 
-No consumer-visible changes are currently recorded after `1.1.0`.
+- **1.2.0 compatible minor:** additive scoped `WindowsCrash.HookWpf` and explicit
+  `InteractionObservationMode` observer overloads and bootstrap
+  `UseInteractionObserver` factory; existing constructors and
+  WinForms crash policy remain available. WPF toolkit focus now marshals worker
+  requests. Dispatcher shutdown rejects worker execution and runtime teardown
+  returns dispatch failures instead of mutating native UI off-thread. Await
+  shutdown before destroying the UI owner. See the
+  [compatibility and migration decision](docs/desktop-readiness-1.2.0.md).
+- **NekoLib.Watchdog — bootstrap restart correction:** forced termination of the
+  initially attached application's tree now preserves the Host's own branch,
+  preventing the first manual restart/stop from killing its supervisor. Later
+  replacement tree termination, public APIs and Host protocol remain unchanged.
 
 ## 1.1.0 — compatible minor released 2026-08-31
 

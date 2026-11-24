@@ -14,6 +14,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
      IDisposable
     {
         private readonly Control _root;
+        private readonly InteractionObservationMode _mode;
 
         // Tracks ONLY controls we have hooked
         private readonly HashSet<Control> _hooked = new();
@@ -30,8 +31,19 @@ namespace NekoLib.Navigation.WinForms.Adapters
         /// <summary>Initializes and recursively hooks one WinForms root.</summary>
         /// <param name="root">Root control whose current and future descendants are observed.</param>
         public WinFormsInteractionObserver(Control root)
+            : this(root, InteractionObservationMode.InputAndControlChanges)
         {
+        }
+
+        /// <summary>Observes a subtree using an explicit, portable activity policy.</summary>
+        /// <param name="root">Root whose current and future descendants are observed.</param>
+        /// <param name="mode">Input only, or input plus control changes. The original constructor retains its legacy policy.</param>
+        public WinFormsInteractionObserver(Control root, InteractionObservationMode mode)
+        {
+            if (!Enum.IsDefined(typeof(InteractionObservationMode), mode))
+                throw new ArgumentOutOfRangeException(nameof(mode));
             _root = root ?? throw new ArgumentNullException(nameof(root));
+            _mode = mode;
 
             // Hook the existing subtree. HookSingle also subscribes to each
             // container's ControlAdded/ControlRemoved, so future controls added
@@ -63,11 +75,13 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
             control.MouseDown += OnInteraction;
             control.KeyDown += OnInteraction;
+            if (_mode == InteractionObservationMode.InputOnly)
+                control.KeyPress += OnInteraction;
 
-            if (control is ButtonBase btn)
+            if (_mode == InteractionObservationMode.InputAndControlChanges && control is ButtonBase btn)
                 btn.Click += OnInteraction;
 
-            if (control is TextBoxBase tb)
+            if (_mode == InteractionObservationMode.InputAndControlChanges && control is TextBoxBase tb)
                 tb.TextChanged += OnInteraction;
         }
 
@@ -93,7 +107,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
         // Interaction callback
         // ------------------------------------------------------------
 
-        private void OnInteraction(object sender, EventArgs e)
+        private void OnInteraction(object? sender, EventArgs e)
         {
             InteractionDetected?.Invoke();
         }
@@ -128,6 +142,7 @@ namespace NekoLib.Navigation.WinForms.Adapters
 
             control.MouseDown -= OnInteraction;
             control.KeyDown -= OnInteraction;
+            control.KeyPress -= OnInteraction;
 
             if (control is ButtonBase btn)
                 btn.Click -= OnInteraction;

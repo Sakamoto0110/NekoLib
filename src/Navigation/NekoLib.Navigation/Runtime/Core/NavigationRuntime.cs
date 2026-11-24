@@ -440,10 +440,9 @@ namespace NekoLib.Navigation.Runtime.Core
         }
 
         /// <summary>
-        /// Like <see cref="ExecuteAsync(Func{Task})"/>, but tolerant of a dead message
-        /// pump. During app shutdown the host handle may already be destroyed, so
-        /// <c>BeginInvoke</c> would throw (or never run) and the awaiter would hang.
-        /// On failure we run the teardown inline so dispose always completes.
+        /// Reports dispatch failure to the shutdown awaiter. Native UI teardown
+        /// must never be substituted onto a worker when its owner is unreachable.
+        /// Applications must await shutdown before stopping the UI message loop.
         /// </summary>
         private Task ExecuteSafeOnUiAsync(Func<Task> action)
         {
@@ -469,11 +468,9 @@ namespace NekoLib.Navigation.Runtime.Core
             {
                 _dispatcher.BeginInvoke(Run);
             }
-            catch
+            catch (Exception ex)
             {
-                // Message pump is gone (handle destroyed during shutdown). Run inline
-                // so DisposeAsync still completes instead of hanging forever.
-                Run();
+                tcs.TrySetException(ex);
             }
 
             return tcs.Task;

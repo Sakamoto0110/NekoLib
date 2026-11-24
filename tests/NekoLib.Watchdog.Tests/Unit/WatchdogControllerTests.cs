@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using NekoLib.Pipes;
 using Xunit;
@@ -15,6 +16,15 @@ namespace NekoLib.Watchdog.Tests.Unit
 {
     public sealed class WatchdogControllerTests
     {
+        public WatchdogControllerTests()
+        {
+            // The synchronous facade and its asynchronous fake Host share one
+            // test process. Reserve workers so cold net481 pool growth cannot
+            // consume the facade's real 1.5 second connection budget.
+            ThreadPool.GetMinThreads(out var workers, out var completions);
+            ThreadPool.SetMinThreads(Math.Max(16, workers), completions);
+        }
+
         [Fact]
         public void MutatingCommands_AcceptedResponses_ReturnTrue()
         {
@@ -130,7 +140,9 @@ namespace NekoLib.Watchdog.Tests.Unit
                         Task.FromResult(Ok(handler.Response)));
             }
 
+            server.Map(WatchdogCommands.Ping, (_, __) => Task.FromResult(Ok("pong")));
             server.Start();
+            Assert.True(WaitUntil(WatchdogController.Ping), "Fake Host did not become ready.");
             return server;
         }
 
@@ -152,7 +164,9 @@ namespace NekoLib.Watchdog.Tests.Unit
                     }));
             }
 
+            server.Map(WatchdogCommands.Ping, (_, __) => Task.FromResult(Ok("pong")));
             server.Start();
+            Assert.True(WaitUntil(WatchdogController.Ping), "Fake Host did not become ready.");
             return server;
         }
 

@@ -1013,6 +1013,7 @@ namespace NekoLib.Watchdog
                 // Graceful
                 try
                 {
+                    LogInfo("[kill] graceful_attempt", new { pid = p.Id, timeoutMs = _o.GracefulKillTimeoutMs });
                     p.CloseMainWindow();
                     if (p.WaitForExit(_o.GracefulKillTimeoutMs))
                     {
@@ -1021,6 +1022,13 @@ namespace NekoLib.Watchdog
                     }
                 }
                 catch { }
+
+                if (_attachedInitialProcessId == p.Id)
+                {
+                    LogWarn("[kill] attached_tree_preserving_supervisor", new { pid = p.Id });
+                    AttachedProcessTermination.Kill(p, _o.ForceKillTimeoutMs);
+                    return;
+                }
 
                 // Force kill tree (works on net481 + net9)
                 try

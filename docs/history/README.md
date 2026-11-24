@@ -6,9 +6,9 @@
 
 **Subject:** completed roadmap and implementation history
 
-**Reference date:** 2026-08-31
+**Reference date:** 2026-11-24
 
-**Reference commit:** working tree after `49bd3ec243983ce7a19d222e0f698226e734cf09`
+**Reference commit:** working tree after `f355dd2620d5ed41a4efc9f1354fcd9673297c7b`
 
 This directory preserves completed implementation logs and superseded roadmap
 snapshots. Historical files explain how the repository reached its current
@@ -16,6 +16,7 @@ shape; they do not own open work or current technical facts.
 
 | Artifact | Lifecycle | Subject | Current state |
 |---|---|---|---|
+| [`desktop-readiness-qualification-2026-11-24.md`](desktop-readiness-qualification-2026-11-24.md) | historical | WPF/WinForms integration corrections and four-way package/application recovery qualification | [`desktop integration decision`](../desktop-readiness-1.2.0.md) |
 | [`architecture-roadmap-through-phase-d-2026-08-01.md`](architecture-roadmap-through-phase-d-2026-08-01.md) | historical | Full roadmap snapshot containing completed Phases A, B, and D plus the Phase C handoff state | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-c-repository-hygiene-2026-08-01.md`](phase-c-repository-hygiene-2026-08-01.md) | historical | Phase C completion, commit-bound validation, and residual gaps | [`ROADMAP.md`](../../ROADMAP.md) |
 | [`phase-e-confidence-stabilization-2026-08-12.md`](phase-e-confidence-stabilization-2026-08-12.md) | historical | Complete Phase E work log, outcome-first evidence boundaries, and final commit-bound validation | [`ROADMAP.md`](../../ROADMAP.md) |

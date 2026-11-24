@@ -790,6 +790,16 @@ try {
     }
 
     $net9PublishOutput = Join-Path $publishRoot "net9"
+    $desktopExecutables = @(
+        Join-Path $outputRoot "WinForms481\$Configuration\net481\WinForms481.exe"
+        Join-Path $outputRoot "WinForms9\$Configuration\net9.0-windows\WinForms9.exe"
+        Join-Path $outputRoot "Wpf481\$Configuration\net481\Wpf481.exe"
+        Join-Path $outputRoot "Wpf9\$Configuration\net9.0-windows\Wpf9.exe"
+    )
+    & (Join-Path $PSScriptRoot "test-desktop-recovery.ps1") `
+        -ExecutablePath $desktopExecutables `
+        -EvidenceRoot (Join-Path $smokeSessionRoot "desktop-recovery")
+
     Invoke-DotNet -Arguments (@(
         "publish",
         $winForms9Project,

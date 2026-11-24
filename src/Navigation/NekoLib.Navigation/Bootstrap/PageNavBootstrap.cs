@@ -36,6 +36,7 @@ namespace NekoLib.Navigation.Bootstrap
         private PageRegistry? _registry;
         private Action<PageMetadataBuilder>? _pageConfig;
         private Action<ServiceLocator, IPlatformAdapter>? _serviceConfig;
+        private Func<IInteractionObserverService>? _interactionObserverFactory;
 
         private ILogger? _logger;
         private ITelemetry? _telemetry;
@@ -73,6 +74,16 @@ namespace NekoLib.Navigation.Bootstrap
         // --------------------------------------------------------------------
         // Configuration
         // --------------------------------------------------------------------
+
+        /// <summary>Uses an application-selected interaction policy instead of the platform default.</summary>
+        /// <param name="factory">Creates a fresh observer on the UI thread for each Start. Bootstrap owns and disposes the result on shutdown or failed startup.</param>
+        /// <returns>This bootstrap for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="factory"/> is null.</exception>
+        public PageNavBootstrap UseInteractionObserver(Func<IInteractionObserverService> factory)
+        {
+            _interactionObserverFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+            return this;
+        }
 
         /// <summary>
         /// Use a prebuilt registry instead of assembly scanning/manual page
@@ -345,7 +356,9 @@ namespace NekoLib.Navigation.Bootstrap
                     new ReferenceCountedInteractionBlocker(platformBlocker));
             }
 
-            var observer = _platform.CreateInteractionObserverAdapter(_nativeHost);
+            var observer = _interactionObserverFactory != null
+                ? _interactionObserverFactory() ?? throw new InvalidOperationException("The interaction observer factory returned null.")
+                : _platform.CreateInteractionObserverAdapter(_nativeHost);
             if (observer != null)
                 services.Register(typeof(IInteractionObserverService), observer);
 
@@ -361,7 +374,9 @@ namespace NekoLib.Navigation.Bootstrap
                 throw;
             }
 
-            var bootstrapLifetime = new NavigationBootstrapLifetime(observer, timerAdapter);
+            var bootstrapLifetime = new NavigationBootstrapLifetime(
+                observer, timerAdapter,
+                dispatcher: services.Get<IEventDispatcherAdapter>());
 
             try
             {

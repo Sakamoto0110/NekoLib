@@ -4,25 +4,41 @@ on:
   workflow_dispatch:
     inputs:
       confirm_publication:
-        description: Publish the approved NekoLib 1.1.0 package set to NuGet.org
+        description: Publish the qualified immutable NekoLib package set to NuGet.org
         required: true
         default: false
         type: boolean
+      version:
+        description: Coordinated stable family version
+        required: true
+        type: string
+      source_commit:
+        description: Qualified package source commit (40 hex characters)
+        required: true
+        type: string
+      package_set_sha256:
+        description: SHA256 of the sorted filename=SHA256 manifest for all 31 assets
+        required: true
+        type: string
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: publish-nuget-v1.1.0
+  group: publish-nuget-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Publish approved 1.1.0 artifacts
+    name: Publish qualified release artifacts
     runs-on: windows-latest
     environment: release
     timeout-minutes: 20
+    env:
+      NEKOLIB_RELEASE_VERSION: ${{ inputs.version }}
+      NEKOLIB_SOURCE_COMMIT: ${{ inputs.source_commit }}
+      NEKOLIB_PACKAGE_SET_SHA256: ${{ inputs.package_set_sha256 }}
 
     steps:
       - name: Enforce the manual release boundary
@@ -37,13 +53,17 @@ jobs:
           if ($env:CONFIRM_PUBLICATION -ne "true") {
               throw "Public NuGet publication was not confirmed."
           }
+          if ($env:NEKOLIB_RELEASE_VERSION -notmatch '^\d+\.\d+\.\d+$' -or
+              $env:NEKOLIB_SOURCE_COMMIT -notmatch '^[a-fA-F0-9]{40}$' -or
+              $env:NEKOLIB_PACKAGE_SET_SHA256 -notmatch '^[a-fA-F0-9]{64}$') {
+              throw "Stable version, source commit or package-set hash is invalid."
+          }
 
       - name: Download the approved package assets
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $releaseId = 380040305
           $headers = @{
               Accept = "application/vnd.github+json"
               Authorization = "Bearer $env:GH_TOKEN"
@@ -51,14 +71,25 @@ jobs:
           }
 
           $release = Invoke-RestMethod `
-              -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/$releaseId" `
+              -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/v$env:NEKOLIB_RELEASE_VERSION" `
               -Headers $headers
           $assets = @($release.assets | Where-Object {
-              $_.name -match '^NekoLib\..+\.1\.1\.0\.(nupkg|snupkg)$'
+              $_.name -match ('^NekoLib\..+\.' + [regex]::Escape($env:NEKOLIB_RELEASE_VERSION) + '\.(nupkg|snupkg)$')
           })
 
-          if ($release.tag_name -ne "v1.1.0" -or -not $release.draft -or $assets.Count -ne 31) {
-              throw "The approved v1.1.0 draft release or its 31 package assets could not be resolved."
+          if ($release.tag_name -ne "v$env:NEKOLIB_RELEASE_VERSION" -or -not $release.draft -or
+              $release.target_commitish -ne $env:NEKOLIB_SOURCE_COMMIT -or $assets.Count -ne 31) {
+              throw "The qualified draft release, source commit or its 31 package assets could not be resolved."
+          }
+
+          $tag = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/git/ref/tags/v$env:NEKOLIB_RELEASE_VERSION" -Headers $headers
+          $tagObject = $tag.object
+          if ($tagObject.type -eq 'tag') {
+              $annotated = Invoke-RestMethod -Uri $tagObject.url -Headers $headers
+              $tagObject = $annotated.object
+          }
+          if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $env:NEKOLIB_SOURCE_COMMIT) {
+              throw "Release tag does not identify the qualified package source commit."
           }
 
           New-Item -ItemType Directory -Force -Path artifacts/publish | Out-Null
@@ -73,7 +104,7 @@ jobs:
       - name: Verify the immutable package set
         shell: pwsh
         run: |
-          $expectedAggregate = "C3E0764831636A74CD4969BDC609B16EAEF86FBE0A375C6741217F0F386E7F43"
+          $expectedAggregate = $env:NEKOLIB_PACKAGE_SET_SHA256.ToUpperInvariant()
           $files = @(Get-ChildItem -LiteralPath artifacts/publish -File | Sort-Object Name)
           $mainPackages = @($files | Where-Object { $_.Extension -eq ".nupkg" })
           $symbolPackages = @($files | Where-Object { $_.Extension -eq ".snupkg" })
@@ -99,6 +130,24 @@ jobs:
 
           if ($actualAggregate -ne $expectedAggregate) {
               throw "Package-set aggregate SHA-256 mismatch. Expected $expectedAggregate; found $actualAggregate."
+          }
+
+          $expectedIds = @('Core','Data','Inspection','Devices','Diagnostics','Diagnostics.Windows','Http','Logging','Mvvm','Navigation','Navigation.WinForms','Navigation.Wpf','Pipes','Telemetry','Watchdog','Watchdog.Host') | ForEach-Object { "NekoLib.$_" }
+          foreach ($package in $mainPackages) {
+              $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
+              try {
+                  $nuspecs = @($archive.Entries | Where-Object { $_.FullName -like '*.nuspec' })
+                  if ($nuspecs.Count -ne 1) { throw "Invalid nuspec count: $($package.Name)" }
+                  $reader = [IO.StreamReader]::new($nuspecs[0].Open())
+                  try { [xml]$nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                  $metadata = $nuspec.package.metadata
+                  if ($metadata.id -notin $expectedIds -or $metadata.version -ne $env:NEKOLIB_RELEASE_VERSION -or
+                      $metadata.repository.commit -ne $env:NEKOLIB_SOURCE_COMMIT -or
+                      $package.Name -ne "$($metadata.id).$env:NEKOLIB_RELEASE_VERSION.nupkg") {
+                      throw "Package identity, family version or source provenance mismatch: $($package.Name)"
+                  }
+              }
+              finally { $archive.Dispose() }
           }
 
           Write-Output "Verified 31 immutable package assets: $actualAggregate"

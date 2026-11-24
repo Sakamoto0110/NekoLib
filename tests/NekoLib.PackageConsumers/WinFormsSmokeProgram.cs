@@ -5,7 +5,20 @@ namespace NekoLib.PackageConsumers
     internal static class WinFormsSmokeProgram
     {
         [STAThread]
-        private static void Main()
+        private static int Main(string[] args)
+        {
+            try
+            {
+                if (args.Length == 1 && args[0] == "--termination-helper") return RecoveryProbe.TerminationHelper();
+                if (args.Length == 2 && args[0] == "--control") return RecoveryProbe.Control(args[1]);
+                if (args.Length == 3 && args[0] == "--recovery") return WinFormsUiProbe.Recovery(args);
+                ModuleProbe.RunAsync().GetAwaiter().GetResult();
+                return WinFormsUiProbe.Run();
+            }
+            catch (Exception e) { Console.Error.WriteLine(e); return 1; }
+        }
+
+        private static void CompilePackageSurfaces()
         {
             var packageTypes = new[]
             {

@@ -25,6 +25,11 @@ crash bundle. It is an opt-in `net481`/`net9.0` package that references only
 `NekoLib.Core`. Windows-specific facilities live in the separate
 `NekoLib.Diagnostics.Windows` package, documented at the end of this file.
 
+Version 1.2 adds scoped `WindowsCrash.HookWpf(dispatcher, markHandled: false)`.
+The [desktop integration contract](../../desktop-readiness-1.2.0.md) specifies
+owner-thread installation/disposal, shared leases, explicit recovery policy,
+duplicate fatal-report prevention and the separation between reporting and exit.
+
 ## Composition
 
 ```csharp
@@ -371,8 +376,10 @@ dotnet test tests\NekoLib.Diagnostics.Tests\Unit\NekoLib.Diagnostics.Tests.Unit.
 ```
 
 The suite covers both packages on `net481` and `net9.0-windows`, using temporary
-filesystem crash bundles. Real minidump generation, WER-dialog suppression, and
-live `Application.ThreadException` dispatch through a message loop are **not**
-exercised by it and remain unverified platform behaviour. See
+filesystem crash bundles and pumped WPF dispatcher exceptions. Separate
+[package consumers](../../../tests/NekoLib.PackageConsumers/README.md) exercise
+live WPF and WinForms message-loop failures and process recovery on all four
+combinations. Real minidump generation and visual WER-dialog suppression remain
+outside those runs. See
 [`VALIDATION_REQUIREMENTS.md`](VALIDATION_REQUIREMENTS.md) for the qualifying
 evidence contract and [`VALIDATIONS.md`](VALIDATIONS.md) for preserved results.

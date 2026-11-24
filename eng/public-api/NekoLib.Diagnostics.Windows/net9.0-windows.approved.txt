@@ -10,6 +10,7 @@ namespace NekoLib.Diagnostics.Windows
     public static class WindowsCrash
     {
         public static void HookWinForms() { }
+        public static System.IDisposable HookWpf(System.Windows.Threading.Dispatcher dispatcher, bool markHandled = false) { }
         public static NekoLib.Diagnostics.CrashHandlerOptions UseMiniDump(this NekoLib.Diagnostics.CrashHandlerOptions options) { }
     }
 }
