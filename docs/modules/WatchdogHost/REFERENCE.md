@@ -42,8 +42,14 @@ Reference the package directly from every executable that deploys the Host:
 
 The package intentionally has no `buildTransitive` asset. A wrapper library does
 not decide that each downstream executable should receive a sidecar. A
-downstream executable adds its own direct reference, selects its architecture,
-and calls `WatchdogBootstrap.EnsureStarted`.
+downstream executable adds its own direct reference and selects its architecture.
+For automatic startup it also directly references the same-version Watchdog
+package and enables NekoLibWatchdogAutoBootstrap with NekoLibWatchdogHostingMode
+set to Sidecar. Generated entry activates it without an application Main call.
+The compatible manual route instead calls WatchdogBootstrap.EnsureStarted
+with automatic entry routing disabled. The
+[library reference](../Watchdog/REFERENCE.md#supported-composition-paths) owns
+public control/configuration APIs. SameExecutable mode needs no Host deployment.
 
 Build and publish copy the selected payload to the package-owned directory:
 

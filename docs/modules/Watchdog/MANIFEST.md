@@ -52,7 +52,7 @@
 
 **Runtime scenarios:** `runtime_tests/Watchdog/CrashRecovery/README.md`, `runtime_tests/Watchdog/Supervisor481/README.md`
 
-**Package evidence:** `docs/stable-release-1.0.0.md`, `docs/audit/public-api-documentation-extensibility-review-2026-08-27.md`
+**Package evidence:** `docs/stable-release-1.4.0.md`, `docs/stable-release-1.4.0-public-qualification.md`, `docs/audit/public-api-documentation-extensibility-review-2026-08-27.md`
 
 This manifest routes the shipped `NekoLib.Watchdog` supervision library. The
 project file and the compiled assemblies remain implementation and API truth;

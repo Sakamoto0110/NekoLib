@@ -414,3 +414,33 @@ The executed records follow.
 **Gaps:** This completes the paused public scope of record 003. Native window-message responsiveness does not certify every dispatcher/worker or business progress. Missing-window and pre-activation targets, x86, cross-user/elevation, restricted-token, mixed-runtime, human visual acceptance, nominal-duration soak and live external-provider coverage remain outside this campaign.
 
 **Supersedes:** `WDG-VALEVID-20261124-003` only for its paused public-repeat limitation; source/package identity and all other exclusions remain unchanged
+
+## WDG-VALEVID-20261124-005
+
+**Requirement IDs:** `WDG-VALREQ-001`, `WDG-VALREQ-008`
+
+**Version:** public `NekoLib.Watchdog` 1.4.0; documentation-only consumer guidance update
+
+**Commit:** documentation based on integrated `77b48a765947415230e37a7666e7055ef58b9d36`; public package source remains `86340ab27ade1322225a3ae2005b6a32c59ab005`
+
+**Tree state:** scoped authored Markdown updates; product source and accepted API baselines unchanged
+
+**Environment:** Windows x64; C# 7.3 compilation against the independently verified signed public package in a fresh private NuGet cache
+
+**Targets:** net481 and net9.0-windows, with WinForms and WPF reference assemblies
+
+**Command or scenario:** extract the three complete public-API examples from the optional-configuration and runtime-reconfiguration sections; restore/build a PackageReference-only library; compare both Watchdog compiled API baselines; run eng/verify-docs.ps1
+
+**Execution:** automated
+
+**Evidence level:** build-only
+
+**Result:** PASS
+
+**Artifacts:** `artifacts/watchdog-public-docs/sample-result.json`, `sample-build.log`, `api.log`, `docs.log`, extracted sample hashes and the private consumer output/cache retained under that task directory
+
+**Observed:** The exact WinForms constructor, WPF OnStartup and global settings examples compile on both targets with zero warnings/errors. The restored Watchdog package SHA-256 matches the independently signature-verified public 1.4.0 download. Both accepted Watchdog API manifests remain identical. Documentation structure, metadata and links pass the repository verifier.
+
+**Gaps:** This is documentation and compile-only evidence. It launches no application or supervisor and adds no runtime, security or soak claim. The prior native package matrix remains owned by record 004 and the release supplement; local retrieval indexes remain non-authoritative caches.
+
+**Supersedes:** none; supplements the public consumer guidance without changing release provenance or runtime evidence

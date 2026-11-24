@@ -23,20 +23,27 @@
 `NekoLib.Watchdog` is a Windows process-supervision library for unattended
 applications on `net481` and `net9.0-windows`. It supervises exactly one target
 executable: it attaches to an already-running instance or launches one, watches
-it, replaces it after an exit, exposes a bounded control and event channel over
+it, replaces it after an exit or a confirmed configured UI hang, exposes a
+bounded control and event channel over
 named pipes, forwards operational logs, and finalizes crash evidence.
 
 The library owns supervision behavior. The companion `NekoLib.Watchdog.Host`
 package owns sidecar deployment, payload selection, executable arguments, and
 release layout; those are a separate distribution with separate evidence.
 
-```csharp
-static void Main(string[] args)
-{
-    WatchdogBootstrap.EnsureStarted(args);
-    // normal application startup
-}
-```
+Consumers integrate through the published package's public API, public project
+properties and this reference. The compiled assemblies and accepted API
+manifests remain the signature authority. No implementation-source access is
+required for normal application integration.
+
+| Consumer need | Public surface | Contract |
+|---|---|---|
+| Automatic desktop integration | `WatchdogAutoBootstrap`, `WatchdogAutoBootstrapOptions`, `WatchdogHostingMode` | [Startup](#automatic-application-startup), [configuration](#optional-startup-configuration), [generated-entry hooks](#generated-entry-hooks) |
+| Global application controls | `WatchdogController` | [Controls and reconfiguration](#global-controls-and-runtime-reconfiguration), [acknowledgements](#control-contract) |
+| Manual sidecar startup | `WatchdogBootstrap.EnsureStarted` overloads | [Manual composition](#manual-sidecar-startup), [attach handshake](#bootstrap-and-attach) |
+| Custom supervisor | `WatchdogRuntime`, `WatchdogOptions` | [Composition](#custom-supervisor-runtime), [configuration ownership](#configuration-ownership-and-capture), [lifecycle](#lifecycle-and-terminal-state) |
+| Forward or consume logs | `WatchdogPipeLogSink`, `WatchdogController.LogEvent`, controller subscriptions | [Log forwarding](#log-forwarding-and-subscriptions) |
+| Implement a custom protocol client | `WatchdogCommands` | [Control contract](#control-contract) |
 
 ## Targets, dependencies, and package boundary
 
@@ -73,7 +80,9 @@ the XML pairing for every managed package as a permanent guard.
 
 There are three supported composition paths.
 
-**Automatic application startup** opts a C# WPF/WinForms executable into package
+### Automatic application startup
+
+Automatic application startup opts a C# WPF/WinForms executable into package
 entry routing. Reference `NekoLib.Watchdog` directly and enable:
 
 ```xml
@@ -81,6 +90,9 @@ entry routing. Reference `NekoLib.Watchdog` directly and enable:
   <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
   <NekoLibWatchdogHostingMode>SameExecutable</NekoLibWatchdogHostingMode>
 </PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="NekoLib.Watchdog" Version="1.4.0" />
+</ItemGroup>
 ```
 
 The generated STA entry handles supervisor mode before original application
@@ -90,16 +102,95 @@ before original Main and automatically activates on first WinForms idle or a
 WPF Loaded-priority callback. WPF's generated App.xaml Main and private/async
 explicit Main are supported. No application Main call is required.
 
-Optional startup configuration, before activation, can be placed in Main or
-WPF OnStartup:
+Rebuild after enabling the property and launch the application apphost `.exe`.
+Automatic mode rejects `dotnet application.dll` because the current executable
+would be the shared dotnet host. The existing desktop project still declares
+its usual target and `UseWindowsForms` or `UseWPF` property.
+
+For automatic Sidecar mode, use `NekoLibWatchdogHostingMode=Sidecar` in that
+property group and directly reference `NekoLib.Watchdog.Host` at the same
+version. The public library controls remain the same. The
+[Host reference](../WatchdogHost/REFERENCE.md#installation-and-ownership) owns
+deployment; application code does not invoke Host implementation classes.
+
+### Optional startup configuration
+
+Optional startup configuration runs after package preparation and before the
+native-loop activation callback. A WinForms main-form constructor is suitable,
+before Application.Run starts pumping messages:
 
 ```csharp
-WatchdogAutoBootstrap.Configure(options =>
+using NekoLib.Watchdog;
+using System.Diagnostics;
+
+public partial class MainForm : System.Windows.Forms.Form
 {
-    options.HandshakeTimeoutMs = 10000;
-    options.RuntimeOptions.RestartDelayMs = 1500;
-});
+    public MainForm()
+    {
+        InitializeComponent();
+        WatchdogAutoBootstrap.Warning += message => Trace.TraceWarning(message);
+        WatchdogAutoBootstrap.Configure(options =>
+        {
+            options.RuntimeOptions.UiHangTimeoutMs = 10000;
+            options.RuntimeOptions.UiHangStartupGraceMs = 20000;
+        });
+    }
+}
 ```
+
+InitializeComponent is the existing designer method. Configure once at startup,
+rather than in every subsequent form. For WPF, use App.xaml.cs:
+
+```csharp
+using NekoLib.Watchdog;
+using System.Windows;
+
+public partial class App : Application
+{
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        WatchdogAutoBootstrap.Configure(options =>
+        {
+            options.RuntimeOptions.UiHangTimeoutMs = 10000;
+            options.RuntimeOptions.UiHangStartupGraceMs = 20000;
+        });
+        base.OnStartup(e);
+    }
+}
+```
+
+Both callbacks are optional. Omit them to use the defaults. To cancel startup,
+call WatchdogController.Disable() from the same pre-activation location;
+a later generated callback will not reactivate it.
+
+| Policy | Automatic default | Consumer contract |
+|---|---|---|
+| `HostingMode` | `SameExecutable`, unless selected by the project | SameExecutable or Sidecar; Sidecar needs direct Host deployment |
+| `HandshakeTimeoutMs` | 5,000 ms | Positive total activation/attach budget |
+| `RuntimeOptions.EnableUiHangDetection` | `true` | Set false to keep exit/crash supervision without UI probing |
+| `RuntimeOptions.UiHangTimeoutMs` | 15,000 ms | Consecutive failure interval; minimum 1,000 ms |
+| `RuntimeOptions.UiHangStartupGraceMs` | 30,000 ms | Per-instance/resume grace; minimum zero |
+| `RuntimeOptions.RestartDelayMs` | 1,000 ms | Replacement delay; minimum 200 ms |
+| `RuntimeOptions.EnableHotkeys` | `false` | Explicit opt-in for supervisor global hotkeys |
+
+Keep the provided RuntimeOptions object when changing individual values.
+Replacing it with new WatchdogOptions() uses manual defaults, including
+disabled UI detection and enabled hotkeys. Full normalization rules belong to
+[configuration capture](#configuration-ownership-and-capture).
+
+Configure copies and validates options. HostingMode must be a declared enum
+value, HandshakeTimeoutMs must be positive and RuntimeOptions cannot be null.
+TargetPath, TargetArguments, InitialProcessId and AttachToken are bootstrap-owned
+and must remain unset/empty. Process-local LogSinks and Telemetry instances
+cannot cross this configuration boundary. Invalid values throw ArgumentException
+or its applicable subclasses. Retaining the callback object cannot mutate the
+captured session.
+
+A null callback throws ArgumentNullException. Configure before preparation,
+during activation or while active throws InvalidOperationException; it does not
+wait for a running session to end.
+
+### Global controls and runtime reconfiguration
 
 Alternatively, `WatchdogAutoBootstrap.Disable()` prevents startup or detaches
 already active supervision while keeping the application running. Repeated
@@ -123,6 +214,58 @@ detection. Configuration is snapshotted for a supervisor session; Configure
 while active is rejected and does not mutate that running session; disable and
 re-enable explicitly to use a new configuration.
 
+The static controller requires no stored instance or main-window access.
+Disable/Enable/Shutdown delegate to the automatic facade; Enable without
+package preparation returns false and emits Warning. Disable and Shutdown may
+throw InvalidOperationException or TimeoutException when activation/detachment
+cannot safely complete. Shutdown exits only after confirmed detach.
+
+To change a running policy from a settings action, perform the blocking work
+off the UI thread:
+
+```csharp
+using NekoLib.Watchdog;
+using System.Threading.Tasks;
+
+public static class WatchdogSettings
+{
+    public static Task<bool> ApplyAsync(int timeoutMs)
+    {
+        return Task.Run(() =>
+        {
+            WatchdogController.Disable();
+            WatchdogAutoBootstrap.Configure(options =>
+                options.RuntimeOptions.UiHangTimeoutMs = timeoutMs);
+            return WatchdogController.Enable();
+        });
+    }
+}
+```
+
+Await the result, handle control exceptions and inspect Warning if Enable
+returns false. Give this sequence one application-level owner: individual calls
+are synchronized, but Disable/Configure/Enable is not an atomic transaction.
+Warning callbacks run on the reporting thread; dispatch before updating UI.
+Enable/IsActive confirms attachment at that moment; Ping/Status observes the
+current supervisor.
+
+### Generated-entry hooks
+
+These additional public methods support generated entry or an explicitly
+authored supervisor. Ordinary automatic consumers let the package call them:
+
+| Member | Contract |
+|---|---|
+| `Prepare(WatchdogAutoBootstrapOptions)` | One-time private configuration snapshot before application entry; a second preparation throws InvalidOperationException |
+| `TryRunSupervisor(string[], out int)` | Handles reserved supervisor invocation before application/UI initialization; false for ordinary arguments; recognized invalid invocation returns true with exit code 1 |
+| `Activate()` | Generated native-loop activation; repeated calls are safe and respect Disable; use Enable for explicit reactivation |
+| `CompleteApplication()` | Generated normal-return detach cleanup; must not run on fatal/abrupt exit |
+
+Generated entry keeps the headless supervisor from initializing application UI.
+A supervisor is a separate process from its target, even when both roles use
+the same executable. A runtime inside the supervised process cannot recover
+that process after it terminates.
+
 `SameExecutable` is the new opt-in default. `Sidecar` selects the existing Host
 and requires its direct same-version package reference. Referencing the package
 alone does not activate either mode. Ambiguous/unsupported entries produce
@@ -134,7 +277,9 @@ trimming and NativeAOT are outside this first integration. See the
 [accepted decision](../../watchdog-auto-bootstrap.md) for process boundaries,
 configuration transfer, API review and qualification gates.
 
-**UI-hang recovery** is enabled by automatic desktop bootstrap starting with
+### UI-hang recovery
+
+UI-hang recovery is enabled by automatic desktop bootstrap starting with
 1.4.0. Its defaults are a 15-second consecutive failed-window-probe interval and
 a 30-second initialization grace. Manual runtime options leave it disabled.
 Configure may change this policy before activation, or while globally disabled:
@@ -168,13 +313,33 @@ longer than the policy is recoverable regardless of its business intent.
 See the [accepted detector contract](../../watchdog-ui-hang-detection.md) for
 native bounds, startup, worker-health and multi-dispatcher limits.
 
-**The manual application path** calls `WatchdogBootstrap.EnsureStarted` near the start
+### Manual sidecar startup
+
+The manual application path calls `WatchdogBootstrap.EnsureStarted` near the start
 of `Main`. Bootstrap locates the deployed Host below the application base
 directory, starts it, hands over the current process, and returns. The
 application then uses `WatchdogController` to observe or control its own
 supervisor.
 
-**The advanced path** hosts `WatchdogRuntime` directly in a custom supervisor
+```csharp
+using NekoLib.Watchdog;
+
+static void Main(string[] args)
+{
+    WatchdogBootstrap.EnsureStarted(args);
+    // Continue the application's existing startup here.
+}
+```
+
+This route directly deploys the same-version Host and leaves automatic entry
+routing disabled. It keeps manual defaults, including disabled UI detection.
+Choose automatic startup to transfer application policy to the external
+supervisor without writing a custom supervisor. EnsureStarted calls in an
+automatically routed application are diagnosed as overlapping bootstrap paths.
+
+### Custom supervisor runtime
+
+The advanced path hosts `WatchdogRuntime` directly in a custom supervisor
 process:
 
 ```csharp
@@ -193,8 +358,10 @@ using (var runtime = new WatchdogRuntime(options))
 ```
 
 This is a deliberate public extension, not Host-only infrastructure. The owner
-must reach a terminal state through `Stop` or `Dispose` and accepts that doing
-so **terminates the supervised target**. A stopped runtime is terminal;
+must reach a terminal state. Stop and Dispose terminate the supervised target;
+Detach ends supervision while leaving the target and its descendants running.
+Each is terminal and idempotent; Dispose after an accepted Detach leaves the
+target running. A stopped/detached runtime is terminal;
 construct a new instance to supervise again.
 
 `WatchdogController` is static and bound once to the current executable. It is
@@ -321,8 +488,12 @@ created -> starting -> running -> stopping -> stopped
   throws `InvalidOperationException`.
 - `Stop` before `Start` is terminal: the instance becomes permanently stopped
   and can never be started.
-- Concurrent `Stop` and `Dispose` callers serialize on the same lock and observe
-  the same terminal state. `Dispose` is exactly `Stop`.
+- Concurrent Stop, Detach and Dispose callers serialize on the same lock
+  and observe the first accepted terminal policy. Dispose requests Stop;
+  after Detach has completed, it has no further target-termination effect.
+- Detach releases the runtime's threads, endpoints and handles while leaving
+  the target and its descendants running. It cannot be resumed; construct a
+  new runtime for a later supervision session.
 - A failed `Start` performs terminal cleanup and rethrows. Cleanup after a
   failed start does **not** terminate an initially attached process, because the
   runtime did not start it; it does terminate a process the runtime launched.
@@ -337,8 +508,9 @@ foreground monitor thread, and — when hotkeys are enabled — start the hotkey
 thread and **block until it signals readiness**. Only then does the runtime
 answer `attach_status` and enter `running`.
 
-Shutdown posts `WM_QUIT` to the hotkey thread, terminates the current target,
-joins the monitor and hotkey threads, disposes the target process handle,
+Terminal cleanup posts WM_QUIT to the hotkey thread, terminates the target for
+Stop/Dispose or leaves it running for Detach, joins the monitor and hotkey
+threads, disposes the target process handle,
 completes the event queue, joins the event thread, disposes the RPC server, and
 releases and disposes the instance semaphore.
 
@@ -441,11 +613,15 @@ graceful and forced attempts are logged.
 `protocol_version`, `attach_status`, `log_write`, `log_write_batch`, and
 `update` are internal protocol names already wrapped by public APIs.
 
-Controller calls are synchronous, with a 1,500 ms connect timeout and a 3,000 ms
-request timeout per call:
+Pipe-backed calls are synchronous, with a 1,500 ms connect timeout and a
+3,000 ms request timeout per call. Automatic Enable/Disable/Shutdown use the
+configured total handshake/detach budget. Avoid blocking a live UI thread:
 
 | Member | Result |
 |---|---|
+| `Disable()` | Confirms detach and keeps the application running; returns void and propagates activation/detach failures |
+| `Enable()` | Starts/reuses prepared automatic supervision; Boolean attachment result and Warning on activation failure |
+| `Shutdown(int exitCode = 0)` | Confirms Disable then calls Environment.Exit with the requested code; failed detach propagates without exiting |
 | `Ping()` | `true` only for `pong` |
 | `Status()` | serialized status evidence, or `error=watchdog_not_running` on timeout, `error=pipe_io` on any other transport failure, or `error=<protocol-code>` for a structured error |
 | `Pause()` | `true` only for `paused` |
@@ -693,3 +869,9 @@ checks descendant cleanup and supervisor survival, and observes the absolute
 system `taskkill` replacement-tree path on both targets. That automated runtime
 evidence is recorded in [`VALIDATIONS.md`](VALIDATIONS.md); it is not a human
 interactive or UI-hang-detection claim.
+
+For the later 1.4.0 native UI policy, the
+[public qualification record](../../stable-release-1.4.0-public-qualification.md)
+owns the completed four-way desktop matrix and both hosting modes. That evidence
+is separate from the earlier 1.2.1 campaign and the conditional security,
+hardware/provider and soak coverage above.

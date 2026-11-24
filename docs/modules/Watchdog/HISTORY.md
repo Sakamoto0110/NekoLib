@@ -203,3 +203,22 @@ it.
   exact source, compatible additions, native negative cases and public evidence.
 
 **Evidence:** [stable release record](../../stable-release-1.4.0.md), [executed qualification](VALIDATIONS.md#wdg-valevid-20261124-003), [accepted policy](../../watchdog-ui-hang-detection.md)
+
+## 2026-11-24 — WDG-HISTORY-013 — Public consumer integration documented
+
+**Release:** documentation after 1.4.0; package binaries unchanged
+
+- Updated the concise introduction to lead with automatic same-executable
+  startup and the explicit project opt-in. The normative reference now maps
+  public entry points, shows optional WinForms/WPF configuration, documents
+  global controls and reconfiguration, and identifies generated-entry hooks.
+- Reconciled stale manual-only introduction/deployment wording with the accepted
+  automatic-startup contract. Corrected the technical reference's older
+  Stop/Dispose-only lifecycle summary to cover the already-public terminal
+  Detach policy and its first-terminal-call ownership. Public signatures,
+  defaults and package binaries remain unchanged.
+- Applied the existing module-first authority/schema rules; source-adjacent
+  portals remain pointers and the repository's documentation/API checks own
+  validation.
+
+**Evidence:** [consumer introduction](README.md), [technical contract](REFERENCE.md), [public API oracle](../../../eng/public-api/NekoLib.Watchdog/), [validation record](VALIDATIONS.md#wdg-valevid-20261124-005)

@@ -26,31 +26,49 @@ running instance or launches one, replaces it after a crash, exposes a small
 control channel over named pipes, forwards operational logs, and finalizes crash
 evidence into retained bundles.
 
-The ordinary route is two lines. Reference the `NekoLib.Watchdog` package and
-the `NekoLib.Watchdog.Host` deployment package from your executable, then call
-the bootstrap near the start of `Main`:
+For a C# WinForms or WPF executable, install `NekoLib.Watchdog` and explicitly
+enable automatic startup in the executable's project file:
 
-```csharp
-static void Main(string[] args)
-{
-    WatchdogBootstrap.EnsureStarted(args);
-    // normal application startup
-}
+```xml
+<PropertyGroup>
+  <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
+</PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="NekoLib.Watchdog" Version="1.4.0" />
+</ItemGroup>
 ```
 
-For opt-in automatic startup using the same executable as a headless supervisor,
-see [automatic application startup](REFERENCE.md#supported-composition-paths).
-That path requires no Main call and offers optional Configure/Disable control;
-it is separate from this compatible manual sidecar example.
+Rebuild and launch the application's `.exe`. Package installation alone does
+not activate supervision. The default starts a second, headless process of the
+same executable; no extra application window, Host package or application Main
+call is needed. The [automatic startup contract](REFERENCE.md#automatic-application-startup)
+lists supported projects, compiler requirements and launch diagnostics.
 
-The manual call is synchronous and bounded. It starts the deployed sidecar, hands over
-the current process, and returns; a replacement started later by the sidecar
-sees `NEKO_UNDER_WATCHDOG=1` and returns immediately instead of starting a
-second Host. From then on `WatchdogController` lets the application ping, read
-status, pause, resume, restart, stop, subscribe to the log stream, and report an
-unhandled exception. A custom supervisor process can instead host
-`WatchdogRuntime` directly — a deliberate advanced surface, not Host-only
-infrastructure.
+Use the public API and this module's reference to integrate a consumer; reading
+Watchdog implementation source is not an integration prerequisite. Optional
+configuration belongs before activation, in a WinForms form constructor or WPF
+OnStartup. See the [copyable examples](REFERENCE.md#optional-startup-configuration)
+and [UI-hang policy](REFERENCE.md#ui-hang-recovery) for timeout/grace defaults.
+
+The application can access these static controls from any component:
+
+| Operation | Public call |
+|---|---|
+| Disable supervision and keep the application running | `WatchdogController.Disable()` |
+| Enable supervision again | `WatchdogController.Enable()`; check its Boolean result |
+| Disable supervision and exit the application | `WatchdogController.Shutdown(exitCode)`; finish application cleanup first |
+| Temporarily pause or resume automatic recovery | `WatchdogController.Pause()` / `Resume()` |
+| Inspect the supervisor | `WatchdogController.Ping()` / `Status()` |
+
+These calls are synchronous. The [control contract](REFERENCE.md#control-contract)
+owns failures, threading and completion guarantees. Runtime reconfiguration uses
+[Disable, Configure, then Enable](REFERENCE.md#global-controls-and-runtime-reconfiguration).
+
+The [optional sidecar](REFERENCE.md#manual-sidecar-startup) and
+[custom supervisor runtime](REFERENCE.md#custom-supervisor-runtime) remain
+supported compositions. Sidecar deployment needs a direct same-version
+`NekoLib.Watchdog.Host` reference. A custom supervisor uses public
+`WatchdogRuntime`; reliable recovery still requires a separate process.
 
 Three boundaries matter before adopting it. **Control is not authorized:**
 endpoints are `CurrentUserOnly`, which stops other users but not a hostile
