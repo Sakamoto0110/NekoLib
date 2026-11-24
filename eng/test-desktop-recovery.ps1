@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string[]]$ExecutablePath,
     [Parameter(Mandatory)][string]$EvidenceRoot,
-    [string]$SkipPassedResultsPath
+    [string]$SkipPassedResultsPath,
+    [switch]$Resume
 )
 
 Set-StrictMode -Version Latest
@@ -12,6 +13,12 @@ $root = [IO.Path]::GetFullPath($EvidenceRoot)
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 $previous = @(if ($SkipPassedResultsPath) { Get-Content -LiteralPath $SkipPassedResultsPath -Raw | ConvertFrom-Json })
 if (@($previous | Where-Object result -ne 'passed').Count) { throw 'Only passed scenarios may be skipped.' }
+if ($Resume -and (Test-Path (Join-Path $root results.json))) {
+    $retained = @(Get-Content (Join-Path $root results.json) -Raw | ConvertFrom-Json)
+    if (@($retained | Where-Object result -ne 'passed').Count) { throw 'Only passed recovery scenarios may be resumed.' }
+    foreach ($item in $retained) { $results.Add($item) }
+    $previous += $retained
+}
 
 function Wait-File([string]$Path, [int]$Seconds = 30) {
     $watch = [Diagnostics.Stopwatch]::StartNew()

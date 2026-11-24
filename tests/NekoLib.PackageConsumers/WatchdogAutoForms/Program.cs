@@ -10,6 +10,12 @@ namespace WatchdogAutoForms
         private static int Main(string[] args)
         {
             if (WatchdogAutoProbe.HandleControl(args)) return 0;
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += (sender, e) =>
+            {
+                Console.Error.WriteLine(e.Exception);
+                Environment.Exit(79);
+            };
             WatchdogAutoProbe.Initialize(args);
             using (var window = new Form { Text = "Watchdog automatic qualification", StartPosition = FormStartPosition.Manual, Location = new Point(QualificationWindowPlacement.X(-20000), QualificationWindowPlacement.Y(-20000)) })
             using (var timer = new Timer { Interval = 100 })
