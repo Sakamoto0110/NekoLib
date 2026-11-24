@@ -98,7 +98,7 @@ add latency beyond the configured failure threshold.
 | Native package consumers | Existing four framework/target module consumers and all Host deployment/protocol guards pass |
 | Clean candidate and stable isolated package gates | 168 checks each: 24 retained legacy recovery, 88 retained automatic/control/opt-out and 56 new UI scenarios |
 | Independent public downloads | All 16 main packages pass version/source provenance, every non-signature ZIP-entry comparison and repository-signature verification |
-| Public-package consumers | Four native module consumers pass; 6/168 recovery/control checks complete before the owner stops the GUI repetition; 162 checks remain unexecuted or interrupted |
+| Public-package consumers | Four native module consumers pass; all 168 distinct recovery/control checks pass across the initial six cases and 162-case continuation |
 
 | UI / target | Same executable | Optional sidecar | Original-entry opt-out | Legacy recovery | Stable native matrix |
 |---|---|---|---|---|---|
@@ -118,15 +118,18 @@ supervisor continuity/forced attached-tree termination and complete endpoint/pro
 cleanup. Negative cases must observe a responsive HWND unless detection is
 explicitly disabled, preventing a vacuous no-window pass.
 
-The public-package GUI repetition was explicitly stopped after the owner reported
-excessive test windows. It completed all four native module consumers and six
-WinForms net481 legacy recovery cases. It did not complete the remaining 162
-recovery/control checks, including the public repetition of the new UI cases.
-The runner and owned scenario processes were stopped, with zero remaining owned
-processes confirmed. No public full-matrix pass is claimed. All 16 public signed
-packages still pass exact non-signature payload equality with the locally
-qualified stable packages. The public-repeat portion of WDG-VALREQ-015 remains
-unexecuted under this owner-directed execution limit.
+The public-package GUI repetition initially stopped after four native module
+consumers and six WinForms net481 legacy recovery cases. The owner subsequently
+authorized continuation after reboot with windows at `(2700, 100)` and without
+computer-use tools. All 162 remaining cases passed from unchanged signed public
+packages in a new private feed/cache. Together, the two sessions cover all 168
+distinct cases; no passed historical case was repeated or counted twice.
+The [public completion supplement](stable-release-1.4.0-public-qualification.md)
+owns exact fixture/session identity, per-case evidence and placement receipts.
+The initially uploaded report and evidence archive remain immutable snapshots
+of the paused phase; the supplemental archive preserves its completion.
+The public native repeat required by WDG-VALREQ-015 is now executed at the
+stated version and observed scope.
 
 Deterministic source regressions cover threshold boundaries, startup grace,
 successful/no-window/unavailable reset, changed HWND/PID, pause, explicit disable,
@@ -136,7 +139,8 @@ an uncommitted old timeout decision. All desktop runtime runs are x64, reporting
 
 Candidate session: `19ada7033cdc4f77bafbb75294eba1f9`.
 Stable session: `16b501bb0c0e4db4b1637b7c81a577e4`.
-Public-download session: `a8e17a048cd64544a9342ec27e9a7d5a`.
+Initial public-download session: `a8e17a048cd64544a9342ec27e9a7d5a`.
+Public continuation: `public-resume-c44f993be59a4c6c837ebd840f464439`.
 
 The first dirty development run correctly reported no_window because its launcher
 hid the native window with SW_HIDE. The qualification fixture was corrected to

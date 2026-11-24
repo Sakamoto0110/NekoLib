@@ -12,5 +12,8 @@
     <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibPackageVersion)" />
     <PackageReference Include="NekoLib.Watchdog.Host" Version="$(NekoLibPackageVersion)" Condition="'$(NekoLibWatchdogHostingMode)' == 'Sidecar'" />
     <Compile Include="..\WatchdogAutoProbe.cs" Link="WatchdogAutoProbe.cs" />
+    <!-- XAML temporary projects have a generated project name. Keep this
+         explicit compile item with the other shared qualification source. -->
+    <Compile Include="..\QualificationWindowPlacement.cs" Link="QualificationWindowPlacement.cs" />
   </ItemGroup>
 </Project>

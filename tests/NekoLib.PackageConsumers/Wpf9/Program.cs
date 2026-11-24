@@ -123,8 +123,14 @@ namespace NekoLib.PackageConsumers.Wpf9
             return exit;
         }
 
-        private static Window NewWindow(UIElement content) => new Window
-        { Title = "NekoLib package qualification", Content = content, Width = 640, Height = 480, Left = -32000, Top = 0, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
+        private static Window NewWindow(UIElement content)
+        {
+            var window = new Window
+            { Title = "NekoLib package qualification", Content = content, Width = 640, Height = 480, Left = QualificationWindowPlacement.X(-32000), Top = QualificationWindowPlacement.Y(0), ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual };
+            window.SourceInitialized += (_, __) => QualificationWindowPlacement.Apply(new System.Windows.Interop.WindowInteropHelper(window).Handle);
+            window.Loaded += (_, __) => QualificationWindowPlacement.Apply(new System.Windows.Interop.WindowInteropHelper(window).Handle);
+            return window;
+        }
     }
 
     public sealed class IdlePage : PageView { }

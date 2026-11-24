@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$PackageVersion,
     [Parameter(Mandatory)][string]$SessionRoot,
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
-    [switch]$UiScenariosOnly
+    [switch]$UiScenariosOnly,
+    [switch]$Resume
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -12,6 +13,15 @@ $root = [IO.Path]::GetFullPath((Join-Path $SessionRoot 'auto-bootstrap'))
 $consumers = Join-Path $repo 'tests/NekoLib.PackageConsumers'
 $results = [Collections.Generic.List[object]]::new()
 New-Item -ItemType Directory -Force -Path $root | Out-Null
+if ($Resume -and (Test-Path (Join-Path $root results.json))) {
+    $retained = @(Get-Content (Join-Path $root results.json) -Raw | ConvertFrom-Json)
+    if (@($retained | Where-Object result -ne 'passed').Count) { throw 'Only passed automatic scenarios may be resumed.' }
+    foreach ($item in $retained) { $results.Add($item) }
+}
+
+function Test-Passed([string]$Exe, [string]$Hosting, [string]$Mode) {
+    return @($results | Where-Object { $_.executable -eq $Exe -and $_.hosting -eq $Hosting -and $_.mode -eq $Mode -and $_.result -eq 'passed' }).Count -gt 0
+}
 
 function Invoke-Build([string[]]$Arguments) {
     & dotnet @Arguments
@@ -42,7 +52,10 @@ function Get-Owned([string]$Exe, [string]$HostPath) {
     })
 }
 function Invoke-Case([string]$Exe, [string]$Hosting, [string]$Mode) {
-    $directory = Join-Path $root ('runs/' + [IO.Path]::GetFileNameWithoutExtension($Exe) + '-' + (Split-Path (Split-Path $Exe -Parent) -Leaf) + '-' + $Hosting + '-' + $Mode + '-' + [guid]::NewGuid().ToString('N'))
+    if (Test-Passed $Exe $Hosting $Mode) { Write-Host "SKIP previously passed automatic bootstrap $Hosting $Exe $Mode"; return }
+    # Mode/framework/hosting identities are retained in results.json. A compact
+    # directory keeps Framework evidence writes below its legacy MAX_PATH limit.
+    $directory = Join-Path $root ('runs/' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $hostPath = Join-Path (Split-Path $Exe -Parent) 'NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.exe'
     $process = $null
@@ -168,6 +181,7 @@ foreach ($projectName in @('WatchdogAutoForms', 'WatchdogAutoWpf')) {
     Invoke-Build (@('build', $project, '-c', $Configuration, '--no-restore') + $disabledProperties)
     foreach ($tfm in @('net481', 'net9.0-windows')) {
         $exe = Join-Path $disabledOutput "$Configuration/$tfm/$projectName.exe"
+        if (Test-Passed $exe 'Disabled' 'original-entry') { Write-Host "SKIP previously passed opt-out $exe"; continue }
         $expectedEntry = if ($projectName -eq 'WatchdogAutoForms') { 'WatchdogAutoForms.Program' } else { 'WatchdogAutoWpf.App' }
         if ((Invoke-Control $exe 'entry') -ne $expectedEntry) { throw 'Opt-out changed the original application entry point.' }
         $results.Add([pscustomobject]@{ executable=$exe; hosting='Disabled'; mode='original-entry'; result='passed'; evidence=$disabledOutput })

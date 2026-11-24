@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string[]]$ExecutablePath,
-    [Parameter(Mandatory)][string]$EvidenceRoot
+    [Parameter(Mandatory)][string]$EvidenceRoot,
+    [string]$SkipPassedResultsPath,
+    [switch]$Resume
 )
 
 Set-StrictMode -Version Latest
@@ -9,6 +11,14 @@ $ErrorActionPreference = 'Stop'
 $results = [Collections.Generic.List[object]]::new()
 $root = [IO.Path]::GetFullPath($EvidenceRoot)
 New-Item -ItemType Directory -Force -Path $root | Out-Null
+$previous = @(if ($SkipPassedResultsPath) { Get-Content -LiteralPath $SkipPassedResultsPath -Raw | ConvertFrom-Json })
+if (@($previous | Where-Object result -ne 'passed').Count) { throw 'Only passed scenarios may be skipped.' }
+if ($Resume -and (Test-Path (Join-Path $root results.json))) {
+    $retained = @(Get-Content (Join-Path $root results.json) -Raw | ConvertFrom-Json)
+    if (@($retained | Where-Object result -ne 'passed').Count) { throw 'Only passed recovery scenarios may be resumed.' }
+    foreach ($item in $retained) { $results.Add($item) }
+    $previous += $retained
+}
 
 function Wait-File([string]$Path, [int]$Seconds = 30) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -30,6 +40,10 @@ foreach ($executable in $ExecutablePath) {
     $identity = Split-Path (Split-Path $exe -Parent) -Leaf
     # Include executable name and unique scenario token to avoid evidence collisions.
     foreach ($mode in @('ui-fatal', 'worker-fatal', 'kill', 'restart', 'recoverable', 'clean-stop')) {
+        if (@($previous | Where-Object { [IO.Path]::GetFileName($_.executable) -eq [IO.Path]::GetFileName($exe) -and (Split-Path (Split-Path $_.executable -Parent) -Leaf) -eq $identity -and $_.mode -eq $mode }).Count) {
+            Write-Host "SKIP previously passed $exe $mode"
+            continue
+        }
         $directory = Join-Path $root (([IO.Path]::GetFileNameWithoutExtension($exe)) + '-' + $identity + '-' + $mode + '-' + [Guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $directory | Out-Null
         $process = $null
