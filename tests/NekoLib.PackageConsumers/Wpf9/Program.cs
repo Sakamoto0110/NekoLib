@@ -91,6 +91,9 @@ namespace NekoLib.PackageConsumers.Wpf9
                         await Task.Delay(30);
                         ModuleProbe.Require(!page.IsEnabled && ProbeDialog.Last!.IsEnabled, "WPF modal blocks the background and enables its surface");
                         page.Model.Enabled = false;
+                        page.Model.Enabled = true;
+                        ModuleProbe.Require(!page.IsEnabled, "WPF binding refresh cannot re-enable a modal background");
+                        page.Model.Enabled = false;
                         ProbeDialog.Last!.Finish();
                         ModuleProbe.Require(await dialogTask, "WPF dialog completes its shared result contract");
                         ModuleProbe.Require(!page.IsEnabled && BindingOperations.IsDataBound(page, UIElement.IsEnabledProperty), "WPF modal restores the current binding source");

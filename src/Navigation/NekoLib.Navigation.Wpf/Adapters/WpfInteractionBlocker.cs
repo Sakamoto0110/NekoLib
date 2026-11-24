@@ -21,6 +21,8 @@ namespace NekoLib.Navigation.Wpf.Adapters
     /// permanently clears any <c>Binding</c> or style setter on the property — one
     /// dialog was enough to sever a page's <c>IsEnabled</c> binding for the rest of
     /// the process.
+    /// Background re-enable requests are deferred while modal ownership is held;
+    /// binding refreshes cannot make an earlier page or modal interactive.
     /// </para>
     /// </summary>
     public sealed class WpfInteractionBlocker :
@@ -126,6 +128,7 @@ namespace NekoLib.Navigation.Wpf.Adapters
                 ReferenceEquals(_modalStack[_modalStack.Count - 1], element);
 
             _modalStack.Remove(element);
+            element.IsEnabledChanged -= OnIsEnabledChanged;
             Restore(element);
             _disabled.Remove(element);
             _originalStates.Remove(element);
@@ -136,6 +139,9 @@ namespace NekoLib.Navigation.Wpf.Adapters
 
         private void RestoreDisabledElements()
         {
+            foreach (var element in _originalStates.Keys)
+                element.IsEnabledChanged -= OnIsEnabledChanged;
+
             foreach (var element in _disabled)
             {
                 try { ApplyRestore(element); } catch { }
@@ -149,7 +155,23 @@ namespace NekoLib.Navigation.Wpf.Adapters
         private void CaptureState(UIElement element)
         {
             if (!_originalStates.ContainsKey(element))
+            {
                 _originalStates.Add(element, element.IsEnabled);
+                element.IsEnabledChanged += OnIsEnabledChanged;
+            }
+        }
+
+        private void OnIsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (_blockDepth == 0 || !(bool)e.NewValue || !(sender is UIElement element) || !_originalStates.ContainsKey(element))
+                return;
+            if (_modalStack.Count > 0 && ReferenceEquals(_modalStack[_modalStack.Count - 1], element))
+                return;
+
+            // Binding refreshes must not revoke modal ownership. Remember the
+            // enabled request for restoration, then hold the background disabled.
+            _originalStates[element] = true;
+            Disable(element);
         }
 
         private void Disable(UIElement element)

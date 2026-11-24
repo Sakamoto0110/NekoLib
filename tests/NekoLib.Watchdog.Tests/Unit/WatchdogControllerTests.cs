@@ -178,6 +178,11 @@ namespace NekoLib.Watchdog.Tests.Unit
             {
                 PipeName = WatchdogController.ResolvePipeNameForTarget(targetPath),
                 AccessPolicy = PipeAccessPolicy.CurrentUserOnly,
+                // net481 adapts blocking accepts through the same pool as the
+                // in-process client. This fixture needs one RPC and one event
+                // client, not 32 pending accept workers that starve ConnectAsync.
+                MaxClients = 2,
+                MaxEventSubscribers = 2,
                 EnableEvents = true
             });
         }
