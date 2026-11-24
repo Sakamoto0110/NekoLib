@@ -38,7 +38,12 @@ static void Main(string[] args)
 }
 ```
 
-The call is synchronous and bounded. It starts the deployed sidecar, hands over
+For opt-in automatic startup using the same executable as a headless supervisor,
+see [automatic application startup](REFERENCE.md#supported-composition-paths).
+That path requires no Main call and offers optional Configure/Disable control;
+it is separate from this compatible manual sidecar example.
+
+The manual call is synchronous and bounded. It starts the deployed sidecar, hands over
 the current process, and returns; a replacement started later by the sidecar
 sees `NEKO_UNDER_WATCHDOG=1` and returns immediately instead of starting a
 second Host. From then on `WatchdogController` lets the application ping, read

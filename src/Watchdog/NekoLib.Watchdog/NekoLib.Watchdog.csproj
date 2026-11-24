@@ -29,6 +29,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+    <ProjectReference Include="..\NekoLib.Watchdog.Generators\NekoLib.Watchdog.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="NekoLib.Watchdog.targets" Pack="true" PackagePath="build\NekoLib.Watchdog.targets" />
+    <None Include="..\NekoLib.Watchdog.Generators\bin\$(Configuration)\netstandard2.0\NekoLib.Watchdog.Generators.dll" Pack="true" PackagePath="analyzers\dotnet\cs" />
 	  <ProjectReference Include="..\..\Core\NekoLib.Core\NekoLib.Core.csproj" />
 	  <ProjectReference Include="..\..\Pipes\NekoLib.Pipes\NekoLib.Pipes.csproj" />
 	</ItemGroup>

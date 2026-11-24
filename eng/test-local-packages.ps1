@@ -382,6 +382,14 @@ foreach ($entry in $packageTfms.GetEnumerator()) {
 }
 
 $hostPackagePath = Join-Path $FeedPath "NekoLib.Watchdog.Host.$PackageVersion.nupkg"
+$watchdogPackagePath = Join-Path $FeedPath "NekoLib.Watchdog.$PackageVersion.nupkg"
+$watchdogEntries = Get-PackageEntries -PackagePath $watchdogPackagePath
+foreach ($requiredBuildAsset in @('build/NekoLib.Watchdog.targets', 'analyzers/dotnet/cs/NekoLib.Watchdog.Generators.dll')) {
+    if ($watchdogEntries -notcontains $requiredBuildAsset) { throw "Missing automatic bootstrap build asset: $requiredBuildAsset" }
+}
+if (@($watchdogEntries | Where-Object { $_ -like 'buildTransitive/*' -or $_ -like 'lib/*/*CodeAnalysis*' -or $_ -like 'tools/*' }).Count) {
+    throw 'Watchdog auto bootstrap must remain direct-only build infrastructure without runtime compiler/Host payloads.'
+}
 if (-not (Test-Path -LiteralPath $hostPackagePath)) {
     throw "Expected Host package is missing: $hostPackagePath"
 }
@@ -799,6 +807,9 @@ try {
     & (Join-Path $PSScriptRoot "test-desktop-recovery.ps1") `
         -ExecutablePath $desktopExecutables `
         -EvidenceRoot (Join-Path $smokeSessionRoot "desktop-recovery")
+
+    & (Join-Path $PSScriptRoot "test-watchdog-auto-bootstrap.ps1") `
+        -PackageVersion $PackageVersion -SessionRoot $smokeSessionRoot -Configuration $Configuration
 
     Invoke-DotNet -Arguments (@(
         "publish",

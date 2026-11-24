@@ -84,7 +84,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Data`](docs/modules/Data/REFERENCE.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
 | [`NekoLib.Mvvm`](docs/modules/Mvvm/REFERENCE.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
 | [`NekoLib.Pipes`](docs/modules/Pipes/REFERENCE.md) | Named-pipe IPC: request/response RPC plus bounded pub/sub events over framed JSON. |
-| [`NekoLib.Watchdog`](docs/modules/Watchdog/REFERENCE.md) | Process supervision — application-side Host bootstrap/attach, restart on crash, crash bundling, an RPC control channel, and a companion host executable. |
+| [`NekoLib.Watchdog`](docs/modules/Watchdog/REFERENCE.md) | Process supervision — opt-in same-executable auto bootstrap, optional manual sidecar attach, restart on crash, crash bundling and an RPC control channel. |
 | [`NekoLib.Watchdog.Host`](docs/modules/WatchdogHost/REFERENCE.md) | Direct-reference deployment package for the versioned local Watchdog sidecar; no compile-time API. |
 | [`NekoLib.Devices`](docs/modules/Devices/REFERENCE.md) | Hardware protocol abstraction over serial ports, TCP streams, named pipes, and test doubles. |
 | [`NekoLib.Inspection`](docs/modules/Inspection/REFERENCE.md) | Opt-in passive in-process inspection: a bounded operation buffer, ordered pull-based state providers, budgeted snapshots, and owner diagnostics. Actions remain explicitly experimental and are not authorization. Broad module instrumentation remains frozen. |
@@ -361,7 +361,8 @@ require packages to have been produced first.
 | `NekoLib.Mvvm` | `src/Mvvm/NekoLib.Mvvm/` | net481, net9.0 | — |
 | `NekoLib.Devices` | `src/Devices/NekoLib.Devices/` | net481, net9.0 | — |
 | `NekoLib.Pipes` | `src/Pipes/NekoLib.Pipes/` | net481, net9.0 | — |
-| `NekoLib.Watchdog` | `src/Watchdog/NekoLib.Watchdog/` | net481, net9.0-windows | Core, Pipes |
+| `NekoLib.Watchdog` | `src/Watchdog/NekoLib.Watchdog/` | net481, net9.0-windows | Core, Pipes, Watchdog.Generators |
+| `NekoLib.Watchdog.Generators` | `src/Watchdog/NekoLib.Watchdog.Generators/` | netstandard2.0 | — |
 | `NekoLib.Watchdog.Host` | `src/Watchdog/NekoLib.Watchdog.Host/` | net481, net9.0-windows | Watchdog |
 | `NekoLib` | `src/Hosting/NekoLib/` | net481, net9.0 | — |
 

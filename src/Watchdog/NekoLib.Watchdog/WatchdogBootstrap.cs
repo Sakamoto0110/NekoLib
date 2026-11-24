@@ -264,7 +264,7 @@ namespace NekoLib.Watchdog
             return false;
         }
 
-        private static bool TryGetAttachedProcessId(
+        internal static bool TryGetAttachedProcessId(
             string pipeName,
             int timeoutMs,
             out int attachedPid)
@@ -377,7 +377,7 @@ namespace NekoLib.Watchdog
                 "Watchdog",
                 "watchdog-host-fatal.log");
 
-        private static bool IsRunningUnderWatchdog()
+        internal static bool IsRunningUnderWatchdog()
         {
             if (Environment.GetEnvironmentVariable(
                     UnderWatchdogEnvironmentVariable) != null)

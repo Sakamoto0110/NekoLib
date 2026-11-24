@@ -9,6 +9,8 @@ namespace NekoLib.Watchdog.Host
         {
             try
             {
+                if (WatchdogAutoBootstrap.TryRunSupervisor(args, out var bootstrapExitCode))
+                    return bootstrapExitCode;
                 var options = HostArgumentParser.Parse(args);
 
                 using (var runtime = new WatchdogRuntime(options))

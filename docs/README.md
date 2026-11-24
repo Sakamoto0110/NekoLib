@@ -231,6 +231,7 @@ reference commit.
 | [`docs/premises/README.md`](premises/README.md) | reference | current | One-record-per-file registry for accepted scoped premises and their preserved lifecycle |
 | [`docs/modules/README.md`](modules/README.md) | reference | current | Module-first boundary index and migration state |
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
+| [`docs/watchdog-auto-bootstrap.md`](watchdog-auto-bootstrap.md) | reference | current | Accepted opt-in same-executable desktop supervision, optional configuration/cancellation, API review and bounded qualification |
 | [`docs/stable-release-1.2.1.md`](stable-release-1.2.1.md) | reference | current | Active desktop family, compatible API/behavior decisions, exact provenance/hashes, four-way runtime recovery and independently verified public distribution |
 | [`docs/desktop-readiness-1.2.0.md`](desktop-readiness-1.2.0.md) | reference | current | Accepted 1.2 desktop APIs, 17-class adapter parity review, compatibility and bounded unattended qualification |
 | [`docs/desktop-readiness-1.2.1.md`](desktop-readiness-1.2.1.md) | reference | current | Compatible modal enabled-binding correction and immutable 1.2.0 supersession |

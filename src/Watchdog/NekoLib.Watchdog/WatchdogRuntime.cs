@@ -39,6 +39,7 @@ namespace NekoLib.Watchdog
         private const int MaxQueuedEvents = 1024;
 
         private readonly WatchdogRuntimeOptions _o;
+        private volatile bool _targetTerminationRequested;
 
         private Process? _child;
         private Thread? _monitorThread;
@@ -257,6 +258,18 @@ namespace NekoLib.Watchdog
         /// makes the instance permanently stopped.
         /// </summary>
         public void Stop()
+            => StopCore(killChild: true);
+
+        /// <summary>
+        /// Stops supervision and releases owned threads, IPC and handles while
+        /// leaving the supervised application and its descendants running.
+        /// Terminal and idempotent; concurrent Stop/Detach calls share the first
+        /// terminal policy. Dispose after Detach does not terminate the target.
+        /// </summary>
+        public void Detach()
+            => StopCore(killChild: false);
+
+        private void StopCore(bool killChild)
         {
             lock (_lifecycleLock)
             {
@@ -269,9 +282,9 @@ namespace NekoLib.Watchdog
                 _attachStatusReady = false;
                 try
                 {
-                    LogWarn("[stop] requested");
-                    CleanupOwnedResources(killChild: true);
-                    LogInfo("[stop] completed");
+                    LogWarn(killChild ? "[stop] requested" : "[detach] requested");
+                    CleanupOwnedResources(killChild);
+                    LogInfo(killChild ? "[stop] completed" : "[detach] completed");
                 }
                 finally
                 {
@@ -358,6 +371,7 @@ namespace NekoLib.Watchdog
             {
                 LogWarn("[cmd] restart");
                 _lastRestartReason = "command_restart";
+                _targetTerminationRequested = true;
 
                 lock (_childLock)
                 {
@@ -382,6 +396,34 @@ namespace NekoLib.Watchdog
                     catch { }
                 });
                 return PipeOk("stopped");
+            });
+
+            rpc.Map(WatchdogCommands.Detach, async (req, ct) =>
+            {
+                if (_shutdownRequested || _targetTerminationRequested)
+                    return PipeErrorResponse("termination_in_progress", "A supervisor-owned stop or restart is already terminating this application.");
+                int expectedPid = 0;
+#if NET9
+                if (req.Data.HasValue && req.Data.Value.ValueKind == JsonValueKind.Object &&
+                    req.Data.Value.TryGetProperty("pid", out var pidValue))
+                    pidValue.TryGetInt32(out expectedPid);
+#else
+                int.TryParse(req.Data?["pid"]?.ToString(), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out expectedPid);
+#endif
+                lock (_childLock)
+                {
+                    if (_shutdownRequested || _targetTerminationRequested)
+                        return PipeErrorResponse("termination_in_progress", "A supervisor-owned termination has already started.");
+                    if (expectedPid < 1 || _child == null || _child.Id != expectedPid)
+                        return PipeErrorResponse("target_mismatch", "Detach must identify the currently supervised application PID.");
+                }
+                LogWarn("[cmd] detach", new { pid = expectedPid });
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try { Thread.Sleep(100); Detach(); } catch { }
+                });
+                return PipeOk("detaching");
             });
 
             rpc.Map(WatchdogCommands.Update, async (req, ct) =>
@@ -918,6 +960,7 @@ namespace NekoLib.Watchdog
                             "The target process did not start.");
 
                     _child = child;
+                    _targetTerminationRequested = false;
                     _childUptime = Stopwatch.StartNew();
                     if (_hasSupervisedProcess)
                         Interlocked.Increment(ref _restartCount);

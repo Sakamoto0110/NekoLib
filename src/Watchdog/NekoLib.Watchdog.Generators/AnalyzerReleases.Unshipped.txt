@@ -1,0 +1,6 @@
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|--------------------
+NEKOWDG001 | NekoLib.Watchdog | Error | Invalid opt-in build integration
+NEKOWDG002 | NekoLib.Watchdog | Error | Unsupported or ambiguous original entry point
