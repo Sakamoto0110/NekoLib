@@ -233,7 +233,8 @@ reference commit.
 | [`docs/public-api-release-policy.md`](public-api-release-policy.md) | reference | current | F1 public API classification, SemVer, compatibility, deprecation, baseline, and release rules |
 | [`docs/watchdog-auto-bootstrap.md`](watchdog-auto-bootstrap.md) | reference | current | Accepted opt-in same-executable desktop supervision, optional configuration/cancellation, API review and bounded qualification |
 | [`docs/watchdog-ui-hang-detection.md`](watchdog-ui-hang-detection.md) | reference | current | Accepted native UI responsiveness recovery, defaults, additive API review and qualification boundary |
-| [`docs/stable-release-1.3.0.md`](stable-release-1.3.0.md) | reference | current | Active same-executable Watchdog family, global controls, exact artifacts and independent public-package qualification |
+| [`docs/stable-release-1.4.0.md`](stable-release-1.4.0.md) | reference | current | Active UI-hang recovery family, configurable policy, exact artifacts and independently verified public-package/native qualification |
+| [`docs/stable-release-1.3.0.md`](stable-release-1.3.0.md) | reference | current | Preceding same-executable Watchdog family, global controls, exact artifacts and independent public-package qualification |
 | [`docs/stable-release-1.2.1.md`](stable-release-1.2.1.md) | reference | current | Preceding desktop family, compatible API/behavior decisions, exact provenance/hashes, four-way runtime recovery and independently verified public distribution |
 | [`docs/desktop-readiness-1.2.0.md`](desktop-readiness-1.2.0.md) | reference | current | Accepted 1.2 desktop APIs, 17-class adapter parity review, compatibility and bounded unattended qualification |
 | [`docs/desktop-readiness-1.2.1.md`](desktop-readiness-1.2.1.md) | reference | current | Compatible modal enabled-binding correction and immutable 1.2.0 supersession |

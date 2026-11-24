@@ -267,3 +267,33 @@ The executed records follow.
 **Gaps:** Heartbeat reports process existence, not UI responsiveness. No automatic hang, x86 desktop, restricted-token, cross-user/elevation, mixed-runtime, human visual or nominal-duration soak campaign is claimed. Shutdown uses Environment.Exit after confirmed detach; callers own prior graceful cleanup. The pre-existing Inspection shared-budget timing issue remains open; its earlier failed attempt is retained.
 
 **Supersedes:** `WDGHOST-VALEVID-20261124-001` only at this newer exact version and observed scope; historical exclusions remain separate
+
+## WDGHOST-VALEVID-20261124-003
+
+**Requirement IDs:** `WDGHOST-VALREQ-002`, `WDGHOST-VALREQ-003`, `WDGHOST-VALREQ-004`, `WDGHOST-VALREQ-005`, `WDGHOST-VALREQ-006`
+
+**Version:** coordinated stable family `1.4.0`
+
+**Commit:** clean integrated package source `86340ab27ade1322225a3ae2005b6a32c59ab005`
+
+**Tree state:** clean canonical source; independent signed public downloads and fresh isolated consumer feeds/caches
+
+**Environment:** Windows x64; modern native consumers report .NET 9.0.22 and Framework consumers report CLR 4.0.30319.42000
+
+**Targets:** WPF and WinForms on net481 and net9.0-windows, SameExecutable and Sidecar
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 1.4.0 -KeepIntermediateArtifacts`; all 30 API comparisons; documentation/normalized warning checks; independent published-payload/signature verification and `eng/test-local-packages.ps1` against those downloads
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** [stable release record](../../stable-release-1.4.0.md), public evidence archive, exact candidate/stable/public scenario records and trusted publication metadata
+
+**Observed:** Same-version sidecar deployment transfers the UI policy and executes the same native detector/recovery matrix on both target families. Layout/ownership/RID/build/publish/rebuild/clean and legacy protocol gates remain passing. Default SameExecutable mode deploys no Host payload. No protocol version or deployment layout changed.
+
+**Gaps:** The native contract follows one observed window thread; missing windows and pre-activation startup do not confirm a hang. It does not certify all dispatchers/workers or business progress. No cross-user/elevation, restricted-token, mixed-runtime, x86 desktop, human visual or nominal-window soak campaign is claimed. The owner stopped public GUI repetition after four native module consumers and six WinForms net481 recovery checks; 162 public checks remain unexecuted or interrupted, including the public UI-hang repeat required by WDG-VALREQ-015. Exact signed public payload identity passed for all 16 packages. This record closes the executed local scope and does not claim the complete public native matrix. Existing provider, hardware and Inspection issue exclusions remain separate.
+
+**Supersedes:** `WDGHOST-VALEVID-20261124-002` only at this exact newer version and observed scope; older exclusions retain their evidence boundaries

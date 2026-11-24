@@ -298,9 +298,9 @@ combinations. Version 1.2.0 remains immutable and superseded for desktop
 readiness. Align Watchdog and its directly referenced Host deployment package
 with the rest of the family.
 
-## Current stable family
+## Preceding Watchdog hosting family
 
-NekoLib `1.3.0`, released on 2026-11-24, is the active coordinated stable family.
+NekoLib `1.3.0`, released on 2026-11-24, was the preceding coordinated stable family.
 Its compatible minor adds opt-in automatic same-executable Watchdog hosting,
 portable startup configuration and global Disable/Enable/Shutdown controls.
 Only the two accepted Watchdog manifests add reviewed declarations; the other
@@ -315,3 +315,19 @@ four-way desktop qualification. Automatic UI-hang detection remains a separate
 next step: heartbeat reports process existence. Align the family versions;
 Sidecar mode requires a direct same-version Host reference, while the default
 SameExecutable mode deploys no Host payload.
+
+## Current stable family
+
+NekoLib `1.4.0`, released on 2026-11-24, is the active coordinated stable family.
+Its minor adds the three reviewed WatchdogOptions UI-hang properties. Automatic
+desktop bootstrap enables the new configurable recovery policy; manual runtime
+defaults remain opt-in. Prior declarations, other 28 manifests, deprecations and
+experimental boundaries remain unchanged. The new automatic policy and its
+migration/limits are explicit in the [accepted contract](watchdog-ui-hang-detection.md).
+
+The clean tagged source is `86340ab27ade1322225a3ae2005b6a32c59ab005`. The
+[stable release record](stable-release-1.4.0.md) owns exact artifacts, trusted
+publication, independent signed downloads and isolated four-way native package
+qualification. UI message responsiveness is distinct from the existing process
+heartbeat and from business-operation or all-worker health. Align the complete
+family; optional Sidecar requires a direct same-version Host reference.

@@ -193,3 +193,13 @@ it.
   the release owner rather than inferred from build or type-loading checks.
 
 **Evidence:** [stable release record](../../stable-release-1.3.0.md), [executed qualification](VALIDATIONS.md#wdg-valevid-20261124-002), [accepted contract](../../watchdog-auto-bootstrap.md)
+
+## 2026-11-24 — WDG-HISTORY-012 — UI-hang recovery delivered
+
+**Release:** 1.4.0
+
+- Delivered the accepted external native UI responsiveness policy with configurable
+  confirmation/grace and retained application controls. The release owner records
+  exact source, compatible additions, native negative cases and public evidence.
+
+**Evidence:** [stable release record](../../stable-release-1.4.0.md), [executed qualification](VALIDATIONS.md#wdg-valevid-20261124-003), [accepted policy](../../watchdog-ui-hang-detection.md)

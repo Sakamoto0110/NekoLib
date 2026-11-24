@@ -16,6 +16,7 @@ shape; they do not own open work or current technical facts.
 
 | Artifact | Lifecycle | Subject | Current state |
 |---|---|---|---|
+| [`watchdog-ui-hang-2026-11-24.md`](watchdog-ui-hang-2026-11-24.md) | historical | Completed configurable native UI-hang recovery and public-package qualification | [`1.4.0 stable release`](../stable-release-1.4.0.md), [`accepted policy`](../watchdog-ui-hang-detection.md) |
 | [`watchdog-auto-bootstrap-2026-11-24.md`](watchdog-auto-bootstrap-2026-11-24.md) | historical | Completed same-executable Watchdog hosting, global controls and public-package qualification | [`1.3.0 stable release`](../stable-release-1.3.0.md), [`accepted contract`](../watchdog-auto-bootstrap.md) |
 | [`desktop-readiness-qualification-2026-11-24.md`](desktop-readiness-qualification-2026-11-24.md) | historical | Completed WPF/WinForms integration, modal patch and four-way public-package/application recovery qualification | [`1.2.1 stable release`](../stable-release-1.2.1.md), [`desktop integration decision`](../desktop-readiness-1.2.0.md) |
 | [`architecture-roadmap-through-phase-d-2026-08-01.md`](architecture-roadmap-through-phase-d-2026-08-01.md) | historical | Full roadmap snapshot containing completed Phases A, B, and D plus the Phase C handoff state | [`ROADMAP.md`](../../ROADMAP.md) |

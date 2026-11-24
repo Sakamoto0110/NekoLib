@@ -77,3 +77,10 @@ Polling, OS scheduling, termination and restart add latency beyond the threshold
 Legitimate synchronous UI work lasting longer than the policy must use an
 appropriate timeout or disable/pause policy. Human visual, cross-user/elevation,
 restricted-token, x86 desktop and long-duration soak campaigns remain separate.
+
+## Delivered release
+
+WDG-UIHANG-001 completed in 1.4.0. The [stable release record](stable-release-1.4.0.md)
+owns the exact integrated source, immutable artifacts, publication and independent
+public-package qualification. Its exclusions and the native observation contract
+above remain in force.
