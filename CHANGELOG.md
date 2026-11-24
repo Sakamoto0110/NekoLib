@@ -14,6 +14,14 @@ remain under `docs/history/`.
 
 ## Unreleased
 
+- **1.2.1 compatible patch:** native interaction blockers hold background views
+  disabled across enabled-state binding refreshes. WinForms also restores the
+  current Enabled binding value and original update mode without writing modal
+  state into the view model. Public APIs and accepted manifests are unchanged.
+  See the [modal binding correction](docs/desktop-readiness-1.2.1.md).
+
+## 1.2.0 — compatible minor packages published 2026-11-24
+
 - **1.2.0 compatible minor:** additive scoped `WindowsCrash.HookWpf` and explicit
   `InteractionObservationMode` observer overloads and bootstrap
   `UseInteractionObserver` factory; existing constructors and

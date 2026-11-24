@@ -5,12 +5,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $providers = @(
     foreach ($view in @([Microsoft.Win32.RegistryView]::Registry32, [Microsoft.Win32.RegistryView]::Registry64)) {
-        $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $view)
+        $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::ClassesRoot, $view)
         try {
             foreach ($provider in @('Microsoft.ACE.OLEDB.12.0', 'Microsoft.ACE.OLEDB.16.0')) {
-                $key = $base.OpenSubKey("SOFTWARE\Classes\$provider\CLSID")
+                $key = $base.OpenSubKey("$provider\CLSID")
                 try {
-                    [pscustomobject]@{ provider = $provider; registryView = $view.ToString(); registered = $null -ne $key }
+                    [pscustomobject]@{ provider = $provider; registryView = $view.ToString(); registered = $null -ne $key; hive = 'merged user and machine ClassesRoot' }
                 }
                 finally { if ($key) { $key.Dispose() } }
             }

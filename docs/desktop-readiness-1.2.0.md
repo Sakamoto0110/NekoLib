@@ -78,6 +78,43 @@ This does not convert automation into human evidence or erase older gaps.
 
 ## Native semantics retained
 
+### Crash composition without implicit process exit
+
+Install `CrashHandler` separately. An application can choose a fatal exit after
+the incident collection attempt by setting this option before construction:
+
+```csharp
+ExternalNotifier = incident =>
+{
+    if (incident.IsTerminating)
+        Environment.Exit(71); // Application-owned fatal policy, not library behavior.
+}
+```
+
+For WPF, install `WindowsCrash.HookWpf(Dispatcher.CurrentDispatcher)` on the UI
+thread and retain its returned lease. The default leaves native propagation
+unchanged. The explicit `markHandled: true` policy is suitable only when the
+application knows continuing is safe. A caught recoverable operation can also
+call `CrashHandler.ReportExternalCrash(source, exception, false)` directly.
+
+For a fatal WinForms policy, install one application-owned forwarding boundary
+before creating windows, and remove it at shutdown:
+
+```csharp
+Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+ThreadExceptionEventHandler forward = (_, eventArgs) =>
+    CrashHandler.ReportExternalCrash("Application.ThreadException", eventArgs.Exception, true);
+Application.ThreadException += forward;
+// Run the UI loop; unsubscribe with Application.ThreadException -= forward afterwards.
+```
+
+The existing `WindowsCrash.HookWinForms()` provides the legacy nonterminating
+policy. Choose one WinForms forwarder at startup; installing it alongside the
+fatal forwarder reports the same native event twice. Reporting, optional Host
+notification and actual process exit are separate application decisions.
+
+### Corresponding native surfaces
+
 | Surface | Decision and qualification boundary |
 |---|---|
 | Page and layered host | Shared core lifecycle; native visibility, focus traversal and z-order are intentional. |

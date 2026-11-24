@@ -76,8 +76,19 @@ namespace NekoLib.PackageConsumers
                         var dialogTask = NavigationService.ShowDialogAsync<FormsDialog>();
                         await Task.Delay(30);
                         ModuleProbe.Require(!page.Enabled && FormsDialog.Last!.Enabled, "WinForms modal blocks the background and enables its surface");
+                        ModuleProbe.Require(page.EnabledBinding.IsBinding, "WinForms enabled-state binding is live");
+                        page.Model.Enabled = false;
+                        page.EnabledBinding.ReadValue();
+                        page.Model.Enabled = true;
+                        page.EnabledBinding.ReadValue();
+                        ModuleProbe.Require(!page.Enabled, "WinForms binding refresh cannot re-enable a modal background");
+                        page.Model.Enabled = false;
+                        page.EnabledBinding.ReadValue();
                         FormsDialog.Last!.Finish();
-                        ModuleProbe.Require(await dialogTask && page.Enabled, "WinForms modal restores the background after completion");
+                        ModuleProbe.Require(await dialogTask && !page.Enabled, "WinForms modal restores the current enabled-state binding");
+                        page.Model.Enabled = true;
+                        page.EnabledBinding.ReadValue();
+                        ModuleProbe.Require(page.Enabled, "WinForms enabled-state binding remains live after modal cleanup");
                         ModuleProbe.Require(await NavigationService.ShowPromptAsync<FormsPrompt, string>() == "accepted", "WinForms prompt returns its typed result");
                         ModuleProbe.Require(await NavigationService.ShowPopoverAsync<FormsPopover>(), "WinForms popover completes and cleans up");
                         var autoPopover = NavigationService.ShowPopoverAsync<FormsAutoPopover>();
@@ -109,7 +120,18 @@ namespace NekoLib.PackageConsumers
     public sealed class FormsWorkPage : PageView
     {
         internal readonly TextBox Input = new TextBox { Dock = DockStyle.Top };
-        public FormsWorkPage() { Controls.Add(Input); }
+        internal readonly FormsEnabledModel Model = new FormsEnabledModel();
+        internal readonly Binding EnabledBinding;
+        public FormsWorkPage()
+        {
+            Controls.Add(Input);
+            EnabledBinding = DataBindings.Add(nameof(Enabled), Model, nameof(Model.Enabled), false, DataSourceUpdateMode.Never);
+        }
+    }
+    public sealed class FormsEnabledModel : NekoLib.Mvvm.ViewModelBase
+    {
+        private bool _enabled = true;
+        public bool Enabled { get => _enabled; set => SetProperty(ref _enabled, value); }
     }
     public sealed class FormsToast : ToastViewBase
     {

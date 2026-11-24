@@ -455,6 +455,191 @@ namespace NekoLib.Navigation.Tests.Unit
             });
         }
 
+        [Fact]
+        public void WpfInteractionBlocker_SourceReenabledWhileBlocked_RemainsBlocked()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var model = new EnabledModel { CanEdit = true };
+                var page = new System.Windows.Controls.Grid { DataContext = model };
+                System.Windows.Data.BindingOperations.SetBinding(page, UIElement.IsEnabledProperty,
+                    new System.Windows.Data.Binding(nameof(EnabledModel.CanEdit)));
+                root.Children.Add(page);
+                var blocker = new WpfInteractionBlocker(root);
+                blocker.Block();
+                model.CanEdit = false;
+                model.CanEdit = true;
+                Assert.False(page.IsEnabled);
+                blocker.Unblock();
+                Assert.True(page.IsEnabled);
+            });
+        }
+
+        [Fact]
+        public void WpfInteractionBlocker_InitiallyDisabledSourceReenabled_RestoresCurrentEnabledValue()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var model = new EnabledModel { CanEdit = false };
+                var page = new System.Windows.Controls.Grid { DataContext = model };
+                System.Windows.Data.BindingOperations.SetBinding(page, UIElement.IsEnabledProperty,
+                    new System.Windows.Data.Binding(nameof(EnabledModel.CanEdit)));
+                root.Children.Add(page);
+                var blocker = new WpfInteractionBlocker(root);
+                blocker.Block();
+                model.CanEdit = true;
+                Assert.False(page.IsEnabled);
+                blocker.Unblock();
+                Assert.True(page.IsEnabled);
+            });
+        }
+
+        [Fact]
+        public void WpfInteractionBlocker_BindingRefresh_OnlyTopModalCanBecomeEnabled()
+        {
+            RunSta(() =>
+            {
+                var root = new System.Windows.Controls.Grid();
+                var model = new EnabledModel { CanEdit = true };
+                var page = new System.Windows.Controls.Grid { DataContext = model };
+                var first = new System.Windows.Controls.Grid { DataContext = model };
+                var second = new System.Windows.Controls.Grid { DataContext = model };
+                foreach (var element in new[] { page, first, second })
+                    System.Windows.Data.BindingOperations.SetBinding(element, UIElement.IsEnabledProperty,
+                        new System.Windows.Data.Binding(nameof(EnabledModel.CanEdit)));
+                root.Children.Add(page);
+                var blocker = new WpfInteractionBlocker(root);
+                blocker.Block();
+                root.Children.Add(first);
+                blocker.OnViewAdded(first, true);
+                root.Children.Add(second);
+                blocker.OnViewAdded(second, true);
+                model.CanEdit = false;
+                model.CanEdit = true;
+                Assert.False(page.IsEnabled);
+                Assert.False(first.IsEnabled);
+                Assert.True(second.IsEnabled);
+                root.Children.Remove(second);
+                blocker.OnViewRemoved(second);
+                Assert.True(first.IsEnabled);
+                Assert.False(page.IsEnabled);
+                root.Children.Remove(first);
+                blocker.OnViewRemoved(first);
+                blocker.Unblock();
+                Assert.True(page.IsEnabled);
+            });
+        }
+
+        [Theory]
+        [InlineData(System.Windows.Forms.DataSourceUpdateMode.Never)]
+        [InlineData(System.Windows.Forms.DataSourceUpdateMode.OnValidation)]
+        [InlineData(System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged)]
+        public void WinFormsInteractionBlocker_BindingRefresh_RemainsBlockedAndPreservesSource(System.Windows.Forms.DataSourceUpdateMode mode)
+        {
+            RunSta(() =>
+            {
+                using (var root = new System.Windows.Forms.Panel())
+                using (var page = new System.Windows.Forms.Panel())
+                {
+                    root.Controls.Add(page);
+                    using var form = CreateBindingHost(root);
+                    page.BindingContext = new System.Windows.Forms.BindingContext();
+                    var model = new EnabledModel { CanEdit = true };
+                    var binding = page.DataBindings.Add(nameof(page.Enabled), model, nameof(model.CanEdit), false, mode);
+                    binding.ReadValue();
+                    Assert.True(binding.IsBinding);
+                    Assert.True(page.Enabled);
+                    var blocker = new NekoLib.Navigation.WinForms.Adapters.WinFormsInteractionBlocker(root);
+                    blocker.Block();
+                    Assert.False(page.Enabled);
+                    Assert.True(model.CanEdit);
+                    model.CanEdit = false;
+                    binding.ReadValue();
+                    model.CanEdit = true;
+                    binding.ReadValue();
+                    Assert.False(page.Enabled);
+                    Assert.True(model.CanEdit);
+                    blocker.Unblock();
+                    Assert.True(page.Enabled, "Source=" + model.CanEdit + "; active=" + binding.IsBinding);
+                    Assert.True(model.CanEdit);
+                    Assert.Same(binding, page.DataBindings[nameof(page.Enabled)]);
+                    Assert.Equal(mode, binding.DataSourceUpdateMode);
+                }
+            });
+        }
+
+        [Fact]
+        public void WinFormsInteractionBlocker_SourceDisabledWhileBlocked_RestoresCurrentBindingValueWithoutWriteback()
+        {
+            RunSta(() =>
+            {
+                using (var root = new System.Windows.Forms.Panel())
+                using (var page = new System.Windows.Forms.Panel())
+                {
+                    root.Controls.Add(page);
+                    using var form = CreateBindingHost(root);
+                    page.BindingContext = new System.Windows.Forms.BindingContext();
+                    var model = new EnabledModel { CanEdit = true };
+                    var binding = page.DataBindings.Add(nameof(page.Enabled), model, nameof(model.CanEdit), false, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged);
+                    binding.ReadValue();
+                    var blocker = new NekoLib.Navigation.WinForms.Adapters.WinFormsInteractionBlocker(root);
+                    blocker.Block();
+                    model.CanEdit = false;
+                    binding.ReadValue();
+                    blocker.Unblock();
+                    Assert.False(page.Enabled);
+                    Assert.False(model.CanEdit);
+                    Assert.Equal(System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged, binding.DataSourceUpdateMode);
+                }
+            });
+        }
+
+        [Fact]
+        public void WinFormsInteractionBlocker_ReplacedEnabledBinding_RestoresBothBindingModes()
+        {
+            RunSta(() =>
+            {
+                using (var root = new System.Windows.Forms.Panel())
+                using (var page = new System.Windows.Forms.Panel())
+                {
+                    root.Controls.Add(page);
+                    using var form = CreateBindingHost(root);
+                    page.BindingContext = new System.Windows.Forms.BindingContext();
+                    var originalModel = new EnabledModel { CanEdit = true };
+                    var replacementModel = new EnabledModel { CanEdit = true };
+                    var original = page.DataBindings.Add(nameof(page.Enabled), originalModel, nameof(originalModel.CanEdit), false, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged);
+                    var blocker = new NekoLib.Navigation.WinForms.Adapters.WinFormsInteractionBlocker(root);
+                    blocker.Block();
+                    page.DataBindings.Remove(original);
+                    var replacement = page.DataBindings.Add(nameof(page.Enabled), replacementModel, nameof(replacementModel.CanEdit), false, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged);
+                    replacement.ReadValue();
+                    Assert.False(page.Enabled);
+                    Assert.True(replacementModel.CanEdit);
+                    blocker.Unblock();
+                    Assert.True(page.Enabled);
+                    Assert.Equal(System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged, original.DataSourceUpdateMode);
+                    Assert.Equal(System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged, replacement.DataSourceUpdateMode);
+                }
+            });
+        }
+
+        private static System.Windows.Forms.Form CreateBindingHost(System.Windows.Forms.Control root)
+        {
+            var form = new System.Windows.Forms.Form
+            {
+                ShowInTaskbar = false,
+                StartPosition = System.Windows.Forms.FormStartPosition.Manual,
+                Location = new System.Drawing.Point(-32000, -32000),
+                Size = new System.Drawing.Size(320, 240)
+            };
+            form.Controls.Add(root);
+            form.Show();
+            System.Windows.Forms.Application.DoEvents();
+            return form;
+        }
+
         // NAV-004: IViewHost.Focus forwards focus to the surface's first selectable
         // child, so the container never holds focus and its non-bubbling LostFocus
         // never fired. Leave is the subtree-scoped event that actually reports the

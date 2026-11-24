@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-08-31
+**Last promotion decision:** 2026-11-24
 
 ## Purpose and admission rule
 
@@ -54,6 +54,8 @@ an explicit implementation gate after promotion.
 **Status:** promoted; implementation and release authorized by the owner.
 
 **Source and narrow unfreeze:** [desktop integration decision](docs/desktop-readiness-1.2.0.md).
+The [modal binding patch](docs/desktop-readiness-1.2.1.md) adds the confirmed
+background re-enable correction before final desktop delivery.
 
 Complete dispatcher/focus safety, scoped WPF diagnostics, explicit activity
 parity, native surface qualification and PackageReference-only behavior/recovery
