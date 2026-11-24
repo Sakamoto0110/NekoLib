@@ -84,6 +84,7 @@ namespace NekoLib.Watchdog
         public bool EnableCrashBundling { get; set; }
         public bool EnableFileLogging { get; set; }
         public bool EnableHotkeys { get; set; }
+        public bool EnableUiHangDetection { get; set; }
         public int ForceKillTimeoutMs { get; set; }
         public int GracefulKillTimeoutMs { get; set; }
         public int HeartbeatIntervalMs { get; set; }
@@ -98,6 +99,8 @@ namespace NekoLib.Watchdog
         public string? TargetArguments { get; set; }
         public string? TargetPath { get; set; }
         public NekoLib.Core.Telemetry.ITelemetry? Telemetry { get; set; }
+        public int UiHangStartupGraceMs { get; set; }
+        public int UiHangTimeoutMs { get; set; }
         public string? WorkingDirectory { get; set; }
     }
     public sealed class WatchdogPipeLogSink : NekoLib.Core.Logging.ILogSink, System.IDisposable

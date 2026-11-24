@@ -39,6 +39,7 @@ namespace NekoLib.Watchdog
         private const int MaxQueuedEvents = 1024;
 
         private readonly WatchdogRuntimeOptions _o;
+        private readonly UiHangMonitor _uiHealth;
         private volatile bool _targetTerminationRequested;
 
         private Process? _child;
@@ -114,6 +115,7 @@ namespace NekoLib.Watchdog
         public WatchdogRuntime(WatchdogOptions options)
         {
             _o = WatchdogRuntimeOptions.Capture(options);
+            _uiHealth = new UiHangMonitor(_o.EnableUiHangDetection, _o.UiHangTimeoutMs, _o.UiHangStartupGraceMs);
             _pipeMetrics = new SimplePipeMetrics();
         }
 
@@ -353,7 +355,7 @@ namespace NekoLib.Watchdog
 
             rpc.Map(WatchdogCommands.Pause, async (req, ct) =>
             {
-                _enabled = false;
+                SetSupervisionEnabled(false);
                 LogInfo("[cmd] pause");
                 PublishTelemetry();
                 return PipeOk("paused");
@@ -361,7 +363,7 @@ namespace NekoLib.Watchdog
 
             rpc.Map(WatchdogCommands.Resume, async (req, ct) =>
             {
-                _enabled = true;
+                SetSupervisionEnabled(true);
                 LogInfo("[cmd] resume");
                 PublishTelemetry();
                 return PipeOk("running");
@@ -576,6 +578,7 @@ namespace NekoLib.Watchdog
                 childPid,
                 attachedInitialProcessId = _attachedInitialProcessId,
                 lastExitCode = _lastExitCode,
+                uiResponsiveness = _uiHealth.Snapshot(_uptime.ElapsedMilliseconds),
                 metrics = snap == null ? null : new
                 {
                     server = snap.Server,
@@ -661,6 +664,7 @@ namespace NekoLib.Watchdog
                     _child = process;
                     _childUptime = Stopwatch.StartNew();
                     _attachedInitialProcessId = process.Id;
+                    _uiHealth.Reset(process.Id, _uptime.ElapsedMilliseconds);
                     _hasSupervisedProcess = true;
                     process = null;
                 }
@@ -966,6 +970,7 @@ namespace NekoLib.Watchdog
                     _child = child;
                     _targetTerminationRequested = false;
                     _childUptime = Stopwatch.StartNew();
+                    _uiHealth.Reset(child.Id, _uptime.ElapsedMilliseconds);
                     if (_hasSupervisedProcess)
                         Interlocked.Increment(ref _restartCount);
                     else
@@ -1046,9 +1051,37 @@ namespace NekoLib.Watchdog
             {
                 var slice = Math.Min(100, remaining);
                 if (process.WaitForExit(slice)) return true;
+                CheckUiHang(process);
                 remaining -= slice;
             }
             return false;
+        }
+
+        private void CheckUiHang(Process process)
+        {
+            if (!_o.EnableUiHangDetection || _shutdownRequested) return;
+            try
+            {
+                // Never hold the target/lifecycle locks during the bounded
+                // native probe. Control RPC and detach remain available.
+                if (!_uiHealth.Check(process.Id, _uptime.ElapsedMilliseconds, _enabled, out var revision)) return;
+                lock (_childLock)
+                {
+                    if (!_enabled || _shutdownRequested || _targetTerminationRequested ||
+                        _uiHealth.Revision != revision || !ReferenceEquals(_child, process) || process.HasExited) return;
+                    _targetTerminationRequested = true;
+                    _lastRestartReason = "ui_hang";
+                    LogError($"[ui_hang] pid={process.Id} window acknowledgement failed for {_o.UiHangTimeoutMs} ms",
+                        _uiHealth.Snapshot(_uptime.ElapsedMilliseconds));
+                    TryKill(process);
+                    if (!process.HasExited)
+                    {
+                        _targetTerminationRequested = false;
+                        LogError("[ui_hang_termination_failed] target remains alive", new { pid = process.Id });
+                    }
+                }
+            }
+            catch (InvalidOperationException) { /* The current process can exit during a native probe. */ }
         }
 
         private void SleepWithShutdown(int delayMs)
@@ -1059,6 +1092,15 @@ namespace NekoLib.Watchdog
                 var slice = Math.Min(100, Math.Min(_o.MonitorPollMs, remaining));
                 Thread.Sleep(slice);
                 remaining -= slice;
+            }
+        }
+
+        private void SetSupervisionEnabled(bool enabled)
+        {
+            lock (_childLock)
+            {
+                _uiHealth.Reset(_child?.Id ?? 0, _uptime.ElapsedMilliseconds, enabled ? "warming_up" : "paused");
+                _enabled = enabled;
             }
         }
 
@@ -1319,13 +1361,13 @@ namespace NekoLib.Watchdog
 
                         if (id == 1)
                         {
-                            _enabled = false;
+                            SetSupervisionEnabled(false);
                             LogInfo("[hk] pause");
                             PublishTelemetry();
                         }
                         else if (id == 2)
                         {
-                            _enabled = true;
+                            SetSupervisionEnabled(true);
                             LogInfo("[hk] resume");
                             PublishTelemetry();
                         }

@@ -14,7 +14,11 @@ remain under `docs/history/`.
 
 ## Unreleased
 
-- No unreleased package changes.
+- **Watchdog UI-hang recovery:** automatic desktop bootstrap enables bounded
+  external window-message probes. Configurable timeout/startup grace, native
+  responsiveness status and the existing restart path recover a sustained UI
+  hang without application Main calls. Manual runtimes remain opt-in. See the
+  [policy and migration contract](docs/watchdog-ui-hang-detection.md).
 
 ## 1.3.0 — compatible minor released 2026-11-24
 

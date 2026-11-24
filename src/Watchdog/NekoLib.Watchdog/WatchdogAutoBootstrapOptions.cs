@@ -23,8 +23,9 @@ namespace NekoLib.Watchdog
         /// Gets or sets portable runtime policy. TargetPath, TargetArguments,
         /// InitialProcessId and AttachToken are bootstrap-owned. Caller-owned
         /// LogSinks and Telemetry cannot cross the process boundary. Hotkeys
-        /// default to disabled for automatic application supervision.
+        /// default to disabled and UI-hang detection defaults to enabled for
+        /// automatic application supervision.
         /// </summary>
-        public WatchdogOptions RuntimeOptions { get; set; } = new WatchdogOptions { EnableHotkeys = false };
+        public WatchdogOptions RuntimeOptions { get; set; } = new WatchdogOptions { EnableHotkeys = false, EnableUiHangDetection = true };
     }
 }

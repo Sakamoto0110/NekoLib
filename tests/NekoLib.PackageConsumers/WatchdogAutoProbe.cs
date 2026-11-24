@@ -12,6 +12,9 @@ internal static class WatchdogAutoProbe
     internal static bool Initial;
     private static bool _finished;
     private static bool _ready;
+    private static bool _uiActionInProgress;
+    private static bool _secondStallDone;
+    private static Stopwatch _uiWatch;
 
     internal static bool HandleControl(string[] args)
     {
@@ -48,6 +51,13 @@ internal static class WatchdogAutoProbe
                 options.RuntimeOptions.MonitorPollMs = 50;
                 options.RuntimeOptions.RestartDelayMs = 200;
                 options.RuntimeOptions.HeartbeatIntervalMs = 100;
+                if (Mode.StartsWith("ui-", StringComparison.Ordinal))
+                {
+                    options.RuntimeOptions.UiHangTimeoutMs = Mode == "ui-hang-long" ? 6000 : 2000;
+                    options.RuntimeOptions.UiHangStartupGraceMs = Mode == "ui-grace" ? 4000 : 0;
+                    options.RuntimeOptions.EnableUiHangDetection = Mode != "ui-detection-disabled";
+                    options.RuntimeOptions.GracefulKillTimeoutMs = 100;
+                }
                 if (Mode == "warning") options.HostingMode = WatchdogHostingMode.Sidecar;
             });
         }
@@ -61,9 +71,9 @@ internal static class WatchdogAutoProbe
 
     internal static bool VetoClose => Initial && Mode == "restart";
 
-    internal static void Tick(int windowCount, Action close)
+    internal static void Tick(int windowCount, Action close, Action showModal = null)
     {
-        if (_finished) return;
+        if (_finished || _uiActionInProgress) return;
         if (_ready && Initial && (Mode == "kill" || Mode == "restart" || Mode == "restart-soft" || Mode == "stop")) return;
         var active = WatchdogAutoBootstrap.IsActive;
         if (Mode == "warning")
@@ -81,6 +91,7 @@ internal static class WatchdogAutoProbe
         File.WriteAllText(Path.Combine(DirectoryPath, Initial ? "initial.windows" : "replacement.windows"), windowCount.ToString());
         File.WriteAllText(Path.Combine(DirectoryPath, Initial ? "initial.ready" : "replacement.ready"), Process.GetCurrentProcess().Id.ToString());
         _ready = true;
+        if (Mode.StartsWith("ui-", StringComparison.Ordinal) && !RunUiScenario(showModal)) return;
         if (Mode == "disable-after")
         {
             WatchdogAutoBootstrap.Disable();
@@ -100,6 +111,47 @@ internal static class WatchdogAutoProbe
         _finished = true;
         File.WriteAllText(Path.Combine(DirectoryPath, Initial ? "initial.done" : "replacement.done"), "Normal application return.");
         close();
+    }
+
+    private static bool RunUiScenario(Action showModal)
+    {
+        if (_uiWatch == null)
+        {
+            _uiWatch = Stopwatch.StartNew();
+            if (Initial)
+            {
+                File.WriteAllText(Path.Combine(DirectoryPath, "ui-action.started"), Mode);
+                if (Mode == "ui-hang" || Mode == "ui-hang-long")
+                    System.Threading.Thread.Sleep(System.Threading.Timeout.Infinite);
+                if (Mode == "ui-stall") System.Threading.Thread.Sleep(400);
+                if (Mode == "ui-grace") System.Threading.Thread.Sleep(2700);
+                if (Mode == "ui-detection-disabled") System.Threading.Thread.Sleep(3200);
+                if (Mode == "ui-modal")
+                {
+                    if (showModal == null) throw new InvalidOperationException("Missing native modal fixture.");
+                    _uiActionInProgress = true;
+                    try { showModal(); }
+                    finally { _uiActionInProgress = false; }
+                }
+                if (Mode == "ui-paused")
+                {
+                    if (!WatchdogController.Pause()) throw new InvalidOperationException("Pause rejected.");
+                    File.WriteAllText(Path.Combine(DirectoryPath, "ui-paused.ready"), "paused");
+                    System.Threading.Thread.Sleep(2700);
+                    if (!WatchdogController.Resume()) throw new InvalidOperationException("Resume rejected.");
+                }
+                File.WriteAllText(Path.Combine(DirectoryPath, "ui-action.completed"), Mode);
+            }
+        }
+        if (Initial && Mode == "ui-stall" && !_secondStallDone && _uiWatch.ElapsedMilliseconds >= 900)
+        {
+            _secondStallDone = true;
+            System.Threading.Thread.Sleep(400);
+        }
+        var duration = Mode == "ui-grace" || Mode == "ui-paused" ? 4500 : 3500;
+        if (_uiWatch.ElapsedMilliseconds < duration) return false;
+        File.WriteAllText(Path.Combine(DirectoryPath, "ui-final-status.json"), WatchdogController.Status());
+        return true;
     }
 }
 

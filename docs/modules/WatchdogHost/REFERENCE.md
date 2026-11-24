@@ -136,6 +136,12 @@ must align Host and library versions; SameExecutable consumers do not require
 this deployment package. See the
 [automatic application contract](../Watchdog/REFERENCE.md#supported-composition-paths).
 
+Starting with 1.4, automatic sidecar configuration also transfers the UI-hang
+policy to this same runtime. The external window probe, startup grace, pause/
+resume and recovery behavior are framework-independent; the Host protocol and
+deployment layout are unchanged. Manual runtime defaults do not enable UI
+probing. See the [UI-hang contract](../../watchdog-ui-hang-detection.md).
+
 The executable command line is an internal protocol between the coordinated
 `NekoLib.Watchdog` and `NekoLib.Watchdog.Host` packages. It is not an end-user
 CLI. Host and library package versions must be updated together and the

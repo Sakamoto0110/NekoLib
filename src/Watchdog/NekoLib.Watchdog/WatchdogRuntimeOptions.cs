@@ -27,6 +27,9 @@ namespace NekoLib.Watchdog
         public int GracefulKillTimeoutMs { get; private set; }
         public int ForceKillTimeoutMs { get; private set; }
         public int HeartbeatIntervalMs { get; private set; }
+        public bool EnableUiHangDetection { get; private set; }
+        public int UiHangTimeoutMs { get; private set; }
+        public int UiHangStartupGraceMs { get; private set; }
         public bool BringToFrontOnStartIfRunning { get; private set; }
         public bool EnableHotkeys { get; private set; }
         public bool EnableCrashBundling { get; private set; }
@@ -111,6 +114,9 @@ namespace NekoLib.Watchdog
                 GracefulKillTimeoutMs = Math.Max(0, options.GracefulKillTimeoutMs),
                 ForceKillTimeoutMs = Math.Max(100, options.ForceKillTimeoutMs),
                 HeartbeatIntervalMs = options.HeartbeatIntervalMs,
+                EnableUiHangDetection = options.EnableUiHangDetection,
+                UiHangTimeoutMs = Math.Max(1000, options.UiHangTimeoutMs),
+                UiHangStartupGraceMs = Math.Max(0, options.UiHangStartupGraceMs),
                 BringToFrontOnStartIfRunning = options.BringToFrontOnStartIfRunning,
                 EnableHotkeys = options.EnableHotkeys,
                 EnableCrashBundling = options.EnableCrashBundling,

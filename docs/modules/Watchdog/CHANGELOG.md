@@ -24,6 +24,16 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Watchdog-specific consumer impact without duplicating
 package hashes or release provenance.
 
+## Unreleased
+
+**Packages:** `NekoLib.Watchdog`
+
+**Compatibility class:** additive API; new automatic desktop policy
+
+**Consumer impact:** Automatic bootstrap enables external UI responsiveness recovery. WatchdogOptions adds EnableUiHangDetection, UiHangTimeoutMs and UiHangStartupGraceMs. Status adds uiResponsiveness and recovery reports ui_hang.
+
+**Migration:** Manual runtimes remain disabled by default. Automatic consumers receive the 15-second failure threshold and 30-second initialization grace; configure an appropriate threshold or disable detection for intentional lengthy synchronous UI work. See the [accepted contract](../../watchdog-ui-hang-detection.md).
+
 ## 1.3.0
 
 **Packages:** `NekoLib.Watchdog`

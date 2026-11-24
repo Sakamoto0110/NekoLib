@@ -69,6 +69,28 @@ namespace NekoLib.Watchdog
         /// </summary>
         public int HeartbeatIntervalMs { get; set; } = 5000;
 
+        /// <summary>
+        /// Gets or sets whether the external supervisor probes a target UI window
+        /// and restarts sustained message-loop hangs. Defaults to false for manual
+        /// runtimes; automatic desktop bootstrap enables it by default. Processes
+        /// without an observable UI window are not classified as hung.
+        /// </summary>
+        public bool EnableUiHangDetection { get; set; }
+
+        /// <summary>
+        /// Gets or sets the required consecutive UI probe failure duration, in
+        /// milliseconds. Values below 1,000 are normalized to 1,000. Successful
+        /// probes, window changes and pauses clear the failure interval.
+        /// </summary>
+        public int UiHangTimeoutMs { get; set; } = 15000;
+
+        /// <summary>
+        /// Gets or sets the UI initialization grace for each target instance and
+        /// resume, in milliseconds. Negative values are normalized to zero. Window
+        /// discovery continues during grace but does not trigger recovery.
+        /// </summary>
+        public int UiHangStartupGraceMs { get; set; } = 30000;
+
         /// <summary>Gets or sets whether a failed duplicate start best-effort activates the existing target window.</summary>
         public bool BringToFrontOnStartIfRunning { get; set; } = true;
 

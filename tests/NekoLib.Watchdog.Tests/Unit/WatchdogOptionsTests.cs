@@ -9,6 +9,27 @@ namespace NekoLib.Watchdog.Tests.Unit
 {
     public sealed class WatchdogOptionsTests
     {
+        [Fact]
+        public void Capture_UiHangPolicy_IsNormalizedCopiedAndOptInForManualRuntimes()
+        {
+            using var workspace = new TempWorkspace();
+            var options = new WatchdogOptions { TargetPath = workspace.WriteFile("ui.exe") };
+            var defaults = WatchdogRuntimeOptions.Capture(options);
+            Assert.False(defaults.EnableUiHangDetection);
+            Assert.Equal(15000, defaults.UiHangTimeoutMs);
+            Assert.Equal(30000, defaults.UiHangStartupGraceMs);
+            Assert.True(new WatchdogAutoBootstrapOptions().RuntimeOptions.EnableUiHangDetection);
+            options.EnableUiHangDetection = true;
+            options.UiHangTimeoutMs = 1;
+            options.UiHangStartupGraceMs = -1;
+            var captured = WatchdogRuntimeOptions.Capture(options);
+            Assert.True(captured.EnableUiHangDetection);
+            Assert.Equal(1000, captured.UiHangTimeoutMs);
+            Assert.Equal(0, captured.UiHangStartupGraceMs);
+            Assert.Equal(1, options.UiHangTimeoutMs);
+            options.EnableUiHangDetection = false;
+            Assert.True(captured.EnableUiHangDetection);
+        }
         private static readonly Regex PipeNamePattern =
             new Regex(@"^NekoLib\.Watchdog\.[0-9A-F]{16}$", RegexOptions.Compiled);
 
