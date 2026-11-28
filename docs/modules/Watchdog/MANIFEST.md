@@ -70,11 +70,14 @@ assembly is packaged as compiler infrastructure and its direct-only build
 targets require explicit application opt-in. It adds no runtime Roslyn or
 generator package dependency and is not another coordinated public package.
 
-This boundary is the managed supervision library only. The separately
-distributed `NekoLib.Watchdog.Host` sidecar owns deployment payloads, RID
-selection, build and publish targets, executable arguments, and package-only
-consumption; it is a different distribution with its own evidence and is not
-covered by the API baselines above.
+Automatic startup defaults to `SameExecutable`: the generated entry point
+hosts supervision in a second, headless instance of the application executable.
+The managed Watchdog package supplies the runtime, generator and startup targets.
+
+Applications selecting `Sidecar` use the separately distributed
+`NekoLib.Watchdog.Host`. That optional package owns sidecar payloads, RID
+selection, deployment targets and executable arguments. Its deployment contract
+and evidence are covered by the [Host manifest](../WatchdogHost/MANIFEST.md).
 
 ## Current surfaces
 

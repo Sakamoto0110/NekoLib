@@ -220,3 +220,33 @@ audit, package record, or external review remains the detailed owner.
 **Gaps:** Reporting never terminates a process. WinForms fatal qualification uses an application-owned forwarder, not the legacy nonterminating hook alongside it. No new full WER, real-minidump-level, human interactive or long-soak campaign is claimed.
 
 **Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
+
+## DIAG-VALEVID-20261127-001
+
+**Requirement IDs:** `DIAG-VALREQ-001`, `DIAG-VALREQ-002`, `DIAG-VALREQ-003`, `DIAG-VALREQ-004`
+
+**Version:** unreleased 2.0 source
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** local documentation correction and regression tests
+
+**Environment:** Windows, SDK 10.0.403, Release
+
+**Targets:** Diagnostics test suite on `net481` and `net9.0-windows`, covering the platform-neutral and Windows adapters
+
+**Command or scenario:** `dotnet test tests/NekoLib.Diagnostics.Tests/Unit/NekoLib.Diagnostics.Tests.Unit.csproj -c Release -m:1`, followed by all 30 family API comparisons
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** ignored `artifacts/v2-regression-Diagnostics.log` and `artifacts/v2-regression-api.log`
+
+**Observed:** All 28 tests pass on each target. Default external-crash reporting creates text without a dump. An explicitly supplied writer produces its fixture artifact with the captured default level even after the options object is mutated. The native writer returns false for `CrashDumpLevel.None` and creates no file. The four Diagnostics API baselines remain unchanged.
+
+**Gaps:** The supplied-writer test writes a fixture artifact. Actual native dump formats, every native dump level, WER dialogs, long-duration behavior and deployment access controls keep their separate qualification requirements.
+
+**Supersedes:** earlier focused coverage for default dump configuration and writer capture, for this source only

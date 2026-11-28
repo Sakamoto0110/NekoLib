@@ -342,3 +342,67 @@ not use the tracked `Pods.db` or `PodsDB` fixtures, which remain non-coverage.
 **Gaps:** ADO.NET is a deterministic fake provider. Merged user/machine ClassesRoot checks found no ACE 12/16 in either bitness; no local SQL service or LocalDB command was found. No real SQL/Access connection, schema or synchronization business workflow was run. Pending operations, conflicts, duplicates and interrupted replay belong to the future application.
 
 **Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
+
+## DATA-VALEVID-20261127-001
+
+**Requirement IDs:** `DATA-VALREQ-001`, `DATA-VALREQ-002`, `DATA-VALREQ-003`, `DATA-VALREQ-004`, `DATA-VALREQ-011`
+
+**Version:** `2.0.0-local.1`, disposable qualification for the upcoming `2.0.0` family
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** authorized local implementation, including the earlier Inspection and Navigation fixes; packages built with `-AllowDirty`
+
+**Environment:** Windows local checkout, Release configuration, isolated package-consumer cache
+
+**Targets:** Data on `net481` and `net9.0`; WPF/WinForms consumers on `net481` and `net9.0-windows`
+
+**Command or scenario:** focused Data tests; reviewed `eng/verify-public-api.ps1 -PackageId NekoLib.Data -UpdateBaseline`; `eng/pack-local.ps1 -PackageVersion 2.0.0-local.1 -AllowDirty -SkipPackageSmokeTests -KeepIntermediateArtifacts`; all 30 API checks with `-NoBuild`; restore/build/run of the existing WinForms481, WinForms9, Wpf481 and Wpf9 package consumers with redirected outputs and the repository NuGet.Config; PublicApiTool applied to both Data assemblies extracted from the produced package
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** ignored `artifacts/querybuilder-2-focused.log`, `querybuilder-2-pack.log`, `querybuilder-2-api.log`, `querybuilder-2-docs.log`, `querybuilder-2-consumers.log`; consumer outputs, result JSON, package hashes and received packaged API text under `artifacts/qb2/`; immutable family in `artifacts/local-feed/`
+
+**Observed:** 177 Data tests pass on net481 and 186 on net9.0. All 1,901 solution tests pass across 24 suites with zero failures or skips. Exactly four public members and their obsolete attributes were removed from each Data baseline. All 30 family API comparisons pass. The canonical pack flow generates 16 main and 15 symbol packages and verifies managed assembly/XML pairing. Each package-only desktop consumer passes 38 checks. Both packaged Data APIs match the reviewed baselines. Documentation and diff checks pass, with no new normalized warning identity in the build log.
+
+**Gaps:** This is dirty-tree local qualification. Real-provider, soak, the full desktop recovery/automatic-bootstrap package matrix, clean-source release provenance and public distribution require their own release evidence.
+
+**Supersedes:** the warning-only deprecation state for the upcoming 2.0 source; earlier published-package and provider evidence remains version-specific
+
+## DATA-VALEVID-20261128-001
+
+**Requirement IDs:** `DATA-VALREQ-001`, `DATA-VALREQ-002`, `DATA-VALREQ-003`, `DATA-VALREQ-004`, `DATA-VALREQ-011`
+
+**Version:** `2.0.0-local.2`, disposable full-family regression qualification
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** authorized local implementation and regression additions, qualified with `-AllowDirty`
+
+**Environment:** Windows, SDK 10.0.403, CLR 4.0.30319.42000 and .NET 9.0.22 for native x64 consumers
+
+**Targets:** Data on `net481` and `net9.0`. Native consumers cover WinForms and WPF on `net481` and `net9.0-windows`.
+
+**Command or scenario:** `eng/pack-local.ps1 -PackageVersion 2.0.0-local.2 -AllowDirty -KeepIntermediateArtifacts`, including the full package smoke flow. All 30 API comparisons run with `eng/verify-public-api.ps1 -NoBuild`. Documentation verification compares the source-build portion of the package-gate log against the normalized warning baseline.
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** ignored `artifacts/v2-regression-package-gate.log`, `v2-regression-source-build.log`, `v2-regression-api.log`, `v2-regression-package-hashes.json` and `v2-regression-package-xml.json`. Complete smoke outputs are retained at `artifacts/package-smoke/sessions/d2f835a3b1974390876cc5c8ba2c103b/`. The 16 main and 15 symbol packages are in `artifacts/local-feed/`.
+
+**Observed:** All 1,917 solution tests pass across 24 target suites, with zero failures and skips. Data passes 182 net481 and 191 net9.0 tests. The migration regression checks parameter values and nulls, and all four supported join types through both replacement APIs. All 30 API comparisons pass.
+
+The package gate builds the baseline DataLegacyOverloads fixture, then compiles each removed API call independently on both targets. All eight calls are rejected with the expected CS1501 or CS1061 diagnostic. The four native consumers pass their shared module/UI probes. All 24 legacy recovery and 144 automatic-bootstrap cases pass, covering SameExecutable, optional Sidecar, opt-out, controls and configured UI-hang recovery. The run leaves zero owned qualification processes.
+
+All 30 packaged managed XML files parse successfully, identify their assembly, contain unique member IDs and contain no unresolved compiler cref marker. Documentation and diff verification pass, with no new normalized source-build warning identity.
+
+**Gaps:** This is dirty-tree local qualification. Clean-source release provenance, signed public-package downloads, real database/hardware coverage, human visual/DPI approval, every native dump format and long-duration evidence retain their separate qualification requirements.
+
+**Supersedes:** the narrower package and regression scope of `DATA-VALEVID-20261127-001` for this updated local candidate

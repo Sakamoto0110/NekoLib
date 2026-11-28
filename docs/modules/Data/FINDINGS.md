@@ -33,8 +33,8 @@ The following are deliberately not findings:
 
 - runtime/provider combinations not executed during the current documentation
   campaign are validation gaps recorded in [`VALIDATIONS.md`](VALIDATIONS.md);
-- `NEKOMKT-F026` is already promoted work with closed release and implementation
-  gates in [`TODO.md`](../../../TODO.md), not an unresolved defect observation;
+- the authorized `2.0.0` deprecation removal is tracked as `NEKOMKT-F026`
+  in [`TODO.md`](../../../TODO.md);
 - additional provider ideas and rejected alternatives remain historical design
   context, not current support claims or inferred work; and
 - the tracked legacy `Pods.db` and `PodsDB` fixtures are not executable database

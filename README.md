@@ -79,7 +79,7 @@ optional unless one of their documented dependents brings them transitively.
 | [`NekoLib.Logging`](docs/modules/Logging/REFERENCE.md) | Synchronous ordered severity logging, bounded recent entries, debugger output, and bounded rolling-file persistence. |
 | [`NekoLib.Telemetry`](docs/modules/Telemetry/REFERENCE.md) | Bounded in-process operation timings with correlation IDs, checkpoints, outcomes, dimensions, and read-only snapshots. |
 | [`NekoLib.Diagnostics`](docs/modules/Diagnostics/REFERENCE.md) | Incident orchestration: records a fatal event, requests a bounded log flush, captures supplied recent evidence, and writes a partial crash bundle. Dump writing remains pluggable. |
-| [`NekoLib.Diagnostics.Windows`](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | The Windows half of the above: minidumps via dbghelp, WER suppression, and the WinForms `ThreadException` hook. |
+| [`NekoLib.Diagnostics.Windows`](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | Windows minidumps via dbghelp, WER suppression, the WinForms `ThreadException` hook, and a scoped WPF dispatcher exception hook. |
 | [`NekoLib.Http`](docs/modules/Http/REFERENCE.md) | Typed, instance-scoped endpoint catalogs and bounded request execution through a consumer-owned `HttpClient`. |
 | [`NekoLib.Data`](docs/modules/Data/REFERENCE.md) | Provider-neutral SQL gateway with a fluent `QueryBuilder`, typed and dynamic reads, target-specific streaming, and transactions. |
 | [`NekoLib.Mvvm`](docs/modules/Mvvm/REFERENCE.md) | `ViewModelBase` and `RelayCommand`/`RelayCommand<T>`. Deliberately tiny; works with WinForms and WPF binding alike. |
@@ -159,7 +159,9 @@ null when no notification is required. Subscribe to `CrashBundleFailed` to learn
 that incident evidence was lost, because `CrashDetected` and the notifier fire
 either way. Option values are captured when the handler is constructed. WinForms
 applications call `WindowsCrash.HookWinForms()` explicitly before creating any
-window; repeated calls are safe and retain one process-lifetime hook.
+window; repeated calls are safe and retain one process-lifetime hook. WPF
+applications call `WindowsCrash.HookWpf(dispatcher)` and dispose the returned
+lease on the dispatcher's owning thread.
 
 **→ Full technical reference:
 [`docs/modules/Diagnostics/REFERENCE.md`](docs/modules/Diagnostics/REFERENCE.md)**
@@ -179,7 +181,7 @@ technical manual.
 | [Telemetry](docs/modules/Telemetry/REFERENCE.md) | `TelemetryPipeline`, `TelemetryPipelineOptions` | Bounded in-memory completed operations; no persistence in v1; the caller owns one explicit terminal and sink dispatch is synchronous | `NekoLib.Telemetry.Tests.Unit` |
 | [Inspection](docs/modules/Inspection/REFERENCE.md) | `InspectionRuntime`, `InspectionOptions`, `InspectionProvider` | Explicit opt-in; passive bounded evidence; at most one global runtime; actions experimental; broad module rollout frozen | `NekoLib.Inspection.Tests.Unit` |
 | [Diagnostics](docs/modules/Diagnostics/REFERENCE.md) | `CrashHandler`, `CrashHandlerOptions`, `CrashDumpWriter` | Incident evidence consumer; options are captured at construction, disposal is terminal and releases the process hooks, bundles may be partial, and a failed bundle raises `CrashBundleFailed` | `NekoLib.Diagnostics.Tests.Unit` |
-| [Diagnostics.Windows](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | `WindowsCrash`, `CrashSuppressor` | Windows-only adapter; WinForms exception hooking is explicit and process-idempotent | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
+| [Diagnostics.Windows](docs/modules/Diagnostics/REFERENCE.md#nekolibdiagnosticswindows) | `WindowsCrash`, `CrashSuppressor` | Explicit WinForms process hook and scoped WPF dispatcher hook | build directly plus `NekoLib.Diagnostics.Tests.Unit` |
 | [HTTP](docs/modules/Http/REFERENCE.md) | `HttpEndpoint`, `HttpApiCatalog`, `RelativeUriBuilder`, `HttpApiClient` | Consumer owns `HttpClient`, authentication and policy; non-success protocol evidence is preserved and response buffering is bounded | `NekoLib.Http.Tests.Unit` |
 | [Data](docs/modules/Data/REFERENCE.md) | `QueryBuilder`, `DatabaseGateway`, `QueryExecutionContext`, `DbSession` | Raw identifiers/clauses remain a caller trust boundary; OleDb binding is positional | `NekoLib.Data.Tests.Unit` |
 | [Mvvm](docs/modules/Mvvm/REFERENCE.md) | `ViewModelBase`, `RelayCommand`, `RelayCommand<T>` | Binding helpers only; no application host or navigation dependency; coercion needs an exact runtime type match and `Execute` does not consult `CanExecute` | `NekoLib.Mvvm.Tests.Unit` |
@@ -237,6 +239,9 @@ preserve source provenance, immutable package hashes, validation results and
 evidence boundaries; publication uses a manually dispatched trusted-publishing
 workflow. Align every NekoLib reference to the same family version.
 
+The [upcoming 2.0.0 release notes](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/release-notes-2.0.0.md)
+list the four removed QueryBuilder overloads and the steps for rebuilding consumers.
+
 The [desktop integration contract](docs/desktop-readiness-1.2.0.md) describes
 the 1.2 additions and compatibility decisions. The
 [modal binding correction](docs/desktop-readiness-1.2.1.md) records the desktop
@@ -289,59 +294,54 @@ Project references become NuGet dependencies, so an application normally
 references only its top-level modules. For example,
 `NekoLib.Navigation.WinForms` brings Navigation and Core transitively.
 
-`NekoLib.Watchdog.Host` is a deployment package rather than a compile-time
-library. Reference it directly from the executable project; deployment does not
-flow through wrapper packages. On build and
-publish it copies an isolated sidecar to:
-
-```text
-<application output>/NekoLib.Watchdog.Host/NekoLib.Watchdog.Host.exe
-```
-
-That subdirectory is owned by the package and replaced on each build/publish so
-obsolete files from an older Host payload cannot survive an upgrade.
-
-The package carries an AnyCPU `net481` payload plus framework-dependent
-`win-x86` and `win-x64` .NET 9 payloads. Selection follows
-`NekoLibWatchdogHostRid`, `RuntimeIdentifier`, then `PlatformTarget`, defaulting
-to `win-x64`. Set `NekoLibWatchdogHostDeploy=false` to disable deployment. A
-.NET 9 Host still requires the corresponding x86 or x64 .NET 9 Runtime on the
-target machine.
-
-Call the application-side bootstrap near the beginning of `Main`, passing the
-original arguments:
-
-```csharp
-static void Main(string[] args)
-{
-    WatchdogBootstrap.EnsureStarted(args);
-    // normal application startup
-}
-```
-
-The first call starts the deployed sidecar, attaches it to the current PID, and
-waits for a bounded PID/token handshake over the target-specific pipe. The first
-application process keeps its existing parent; after it exits, the Host uses the
-normal restart path and becomes the parent of subsequent instances. Restarted
-instances receive `NEKO_UNDER_WATCHDOG=1`, so the bootstrap returns immediately
-instead of recursively starting another Host. If a Watchdog already answers on
-the same target pipe and confirms the current PID, no second Host is started. A
-conflicting supervised PID fails clearly instead of being mistaken for a valid
-handoff. Lock wait, preflight, pipe I/O and readiness confirmation share the one
-bounded timeout supplied to `EnsureStarted`.
-
-The coordinated library and Host use internal protocol v1 and must be updated
-together. Bootstrap checks the version before accepting the versioned
-`attached:v1:<pid>:<token>` identity. A stale or independently copied Host fails
-with an incompatible-protocol diagnostic. Explicit working directories must
-already exist. Fatal Host startup evidence is bounded under
-`%LOCALAPPDATA%\NekoLib\Watchdog\watchdog-host-fatal.log`; see the
-[Host technical reference](docs/modules/WatchdogHost/REFERENCE.md).
-
 The package-consumer probes live under `tests/NekoLib.PackageConsumers/` and
 cover single- and multi-target WinForms plus WPF without any `ProjectReference`.
 They are not part of `NekoLib.sln`, because a normal source build must not
 require packages to have been produced first.
+
+### Automatic Watchdog startup
+
+For a C# WinForms or WPF executable, reference `NekoLib.Watchdog` directly and
+enable automatic startup in the application project. Set the MSBuild property
+`NekoLibFamilyVersion` in your project or `Directory.Build.props` to the exact
+family version you consume (for example, `1.4.0` for that release). For local
+2.0 qualification use the exact 2.0 candidate version from your feed.
+
+```xml
+<PropertyGroup>
+  <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
+  <NekoLibWatchdogHostingMode>SameExecutable</NekoLibWatchdogHostingMode>
+</PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibFamilyVersion)" />
+</ItemGroup>
+```
+
+Rebuild and launch the application's `.exe`. `SameExecutable` is the default
+hosting mode. Its supervisor is a second, headless process of the application
+executable. The generated entry point handles supervisor invocations before
+application startup and routes ordinary launches to the existing entry point.
+Supervision activates at the first supported native-loop callback. Installing
+the package alone leaves automatic startup disabled.
+
+This mode requires only the managed Watchdog package and its build/analyzer
+assets.
+The [Watchdog integration reference](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/modules/Watchdog/REFERENCE.md#automatic-application-startup)
+owns compiler requirements, optional configuration, UI-hang recovery defaults,
+and the global Enable/Disable/Shutdown controls.
+
+### Optional Watchdog sidecar
+
+Applications choosing `NekoLibWatchdogHostingMode=Sidecar` directly reference
+`NekoLib.Watchdog.Host` at the same family version. Its build/publish targets
+deploy the selected payload to `<application output>/NekoLib.Watchdog.Host/`.
+See the [Host deployment reference](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/modules/WatchdogHost/REFERENCE.md#installation-and-ownership)
+for architecture selection, runtime requirements and the coordinated protocol.
+
+The [manual sidecar route](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/modules/Watchdog/REFERENCE.md#manual-sidecar-startup)
+calls `WatchdogBootstrap.EnsureStarted(args)` near the beginning of `Main`,
+with automatic entry routing disabled. Automatic startup uses the generated
+entry point in either hosting mode.
 
 ## Module map
 

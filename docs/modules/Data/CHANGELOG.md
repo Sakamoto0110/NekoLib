@@ -24,6 +24,21 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Data-specific consumer impact without duplicating
 package hashes or treating local candidates as public releases.
 
+## Unreleased
+
+**Packages:** `NekoLib.Data`
+
+**Compatibility class:** breaking, targeting `2.0.0`
+
+**Consumer impact:** Four QueryBuilder overloads deprecated in `1.1.0` are removed on both targets. Migrate source callers and rebuild every binary that references a removed member.
+
+**Migration:** [QueryBuilder migration guide](migrations/querybuilder-structured-api.md)
+
+- Replace `InsertInto(string, Dictionary<string, object?>)` with `InsertInto(...).Value(...)`.
+- Replace `Update(string, Dictionary<string, object?>)` with `Update(...).Set(...)`.
+- Replace `Where(string, params object[])` with structured `Where(...)` or `WhereTrusted(...)`.
+- Replace `Join(string, string, string)` with `JoinOn(...)` or `JoinTrusted(...)`.
+
 ## 1.1.0
 
 **Packages:** `NekoLib.Data`

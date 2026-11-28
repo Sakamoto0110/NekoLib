@@ -3,7 +3,8 @@
     /// <summary>
     /// Dump-content requests passed unchanged to the configured writer. Values
     /// are not cumulative; the platform writer defines their exact mapping.
-    /// Keep MiniDumpNormal as the conservative default for field machines.
+    /// The default requested level is MiniDumpNormal. Dump generation requires
+    /// an explicitly configured <see cref="CrashHandlerOptions.DumpWriter"/>.
     /// </summary>
     public enum CrashDumpLevel
     {

@@ -24,6 +24,16 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Inspection-specific consumer impact without
 duplicating package hashes or release provenance.
 
+## Unreleased
+
+**Packages:** `NekoLib.Inspection`
+
+**Compatibility class:** bug fix, targeting `2.0.0`
+
+**Consumer impact:** Once a provider times out, `CaptureSnapshot` skips all remaining callbacks and records a timeout marker for each remaining provider. See [INSP-ISSUE-001](ISSUES.md#insp-issue-001) for the affected 1.x behavior.
+
+**Migration:** none
+
 ## 1.1.0
 
 **Packages:** `NekoLib.Inspection`

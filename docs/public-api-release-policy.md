@@ -331,3 +331,27 @@ publication, independent signed downloads and isolated four-way native package
 qualification. UI message responsiveness is distinct from the existing process
 heartbeat and from business-operation or all-worker health. Align the complete
 family; optional Sidecar requires a direct same-version Host reference.
+
+## Upcoming major family
+
+The owner opened the `2.0.0` API window on 2026-11-27 and authorized removal of
+four QueryBuilder overloads deprecated in `1.1.0`. The working Data manifests
+now accept those four removals on both targets. Existing `1.x` package bytes
+retain their release-specific contracts.
+
+Source callers migrate to `Value`, `Set`, structured `Where` or `WhereTrusted`,
+and `JoinOn` or `JoinTrusted`. Binaries compiled against a removed member
+require source migration and a rebuild. The
+[migration guide](modules/Data/migrations/querybuilder-structured-api.md) owns
+the exact signatures and examples.
+
+The [family changelog](../CHANGELOG.md#unreleased) records the unreleased
+`2.0.0` scope. Navigation multi-host is deferred to a future major window
+in the [roadmap](../ROADMAP.md).
+Public release qualification and publication remain separate from local
+implementation and disposable package validation.
+
+The [2.0 regression matrix](../tests/README.md#20-regression-coverage) maps each
+changed contract to its versioned tests. The canonical package gate also
+compiles each retired QueryBuilder call independently against the produced
+package on both targets and checks the expected compiler rejection.

@@ -114,3 +114,38 @@ guides, runtime procedures, or release records that own the detailed evidence.
   verified without changing the accepted Data API manifests.
 
 **Evidence:** [`../../stable-release-1.1.0.md`](../../stable-release-1.1.0.md), [`../../history/release-1.1.0-2026-08-31.md`](../../history/release-1.1.0-2026-08-31.md)
+
+## 2026-11-27 — DATA-HISTORY-009 — Deprecated builder overloads retired
+
+**Release:** `2.0.0` planned, unreleased
+
+- The owner opened the major API window and extended `NEKOMKT-F026` from the
+  original Join retirement to all four overloads deprecated in `1.1.0`.
+  The original accepted scope remains preserved in the
+  [external-consumer intake](../../audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md).
+- Removed dictionary-based `InsertInto` and `Update`, condition-template
+  `Where`, and string-typed `Join` on both targets. Repository callers migrated
+  to `Value`, `Set`, structured/trusted predicates and joins.
+- The two Data API baselines contain exactly those four member removals and
+  their obsolete attributes. Full-family tests, all 30 API comparisons, a new
+  disposable package family and four package-only desktop consumers pass.
+- The local candidate is `2.0.0-local.1`, produced from the authorized working
+  tree with `-AllowDirty`. Public release qualification and publication remain
+  pending.
+
+**Evidence:** [migration guide](migrations/querybuilder-structured-api.md), [local qualification](VALIDATIONS.md#data-valevid-20261127-001), [family changelog](../../../CHANGELOG.md#unreleased)
+
+## 2026-11-28 — DATA-HISTORY-010 — Major regression qualification expanded
+
+**Release:** `2.0.0-local.2`, disposable qualification for the unreleased major
+
+- Added package-reference compiler regressions for each retired overload on
+  both targets. The baseline fixture compiles and all eight legacy calls
+  produce the expected rejection independently.
+- Expanded migration tests for parameter values, nulls and supported join
+  types. The coordinated family passes 1,917 tests and 30 API comparisons.
+- The complete package flow passes the four native consumers, 24 recovery cases
+  and 144 automatic-bootstrap cases, retaining the local package set and logs.
+  Clean-source release provenance and public distribution remain pending.
+
+**Evidence:** [regression matrix](../../../tests/README.md#20-regression-coverage), [full local qualification](VALIDATIONS.md#data-valevid-20261128-001)

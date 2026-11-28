@@ -172,28 +172,20 @@ namespace NekoLib.PackageConsumers
                         .AllowDecayFallback(formattedFallback));
         }
 
-#pragma warning disable CS0618
-        private static void CompileDeprecatedDataSurface()
+        private static void CompileMigratedDataSurface()
         {
-            _ = new NekoLib.Data.Query.QueryBuilder().InsertInto(
-                "Rows",
-                new System.Collections.Generic.Dictionary<string, object?>
-                {
-                    { "Id", 1 }
-                });
-            _ = new NekoLib.Data.Query.QueryBuilder().Update(
-                "Rows",
-                new System.Collections.Generic.Dictionary<string, object?>
-                {
-                    { "Id", 1 }
-                });
+            _ = new NekoLib.Data.Query.QueryBuilder()
+                .InsertInto("Rows")
+                .Value("Id", 1);
+            _ = new NekoLib.Data.Query.QueryBuilder()
+                .Update("Rows")
+                .Set("Id", 1);
             _ = new NekoLib.Data.Query.QueryBuilder()
                 .Select("Id")
                 .From("Rows")
-                .Join("OtherRows", "OtherRows.Id = Rows.Id")
-                .Where("Rows.Id = @p1", 1);
+                .JoinOn("OtherRows", "OtherRows.Id", "Rows.Id")
+                .Where("Rows.Id", NekoLib.Data.Query.QueryOperator.Equal, 1);
         }
-#pragma warning restore CS0618
 
         private sealed class PackageDataRow
         {

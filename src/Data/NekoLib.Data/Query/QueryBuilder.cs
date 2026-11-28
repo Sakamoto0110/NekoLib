@@ -294,19 +294,6 @@ namespace NekoLib.Data.Query
             return AddTrustedJoin(Table, OnExpression, GetSqlJoinType(Type));
         }
 
-        /// <summary>
-        /// Adds a join assembled from trusted table, ON-expression, and join-type fragments.
-        /// </summary>
-        [Obsolete(
-            "This overload is retained for compatibility and will be removed in the next major version. Use JoinOn(string, string, string, QueryJoinType) or JoinTrusted(string, string, QueryJoinType) instead.",
-            error: false)]
-        public QueryBuilder Join(string Table, string OnExpression, string Type = "INNER")
-        {
-            RequireQueryType(QueryType.Select, nameof(Join));
-            AddTrustedJoin(Table, OnExpression, Type);
-            return this;
-        }
-
         private QueryBuilder AddTrustedJoin(string table, string onExpression, string type)
         {
             _joins.Add(type + " JOIN " + table + " ON " + onExpression);
@@ -316,18 +303,6 @@ namespace NekoLib.Data.Query
         #endregion
 
         #region WHERE
-
-        /// <summary>
-        /// Adds a trusted condition template and parameterizes only canonical
-        /// <c>@p1</c>, <c>@p2</c>, ... placeholders outside literals and comments.
-        /// </summary>
-        [Obsolete(
-            "This overload is retained for compatibility and will be removed in the next major version. Use Where(string, QueryOperator, object) or WhereTrusted(string, params object[]) instead.",
-            error: false)]
-        public QueryBuilder Where(string Condition, params object[] Values)
-        {
-            return WhereTrusted(Condition, Values);
-        }
 
         /// <summary>
         /// Adds a structured predicate for a trusted column fragment and a
@@ -732,26 +707,6 @@ namespace NekoLib.Data.Query
         }
 
         /// <summary>
-        /// Starts an INSERT statement with trusted table and column names and
-        /// parameterized values.
-        /// </summary>
-        [Obsolete(
-            "This overload is retained for compatibility and will be removed in the next major version. Use InsertInto(string).Value(string, object) instead.",
-            error: false)]
-        public QueryBuilder InsertInto(string Table, Dictionary<string, object?> Values)
-        {
-            InsertInto(Table);
-
-            if (Values != null)
-            {
-                foreach (KeyValuePair<string, object?> kv in Values)
-                    Value(kv.Key, kv.Value);
-            }
-
-            return this;
-        }
-
-        /// <summary>
         /// Starts an UPDATE statement for a trusted table fragment.
         /// </summary>
         public QueryBuilder Update(string Table)
@@ -783,26 +738,6 @@ namespace NekoLib.Data.Query
             _updateValues[Column] = new PendingLogicalValue(
                 Value,
                 CreateLogicalParameterOptions(Value, Configure));
-            return this;
-        }
-
-        /// <summary>
-        /// Starts an UPDATE statement with trusted table and column names and
-        /// parameterized values.
-        /// </summary>
-        [Obsolete(
-            "This overload is retained for compatibility and will be removed in the next major version. Use Update(string).Set(string, object) instead.",
-            error: false)]
-        public QueryBuilder Update(string Table, Dictionary<string, object?> Values)
-        {
-            Update(Table);
-
-            if (Values != null)
-            {
-                foreach (KeyValuePair<string, object?> kv in Values)
-                    Set(kv.Key, kv.Value);
-            }
-
             return this;
         }
 

@@ -20,17 +20,22 @@
 
 **Affected package:** `NekoLib.Data`
 
-**Affected release:** `1.1.0`
+**Affected release:** `1.1.0` introduction, `2.0.0` removal (unreleased)
 
 **Indexing:** include
 
-**Reference date:** 2026-08-27
+**Reference date:** 2026-11-27
 
-The current contract is owned by the [Data technical reference](../REFERENCE.md).
+The [Data technical reference](../REFERENCE.md) owns the current contract.
+See the [upcoming 2.0.0 release notes](../../../release-notes-2.0.0.md) and
+the [family changelog](../../../../CHANGELOG.md#unreleased) for the upgrade's
+impact on other packages.
 
-`QueryBuilder` now separates ordinary structured calls from explicitly trusted
-SQL fragments. The new APIs are additive. Replaced overloads remain callable
-with warning-only `Obsolete` markers and will not be removed before `2.0.0`.
+`1.1.0` introduced structured calls and explicitly trusted SQL fragments,
+with warning-only deprecations for four replaced overloads throughout `1.x`.
+The `2.0.0` source removes those overloads on both targets. Update source
+callers as shown below and rebuild consuming binaries before upgrading.
+The before-migration examples show the removed `1.x` API.
 
 ## INSERT and UPDATE values
 
@@ -72,6 +77,23 @@ Repeated `Value` or `Set` calls for the same column retain only the last value,
 matching the former dictionary assignment behavior. Repeated `Build()` calls
 remain idempotent.
 
+For values supplied as a dictionary at runtime, enumerate it into the builder:
+
+```csharp
+var insert = new QueryBuilder().InsertInto("Inventory");
+foreach (var entry in values)
+    insert.Value(entry.Key, entry.Value);
+
+var update = new QueryBuilder().Update("Inventory");
+foreach (var entry in values)
+    update.Set(entry.Key, entry.Value);
+update.Where("Id", QueryOperator.Equal, id);
+```
+
+The removed overloads accepted a null dictionary as an empty value collection.
+If the application allows null, skip enumeration in that case and keep the
+builder's existing empty-statement and unconstrained-update validation.
+
 ## Structured predicates
 
 Use `Where(column, operator, value)` for ordinary comparisons. Supported
@@ -97,8 +119,10 @@ builder.WhereTrusted(
 ```
 
 `WhereTrusted` retains the canonical `@p1`, `@p2`, ... template validation and
-parameterization behavior of the former overload. The condition text itself is
-trusted SQL and must not contain untrusted input.
+parameterization behavior of the former overload. Renaming a call from
+`Where("Id = @p1", id)` to `WhereTrusted("Id = @p1", id)` preserves that
+template behavior. The condition text itself is trusted SQL and must not
+contain untrusted input.
 
 ## Joins
 
@@ -122,20 +146,32 @@ builder.JoinTrusted(
     QueryJoinType.Inner);
 ```
 
-## Compatibility window
+Both replacements take `QueryJoinType` instead of the legacy join-type string.
+If the old call omitted `Type`, keep the default inner join by omitting it
+from the replacement. For example, `Join("Warehouses w", "w.Id = Inventory.WarehouseId")`
+becomes `JoinOn("Warehouses w", "w.Id", "Inventory.WarehouseId")`. To reuse
+the same trusted SQL expression, call `JoinTrusted("Warehouses w", "w.Id = Inventory.WarehouseId")`.
+Map `INNER`, `LEFT`, `RIGHT`, and `FULL` to `Inner`, `Left`, `Right`,
+and `Full`. `LEFT OUTER`, `RIGHT OUTER`, and `FULL OUTER` map to those same
+outer join values. Provider-specific join types outside that enum require the gateway's
+[raw SQL surface](../REFERENCE.md#raw-sql-and-explicit-parameter-binding).
 
-These overloads remain binary and source compatible but now emit a compiler
-warning with their concrete replacements:
+## Completed compatibility window
+
+These overloads emitted warning-only deprecations starting in the released
+`1.1.0` family. They are removed from the upcoming `2.0.0` family:
 
 | Deprecated overload | Canonical replacement |
 |---|---|
-| `InsertInto(string, Dictionary<string, object?>)` | `InsertInto(string).Value(...)` |
-| `Update(string, Dictionary<string, object?>)` | `Update(string).Set(...)` |
-| `Where(string, params object[])` | structured `Where(...)` or `WhereTrusted(...)` |
-| `Join(string, string, string)` | `JoinOn(...)` or `JoinTrusted(...)` |
+| `InsertInto(string Table, Dictionary<string, object?> Values)` | `InsertInto(Table).Value(...)` |
+| `Update(string Table, Dictionary<string, object?> Values)` | `Update(Table).Set(...)` |
+| `Where(string Condition, params object[] Values)` | structured `Where(...)` or `WhereTrusted(Condition, Values)` |
+| `Join(string Table, string OnExpression, string Type = "INNER")` | `JoinOn(...)` or `JoinTrusted(...)` |
 
-The attributes use `error: false`. They remain for at least one released minor
-and may be removed only in `2.0.0` or later.
+The warning-only window spanned the released `1.x` minors before this major.
+An existing binary compiled against a removed member also needs a source
+migration and rebuild. The coordinated `2.0.0` family stays unreleased until
+its release qualification and publication complete.
 
 ## Provider binding boundary
 

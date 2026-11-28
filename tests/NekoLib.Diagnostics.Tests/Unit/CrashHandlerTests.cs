@@ -14,6 +14,68 @@ namespace NekoLib.Diagnostics.Tests.Unit
     public sealed class CrashHandlerTests
     {
         [Fact]
+        public void ReportExternalCrash_DefaultOptions_WriteCrashTextWithoutAMinidump()
+        {
+            var root = NewTempRoot();
+            try
+            {
+                using var handler = new CrashHandler(new CrashHandlerOptions { CrashRootDirectory = root });
+                CrashBundleWrittenEventArgs bundle = null;
+                handler.CrashBundleWritten += (_, result) => bundle = result;
+                handler.Install();
+
+                CrashHandler.ReportExternalCrash("unit-test", new InvalidOperationException("default bundle"), false);
+
+                Assert.NotNull(bundle);
+                Assert.Contains("default bundle", File.ReadAllText(bundle.CrashTextPath));
+                Assert.False(bundle.DumpWritten);
+                Assert.False(File.Exists(Path.Combine(bundle.BundleDirectory, "crash.dmp")));
+            }
+            finally
+            {
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
+        public void ReportExternalCrash_ConfiguredWriter_IsCapturedAndWritesRequestedArtifact()
+        {
+            var root = NewTempRoot();
+            try
+            {
+                CrashDumpLevel? capturedLevel = null;
+                var options = new CrashHandlerOptions
+                {
+                    CrashRootDirectory = root,
+                    DumpWriter = (path, level) =>
+                    {
+                        capturedLevel = level;
+                        File.WriteAllText(path, "fixture artifact");
+                        return true;
+                    }
+                };
+                using var handler = new CrashHandler(options);
+                options.DumpLevel = CrashDumpLevel.WithFullMemory;
+                options.DumpWriter = (_, __) => throw new InvalidOperationException("mutated writer");
+                CrashBundleWrittenEventArgs bundle = null;
+                handler.CrashBundleWritten += (_, result) => bundle = result;
+                handler.Install();
+
+                CrashHandler.ReportExternalCrash("unit-test", new InvalidOperationException("configured writer"), false);
+
+                Assert.NotNull(bundle);
+                Assert.True(bundle.DumpWritten);
+                Assert.Equal(CrashDumpLevel.MiniDumpNormal, capturedLevel);
+                Assert.Equal("fixture artifact", File.ReadAllText(bundle.DumpPath));
+                Assert.True(File.Exists(bundle.CrashTextPath));
+            }
+            finally
+            {
+                TryDelete(root);
+            }
+        }
+
+        [Fact]
         public void CrashDetectedSubscriberFailure_DoesNotPreventCrashArtifacts()
         {
             var root = Path.Combine(Path.GetTempPath(), "nekolib-diagnostics-test-" + Guid.NewGuid().ToString("N"));

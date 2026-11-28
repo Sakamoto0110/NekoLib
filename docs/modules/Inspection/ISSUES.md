@@ -34,22 +34,22 @@ historical
 
 ## INSP-ISSUE-001
 
-**Status:** confirmed
+**Status:** fixed
 
 **Severity:** low
 
-**Affected releases:** `1.0.0`, and the current source baseline
+**Affected releases:** reported in `1.0.0` and still open in the `1.4.0` release record
 
-**Symptom:** `CaptureSnapshot` can admit and invoke a state provider after its shared completion budget has already been consumed, so a provider that the documented contract says must be skipped with `<snapshot timed out>` instead runs and its value is recorded. The focused regression `CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders` fails intermittently for this reason, which also makes the Inspection suite non-deterministic.
+**Symptom:** `CaptureSnapshot` could invoke a later provider after an earlier wait exhausted the shared budget. The regression `CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders` intermittently observed a provider value where it expected `<snapshot timed out>`.
 
-**Trigger:** A provider that exhausts the budget by a sub-millisecond margin, with at least one later registered provider. `Task.Wait(remaining)` reports the timeout while the capture stopwatch has not yet crossed the nominal deadline, so the next iteration's `remaining <= TimeSpan.Zero` guard is still satisfied and the next provider is admitted.
+**Trigger:** A provider wait reported a timeout while the stopwatch still showed a positive fraction of a millisecond remaining. The loop consulted the stopwatch again and admitted the next provider.
 
-**Evidence:** Observed three times in 35 focused-suite runs across both targets on 2026-08-29 at working-tree source based on `ac3da3dccb7be57230bae3de377109c617552af8`. One failure was captured with a TRX logger and positively identified: `NekoLib.Inspection.Tests.Unit.InspectionRuntimeTests.CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders`, `tests/NekoLib.Inspection.Tests/Unit/InspectionRuntimeTests.cs:279`, `Assert.Equal() Failure: Expected: <snapshot timed out>, Actual: 2`. Two further single-test failures with the same signature were observed but not captured by name. The mechanism is visible in `InspectionRuntime.CaptureSnapshot`, which uses `continue` after a timed-out wait and relies on the next iteration's remaining-budget guard to stop admission.
+**Evidence:** The [original regression record](VALIDATIONS.md#insp-valevid-20260829-002) preserves the 35 runs and the captured assertion. The [fix verification](VALIDATIONS.md#insp-valevid-20261127-001) covers both targets.
 
-**Workaround:** None is needed for safety. The admitted provider receives only the residual budget, so the capture is not meaningfully unbounded, and a snapshot that contains a real provider value instead of a timeout marker is not worse evidence. A consumer that requires the skip to be deterministic can register at most one provider capable of exhausting the budget.
+**Workaround:** On affected 1.x releases, even one slow provider can time out and allow a subsequent fast callback to run. If deterministic skipping is essential, limit the snapshot to one registered provider. With multiple providers, callbacks must tolerate invocation after another provider times out.
 
-**Intended fix:** None accepted. The structurally identical defect in `Logger.Flush` was corrected in `d6f2efdbe99f4a827293cdf4e8ed27c4096d134a` by distinguishing a timed-out result from a failed one and returning immediately on exhaustion rather than relying on the next iteration's guard; the same shape would apply here. That is a recorded parallel, not an accepted decision.
+**Intended fix:** Treat the first timed-out wait as budget exhaustion for the rest of that capture. Record a timeout marker for every remaining provider.
 
-**Fix release:** none
+**Fix release:** planned for 2.0.0, unreleased
 
-**Roadmap:** Not promoted. This documentation review is read-only with respect to product code, so no fix was implemented and nothing was added to [`TODO.md`](../../../TODO.md). Promotion requires an accepted decision by the owner. The qualifying requirement that this defect fails is [`INSP-VALREQ-005`](VALIDATION_REQUIREMENTS.md).
+**Roadmap:** Fix implemented for [`INSP-VALREQ-005`](VALIDATION_REQUIREMENTS.md#insp-valreq-005).

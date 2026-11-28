@@ -24,6 +24,16 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Navigation-specific consumer impact without
 duplicating package hashes or release provenance.
 
+## Unreleased
+
+**Packages:** `NekoLib.Navigation`
+
+**Compatibility class:** diagnostic message change, targeting `2.0.0`
+
+**Consumer impact:** Errors for accessing an unmounted context or attempting a second bootstrap now name the lifecycle calls. Mount with `PageNavBootstrap.Start()` and await `NavigationService.Shutdown()` before mounting a new context.
+
+**Migration:** none
+
 ## 1.1.0
 
 **Packages:** `NekoLib.Navigation`, `NekoLib.Navigation.WinForms`, `NekoLib.Navigation.Wpf`

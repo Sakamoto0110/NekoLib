@@ -543,13 +543,6 @@ namespace NekoLib.Data.Query
         public NekoLib.Data.Query.QueryBuilder From(string Table) { }
         public NekoLib.Data.Query.QueryBuilder GroupBy(params string[] Columns) { }
         public NekoLib.Data.Query.QueryBuilder InsertInto(string Table) { }
-        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
-            " version. Use InsertInto(string).Value(string, object) instead.", false)]
-        public NekoLib.Data.Query.QueryBuilder InsertInto(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
-        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
-            " version. Use JoinOn(string, string, string, QueryJoinType) or JoinTrusted(strin" +
-            "g, string, QueryJoinType) instead.", false)]
-        public NekoLib.Data.Query.QueryBuilder Join(string Table, string OnExpression, string Type = "INNER") { }
         public NekoLib.Data.Query.QueryBuilder JoinOn(string Table, string LeftColumn, string RightColumn, NekoLib.Data.Query.QueryJoinType Type = 0) { }
         public NekoLib.Data.Query.QueryBuilder JoinOn(string Table, string LeftColumn, NekoLib.Data.Query.QueryOperator Operator, string RightColumn, NekoLib.Data.Query.QueryJoinType Type = 0) { }
         public NekoLib.Data.Query.QueryBuilder JoinTrusted(string Table, string OnExpression, NekoLib.Data.Query.QueryJoinType Type = 0) { }
@@ -560,15 +553,8 @@ namespace NekoLib.Data.Query
         public NekoLib.Data.Query.QueryBuilder Set(string Column, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
         public NekoLib.Data.Query.QueryBuilder Top(int N) { }
         public NekoLib.Data.Query.QueryBuilder Update(string Table) { }
-        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
-            " version. Use Update(string).Set(string, object) instead.", false)]
-        public NekoLib.Data.Query.QueryBuilder Update(string Table, System.Collections.Generic.Dictionary<string, object?> Values) { }
         public NekoLib.Data.Query.QueryBuilder Value(string Column, object? Value) { }
         public NekoLib.Data.Query.QueryBuilder Value(string Column, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
-        [System.Obsolete("This overload is retained for compatibility and will be removed in the next major" +
-            " version. Use Where(string, QueryOperator, object) or WhereTrusted(string, param" +
-            "s object[]) instead.", false)]
-        public NekoLib.Data.Query.QueryBuilder Where(string Condition, params object[] Values) { }
         public NekoLib.Data.Query.QueryBuilder Where(string Column, NekoLib.Data.Query.QueryOperator Operator, object? Value) { }
         public NekoLib.Data.Query.QueryBuilder Where(string Column, NekoLib.Data.Query.QueryOperator Operator, object? Value, System.Action<NekoLib.Data.Query.LogicalParameterOptions>? Configure) { }
         public NekoLib.Data.Query.QueryBuilder WhereBetween(string Column, object Start, object End) { }

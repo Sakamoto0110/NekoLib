@@ -20,6 +20,11 @@ namespace NekoLib.Navigation
     /// </summary>
     public static partial class NavigationService
     {
+        private const string NotMountedMessage =
+            "NavigationService is not mounted. Call PageNavBootstrap.Start() " +
+            "to mount a NavigationContext before using navigation, and await " +
+            "NavigationService.Shutdown() before mounting a new one.";
+
         private static NavigationContext? _context;
         private static NavigationRuntime? _runtime;
         private static IDisposable? _observationLifetime;
@@ -63,8 +68,7 @@ namespace NekoLib.Navigation
         private static NavigationContext EnsureContext()
         {
             if (_context == null)
-                throw new InvalidOperationException(
-                    "NavigationService.UseContext must be called first.");
+                throw new InvalidOperationException(NotMountedMessage);
             return _context;
         }
 
@@ -149,7 +153,8 @@ namespace NekoLib.Navigation
                 else if (_context != null)
                 {
                     mountError = new InvalidOperationException(
-                        "NavigationService.UseContext called twice without Shutdown().");
+                        "NavigationService is already mounted. Await NavigationService.Shutdown() " +
+                        "before calling PageNavBootstrap.Start() again.");
                 }
                 else
                 {
@@ -462,10 +467,7 @@ namespace NekoLib.Navigation
                         "NavigationService is shutting down and cannot accept new operations.");
 
                 if (_runtime == null)
-                    throw new InvalidOperationException(
-                        "NavigationService is not mounted. Call PageNavBootstrap.Start() " +
-                        "to mount a NavigationContext before using navigation, and await " +
-                        "NavigationService.Shutdown() before mounting a new one.");
+                    throw new InvalidOperationException(NotMountedMessage);
 
                 _activeRuntimeOperations++;
                 return new RuntimeLease(_runtime);

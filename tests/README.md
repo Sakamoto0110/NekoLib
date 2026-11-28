@@ -41,7 +41,7 @@ isolation, or its canonical command materially differ.
 | `NekoLib.Pipes.Tests/Unit` | unit + integration | real named-pipe IPC in-process | net481, net9.0-windows |
 | `NekoLib.Telemetry.Tests/Unit` | unit | none | net481, net9.0 |
 | `NekoLib.Watchdog.Tests/Unit` | unit + integration/functional | temporary filesystem, named-pipe RPC, and controlled child processes | net481, net9.0-windows |
-| `NekoLib.PackageConsumers/` | package probe | fresh local packages, restore graph, WinForms/WPF build targets, direct-only Host deployment, and packaged Host protocol startup | net481 and/or net9.0-windows per probe |
+| `NekoLib.PackageConsumers/` | package probe | fresh local packages, restore graph, compiler rejection, WinForms/WPF build targets, direct-only Host deployment, and packaged Host protocol startup | net481, net9.0, net9.0-windows per probe |
 
 All `NekoLib.*.Tests/Unit` projects above belong to `NekoLib.sln`.
 `NekoLib.PackageConsumers/` deliberately does not: a normal source build must
@@ -60,8 +60,8 @@ That OS binary is a declared Windows prerequisite; it is not stored under
 Whole solution:
 
 ```powershell
-dotnet build NekoLib.sln
-dotnet test NekoLib.sln
+dotnet build NekoLib.sln -c Release
+dotnet test NekoLib.sln -c Release -m:1 --no-build
 .\eng\verify-public-api.ps1
 ```
 
@@ -86,13 +86,32 @@ Package-consumer probes use the packaging entry point and a new immutable
 version:
 
 ```powershell
-.\eng\pack-local.ps1 -PackageVersion 1.0.0-local.<new-version>
+$packageVersion = Read-Host "Enter a new immutable package version"
+.\eng\pack-local.ps1 -PackageVersion $packageVersion
 ```
 
 Use `-AllowDirty` only with a disposable, previously unused version. The script
 builds and tests the solution, publishes the Watchdog Host payloads, packs the
 family, validates package structure, and restores/builds/runs the consumer
 probes.
+
+## 2.0 regression coverage
+
+The unreleased major includes focused regressions for each changed contract:
+
+| Contract | Regression coverage | Entry point |
+|---|---|---|
+| Four retired QueryBuilder overloads | `LegacyOverloads_AreAbsentFromPublicSurface`, migrated INSERT/UPDATE parameter values, dictionary/null migration and every supported structured/trusted join type | Data focused suite on both targets |
+| Consumer source migration | `DataLegacyOverloads` builds with the packaged Data reference, then rejects each removed call independently on both targets with the expected compiler diagnostic | `eng/test-local-packages.ps1`, for family 2.0 or later |
+| Shared Inspection timeout | `CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders` checks every skipped callback and a fresh capture after release; the zero-budget regression checks that callbacks are never invoked | Inspection focused suite on both targets |
+| Public Navigation diagnostics | `ContextProperties_BeforeStartAndAfterShutdown_ReportPublicBootstrapGuidance` checks all four mounted properties; duplicate bootstrap checks the public shutdown/start guidance | Navigation focused suite on both targets |
+| Minidump opt-in and captured options | Default external-crash reports contain text without a dump; an explicitly supplied writer is captured at construction; the native writer with `None` produces no file | Diagnostics focused suite on both targets |
+
+The full package flow combines these checks with the four native desktop
+consumers and the existing recovery/bootstrap matrix. API manifests verify
+compiled signatures separately. The
+[release policy](../docs/public-api-release-policy.md) owns the clean-source
+qualification and publication boundary.
 
 ## Manual scenarios
 

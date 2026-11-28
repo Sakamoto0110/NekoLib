@@ -14,7 +14,28 @@ remain under `docs/history/`.
 
 ## Unreleased
 
-- No unreleased package changes.
+**Target release:** `2.0.0`
+
+See the [upcoming 2.0.0 release notes](docs/release-notes-2.0.0.md) for
+the removed signatures and upgrade steps.
+
+- `NekoLib.Data` removes four QueryBuilder overloads deprecated since `1.1.0`:
+  dictionary-based `InsertInto` and `Update`, condition-template `Where`, and
+  string-typed `Join`. Migrate to `Value`, `Set`, structured `Where` or
+  `WhereTrusted`, and `JoinOn` or `JoinTrusted`, then rebuild consumers.
+  This is a breaking source and binary change on both targets. See the
+  [migration guide](docs/modules/Data/migrations/querybuilder-structured-api.md).
+- `NekoLib.Navigation` directs callers to `PageNavBootstrap.Start()` and
+  `NavigationService.Shutdown()` when a mounted-context property is read
+  outside the active lifetime or a second bootstrap is attempted.
+- `NekoLib.Diagnostics` clarifies the existing crash-report defaults.
+  Folder writing is enabled by default and requires a configured
+  `CrashRootDirectory` for the text report. `DumpWriter` defaults to null.
+  Configure `UseMiniDump()` before constructing the handler to request a
+  native Windows dump.
+- `NekoLib.Inspection` fixes shared snapshot budgeting. After a provider times
+  out, the capture marks all remaining providers as timed out and skips their
+  callbacks. See the [Inspection issue](docs/modules/Inspection/ISSUES.md#insp-issue-001).
 
 ## 1.4.0 — compatible minor released 2026-11-24
 

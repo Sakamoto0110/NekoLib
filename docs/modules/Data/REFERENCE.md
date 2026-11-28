@@ -169,9 +169,10 @@ The canonical fluent convention is `InsertInto(table).Value(column, value)`,
 `Update(table).Set(column, value)`, structured
 `Where(column, QueryOperator, value)`, and `JoinOn(...)`. Use `WhereTrusted(...)`
 or `JoinTrusted(...)` only when a structured call cannot represent the required
-SQL. The former dictionary-based `InsertInto`/`Update`, condition-template
-`Where`, and raw-expression `Join` overloads remain warning-only compatibility
-shims until a future major release; current code should use the canonical APIs.
+SQL. The `2.0.0` source removes the dictionary-based `InsertInto`/`Update`,
+condition-template `Where`, and string-typed `Join` overloads that were
+deprecated in `1.1.0`. Migrate callers to the canonical APIs and rebuild
+consuming binaries when upgrading from `1.x`.
 
 ```csharp
 var insert = new QueryBuilder()
@@ -193,7 +194,7 @@ updates and deletes follow the fail-closed rules enforced by the builder.
 `AllowAllRowsUpdate()` and `AllowAllRowsDelete()` both default to disabled,
 apply only to the current statement, and are cleared on builder reuse. See the
 [structured QueryBuilder migration guide](migrations/querybuilder-structured-api.md)
-for replacements and the compatibility window.
+for replacements, collection-based migration and the completed deprecation window.
 
 OleDb binds by occurrence order, not parameter name. Automatic binding selects
 the positional binder for OleDb and named binding elsewhere. Do not reorder
@@ -595,7 +596,7 @@ The implementation seams and their consumer obligations are:
 | `IDbQueryTranslator` | A synchronous translator from provider-neutral `QueryModel` to `DatabaseQuery`. | The context retains but does not dispose it. Treat it as immutable/thread-safe after composition because concurrent builder operations may call it. | Preserve logical parameter identity, provenance, occurrence order, and `CommandPolicy`; return provider SQL without opening connections or executing. Translation failure stops before dispatch. Dialect correctness and raw-SQL paths remain consumer/provider responsibilities. |
 | `DbParameterSpec` and raw dictionaries | Explicit value and optional provider-neutral type/size/precision/scale/direction metadata keyed by logical placeholder name. | The caller owns the dictionary/specification and must not mutate it while an operation binds it; Data creates and disposes the physical parameters with the command. | Binding validates metadata, maps null to `DBNull`, and applies named or occurrence-ordered positional rules. Raw binding bypasses translation and schema adaptation; placeholder correctness, SQL trust, and provider-specific compatibility remain with the caller. |
 | `QueryBuilder` structured APIs | Trusted identifiers plus values supplied through `Value`, `Set`, structured `Where`, collection/range predicates, subqueries, and `JoinOn`. | One mutable builder belongs to its composing call chain; start a new statement to reuse it and do not mutate it concurrently. | Values become logical parameters; identifiers remain trusted SQL. Build-time validation fails closed for invalid state, empty collections, and unconstrained DML. The gateway owns cancellation only after execution begins. |
-| `QueryBuilder` trusted APIs | SQL fragments through `WhereTrusted`, `JoinTrusted`, raw projections/grouping/ordering, or compatibility overloads. | Same builder lifecycle as structured APIs. | Only recognized placeholders are parameterized; the fragment's grammar and identifiers are not validated or escaped. The consumer owns injection prevention and provider dialect correctness. |
+| `QueryBuilder` trusted APIs | SQL fragments through `WhereTrusted`, `JoinTrusted`, raw projections/grouping/ordering. | Same builder lifecycle as structured APIs. | Only recognized placeholders are parameterized; the fragment's grammar and identifiers are not validated or escaped. The consumer owns injection prevention and provider dialect correctness. |
 | `TypeValueConverter` in `TypePromotionRule` | An exact input-to-semantic conversion, registered on a logical builder value. | The rule is consumer-owned immutable configuration and should be registered before concurrent use; Data invokes it synchronously and does not dispose it. | The converter receives one non-null value and returns the declared target representation. Exceptions/overflow fail locally; promotion and loss policy still gate selection; no SQL, provider object, cancellation token, or ambient service is supplied. |
 | `TypeValueConverter` in `TypeDecayRule` | An exact semantic-to-provider representation candidate, normally attached to one builder value or registered as a known-profile automatic fallback. | Configure ordered candidates before concurrent use. Each candidate converts from the original semantic value. | Strict decay rejects fallback; potentially lossy decay needs the exact logical rule plus global loss opt-in. Data never dispatches one candidate and retries the mutation with another. |
 | `TypeValueConverter` in `TypeMaterializationRule` and `ReadTypeAdaptationRule` | A provider-value conversion and a DTO-property/optional-column binding. | Register automatic lossless rules or explicit property rules in options before concurrent use; mapping owns no consumer resource. | The target must match a public writable non-indexed property. Missing rules, conversion errors, and unauthorized loss remain failures even in lenient mapping; evidence excludes the source value. |

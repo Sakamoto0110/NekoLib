@@ -41,7 +41,11 @@ namespace NekoLib.Diagnostics
         /// <see cref="WriteCrashFolder"/> is <c>true</c> and is captured without creating it.
         /// </summary>
         public string? CrashRootDirectory { get; set; }
-        /// <summary>Gets or sets the requested dump level. The default is <see cref="CrashDumpLevel.MiniDumpNormal"/>.</summary>
+        /// <summary>
+        /// Gets or sets the level passed to a configured <see cref="DumpWriter"/>.
+        /// The default level is <see cref="CrashDumpLevel.MiniDumpNormal"/>.
+        /// Dump generation requires an explicitly configured writer.
+        /// </summary>
         public CrashDumpLevel DumpLevel { get; set; } = CrashDumpLevel.MiniDumpNormal;
 
         /// <summary>Gets or sets caller-owned file paths whose newest lines are copied into each bundle.</summary>

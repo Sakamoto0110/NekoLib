@@ -16,6 +16,40 @@ namespace NekoLib.Navigation.Tests.Unit
     [Collection("NavigationServiceFacade")]
     public class PageNavBootstrapLifetimeTests
     {
+        [Fact]
+        public async Task ContextProperties_BeforeStartAndAfterShutdown_ReportPublicBootstrapGuidance()
+        {
+            await NavigationService.Shutdown();
+            AssertUnmountedPropertyMessages();
+            try
+            {
+                var context = PageNavBootstrap.Use<TrackingPlatformAdapter>(new object()).Start();
+                Assert.Same(context.Session, NavigationService.Session);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+            AssertUnmountedPropertyMessages();
+        }
+
+        private static void AssertUnmountedPropertyMessages()
+        {
+            foreach (var read in new Func<object>[]
+            {
+                () => NavigationService.Session,
+                () => NavigationService.History,
+                () => NavigationService.CanGoBack,
+                () => NavigationService.Events
+            })
+            {
+                var error = Assert.Throws<InvalidOperationException>(read);
+                Assert.Contains("PageNavBootstrap.Start()", error.Message);
+                Assert.Contains("await NavigationService.Shutdown()", error.Message);
+                Assert.DoesNotContain("UseContext", error.Message);
+            }
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -90,7 +124,10 @@ namespace NekoLib.Navigation.Tests.Unit
                     .UseIdleTimeout(1_000);
                 var rejectedAdapter = TrackingPlatformAdapter.LastCreated;
 
-                Assert.Throws<InvalidOperationException>(() => second.Start());
+                var error = Assert.Throws<InvalidOperationException>(() => second.Start());
+                Assert.Contains("NavigationService.Shutdown()", error.Message);
+                Assert.Contains("PageNavBootstrap.Start()", error.Message);
+                Assert.DoesNotContain("UseContext", error.Message);
 
                 Assert.True(rejectedAdapter.Timer.IsDisposed);
                 Assert.True(rejectedAdapter.Observer.IsDisposed);

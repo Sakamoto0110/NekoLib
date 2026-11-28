@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-11-24
+**Last promotion decision:** 2026-11-27
 
 ## Purpose and admission rule
 
@@ -57,44 +57,17 @@ delivered policy, public evidence and remaining boundaries.
 [completion record](docs/history/watchdog-auto-bootstrap-2026-11-24.md) owns
 the integrated scope, published evidence and remaining boundaries.
 
-### `NEKOMKT-F026` — retire the legacy SQL-inverted QueryBuilder join overload
-
-**Status:** promoted; release and implementation gates closed.
-
-**Source:** external finding `F-026`, reconciled in the
-[`NekoMarketplace evidence intake`](docs/audit/nekomarketplace-external-consumer-evidence-intake-2026-08-26.md),
-the accepted
-[`Data QueryBuilder decision`](docs/modules/Data/audits/type-adaptation-querybuilder-api-review-2026-08-26.md),
-and the owner's direct promotion decision on 2026-08-27.
-
-**Accepted scope:** keep `JoinOn(...)` and `JoinTrusted(...)` as the canonical
-structured/trusted join surfaces, then remove only the warning-only legacy
-`Join(string Table, string OnExpression, string Type)` compatibility overload
-when its existing compatibility promise permits the breaking change. This entry
-does not reopen the completed QueryBuilder normalization design.
-
-**Dependencies and gates:**
-
-1. At least one released minor version must carry the current warning-only
-   `Obsolete` marker and concrete replacement guidance.
-2. A `2.0.0`-or-later public API window must be explicitly opened and reviewed.
-3. Receive separate implementation authorization after both release gates are
-   satisfied; changing the marker to `error: true` is removal-equivalent and is
-   not an early substitute.
-4. Preserve both target frameworks and the existing structured join semantics.
-
-**Completion criteria:**
-
-- the legacy overload is absent from source and both compiled public API
-  baselines only inside the authorized next-major window;
-- focused tests use and preserve `JoinOn(...)` and `JoinTrusted(...)` across
-  both targets;
-- the changelog and migration guide state the completed removal and replacement
-  path; and
-- full solution, public API, immutable package, PackageReference-consumer, and
-  `git diff --check` validation pass.
-
-`NEKOMKT-F026` remains blocked by its release window regardless of ordering.
+`NEKOMKT-F026` implementation and local validation completed on 2026-11-27
+for the unreleased `2.0.0` family. The owner extended the original Join scope
+to all four QueryBuilder overloads deprecated since `1.1.0`. The
+[completion history](docs/modules/Data/HISTORY.md)
+preserves the decision and scope. The
+[validation record](docs/modules/Data/VALIDATIONS.md#data-valevid-20261128-001)
+records solution tests, API review, disposable packages and four package-only
+desktop consumers. Expanded regression qualification completed on 2026-11-28
+with all eight legacy-call compiler checks and the complete 168-case
+recovery/bootstrap matrix. Public release qualification and publication remain
+pending.
 
 `NEKOMKT-F009` completed on 2026-08-28. Its five-family documentation campaign,
 package-delivery correction, immutable package evidence, consumer validation,

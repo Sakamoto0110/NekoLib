@@ -27,9 +27,10 @@ it, replaces it after an exit or a confirmed configured UI hang, exposes a
 bounded control and event channel over
 named pipes, forwards operational logs, and finalizes crash evidence.
 
-The library owns supervision behavior. The companion `NekoLib.Watchdog.Host`
-package owns sidecar deployment, payload selection, executable arguments, and
-release layout; those are a separate distribution with separate evidence.
+Automatic desktop startup defaults to `SameExecutable`, using the application
+executable in a second, headless supervisor process. The managed Watchdog
+package supplies this integration. The optional `NekoLib.Watchdog.Host` package
+owns deployment, payload selection and launch arguments for `Sidecar` mode.
 
 Consumers integrate through the published package's public API, public project
 properties and this reference. The compiled assemblies and accepted API
@@ -83,7 +84,10 @@ There are three supported composition paths.
 ### Automatic application startup
 
 Automatic application startup opts a C# WPF/WinForms executable into package
-entry routing. Reference `NekoLib.Watchdog` directly and enable:
+entry routing. Reference `NekoLib.Watchdog` directly and set the properties
+below. Define `NekoLibFamilyVersion` in your project or `Directory.Build.props`
+using the exact version of the coordinated packages you consume. For a local
+2.0 candidate this includes its prerelease suffix.
 
 ```xml
 <PropertyGroup>
@@ -91,7 +95,7 @@ entry routing. Reference `NekoLib.Watchdog` directly and enable:
   <NekoLibWatchdogHostingMode>SameExecutable</NekoLibWatchdogHostingMode>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="NekoLib.Watchdog" Version="1.4.0" />
+  <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibFamilyVersion)" />
 </ItemGroup>
 ```
 
@@ -266,8 +270,9 @@ A supervisor is a separate process from its target, even when both roles use
 the same executable. A runtime inside the supervised process cannot recover
 that process after it terminates.
 
-`SameExecutable` is the new opt-in default. `Sidecar` selects the existing Host
-and requires its direct same-version package reference. Referencing the package
+`SameExecutable` is the default hosting mode after project opt-in.
+`Sidecar` selects the existing Host and requires its direct same-version
+package reference. Referencing the package
 alone does not activate either mode. Ambiguous/unsupported entries produce
 NEKOWDG001/NEKOWDG002 diagnostics. A Roslyn 4.12-compatible compiler (.NET 9 SDK
 family or newer) is required. NEKOWDG003 warns when direct manual EnsureStarted
@@ -371,6 +376,10 @@ control. A custom controller for a different target derives the pipe name and
 sends the public `WatchdogCommands` constants through `NekoLib.Pipes` itself.
 
 ## Bootstrap and attach
+
+This section describes the optional manual sidecar route,
+`WatchdogBootstrap.EnsureStarted`. Automatic startup in either hosting mode
+uses the [generated entry](#automatic-application-startup).
 
 `EnsureStarted` is synchronous and bounded by one total handshake budget
 (default 5,000 ms; the two-argument overload requires a positive value).

@@ -220,3 +220,33 @@ audit, scenario, and release record remains the detailed owner of each result.
 **Gaps:** Automated native behavior is not human evidence for NAV-VALREQ-004. Designer interaction, human visual/accessibility approval, multi-monitor DPI and new long soaks were not run; the desktop decision records the unattended release exception.
 
 **Supersedes:** older package/runtime coverage only at this exact version and observed boundary; earlier human, provider and long-duration exclusions remain historical evidence
+
+## NAV-VALEVID-20261127-001
+
+**Requirement IDs:** `NAV-VALREQ-001`, `NAV-VALREQ-002`, `NAV-VALREQ-003`
+
+**Version:** `2.0.0-local.2`
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** authorized local exception-message correction and regression tests
+
+**Environment:** Windows, SDK 10.0.403, Release
+
+**Targets:** Navigation tests on `net481` and `net9.0-windows`, with both adapter families built
+
+**Command or scenario:** the full solution tests in `eng/pack-local.ps1 -PackageVersion 2.0.0-local.2 -AllowDirty -KeepIntermediateArtifacts` and all 30 family API comparisons
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** ignored `artifacts/v2-regression-package-gate.log` and `artifacts/v2-regression-api.log`
+
+**Observed:** All 313 tests pass on each target. The public-bootstrap regression reads Session, History, CanGoBack and Events before Start and after awaited Shutdown. Every exception names PageNavBootstrap.Start and awaited NavigationService.Shutdown. The duplicate-bootstrap case checks those public entry points. All six Navigation API baselines remain unchanged.
+
+**Gaps:** This entry records automated source regressions. Human designer, visual/accessibility, multi-monitor DPI and long-soak acceptance retain their separate evidence requirements.
+
+**Supersedes:** earlier mounted-context error-message coverage for this source only

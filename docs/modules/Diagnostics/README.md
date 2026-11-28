@@ -24,13 +24,19 @@ NekoLib.Diagnostics is the opt-in incident-evidence family for unattended and
 desktop applications. The cross-platform package coordinates unhandled-fault
 reporting, bounded contributors, redacted text bundles, optional dump and tail
 artifacts, and observable success or failure. The Windows adapter adds explicit
-WinForms dispatch, `dbghelp.dll` minidumps, and process-wide error-dialog
+WinForms and WPF exception hooks, `dbghelp.dll` minidumps, and process-wide error-dialog
 suppression without moving Windows dependencies into the core package.
 
 Applications construct `CrashHandler` with application-owned Core contracts and
-budgets, subscribe to outcome events, and call `Install()`. WinForms consumers
-must explicitly call `WindowsCrash.HookWinForms()` before creating a window.
-They may apply `UseMiniDump()` to the options before constructing the handler.
+budgets, subscribe to outcome events, and call `Install()`. Folder writing
+defaults to enabled and requires a nonblank `CrashRootDirectory` for the text
+report. `DumpWriter` defaults to null. To request a native Windows dump, call
+`UseMiniDump()` on the options before constructing the handler.
+
+WinForms consumers call `WindowsCrash.HookWinForms()` before creating a
+window. WPF consumers call `WindowsCrash.HookWpf(dispatcher)` on the owning
+thread and dispose the returned lease there. By default the hook reports the
+exception and leaves it unhandled.
 
 Diagnostics owns incident sequencing and crash-bundle formatting. It does not
 own logging, telemetry, inspection, notification transport, access control,

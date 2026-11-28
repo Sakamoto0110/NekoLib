@@ -135,12 +135,8 @@ valid. Provider outcomes are isolated into values:
 | throws | `<snapshot threw: RootType>` |
 | exceeds or is skipped after the shared budget | `<snapshot timed out>` |
 
-**Known deviation.** The skip is not yet deterministic. When a provider exhausts
-the budget by a sub-millisecond margin the next provider can still be admitted
-and invoked, so it returns its value instead of the timeout marker. The contract
-above is the intended one and is what the focused regression asserts; the
-implementation does not meet it in that narrow race. See
-[`INSP-ISSUE-001`](ISSUES.md).
+Once a provider wait times out, the capture skips all later callbacks and
+records the timeout marker for each remaining provider key.
 
 The timeout bounds caller completion only. It cannot cancel application code.
 Each provider registration has at most one outstanding budgeted invocation;

@@ -28,8 +28,7 @@ process. Only its Inspection checks are recorded here. Its Logging and Telemetry
 checks belong to those boundaries and satisfy no Inspection requirement.
 
 Requirements with no complete PASS, as of the current baseline:
-`INSP-VALREQ-005` is failed intermittently by a confirmed defect, see
-[`INSP-ISSUE-001`](ISSUES.md); `INSP-VALREQ-010` is covered only by three partial
+`INSP-VALREQ-010` is covered only by three partial
 runs; `INSP-VALREQ-013` has never verified the consumer-visible experimental
 diagnostic through a repository probe; `INSP-VALREQ-015` is untriggered because
 the freeze holds; and `INSP-VALREQ-016` has never been executed.
@@ -312,3 +311,61 @@ the freeze holds; and `INSP-VALREQ-016` has never been executed.
 **Gaps:** The suite is not deterministic on this host, so it does not establish `INSP-VALREQ-005`, whose acceptance criteria include that the shared budget skips later providers once exhausted. That failure is a confirmed product defect recorded as [`INSP-ISSUE-001`](ISSUES.md), not a test-authoring error, and it was neither fixed nor promoted in this read-only documentation pass. The remaining requirements listed here were exercised by every run including the failing ones, since only one test failed in each. No package, consumer, runtime scenario, blocked-provider, or full-solution claim is made.
 
 **Supersedes:** none
+
+## INSP-VALEVID-20261127-001
+
+**Requirement IDs:** `INSP-VALREQ-005`
+
+**Version:** unreleased
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** local fix for [`INSP-ISSUE-001`](ISSUES.md#insp-issue-001)
+
+**Environment:** local Windows checkout, Release configuration
+
+**Targets:** `net481` and `net9.0`
+
+**Command or scenario:** `dotnet test tests/NekoLib.Inspection.Tests/Unit/NekoLib.Inspection.Tests.Unit.csproj -c Release`, followed by 20 separate `dotnet vstest` runs per target filtered to `CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders`.
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** 40 focused tests passed on each target. The shared-budget regression also passed all 40 isolated runs. It checks both provider keys for the timeout marker and counts invocations of the skipped provider.
+
+**Gaps:** This record covers the source test assemblies. Package qualification belongs to the release.
+
+**Supersedes:** the shared-budget failure in `INSP-VALEVID-20260829-002` for the corrected source.
+
+## INSP-VALEVID-20261127-002
+
+**Requirement IDs:** `INSP-VALREQ-005`
+
+**Version:** unreleased 2.0 source
+
+**Commit:** working tree based on `fa412d98e51ed0b24af211e7656d087c5c67c32d`
+
+**Tree state:** authorized local fix with expanded regression assertions
+
+**Environment:** Windows, SDK 10.0.403, Release
+
+**Targets:** `net481` and `net9.0`
+
+**Command or scenario:** `dotnet test tests/NekoLib.Inspection.Tests/Unit/NekoLib.Inspection.Tests.Unit.csproj -c Release -m:1`
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** ignored `artifacts/v2-regression-Inspection.log`
+
+**Observed:** All 41 tests pass on each target. The shared-budget regression checks three retained provider keys, both skipped callback counters and a later capture with a fresh budget after releasing the first provider. A separate zero-budget case verifies timeout markers for every key with zero callback invocations.
+
+**Gaps:** Provider code remains cooperative and cannot be cancelled by the snapshot timeout. This focused result covers the source test assemblies.
+
+**Supersedes:** the narrower callback coverage in `INSP-VALEVID-20261127-001` for the updated source

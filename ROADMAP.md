@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-08-27
+**Direction decision date:** 2026-11-27
 
 ## Purpose
 
@@ -80,18 +80,13 @@ triggered, and Windows is required for full dual-target validation.
 
 ### Promoted horizon
 
-Two bounded records from the NekoMarketplace external-consumer intake are now
-formally promoted in [`TODO.md`](TODO.md):
+`NEKOMKT-F026` closes the four-overload QueryBuilder deprecation cycle in
+`2.0.0`, following owner authorization on 2026-11-27. Its warning-only window
+started with the published `1.1.0` family. The migration guide and
+[`TODO.md`](TODO.md) route the accepted scope and validation.
 
-- `NEKOMKT-F009` ships generated XML API documentation with packageable managed
-  library assets; and
-- `NEKOMKT-F026` removes the legacy SQL-inverted
-  `QueryBuilder.Join(string, string, string)` overload only after its accepted
-  compatibility window and next-major gate are satisfied.
-
-Both entries retain explicit implementation gates. Their presence here records
-the promoted horizon; `TODO.md` remains the only work scheduler and admission
-gate.
+`NEKOMKT-F009`, generated XML delivery with packageable managed library assets,
+completed on 2026-08-28. Its closure is routed by `TODO.md`.
 
 The Data type-adaptation and QueryBuilder API normalization work completed on
 2026-08-27. Its accepted decisions and closure evidence are preserved in the
@@ -103,15 +98,12 @@ historical
 `NEKOMKT-F022` requires an explicit product/security decision about minidump
 confidentiality. External-consumer evidence demonstrated that an exception
 secret redacted from `crash.txt` remained in a `MiniDumpNormal` file. Current
-documentation warns that dumps can contain sensitive process memory, but the
-`Redact` and `WindowsCrash.UseMiniDump()` contracts do not state one combined
-confidentiality boundary.
+Diagnostics documentation explains that `Redact` filters persisted text and
+that native dumps may contain sensitive process memory.
 
-The decision must determine whether the current opt-in dump behavior plus an
-explicit contract is sufficient, or whether NekoLib should change the dump,
-storage, or access-control boundary. This roadmap entry does not choose an
-implementation and does not authorize Diagnostics or Diagnostics.Windows
-changes. Any accepted work must be admitted separately to `TODO.md`.
+Minidump generation stays off by default. Applications opt in by configuring
+a writer as described in the [Diagnostics reference](docs/modules/Diagnostics/REFERENCE.md#redaction).
+The remaining decision concerns additional storage or access-control guarantees.
 
 Payments/Pix has a completed design review but no accepted implementation
 decision. Its concise current proposal is
@@ -156,7 +148,8 @@ a concrete authoring walkthrough, and an explicit public API and package review.
 #### `NAV-MULTI-HOST-2` — independently addressable Navigation hosts
 
 Explore more than one active Navigation host in the same application process.
-This direction is reserved exclusively for the `2.0.0` architecture window. It
+The owner deferred this direction beyond `2.0.0` on 2026-11-27. It belongs to a
+future major architecture window whose version is still undecided. It
 must not weaken or emulate around the current 1.x single-mounted-context
 contract, and it does not turn overlays or visual regions into nested pages.
 
@@ -175,7 +168,7 @@ The design must define:
 - a migration path that keeps the current single-host use case concise.
 
 Promotion requires representative multi-window or multi-display consumer
-scenarios, a complete lifecycle/concurrency model, a reviewed 1.x-to-2.0 API
+scenarios, a complete lifecycle/concurrency model, a reviewed single-host-to-multi-host API
 migration, and an explicit unfreeze of every affected stability-sensitive type.
 No multi-host implementation or compatibility shim is admitted for 1.x.
 
@@ -210,8 +203,7 @@ consumer prototype, deterministic diagnostic and metadata-parity tests, startup
 and build-cost evidence, and a reviewed package/public API boundary.
 
 The design-time prefab and registry-generator investigations may proceed
-independently. Multi-host remains a 2.0-only architecture investigation and is
-not a prerequisite for either authoring improvement.
+independently of the multi-host investigation deferred to a future major.
 
 The following other ideas remain unpromoted:
 

@@ -233,9 +233,11 @@ in `crash.txt` against the thread stacks in the dump.
 
 ## Known constraint: Windows vocabulary in a cross-platform assembly
 
-`CrashDumpLevel` uses Windows minidump vocabulary, defaults to `MiniDumpNormal`,
-and the bundle reserves the fixed name `crash.dmp` — in a package that targets
-plain `net9.0`. This is a deliberate, retained compatibility surface. Introducing
+`CrashDumpLevel` uses Windows minidump vocabulary. The
+`CrashHandlerOptions.DumpLevel` property defaults to `MiniDumpNormal`, while
+`DumpWriter` defaults to null. The bundle reserves the fixed name `crash.dmp`
+for an explicitly configured writer, in a package that targets plain `net9.0`.
+This is a deliberate, retained compatibility surface. Introducing
 a platform-neutral crash-artifact contract requires a concrete second-platform
 requirement, which does not exist today.
 
@@ -287,14 +289,18 @@ event-time reported outcome.
 
 ## NekoLib.Diagnostics.Windows
 
-The Windows adapter targets `net481`/`net9.0-windows` and references only
-`NekoLib.Diagnostics`. It is the only `src/` project with `Nullable` disabled, so
-its two public methods carry **no nullability annotations** — `UseMiniDump` still
-throws `ArgumentNullException` for a null argument.
+The Windows adapter targets `net481`/`net9.0-windows` and references
+`NekoLib.Diagnostics`. Its project disables nullable annotations.
+`WindowsCrash.UseMiniDump` and `WindowsCrash.HookWpf` still reject null
+arguments with `ArgumentNullException`.
 
 ```csharp
 CrashSuppressor.Enable();                       // as early as possible in Main
-var options = new CrashHandlerOptions { /* … */ }.UseMiniDump();
+var options = new CrashHandlerOptions
+{
+    CrashRootDirectory = System.IO.Path.Combine(AppContext.BaseDirectory, "crash")
+};
+options.UseMiniDump();                          // explicit native-dump opt-in
 var crashes = new CrashHandler(options);
 crashes.Install();
 WindowsCrash.HookWinForms();                    // before creating any window
@@ -321,11 +327,36 @@ UI-thread exceptions are reported as **non-terminating**, so the shell keeps
 running and can produce one bundle per fault. For an unattended kiosk that is
 usually what you want; be aware that the application continues after a UI fault.
 
+### `WindowsCrash.HookWpf(Dispatcher, bool)`
+
+Observes unhandled exceptions on one WPF dispatcher. Install a `CrashHandler`
+separately and call the hook on the dispatcher's owning thread. The default
+`markHandled: false` reports a terminating incident and leaves the event
+unhandled for WPF's normal exception policy. Reporting itself never terminates
+the process.
+
+With `markHandled: true`, the hook reports a nonterminating incident and marks
+the event handled. The application owns the decision that continuing is safe.
+Prehandled events are ignored. Other subscribers must preserve the chosen
+handling policy.
+
+The returned `IDisposable` is an owner-thread subscription lease. Repeated
+subscriptions with the same policy share one forwarder. Disposing the last
+lease removes it. A conflicting policy, an off-thread call or a dispatcher
+already shutting down throws `InvalidOperationException`. Dispatcher shutdown
+also removes the forwarder. See the
+[desktop integration contract](../../desktop-readiness-1.2.0.md) for the
+accepted propagation policy and recovery qualification.
+
 ### `WindowsCrash.UseMiniDump()`
 
-Routes crash dumps through the `dbghelp.dll` minidump writer. Apply it to the
-options **before constructing the handler**, since options are captured at
-construction. It replaces any previously configured `DumpWriter`.
+Folder writing defaults to enabled. Supply a nonblank `CrashRootDirectory`
+before constructing the handler so it can write `crash.txt`. Minidump generation
+is disabled by default because `DumpWriter` defaults to null, even with the
+Windows package referenced. `DumpLevel` selects the content requested from a configured writer.
+Call `UseMiniDump()` **before constructing the handler** to enable Windows
+minidumps. It replaces any previously configured writer with the `dbghelp.dll`
+writer.
 
 Level mapping — note that the levels are **not cumulative**, each is
 `MiniDumpNormal` plus one flag:

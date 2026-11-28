@@ -586,6 +586,35 @@ try {
         ) + $buildProperties)
     }
 
+    if ([int]($PackageVersion.Split('.')[0]) -ge 2) {
+        $legacyDataConsumer = Join-Path $consumerRoot "DataLegacyOverloads\DataLegacyOverloads.csproj"
+        $legacyDataProperties = @(Get-ConsumerBuildProperties -ProjectPath $legacyDataConsumer)
+        Invoke-DotNet -Arguments (@(
+            "restore", $legacyDataConsumer, "--configfile", $nugetConfig,
+            "--force-evaluate", "--no-http-cache"
+        ) + $legacyDataProperties)
+        Invoke-DotNet -Arguments (@(
+            "build", $legacyDataConsumer, "-c", $Configuration, "--no-restore"
+        ) + $legacyDataProperties)
+
+        $removedOverloads = [ordered]@{
+            LEGACY_INSERT = "CS1501"
+            LEGACY_UPDATE = "CS1501"
+            LEGACY_WHERE = "CS1501"
+            LEGACY_JOIN = "CS1061"
+        }
+        foreach ($targetFramework in @("net481", "net9.0")) {
+            foreach ($removedOverload in $removedOverloads.GetEnumerator()) {
+                Invoke-DotNetExpectFailure -Arguments (@(
+                    "build", $legacyDataConsumer, "-c", $Configuration,
+                    "-f", $targetFramework, "--no-restore",
+                    "-p:DefineConstants=$($removedOverload.Key)"
+                ) + $legacyDataProperties) -ExpectedText $removedOverload.Value
+                Write-Host "Verified removed Data overload $($removedOverload.Key) on $targetFramework."
+            }
+        }
+    }
+
     $winForms9Project = Join-Path $consumerRoot "WinForms9\WinForms9.csproj"
     $winForms9BuildProperties = @(
         Get-ConsumerBuildProperties -ProjectPath $winForms9Project

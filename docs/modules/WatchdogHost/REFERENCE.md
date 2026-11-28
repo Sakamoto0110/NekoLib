@@ -20,11 +20,16 @@
 
 **Indexing:** include
 
-`NekoLib.Watchdog.Host` is the deployment sidecar used by
-[`WatchdogBootstrap`](../Watchdog/REFERENCE.md). It is not a compile-time
-library and exports no public types. Advanced in-process supervisors use
-`WatchdogRuntime` from `NekoLib.Watchdog`; they do not launch or reference Host
-implementation classes.
+`NekoLib.Watchdog.Host` supplies the optional Sidecar hosting mode. Automatic
+desktop startup defaults to `SameExecutable`, where the application executable
+also hosts the separate supervisor process. That setup uses the managed
+`NekoLib.Watchdog` package with
+[project opt-in](../Watchdog/REFERENCE.md#automatic-application-startup).
+
+Sidecar consumers choose automatic Sidecar startup or the manual
+`WatchdogBootstrap.EnsureStarted` route. Custom supervisors use
+`WatchdogRuntime` from the managed library. This reference covers the Host
+deployment package and its launch protocol.
 
 Because the compiled assemblies export nothing, there is no accepted API
 manifest for this package and none should be created. Its public contract is

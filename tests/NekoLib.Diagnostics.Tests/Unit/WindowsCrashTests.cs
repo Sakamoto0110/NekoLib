@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -130,6 +131,23 @@ namespace NekoLib.Diagnostics.Tests.Unit
 
             Assert.NotNull(options.DumpWriter);
             Assert.NotSame(original, options.DumpWriter);
+        }
+
+        [Fact]
+        public void UseMiniDump_NoneLevel_DoesNotCreateAnArtifact()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "nekolib-disabled-dump-" + Guid.NewGuid().ToString("N") + ".dmp");
+            try
+            {
+                var options = new CrashHandlerOptions { DumpLevel = CrashDumpLevel.None }.UseMiniDump();
+
+                Assert.False(options.DumpWriter(path, options.DumpLevel));
+                Assert.False(File.Exists(path));
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
         }
 
         [Fact]

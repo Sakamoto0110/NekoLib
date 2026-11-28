@@ -25,12 +25,9 @@ No confirmed Data defect remains at campaign baseline
 
 This registry does not absorb adjacent decision classes:
 
-- **Promoted work:** `NEKOMKT-F026` in [`TODO.md`](../../../TODO.md) owns the
-  accepted future removal of only the warning-obsolete
-  `QueryBuilder.Join(string, string, string)` overload. Its release and
-  implementation gates remain closed until the documented compatibility window
-  and an explicit 2.0-or-later API authorization are satisfied. That planned
-  removal is not a product defect.
+- **Deprecation removal:** `NEKOMKT-F026` in [`TODO.md`](../../../TODO.md) owns
+  the authorized `2.0.0` removal of four QueryBuilder overloads deprecated
+  since `1.1.0`. Its scope and validation are tracked separately from defects.
 - **Findings:** current unconfirmed observations belong in
   [`FINDINGS.md`](FINDINGS.md); none remain after this review.
 - **Rejected alternatives:** the universal query family, implicit type

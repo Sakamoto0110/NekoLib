@@ -58,6 +58,11 @@ This manifest routes the `NekoLib.Watchdog.Host` deployment package. The project
 file, the package targets file, and the produced package remain implementation
 and layout truth.
 
+The Host package is used when the application chooses Sidecar hosting.
+Automatic startup defaults to SameExecutable through the managed
+`NekoLib.Watchdog` package. See the
+[library integration contract](../Watchdog/REFERENCE.md#automatic-application-startup).
+
 **There is no API baseline, and that is correct.** The Host compiles to a
 `WinExe` that exports zero public types, so an assembly-derived manifest would be
 empty and would baseline nothing. Its public contract is instead the deployment

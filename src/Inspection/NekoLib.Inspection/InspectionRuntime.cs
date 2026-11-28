@@ -268,10 +268,11 @@ namespace NekoLib.Inspection
 
             var watch = Stopwatch.StartNew();
             var state = new Dictionary<string, object>(providers.Count, StringComparer.Ordinal);
+            var budgetExhausted = false;
             foreach (var pair in providers)
             {
                 var remaining = timeout - watch.Elapsed;
-                if (remaining <= TimeSpan.Zero)
+                if (budgetExhausted || remaining <= TimeSpan.Zero)
                 {
                     state[pair.Key] = "<snapshot timed out>";
                     continue;
@@ -282,6 +283,8 @@ namespace NekoLib.Inspection
                     var task = pair.Value.GetOrStartSnapshot();
                     if (!task.Wait(remaining))
                     {
+                        // Wait can time out just before the stopwatch reaches the deadline.
+                        budgetExhausted = true;
                         state[pair.Key] = "<snapshot timed out>";
                         continue;
                     }

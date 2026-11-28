@@ -27,14 +27,17 @@ control channel over named pipes, forwards operational logs, and finalizes crash
 evidence into retained bundles.
 
 For a C# WinForms or WPF executable, install `NekoLib.Watchdog` and explicitly
-enable automatic startup in the executable's project file:
+enable automatic startup in the executable's project file. Set the MSBuild
+property `NekoLibFamilyVersion` in your project or `Directory.Build.props` to
+the exact family version in use. For a local 2.0 candidate, use the full
+candidate package version for every NekoLib reference.
 
 ```xml
 <PropertyGroup>
   <NekoLibWatchdogAutoBootstrap>true</NekoLibWatchdogAutoBootstrap>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="NekoLib.Watchdog" Version="1.4.0" />
+  <PackageReference Include="NekoLib.Watchdog" Version="$(NekoLibFamilyVersion)" />
 </ItemGroup>
 ```
 
@@ -76,9 +79,10 @@ process already running as the same user, and any such process can stop or
 restart your application. **Diagnostics are bounded and best effort:** the
 replay history, the event queue, and the forwarding sink all drop under
 pressure, and the separate counters in `Status()` are how you find out.
-**Deployment is a separate contract:** sidecar payloads, RID selection, and the
-launch protocol belong to `NekoLib.Watchdog.Host`, and the two packages must be
-upgraded together.
+**Sidecar deployment has its own contract:** when selecting Sidecar, its
+payloads, RID selection, and launch protocol belong to `NekoLib.Watchdog.Host`.
+Upgrade Host and the managed library together in that mode. SameExecutable
+uses the application's own executable for both process roles.
 
 Start with the [technical reference](REFERENCE.md) for the complete
 composition, configuration, lifecycle, control, evidence, and security contract.

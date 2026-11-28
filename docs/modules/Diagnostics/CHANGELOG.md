@@ -24,6 +24,16 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Diagnostics-specific consumer impact without
 duplicating package hashes or release provenance.
 
+## Unreleased
+
+**Packages:** `NekoLib.Diagnostics`, `NekoLib.Diagnostics.Windows`
+
+**Compatibility class:** documentation-only, targeting `2.0.0`
+
+**Consumer impact:** The documentation clarifies the existing defaults. Folder writing is enabled and requires a configured `CrashRootDirectory` for the text report. `DumpWriter` defaults to null.
+
+**Migration:** None required. To enable Windows minidumps, call `UseMiniDump()` before constructing the handler. See the [dump configuration reference](REFERENCE.md#windowscrashuseminidump).
+
 ## 1.1.0
 
 **Packages:** `NekoLib.Diagnostics`, `NekoLib.Diagnostics.Windows`

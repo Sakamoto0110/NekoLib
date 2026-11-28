@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using NekoLib.Data.Query;
 using Xunit;
 
@@ -388,26 +387,22 @@ namespace NekoLib.Data.Tests.Unit.Query
         }
 
         [Fact]
-        public void CompatibilityOverloads_DelegateToCanonicalBehavior()
+        public void CanonicalApis_PreserveMigratedStatementSql()
         {
-#pragma warning disable CS0618
             QueryModel insert = new QueryBuilder()
-                .InsertInto(
-                    "Inventory",
-                    new Dictionary<string, object> { { "Quantity", 54 } })
+                .InsertInto("Inventory")
+                .Value("Quantity", 54)
                 .Build();
             QueryModel update = new QueryBuilder()
-                .Update(
-                    "Inventory",
-                    new Dictionary<string, object> { { "Quantity", 55 } })
-                .Where("Id = @p1", 7)
+                .Update("Inventory")
+                .Set("Quantity", 55)
+                .WhereTrusted("Id = @p1", 7)
                 .Build();
             QueryModel select = new QueryBuilder()
                 .Select()
                 .From("Inventory")
-                .Join("Warehouses", "Warehouses.Id = Inventory.WarehouseId")
+                .JoinTrusted("Warehouses", "Warehouses.Id = Inventory.WarehouseId")
                 .Build();
-#pragma warning restore CS0618
 
             Assert.Equal(
                 "INSERT INTO Inventory (Quantity) VALUES (@p1)",
@@ -418,27 +413,89 @@ namespace NekoLib.Data.Tests.Unit.Query
             Assert.Equal(
                 "SELECT * FROM Inventory INNER JOIN Warehouses ON Warehouses.Id = Inventory.WarehouseId",
                 select.Sql);
+            Assert.Equal(54, insert.Parameters["@p1"]);
+            Assert.Equal(7, update.Parameters["@p1"]);
+            Assert.Equal(55, update.Parameters["@p2"]);
+            Assert.Empty(select.Parameters);
+        }
+
+        [Theory]
+        [InlineData(QueryJoinType.Inner, "INNER")]
+        [InlineData(QueryJoinType.Left, "LEFT")]
+        [InlineData(QueryJoinType.Right, "RIGHT")]
+        [InlineData(QueryJoinType.Full, "FULL")]
+        public void JoinReplacements_PreserveSupportedJoinTypes(QueryJoinType type, string sqlType)
+        {
+            QueryModel structured = new QueryBuilder()
+                .Select("Inventory.Id")
+                .From("Inventory")
+                .JoinOn("Warehouses", "Warehouses.Id", "Inventory.WarehouseId", type)
+                .Build();
+            QueryModel trusted = new QueryBuilder()
+                .Select("Inventory.Id")
+                .From("Inventory")
+                .JoinTrusted("Warehouses", "Warehouses.Id = Inventory.WarehouseId", type)
+                .Build();
+
+            string expected = "SELECT Inventory.Id FROM Inventory " + sqlType +
+                " JOIN Warehouses ON Warehouses.Id = Inventory.WarehouseId";
+            Assert.Equal(expected, structured.Sql);
+            Assert.Equal(expected, trusted.Sql);
+            Assert.Empty(structured.Parameters);
+            Assert.Empty(trusted.Parameters);
         }
 
         [Fact]
-        public void CompatibilityOverloads_AreWarningOnlyAndNameConcreteReplacements()
+        public void DictionaryMigration_PreservesNullAndTextValuesWithoutEmbeddingThemInSql()
         {
-            AssertWarningOnlyObsolete(
+            const string text = "Neko's inventory @p1";
+            var values = new Dictionary<string, object>
+            {
+                { "Name", text },
+                { "Quantity", 54 },
+                { "ArchivedAt", null }
+            };
+            var insert = new QueryBuilder().InsertInto("Inventory");
+            var update = new QueryBuilder().Update("Inventory");
+            foreach (var entry in values)
+            {
+                insert.Value(entry.Key, entry.Value);
+                update.Set(entry.Key, entry.Value);
+            }
+            update.Where("Id", QueryOperator.Equal, 7);
+
+            QueryModel inserted = insert.Build();
+            QueryModel updated = update.Build();
+            Assert.Equal(3, inserted.Parameters.Count);
+            Assert.Contains(text, inserted.Parameters.Values);
+            Assert.Contains(54, inserted.Parameters.Values);
+            Assert.Contains(null, inserted.Parameters.Values);
+            Assert.Equal(4, updated.Parameters.Count);
+            Assert.Contains(text, updated.Parameters.Values);
+            Assert.Contains(54, updated.Parameters.Values);
+            Assert.Contains(null, updated.Parameters.Values);
+            Assert.Equal(7, updated.Parameters["@p1"]);
+            Assert.DoesNotContain(text, inserted.Sql);
+            Assert.DoesNotContain(text, updated.Sql);
+            Assert.Equal(inserted.Sql, insert.Build().Sql);
+            Assert.Equal(updated.Sql, update.Build().Sql);
+        }
+
+        [Fact]
+        public void LegacyOverloads_AreAbsentFromPublicSurface()
+        {
+            Assert.Null(typeof(QueryBuilder).GetMethod(
                 "InsertInto",
-                new[] { typeof(string), typeof(Dictionary<string, object>) },
-                "InsertInto(string).Value(string, object)");
-            AssertWarningOnlyObsolete(
+                new[] { typeof(string), typeof(Dictionary<string, object>) }));
+            Assert.Null(typeof(QueryBuilder).GetMethod(
                 "Update",
-                new[] { typeof(string), typeof(Dictionary<string, object>) },
-                "Update(string).Set(string, object)");
-            AssertWarningOnlyObsolete(
+                new[] { typeof(string), typeof(Dictionary<string, object>) }));
+            Assert.Null(typeof(QueryBuilder).GetMethod(
                 "Where",
-                new[] { typeof(string), typeof(object[]) },
-                "WhereTrusted(string, params object[])");
-            AssertWarningOnlyObsolete(
+                new[] { typeof(string), typeof(object[]) }));
+            Assert.Null(typeof(QueryBuilder).GetMethod(
                 "Join",
-                new[] { typeof(string), typeof(string), typeof(string) },
-                "JoinOn(string, string, string, QueryJoinType)");
+                new[] { typeof(string), typeof(string), typeof(string) }));
         }
 
         [Fact]
@@ -820,20 +877,6 @@ namespace NekoLib.Data.Tests.Unit.Query
 
             Assert.Equal(first.Sql, second.Sql);
             Assert.Equal(first.Parameters.Count, second.Parameters.Count);
-        }
-
-        private static void AssertWarningOnlyObsolete(
-            string methodName,
-            Type[] parameterTypes,
-            string expectedReplacement)
-        {
-            MethodInfo method = typeof(QueryBuilder).GetMethod(methodName, parameterTypes);
-            Assert.NotNull(method);
-
-            ObsoleteAttribute attribute = method.GetCustomAttribute<ObsoleteAttribute>();
-            Assert.NotNull(attribute);
-            Assert.False(attribute.IsError);
-            Assert.Contains(expectedReplacement, attribute.Message);
         }
     }
 }

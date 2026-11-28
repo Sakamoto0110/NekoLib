@@ -263,6 +263,7 @@ namespace NekoLib.Inspection.Tests.Unit
         public void CaptureSnapshot_SharedBudgetExpires_SkipsLaterProviders()
         {
             var skippedInvocations = 0;
+            var lastInvocations = 0;
             using var provider = new CountingBlockingSnapshotProvider();
             using var runtime = new InspectionRuntime();
             using var slow = runtime.RegisterStateProvider("Module", "slow", provider.Capture);
@@ -271,15 +272,53 @@ namespace NekoLib.Inspection.Tests.Unit
                 Interlocked.Increment(ref skippedInvocations);
                 return 2;
             });
+            using var last = runtime.RegisterStateProvider("Module", "last", () =>
+            {
+                Interlocked.Increment(ref lastInvocations);
+                return 3;
+            });
 
-            var snapshot = runtime.CaptureSnapshot(0, TimeSpan.FromMilliseconds(50));
+            try
+            {
+                var snapshot = runtime.CaptureSnapshot(0, TimeSpan.FromMilliseconds(50));
 
-            Assert.Equal("<snapshot timed out>", snapshot.State["Module::slow"]);
-            Assert.Equal("<snapshot timed out>", snapshot.State["Module::skipped"]);
-            Assert.Equal(0, Volatile.Read(ref skippedInvocations));
+                Assert.Equal(3, snapshot.State.Count);
+                Assert.Equal("<snapshot timed out>", snapshot.State["Module::slow"]);
+                Assert.Equal("<snapshot timed out>", snapshot.State["Module::skipped"]);
+                Assert.Equal("<snapshot timed out>", snapshot.State["Module::last"]);
+                Assert.Equal(0, Volatile.Read(ref skippedInvocations));
+                Assert.Equal(0, Volatile.Read(ref lastInvocations));
+            }
+            finally
+            {
+                provider.Release();
+                Assert.True(provider.WaitForCaptureCompleted(TimeSpan.FromSeconds(5)));
+            }
 
-            provider.Release();
-            Assert.True(provider.WaitForCaptureCompleted(TimeSpan.FromSeconds(5)));
+            var recovered = runtime.CaptureSnapshot(0, TimeSpan.FromSeconds(5));
+            Assert.Equal(42, recovered.State["Module::slow"]);
+            Assert.Equal(2, recovered.State["Module::skipped"]);
+            Assert.Equal(3, recovered.State["Module::last"]);
+            Assert.Equal(1, Volatile.Read(ref skippedInvocations));
+            Assert.Equal(1, Volatile.Read(ref lastInvocations));
+        }
+
+        [Fact]
+        public void CaptureSnapshot_ZeroBudget_MarksEveryProviderWithoutInvokingCallbacks()
+        {
+            var invocations = 0;
+            using var runtime = new InspectionRuntime();
+            using var first = runtime.RegisterStateProvider("Module", "first",
+                () => Interlocked.Increment(ref invocations));
+            using var last = runtime.RegisterStateProvider("Module", "last",
+                () => Interlocked.Increment(ref invocations));
+
+            var snapshot = runtime.CaptureSnapshot(0, TimeSpan.Zero);
+
+            Assert.Equal(2, snapshot.State.Count);
+            Assert.Equal("<snapshot timed out>", snapshot.State["Module::first"]);
+            Assert.Equal("<snapshot timed out>", snapshot.State["Module::last"]);
+            Assert.Equal(0, Volatile.Read(ref invocations));
         }
 
         [Fact]

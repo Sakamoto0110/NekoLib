@@ -22,6 +22,14 @@ auto-dismiss, dialog/prompt/popover completion and awaited UI-thread cleanup.
 Core contracts are exercised through those integrations. Watchdog and its
 directly referenced Host deployment package are exercised by recovery.
 
+For family 2.0 and later, `DataLegacyOverloads` verifies the removed QueryBuilder
+calls through a package reference. The baseline fixture builds for `net481`
+and `net9.0`. Each legacy call is then compiled independently on each target
+and must fail. Dictionary INSERT/UPDATE and condition-template WHERE require
+`CS1501`; the removed Join requires `CS1061`. All eight rejections are part
+of `eng/test-local-packages.ps1`. The native consumers compile migrated calls
+and exercise the replacement query path.
+
 `eng/test-desktop-recovery.ps1` runs six bounded scenarios per executable:
 fatal dispatcher exception, fatal worker exception, external process kill,
 explicit restart, recoverable dispatcher exception with a subsequent UI
