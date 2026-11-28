@@ -11,13 +11,13 @@
 **Prerequisites:** .NET 9 SDK and Desktop Runtime; interactive desktop session
 
 **Last verification:** 2026-08-04 at `7e26b87` — steps 1, 2, 3, 5, 6 and 7
-driven by hand and passing; step 4 is not performable because the scenario
-declares no guarded page
+driven by hand and passing. The guarded-page check in the procedure at that
+commit could not be exercised. The current step 4 checks session state.
 
 ## Purpose
 
-Exercise real WPF hosting for page switching, history, idle navigation, session
-guards, dialog/prompt/toast/popover behavior, reset, and shutdown. Headless unit
+Exercise real WPF hosting for page switching, history, idle navigation, sign-in
+and sign-out, dialog/prompt/toast/popover behavior, reset, and shutdown. Headless unit
 tests remain the automated contract; this scenario checks native visual and
 interaction behavior they cannot observe.
 
@@ -43,8 +43,9 @@ dotnet run --project runtime_tests/Navigation/WpfSmoke/NekoLib.Navigation.Runtim
    remain non-modal and close on focus loss. Light dismissal follows **focus, not
    hit testing**: clicking a control that can take focus dismisses the popover,
    clicking inert area does not. See NAV-007.
-4. Sign out and attempt the guarded page, then sign in as `admin` and retry. The
-   anonymous attempt must be denied and the authenticated attempt allowed.
+4. Click **SignIn("admin")** and check that the event log reports `auth=True`.
+   Click **SignOut** and check that it reports `auth=False`. Both Idle and
+   Dashboard are available in either session state.
 5. Exercise the lifecycle controls, in order. Open a Popover, then press
    **Reset (ResetAsync)**: the popover must close, its awaiter must resolve
    (`Popover -> False` in the log), history must report `CanGoBack=False`, and the
@@ -112,10 +113,9 @@ build output.
     against the declared `[PageTimeout(20)]`.
   - Step 7: closing the window exited the process cleanly, with empty stderr and
     no hung awaiter.
-  - **Step 4 cannot be performed: this scenario has no guarded page.** The
-    procedure asks for an anonymous attempt at a guarded page to be denied and an
+  - **The original step 4 could not be performed.** The
+    procedure at that commit asked for an anonymous attempt at a guarded page to be denied and an
     authenticated one allowed, but no page in the WPF scenario declares any guard
     attribute — only the `SignIn("admin")`/`SignOut` buttons and a `GuardDenied`
     log subscription exist. Both were exercised and `SignIn(admin) — auth=True`
-    was logged, but no denial can occur. Either add a guarded page to the
-    scenario or correct the step.
+    was logged. The current procedure checks the two session-state transitions.

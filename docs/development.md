@@ -40,10 +40,11 @@ safely. It does not replace the sources that own technical truth.
 
 ## Build and verification
 
-Full dual-target validation requires Windows because `net481` and every
-`-windows` target build only there. Builds and validation are manually invoked;
-the GitHub Actions workflow is limited to explicitly dispatched NuGet.org
-publication and does not rebuild or retest release assets.
+The [CI workflow](../.github/workflows/ci.yml) runs on pushes and pull requests.
+It restores the solution on Windows, builds Release and runs the solution test
+suites for .NET Framework 4.8.1 and .NET 9, including Windows desktop targets.
+The [NuGet publication workflow](../.github/workflows/publish-nuget.yml) is
+manually dispatched with the approved commit and package hashes.
 
 ```powershell
 dotnet build NekoLib.sln

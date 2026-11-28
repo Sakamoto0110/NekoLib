@@ -18,7 +18,7 @@ hand on `net481` except step 6, which is not performable as written; steps 4 and
 ## Purpose
 
 Exercise real WinForms hosting for page switching, history, idle navigation,
-session guards, dialog/prompt/toast/popover behavior, the interaction blocker,
+sign-in and sign-out, dialog/prompt/toast/popover behavior, the interaction blocker,
 and shutdown. It is the WinForms counterpart of the
 [WPF smoke scenario](../WpfSmoke/README.md) and deliberately uses the same
 controls, labels, and layout so the two platforms can be compared step by step.
@@ -90,8 +90,9 @@ Run the procedure once per target family and record each result separately.
    interval. Open a Popover and leave it untouched. The session must sign out and
    the popover must be gone when Idle first appears. The log must report
    `Popover -> False`.
-8. **Session guards.** Use SignIn("admin") and SignOut and confirm the logged
-   authentication state changes.
+8. **Session state.** Click **SignIn("admin")** and check for `auth=True` in
+   the log. Click **SignOut** and check for `auth=False`. Both Idle and
+   Dashboard are available in either session state.
 9. **Reset, shutdown, and repeated mounting.** Open a Popover, then press
    **Reset (ResetAsync)**: the popover must close, its awaiter must resolve
    (`Popover -> False` in the log), history must report `CanGoBack=False`, and the

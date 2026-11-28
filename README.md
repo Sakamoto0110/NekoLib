@@ -10,14 +10,24 @@ side by side; UI and Win32 modules use `net9.0-windows`. The dependency graph is
 shallow rather than dependency-free: reference the feature package you need and
 NuGet brings its documented foundations transitively.
 
+## Upgrading to 2.0
+
+The 2.0 API removes four deprecated `QueryBuilder` overloads. Applications
+and libraries that call them need to migrate those calls and rebuild. The
+[2.0.0 release notes](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/release-notes-2.0.0.md)
+list each replacement, describe the known runtime and deployment issues, and
+record the release status. For installation, choose a
+[published family version](https://github.com/Sakamoto0110/NekoLib/releases).
+
 ## Who this is for
 
 The design assumptions come from unattended retail/dispensing terminals:
 
 - **The app never closes.** Page lifecycle is deterministic and leaks are treated
   as bugs, not as something the next restart will clean up.
-- **Nobody is watching it.** An idle timeout signs the session out and returns to
-  a known screen; crashes produce a bundle you can read after the fact.
+- **Nobody is watching it.** Configured idle handling signs the session out and
+  returns to its idle page. A popover can remain visible across that transition.
+  Crash reports can preserve evidence for later inspection.
 - **The hardware is mixed.** net481 and net9.0 are peers — neither is a
   second-class target, and nothing is allowed to compile on only one of them by
   accident.
@@ -51,9 +61,8 @@ PageNavBootstrap
 `Start()` mounts the static facade, so view-models navigate directly:
 
 ```csharp
-await NavigationService.SwitchPage<DashboardPage>();
-await NavigationService.GoBackAsync();
 NavigationService.Session.SignIn(roles: new[] { "admin" });
+await NavigationService.SwitchPage<AdminPage>();
 ```
 
 Guards are declared on the page and evaluated before navigation:
@@ -238,9 +247,6 @@ for the current stable version and its distribution status. Release records
 preserve source provenance, immutable package hashes, validation results and
 evidence boundaries; publication uses a manually dispatched trusted-publishing
 workflow. Align every NekoLib reference to the same family version.
-
-The [upcoming 2.0.0 release notes](https://github.com/Sakamoto0110/NekoLib/blob/master/docs/release-notes-2.0.0.md)
-list the four removed QueryBuilder overloads and the steps for rebuilding consumers.
 
 The [desktop integration contract](docs/desktop-readiness-1.2.0.md) describes
 the 1.2 additions and compatibility decisions. The

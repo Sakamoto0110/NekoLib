@@ -68,3 +68,27 @@ covers dictionary inputs, nulls and join types.
 
 See the [coordinated family changelog](../CHANGELOG.md#unreleased) for the
 release summary.
+
+## Known issues and qualification limits
+
+Independent review of the local 2.0.0 packages built from `b418aa69184b1006f006f13f114f3951c1597db7` returned **NOT READY FOR PUBLICATION** under the current release criteria. All 1,933 solution tests passed and all 30 packaged API surfaces matched the approved baselines. The following runtime and deployment checks remain open.
+
+### A local Pipes echo exceeded the consumer's reply deadline
+
+A same-user echo request exceeded its three-second response timeout during the WPF `net481` package check. A WinForms `net481` replay using the same package bytes timed out at the same read. A subsequent WPF run succeeded. A caller can therefore receive a timeout even in this local configuration. The measurements establish neither the cause of the delay nor how often it occurs. Follow-up needs timing evidence across request handling and reply delivery.
+
+### Legacy Watchdog shutdown exceeded two test deadlines
+
+On WinForms `net481`, cleanup after a fatal worker failure and automatic stop in same-executable mode each exceeded the 15-second exit deadline. The desktop recovery suite passed 23 of 24 cases and the automatic bootstrap suite passed 143 of 144. Applications that need to know when a process has exited must observe process exit separately. The 60-second deadline on `RequestStopAsync()` covers acceptance of a request. Its acceptance and queue-expiry cases both passed under load. Follow-up needs to locate the delay in the two legacy shutdown paths. [Watchdog control contract](modules/Watchdog/REFERENCE.md#control-contract)
+
+### Clean leaves a published Watchdog.Host in a custom directory
+
+For sidecar deployments on both supported target families, `Clean` removed the helper from the build output and left the previously published helper in an explicitly configured `PublishDir`. Reusing that directory can carry the helper into a later deployment. Packaging from a fresh publish directory avoids carrying over that previous file. The cleanup boundary for custom publish directories remains open under `WDGHOST-005`.
+
+### An Inspection capture exceeded the requested budget
+
+A .NET 9 run measured 212 ms from capture invocation to return with a 200 ms provider budget. The workload passed its three-second test guard. Consumers should allow for a difference between the configured provider budget and the observed end-to-end latency. Closing `INSP-010` requires specifying which interval the budget covers and measuring that interval in the regression.
+
+### Cleanup of a partially written native dump remains unverified
+
+The qualification inspected twelve real dump files. The invalid-destination case failed before native writing began. Whether a partial file is removed when the native writer fails mid-write remains unknown. A consumer collecting dumps after a crash should treat a file's presence alone as insufficient evidence that the dump is complete. Closing `DIAG-011` requires observing a failure after writing begins and checking the resulting file state.

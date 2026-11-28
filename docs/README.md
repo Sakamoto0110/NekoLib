@@ -90,7 +90,7 @@ reference commit.
 | [`ROADMAP.md`](../ROADMAP.md) | roadmap/status | current | Product direction, intentions, planning horizons, guardrails, freezes, and completed-milestone routing |
 | [`TODO.md`](../TODO.md) | roadmap/status | current | Formally promoted work, execution order, gates, and completion criteria |
 | [`CHANGELOG.md`](../CHANGELOG.md) | reference | current | Consumer-visible package, public API, compatibility, and migration changes |
-| [`docs/release-notes-2.0.0.md`](release-notes-2.0.0.md) | guide | current | Upcoming 2.0.0 consumer changes, removed QueryBuilder signatures and upgrade steps |
+| [`docs/release-notes-2.0.0.md`](release-notes-2.0.0.md) | guide | current | 2.0.0 upgrade steps, known issues at qualification, and limits of the evidence |
 | [`docs/proposals/README.md`](proposals/README.md) | reference | current | One-file unpromoted proposal index and non-exclusive promotion rule |
 | [`docs/modules/Core/MANIFEST.md`](modules/Core/MANIFEST.md) | reference | current | Core identity, routing, project/package topology, API oracles, experimental marker, and evidence locations |
 | [`docs/modules/Core/README.md`](modules/Core/README.md) | reference | current | Concise Core consumer introduction |

@@ -148,10 +148,9 @@ a concrete authoring walkthrough, and an explicit public API and package review.
 #### `NAV-MULTI-HOST-2` — independently addressable Navigation hosts
 
 Explore more than one active Navigation host in the same application process.
-The owner deferred this direction beyond `2.0.0` on 2026-11-27. It belongs to a
-future major architecture window whose version is still undecided. It
-must not weaken or emulate around the current 1.x single-mounted-context
-contract, and it does not turn overlays or visual regions into nested pages.
+The owner selected `3.0` as the architecture window for multi-host Navigation.
+The `2.x` line retains the single-mounted-context contract. Overlays and visual
+regions remain within their owning host.
 
 The design must define:
 
@@ -170,7 +169,6 @@ The design must define:
 Promotion requires representative multi-window or multi-display consumer
 scenarios, a complete lifecycle/concurrency model, a reviewed single-host-to-multi-host API
 migration, and an explicit unfreeze of every affected stability-sensitive type.
-No multi-host implementation or compatibility shim is admitted for 1.x.
 
 #### `NAV-REGISTRY-GENERATORS` — compile-time registry generation
 
@@ -203,7 +201,7 @@ consumer prototype, deterministic diagnostic and metadata-parity tests, startup
 and build-cost evidence, and a reviewed package/public API boundary.
 
 The design-time prefab and registry-generator investigations may proceed
-independently of the multi-host investigation deferred to a future major.
+independently of the multi-host work targeted for `3.0`.
 
 The following other ideas remain unpromoted:
 

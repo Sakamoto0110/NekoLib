@@ -346,8 +346,8 @@ require source migration and a rebuild. The
 the exact signatures and examples.
 
 The [family changelog](../CHANGELOG.md#unreleased) records the unreleased
-`2.0.0` scope. Navigation multi-host is deferred to a future major window
-in the [roadmap](../ROADMAP.md).
+`2.0.0` scope. The [roadmap](../ROADMAP.md#nav-multi-host-2--independently-addressable-navigation-hosts)
+places Navigation multi-host in the `3.0` window.
 Public release qualification and publication remain separate from local
 implementation and disposable package validation.
 
