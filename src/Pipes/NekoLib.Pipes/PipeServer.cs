@@ -311,7 +311,10 @@ namespace NekoLib.Pipes
                 }
 
                 if (cancellationToken.IsCancellationRequested)
+                {
+                    response.AfterResponseAttempt?.Invoke();
                     break;
+                }
 
                 var toSend = response;
                 try
@@ -356,6 +359,7 @@ namespace NekoLib.Pipes
                 }
                 finally
                 {
+                    response.AfterResponseAttempt?.Invoke();
                     stopwatch.Stop();
                     _metrics.OnServerResponseSent(
                         _pipeName,

@@ -19,6 +19,7 @@ remain under `docs/history/`.
 See the [upcoming 2.0.0 release notes](docs/release-notes-2.0.0.md) for
 the removed signatures and upgrade steps.
 
+- `NekoLib.Watchdog` adds `RequestStopAsync()` with a 60-second acceptance deadline and a request-specific receipt. An expired stop cannot execute later. See the [control contract](docs/modules/Watchdog/REFERENCE.md#control-contract).
 - `NekoLib.Data` removes four QueryBuilder overloads deprecated since `1.1.0`:
   dictionary-based `InsertInto` and `Update`, condition-template `Where`, and
   string-typed `Join`. Migrate to `Value`, `Set`, structured `Where` or

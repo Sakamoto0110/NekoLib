@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 #if NET9
@@ -18,7 +20,7 @@ using Newtonsoft.Json.Linq;
 namespace NekoLib.Watchdog
 {
     /// <summary>
-    /// Synchronous application-side facade for the Watchdog Host associated with
+    /// Application-side facade for the Watchdog Host associated with
     /// the current executable. It is not a controller for arbitrary processes.
     /// </summary>
     public static class WatchdogController
@@ -217,6 +219,77 @@ namespace NekoLib.Watchdog
         /// <summary>Requests that the current Host stop supervision and the target.</summary>
         /// <returns><c>true</c> only when the Host returns <c>stopped</c>.</returns>
         public static bool Stop() => Send(WatchdogCommands.Stop) == "stopped";
+
+        /// <summary>Asynchronously asks the local supervisor to claim shutdown within 60 seconds.</summary>
+        /// <returns>The outcome for this request. Accepted confirms ownership of shutdown;
+        /// Expired guarantees that this request cannot subsequently stop the target.</returns>
+        /// <remarks>The acceptance deadline starts before connection. After a lost reply,
+        /// one read-only receipt query has a separate three-second budget. Unknown means
+        /// an acceptance could not be verified. Older Hosts reject the new command.</remarks>
+        public static Task<WatchdogStopResult> RequestStopAsync() =>
+            RequestStopToPipeAsync(_pipeName, WatchdogStopRequest.Budget);
+
+        internal static async Task<WatchdogStopResult> RequestStopToPipeAsync(string pipeName, TimeSpan budget)
+        {
+            var token = WatchdogStopRequest.NewToken(budget);
+            using var stopWaiting = new CancellationTokenSource();
+            var deadline = Task.Delay(budget, stopWaiting.Token);
+            var submission = SendStopCommandAsync(pipeName, WatchdogCommands.RequestStop, token,
+                budget + WatchdogStopRequest.ReceiptBudget, stopWaiting.Token);
+            try
+            {
+                if (await Task.WhenAny(submission, deadline).ConfigureAwait(false) == submission)
+                {
+                    var result = await submission.ConfigureAwait(false);
+                    if (result != WatchdogStopResult.Unknown)
+                        return result;
+                }
+
+                // Keep the first connection readable during reconciliation. The Host can
+                // only report expiry once the acceptance deadline has actually elapsed.
+                var query = SendStopCommandAsync(pipeName, WatchdogCommands.StopReceipt, token,
+                    WatchdogStopRequest.ReceiptBudget, stopWaiting.Token);
+                var first = await Task.WhenAny(submission, query).ConfigureAwait(false);
+                var observed = await first.ConfigureAwait(false);
+                if (observed != WatchdogStopResult.Unknown)
+                    return observed;
+                var other = first == submission ? query : submission;
+                return await other.ConfigureAwait(false);
+            }
+            finally { stopWaiting.Cancel(); }
+        }
+
+        private static async Task<WatchdogStopResult> SendStopCommandAsync(
+            string pipeName, string command, string token, TimeSpan budget, CancellationToken cancellationToken)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(budget);
+            var client = new PipeClient(new PipeClientOptions
+            {
+                PipeName = pipeName,
+                ConnectTimeout = budget,
+                RequestTimeout = budget
+            });
+            try
+            {
+                var response = await client.SendAsync(command, token, timeout.Token).ConfigureAwait(false);
+                if (!response.Ok)
+                    return command == WatchdogCommands.RequestStop && response.Error?.Code == PipeErrorCodes.NotFound
+                        ? WatchdogStopResult.Rejected : WatchdogStopResult.Unknown;
+                switch (response.Data?.ToString())
+                {
+                    case "accepted": return WatchdogStopResult.Accepted;
+                    case "expired": return WatchdogStopResult.Expired;
+                    case "rejected": return WatchdogStopResult.Rejected;
+                    default: return WatchdogStopResult.Unknown;
+                }
+            }
+            catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException ||
+                ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
+            {
+                return WatchdogStopResult.Unknown;
+            }
+        }
 
         /// <summary>Requests that the current Host replace the supervised target.</summary>
         /// <returns><c>true</c> only when the Host returns <c>restarting</c>.</returns>

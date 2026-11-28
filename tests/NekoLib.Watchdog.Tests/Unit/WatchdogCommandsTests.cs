@@ -45,6 +45,8 @@ namespace NekoLib.Watchdog.Tests.Unit
         [InlineData("exception_notify", "ExceptionNotify")]
         [InlineData("protocol_version", "ProtocolVersion")]
         [InlineData("attach_status", "AttachStatus")]
+        [InlineData("request_stop", "RequestStop")]
+        [InlineData("stop_receipt", "StopReceipt")]
         public void InternalCommand_HasExpectedWireValue(string expected, string member)
         {
             var field = typeof(WatchdogCommands).GetField(

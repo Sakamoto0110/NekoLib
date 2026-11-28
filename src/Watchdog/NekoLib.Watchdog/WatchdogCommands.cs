@@ -21,6 +21,8 @@ namespace NekoLib.Watchdog
         public const string Stop = "stop";
 
         internal const string Detach = "detach";
+        internal const string RequestStop = "request_stop";
+        internal const string StopReceipt = "stop_receipt";
 
         internal const string LogHistory = "log_history";
         internal const string ExceptionNotify = "exception_notify";

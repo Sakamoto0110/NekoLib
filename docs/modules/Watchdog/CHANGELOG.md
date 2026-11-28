@@ -24,6 +24,16 @@ The [coordinated family changelog](../../../CHANGELOG.md) remains the release
 summary. This file records Watchdog-specific consumer impact without duplicating
 package hashes or release provenance.
 
+## Unreleased
+
+**Packages:** `NekoLib.Watchdog`, `NekoLib.Pipes`, `NekoLib.Watchdog.Host`
+
+**Compatibility class:** additive, targeting 2.0.0
+
+**Consumer impact:** `WatchdogController.RequestStopAsync()` provides a 60-second deadline to accept a stop and returns a typed outcome. A request that expires while queued cannot terminate the target later.
+
+**Migration:** Align the package family and await the new method for deadline-bound acceptance. Existing synchronous `Stop()` retains its earlier semantics. See the [control contract](REFERENCE.md#control-contract).
+
 ## 1.4.0
 
 **Packages:** `NekoLib.Watchdog`

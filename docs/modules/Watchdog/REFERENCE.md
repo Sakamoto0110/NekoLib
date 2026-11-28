@@ -622,7 +622,7 @@ graceful and forced attempts are logged.
 `protocol_version`, `attach_status`, `log_write`, `log_write_batch`, and
 `update` are internal protocol names already wrapped by public APIs.
 
-Pipe-backed calls are synchronous, with a 1,500 ms connect timeout and a
+The legacy synchronous controller calls use a 1,500 ms connect timeout and a
 3,000 ms request timeout per call. Automatic Enable/Disable/Shutdown use the
 configured total handshake/detach budget. Avoid blocking a live UI thread:
 
@@ -637,6 +637,7 @@ configured total handshake/detach budget. Avoid blocking a live UI thread:
 | `Resume()` | `true` only for `running` |
 | `Restart()` | `true` only for `restarting` |
 | `Stop()` | `true` only for `stopped` |
+| `await RequestStopAsync()` | `WatchdogStopResult` for this request ID; a 60-second acceptance budget covers connection and queueing |
 | `NotifyException`, `NotifyExceptionForTarget`, `NotifyLog` | fail-soft; never throw for pipe or protocol failure |
 
 The acknowledgement describes command **acceptance**, not completion:
@@ -647,6 +648,25 @@ The acknowledgement describes command **acceptance**, not completion:
 - `stop` replies first and performs shutdown on a pooled thread after a short
   delay. A `true` result therefore means the Host accepted the request, not that
   supervision has already ended. Poll `Ping` to observe the endpoint closing.
+
+`RequestStopAsync()` uses the separate internal `request_stop` command. The
+caller sets a deadline using the machine-wide monotonic performance counter
+before connecting. The supervisor checks the deadline when the worker claims
+shutdown under its lifecycle lock. A worker reaching that point after expiry
+skips shutdown, including when the timer callback itself ran late.
+
+- `Accepted` means the worker took ownership before the deadline. Process
+  cleanup can finish later. The Host gives the response a chance to flush.
+- `Expired` confirms this request cannot stop the target, even if its queued
+  callback runs later.
+- `Rejected` means the Host declined the request, already has another active
+  stop request, or supports only the legacy command.
+- `Unknown` means the caller could not verify the outcome. If the direct reply
+  is lost or is still pending at the deadline, the controller queries
+  `stop_receipt` once with the same ID. During that three-second window it can
+  also receive the original reply. The Host retains the latest request in memory.
+  A missing endpoint or receipt cannot prove success. The controller never
+  resubmits the stop automatically.
 
 The runtime answers the internal `update` command with a structured pipe
 **error** whose code is `not_implemented`. This exists only so a coordinated

@@ -444,3 +444,33 @@ The executed records follow.
 **Gaps:** This is documentation and compile-only evidence. It launches no application or supervisor and adds no runtime, security or soak claim. The prior native package matrix remains owned by record 004 and the release supplement; local retrieval indexes remain non-authoritative caches.
 
 **Supersedes:** none; supplements the public consumer guidance without changing release provenance or runtime evidence
+
+## WDG-VALEVID-20261128-001
+
+**Requirement IDs:** `WDG-VALREQ-003`, `WDG-VALREQ-004`
+
+**Version:** 2.0.0 working tree containing the deadline-bound stop request
+
+**Commit:** local changes on top of `a58377f1d4483c6ee730613a85d226d02c3d86db`
+
+**Tree state:** uncommitted implementation, regression tests, API manifests and documentation
+
+**Environment:** Windows, 16 logical processors. Bounded idle-priority CPU workers drove the measured system load to 100% during each request.
+
+**Targets:** separate net481 supervisor, client and child processes for the load run. Watchdog and Pipes regression suites also ran on .NET 9.
+
+**Command or scenario:** Start a real child and call the public `RequestStopAsync()` from a second process. In the first case the executor can claim the request immediately. In the second case a scheduler gate holds it until the client returns from the full 60-second deadline. Release the executor, wait for it to finish, read the supervisor's decision and check the original child process.
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** `load-58083e40/outcomes.json` (final source build), `load-8ee67546/outcomes.json` (previous complete run), per-case executor timestamps and Host receipts, `run-load.py`, `probe/Program.cs`, `watchdog-tests.log`, `pipes-tests.log`, `api.log` and `source-evidence.json` under `artifacts/request-stop-race/`. The tracked `WatchdogRuntimeRpcTests` cover expiry, acceptance, lost replies and legacy Hosts.
+
+**Observed:** In the final load run, client and supervisor both reported `Accepted` and the original child exited. With the executor held in the queue, both reported `Expired` and the original child survived the late callback. The caller received the results after 60.036 s and 60.025 s respectively, including reply delivery. All 292 Watchdog and 148 Pipes suite cases passed across the two targets. All 30 compiled API manifests matched.
+
+**Gaps:** One complete load run per ordering on the final build. An intermediate probe exhausted its 25-second observation window for cleanup. The final probe recorded the client receipt separately and allowed 105 seconds to observe the executor finishing. The scheduling gate forces the late callback. These are source-level measurements. The previously built candidate packages require separate qualification.
+
+**Supersedes:** none

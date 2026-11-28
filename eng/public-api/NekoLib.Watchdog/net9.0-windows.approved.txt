@@ -52,6 +52,7 @@ namespace NekoLib.Watchdog
         public static void NotifyLog(NekoLib.Core.Logging.LogEntry? entry) { }
         public static bool Pause() { }
         public static bool Ping() { }
+        public static System.Threading.Tasks.Task<NekoLib.Watchdog.WatchdogStopResult> RequestStopAsync() { }
         public static string ResolvePipeNameForTarget(string targetPath) { }
         public static bool Restart() { }
         public static bool Resume() { }
@@ -122,5 +123,12 @@ namespace NekoLib.Watchdog
         public void Start() { }
         public void Stop() { }
         public void WaitForExit() { }
+    }
+    public enum WatchdogStopResult
+    {
+        Unknown = 0,
+        Accepted = 1,
+        Expired = 2,
+        Rejected = 3,
     }
 }

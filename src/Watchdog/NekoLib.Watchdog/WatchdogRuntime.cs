@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using NekoLib.Core.Logging;
 using NekoLib.Core.Telemetry;
 using NekoLib.Pipes;
@@ -33,6 +34,9 @@ namespace NekoLib.Watchdog
         private readonly object _childLock = new object();
         private readonly object _logLock = new object();
         private readonly object _lifecycleLock = new object();
+        private readonly object _receiptLock = new object();
+        private readonly Action<WaitCallback> _queueStop;
+        private WatchdogStopRequest? _lastStopRequest;
         private readonly object _bufferLock = new object();
 
         private const int MaxBufferedLogs = 300;
@@ -113,7 +117,13 @@ namespace NekoLib.Watchdog
         /// <exception cref="InvalidOperationException">Required target or attach configuration is missing or invalid.</exception>
         /// <exception cref="FileNotFoundException">The target executable does not exist.</exception>
         public WatchdogRuntime(WatchdogOptions options)
+            : this(options, callback => ThreadPool.QueueUserWorkItem(callback))
         {
+        }
+
+        internal WatchdogRuntime(WatchdogOptions options, Action<WaitCallback> queueStop)
+        {
+            _queueStop = queueStop;
             _o = WatchdogRuntimeOptions.Capture(options);
             _uiHealth = new UiHangMonitor(_o.EnableUiHangDetection, _o.UiHangTimeoutMs, _o.UiHangStartupGraceMs);
             _pipeMetrics = new SimplePipeMetrics();
@@ -271,10 +281,25 @@ namespace NekoLib.Watchdog
         public void Detach()
             => StopCore(killChild: false);
 
-        private void StopCore(bool killChild)
+        private void StopCore(bool killChild, WatchdogStopRequest? request = null)
         {
             lock (_lifecycleLock)
             {
+                if (request != null)
+                {
+                    lock (_childLock)
+                    lock (_receiptLock)
+                    {
+                        if (_lifecycleState != LifecycleState.Running || _shutdownRequested)
+                        {
+                            request.Decide(WatchdogStopResult.Rejected);
+                            return;
+                        }
+                        if (!request.Decide(WatchdogStopResult.Accepted))
+                            return;
+                        _shutdownRequested = true;
+                    }
+                }
                 if (_lifecycleState == LifecycleState.Stopped ||
                     _lifecycleState == LifecycleState.Stopping)
                     return;
@@ -284,6 +309,15 @@ namespace NekoLib.Watchdog
                 _attachStatusReady = false;
                 try
                 {
+                    // Give this RPC a chance to flush its acknowledgement before
+                    // terminating its caller. A disconnected caller cannot veto an accepted stop.
+                    if (request != null)
+                    {
+                        var ticksLeft = Math.Max(0L, request.Deadline - Stopwatch.GetTimestamp());
+                        var replyWindow = TimeSpan.FromSeconds((double)ticksLeft / Stopwatch.Frequency)
+                            + WatchdogStopRequest.ReceiptBudget;
+                        request.ResponseAttempted.Task.Wait(replyWindow);
+                    }
                     LogWarn(killChild ? "[stop] requested" : "[detach] requested");
                     CleanupOwnedResources(killChild);
                     LogInfo(killChild ? "[stop] completed" : "[detach] completed");
@@ -300,6 +334,73 @@ namespace NekoLib.Watchdog
         // RPC
         // ============================================================
 
+        internal async Task<PipeMessage> RequestStop(string? token)
+        {
+            var incoming = WatchdogStopRequest.Parse(token);
+            if (incoming == null)
+                return PipeOk("rejected");
+            WatchdogStopRequest receipt;
+            lock (_receiptLock)
+            {
+                _lastStopRequest?.ExpireIfDue();
+                if (_lastStopRequest?.Token == incoming.Token)
+                    receipt = _lastStopRequest;
+                else
+                {
+                    incoming.ExpireIfDue();
+                    if (incoming.Decision.IsCompleted)
+                        return PipeOk("expired");
+                    if (_lastStopRequest != null && (!_lastStopRequest.Decision.IsCompleted ||
+                        _lastStopRequest.Decision.Result == WatchdogStopResult.Accepted))
+                        return PipeOk("rejected");
+                    _lastStopRequest = receipt = incoming;
+                    _queueStop(_ =>
+                    {
+                        try { StopCore(killChild: true, receipt); }
+                        catch (Exception ex) { LogWarn("[request_stop] shutdown failed", new { error = ex.GetType().Name }); }
+                    });
+                }
+            }
+            // Release the waiting RPC even when the executor has not been scheduled.
+            // Its independent check in StopCore also protects against a delayed timer.
+            using var timer = new CancellationTokenSource();
+            while (!receipt.Decision.IsCompleted)
+            {
+                var remaining = receipt.Deadline - Stopwatch.GetTimestamp();
+                if (remaining <= 0)
+                {
+                    lock (_receiptLock) receipt.ExpireIfDue();
+                    break;
+                }
+                var milliseconds = (int)Math.Ceiling(1000.0 * remaining / Stopwatch.Frequency);
+                await Task.WhenAny(receipt.Decision, Task.Delay(milliseconds, timer.Token)).ConfigureAwait(false);
+            }
+            timer.Cancel();
+            var outcome = await receipt.Decision.ConfigureAwait(false);
+            return StopReply(receipt, outcome);
+        }
+
+        private PipeMessage StopReply(WatchdogStopRequest receipt, WatchdogStopResult outcome)
+        {
+            var reply = PipeOk(outcome.ToString().ToLowerInvariant());
+            if (outcome == WatchdogStopResult.Accepted)
+                reply.AfterResponseAttempt = () => receipt.ResponseAttempted.TrySetResult(true);
+            return reply;
+        }
+
+        internal PipeMessage ReadStopReceipt(string? token)
+        {
+            lock (_receiptLock)
+            {
+                var receipt = _lastStopRequest;
+                if (receipt == null || receipt.Token != token)
+                    return PipeOk("unknown");
+                receipt.ExpireIfDue();
+                return StopReply(receipt, receipt.Decision.IsCompleted
+                    ? receipt.Decision.Result : WatchdogStopResult.Unknown);
+            }
+        }
+
         private void RegisterRpcHandlers()
         {
             var rpc = _rpc ?? throw new InvalidOperationException("RPC server is not initialized.");
@@ -311,6 +412,10 @@ namespace NekoLib.Watchdog
 
             rpc.Map(WatchdogCommands.Status, async (req, ct) =>
                 PipeOk(BuildTelemetry()));
+
+            rpc.Map(WatchdogCommands.RequestStop, (req, ct) => RequestStop(req.Data?.ToString()));
+            rpc.Map(WatchdogCommands.StopReceipt, (req, ct) =>
+                Task.FromResult(ReadStopReceipt(req.Data?.ToString())));
 
             rpc.Map(WatchdogCommands.AttachStatus, async (req, ct) =>
             {

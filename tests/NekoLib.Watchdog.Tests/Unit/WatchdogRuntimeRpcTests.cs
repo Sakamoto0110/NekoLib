@@ -1,5 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using NekoLib.Pipes;
 using NekoLib.Watchdog;
 using Xunit;
@@ -8,6 +11,116 @@ namespace NekoLib.Watchdog.Tests.Unit
 {
     public sealed class WatchdogRuntimeRpcTests
     {
+        [Fact]
+        public async Task RequestStop_AcceptedWorkerStopsRuntime()
+        {
+            var root = NewTempRoot();
+            try
+            {
+                using var runtime = new WatchdogRuntime(WatchdogTestUtil.NewOptions(root, "/c ping -n 60 127.0.0.1 > nul"));
+                runtime.Start();
+                Assert.Equal(WatchdogStopResult.Accepted,
+                    await WatchdogController.RequestStopToPipeAsync(runtime.PipeName, WatchdogStopRequest.Budget));
+                Assert.True(WatchdogTestUtil.WaitUntil(() => !runtime.IsMonitorThreadAlive));
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public async Task RequestStop_WorkerObservingDeadlineFirstCannotClaim()
+        {
+            var receipt = WatchdogStopRequest.Parse(WatchdogStopRequest.NewToken(TimeSpan.Zero));
+            Assert.False(receipt.Decision.IsCompleted);
+            Assert.False(receipt.Decide(WatchdogStopResult.Accepted));
+            Assert.Equal(WatchdogStopResult.Expired, await receipt.Decision);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RequestStop_ExpiredQueuedWorkerCannotStopTarget(bool queryBeforeRelease)
+        {
+            var root = NewTempRoot();
+            try
+            {
+                var work = new TaskCompletionSource<WaitCallback>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var options = WatchdogTestUtil.NewOptions(root, "/c ping -n 60 127.0.0.1 > nul");
+                using var runtime = new WatchdogRuntime(options, callback => work.SetResult(callback));
+                runtime.Start();
+                Process child = null;
+                Assert.True(WatchdogTestUtil.WaitUntil(() =>
+                {
+                    var processes = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(options.TargetPath));
+                    if (processes.Length == 0) return false;
+                    child = Assert.Single(processes);
+                    return true;
+                }));
+                using var originalChild = child;
+                var token = WatchdogStopRequest.NewToken(TimeSpan.FromMilliseconds(250));
+                var request = runtime.RequestStop(token);
+                Assert.True(work.Task.IsCompleted);
+                var receipt = WatchdogStopRequest.Parse(token);
+                while (Stopwatch.GetTimestamp() < receipt.Deadline)
+                    await Task.Delay(20);
+                if (queryBeforeRelease)
+                    Assert.Equal("expired", runtime.ReadStopReceipt(token).Data.ToString());
+                (await work.Task)(null);
+                Assert.Equal("expired", (await request).Data.ToString());
+                Assert.Equal("expired", runtime.ReadStopReceipt(token).Data.ToString());
+                Assert.True(runtime.IsMonitorThreadAlive);
+                Assert.False(originalChild.HasExited);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public async Task RequestStop_LostReplyQueriesSameReceiptWithoutResubmitting()
+        {
+            string name = "stop-test-" + Guid.NewGuid().ToString("N");
+            using var rpc = new PipeServer(new PipeServerOptions { PipeName = name });
+            int submissions = 0;
+            string submitted = null, queried = null;
+            rpc.Map(WatchdogCommands.RequestStop, (message, ct) =>
+            {
+                Interlocked.Increment(ref submissions);
+                submitted = message.Data.ToString();
+                return Task.FromResult(new PipeMessage { Ok = false, Error = new PipeError { Code = PipeErrorCodes.ConnectionClosed } });
+            });
+            rpc.Map(WatchdogCommands.StopReceipt, (message, ct) =>
+            {
+                queried = message.Data.ToString();
+                return Task.FromResult(new PipeMessage {
+#if NETFRAMEWORK
+                    Data = Newtonsoft.Json.Linq.JToken.FromObject("accepted")
+#else
+                    Data = System.Text.Json.JsonSerializer.SerializeToElement("accepted")
+#endif
+                });
+            });
+            rpc.Start();
+            Assert.Equal(WatchdogStopResult.Accepted,
+                await WatchdogController.RequestStopToPipeAsync(name, TimeSpan.FromSeconds(10)));
+            Assert.Equal(1, submissions);
+            Assert.Equal(submitted, queried);
+        }
+
+        [Fact]
+        public async Task RequestStop_OlderHostRejectsWithoutFallingBackToLegacyStop()
+        {
+            string name = "stop-test-" + Guid.NewGuid().ToString("N");
+            using var rpc = new PipeServer(new PipeServerOptions { PipeName = name });
+            int legacyCalls = 0;
+            rpc.Map(WatchdogCommands.Stop, (_, ct) =>
+            {
+                Interlocked.Increment(ref legacyCalls);
+                return Task.FromResult(new PipeMessage());
+            });
+            rpc.Start();
+            Assert.Equal(WatchdogStopResult.Rejected,
+                await WatchdogController.RequestStopToPipeAsync(name, TimeSpan.FromSeconds(5)));
+            Assert.Equal(0, legacyCalls);
+        }
+
         [Fact]
         public void Runtime_RespondsToControlCommands_AndStopReturns()
         {

@@ -15,6 +15,9 @@ namespace NekoLib.Pipes
     /// </summary>
     public sealed class PipeMessage
     {
+        // Local completion signal for a terminal RPC that will close its own transport.
+        internal Action? AfterResponseAttempt { get; set; }
+
         /// <summary>Initializes an empty envelope for object initialization and deserialization.</summary>
         public PipeMessage()
         {

@@ -1,5 +1,6 @@
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/Sakamoto0110/NekoLib")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NekoLib.Pipes.Tests.Unit")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NekoLib.Watchdog")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v9.0", FrameworkDisplayName=".NET 9.0")]
 namespace NekoLib.Pipes
 {

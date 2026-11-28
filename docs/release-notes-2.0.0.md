@@ -36,6 +36,8 @@ covers dictionary inputs, nulls and join types.
 
 ## Other consumer-visible changes
 
+- **Watchdog.** Await `WatchdogController.RequestStopAsync()` for a stop request with a 60-second acceptance deadline. Handle the four [receipt outcomes](modules/Watchdog/REFERENCE.md#control-contract) explicitly.
+
 - **Navigation.** Errors for reading an unmounted context or attempting a second
   bootstrap now name the recovery steps. Mount with `PageNavBootstrap.Start()`
   and await `NavigationService.Shutdown()` before starting another context.
