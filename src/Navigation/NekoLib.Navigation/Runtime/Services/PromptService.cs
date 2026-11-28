@@ -24,6 +24,9 @@ namespace NekoLib.Navigation.Runtime.Services
         private sealed class PromptEntry
         {
             public IPageView View = null!;
+            public Type PromptType = null!;
+            public Type? OriginPageType;
+            public int SessionGeneration;
             public Action Cancel = null!;
             public SurfaceTraceScope? Trace;
             public bool BlockerTracked;
@@ -56,8 +59,16 @@ namespace NekoLib.Navigation.Runtime.Services
         }
 
         /// <inheritdoc />
-        public async Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
+        public Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
             object? payload = null)
+            where TPrompt : class, IPromptView<TResult>
+            => ShowPromptAsync<TPrompt, TResult>(payload, null, 0, null);
+
+        internal async Task<TResult?> ShowPromptAsync<TPrompt, TResult>(
+            object? payload,
+            Type? originPageType,
+            int sessionGeneration,
+            Func<object?>? takeDraft)
             where TPrompt : class, IPromptView<TResult>
         {
             var prompt = _factory.Create<TPrompt>();
@@ -65,6 +76,9 @@ namespace NekoLib.Navigation.Runtime.Services
             var entry = new PromptEntry
             {
                 View = prompt,
+                PromptType = typeof(TPrompt),
+                OriginPageType = originPageType,
+                SessionGeneration = sessionGeneration,
                 Cancel = () => tcs.TrySetResult(default)
             };
 
@@ -119,8 +133,14 @@ namespace NekoLib.Navigation.Runtime.Services
                 _viewHost.BringToFront(prompt.NativeView);
                 _viewHost.Focus(prompt.NativeView);
 
-                await prompt.OnShownAsync(payload);
-                entry.Trace?.Opened();
+                if (await SurfaceCleanup.WaitForSetupAsync(
+                    prompt.OnShownAsync(payload), tcs.Task, nameof(PromptService)) && Contains(prompt))
+                {
+                    if (prompt is IPromptDraftState draftView && takeDraft != null)
+                        RestoreDraft(draftView, takeDraft);
+
+                    entry.Trace?.Opened();
+                }
             }
             catch (Exception ex)
             {
@@ -141,6 +161,13 @@ namespace NekoLib.Navigation.Runtime.Services
         /// <inheritdoc />
         public void CloseAll()
             => CloseAll(NavigationTraceCloseReasons.ClosedByService);
+
+        internal Dictionary<(Type Page, Type Prompt), object> CloseAllAndCaptureDrafts(int sessionGeneration)
+        {
+            var drafts = new Dictionary<(Type Page, Type Prompt), object>();
+            CloseAll(NavigationTraceCloseReasons.IdleNavigation, drafts, sessionGeneration);
+            return drafts;
+        }
 
         void INavigationDiagnosticsAware.AttachDiagnostics(NavigationDiagnostics diagnostics)
         {
@@ -169,7 +196,10 @@ namespace NekoLib.Navigation.Runtime.Services
             }
         }
 
-        private void CloseAll(string closeReason)
+        private void CloseAll(
+            string closeReason,
+            Dictionary<(Type Page, Type Prompt), object>? drafts = null,
+            int sessionGeneration = 0)
         {
             if (closeReason == null)
                 throw new ArgumentNullException(nameof(closeReason));
@@ -200,6 +230,9 @@ namespace NekoLib.Navigation.Runtime.Services
                     firstError = errors[i];
             }
 
+            if (drafts != null)
+                CaptureDrafts(snapshot, drafts, sessionGeneration);
+
             for (int i = 0; i < snapshot.Length; i++)
             {
                 errors[i] = MergeFirst(
@@ -225,6 +258,47 @@ namespace NekoLib.Navigation.Runtime.Services
             }
 
             SurfaceCleanup.Rethrow(firstError);
+        }
+
+        private static void CaptureDrafts(
+            PromptEntry[] snapshot,
+            Dictionary<(Type Page, Type Prompt), object> drafts,
+            int sessionGeneration)
+        {
+            for (int i = snapshot.Length - 1; i >= 0; i--)
+            {
+                var entry = snapshot[i];
+                if (entry.OriginPageType == null || entry.SessionGeneration != sessionGeneration ||
+                    entry.View.IsDisposed || entry.View is not IPromptDraftState draftView)
+                    continue;
+
+                var key = (entry.OriginPageType, entry.PromptType);
+                if (drafts.ContainsKey(key))
+                    continue;
+
+                try
+                {
+                    if (draftView.CaptureDraft() is object draft)
+                        drafts.Add(key, draft);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[PromptService] Draft capture failed: " + ex.GetType().FullName);
+                }
+            }
+        }
+
+        private static void RestoreDraft(IPromptDraftState view, Func<object?> takeDraft)
+        {
+            try
+            {
+                if (takeDraft() is object draft)
+                    view.RestoreDraft(draft);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[PromptService] Draft restore failed: " + ex.GetType().FullName);
+            }
         }
 
         private void Complete<TResult>(

@@ -55,8 +55,11 @@ dotnet run --project runtime_tests/Navigation/WpfSmoke/NekoLib.Navigation.Runtim
    error rather than crash. Press **Start (re-bootstrap)**: a fresh context must
    mount and navigation must work again. Repeat the Shutdown/Start pair a few
    times — repeated mount and shutdown is explicit E2 scope.
-6. Leave the Dashboard idle for the displayed timeout. The session must sign out
-   and Navigation must return to the Idle page.
+6. Sign in and select Dashboard from the sidebar shortly before the displayed
+   timeout. Dashboard and the session must survive the old deadline. Open a
+   Popover and leave it untouched. At the renewed deadline, the session must sign
+   out and the popover must be gone when Idle first appears. The log must report
+   `Popover -> False`.
 7. Close the window. No modal awaiter may remain hung and the window must close
    without a navigation teardown deadlock.
 

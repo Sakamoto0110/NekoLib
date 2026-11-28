@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Wpf.Hosting;
 
 namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
@@ -54,7 +55,7 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
     }
 
     /// <summary>Modal prompt returning the typed text (null on cancel). Sized box.</summary>
-    public sealed class SamplePrompt : PromptViewBase<string>
+    public sealed class SamplePrompt : PromptViewBase<string>, IPromptDraftState
     {
         private readonly TextBox _input;
 
@@ -86,6 +87,10 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
 
             Content = SampleDialog.Card(stack, Brushes.White, Brushes.MediumPurple);
         }
+
+        public object CaptureDraft() => _input.Text;
+
+        public void RestoreDraft(object draft) => _input.Text = (string)draft;
 
         protected override Task OnShownAsync(object payload)
         {

@@ -118,8 +118,9 @@ namespace NekoLib.Navigation.Runtime.Services
                     }
                 }
 
-                await popover.OnShownAsync(payload);
-                entry.Trace?.Opened();
+                if (await SurfaceCleanup.WaitForSetupAsync(
+                    popover.OnShownAsync(payload), tcs.Task, nameof(PopoverService)))
+                    entry.Trace?.Opened();
             }
             catch (Exception ex)
             {

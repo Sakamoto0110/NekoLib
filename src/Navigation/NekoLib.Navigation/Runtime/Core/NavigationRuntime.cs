@@ -20,6 +20,7 @@ namespace NekoLib.Navigation.Runtime.Core
     internal sealed class NavigationRuntime : IAsyncDisposable
     {
         private readonly NavigationContext _ctx;
+        private readonly PageDescriptor? _idleDescriptor;
         private readonly object _runtimeServicesSync = new object();
 
         private IEventDispatcherAdapter _dispatcher;
@@ -28,6 +29,10 @@ namespace NekoLib.Navigation.Runtime.Core
         private IToastService _toastService;
         private IDialogService _dialogService;
         private IPromptService _promptService;
+        private readonly HashSet<Task> _activePromptResults = new HashSet<Task>();
+        private readonly Dictionary<(Type Page, Type Prompt), (int SessionGeneration, object Draft)> _promptDrafts =
+            new Dictionary<(Type Page, Type Prompt), (int SessionGeneration, object Draft)>();
+        private int _idlePromptGeneration;
         private IPopoverService _popoverService;
         private IPageAwareInteractionBlocker? _pageAwareInteractionBlocker;
 
@@ -90,6 +95,7 @@ namespace NekoLib.Navigation.Runtime.Core
         public NavigationRuntime(NavigationContext ctx)
         {
             _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
+            _idleDescriptor = IdlePageRules.Resolve(_ctx.Registry.AllDescriptors());
 
             // Share the context's diagnostics channel rather than building a second,
             // orphaned hub. Previously the runtime published to its own hub while
@@ -123,22 +129,49 @@ namespace NekoLib.Navigation.Runtime.Core
             }
         }
 
-        // Resolution priority (role -> "idle" tag -> name contains "idle") lives in
-        // IdlePageRules so the bootstrap's idle-timeout wiring and [PageTimeout]
-        // placement validation share the exact same notion of "the idle page".
-        private PageDescriptor ResolveIdleDescriptor()
-            => IdlePageRules.Resolve(_ctx.Registry.AllDescriptors());
-
         public Task GoIdleAsync(object args = null)
         {
-            var desc = ResolveIdleDescriptor();
-            if (desc == null)
+            if (_idleDescriptor == null)
                 return Task.CompletedTask;
 
             return StartNavigateRequest(
-                desc.PageType,
+                _idleDescriptor.PageType,
                 NavigationArgs.Default(args),
                 NavigationTraceTrigger.Idle);
+        }
+
+        internal Task ExpireIdleAsync(NavigationContext context, Func<bool> tryBegin)
+        {
+            if (!ReferenceEquals(_ctx, context))
+                return Task.CompletedTask;
+
+            if (_idleDescriptor != null)
+                return StartNavigateRequest(
+                    _idleDescriptor.PageType,
+                    NavigationArgs.Empty,
+                    NavigationTraceTrigger.Idle,
+                    tryBegin);
+
+            return ExecuteAsync(() => TryBeginIdleTimeoutAsync(tryBegin));
+        }
+
+        private async Task<bool> TryBeginIdleTimeoutAsync(Func<bool> tryBegin)
+        {
+            // Prompt teardown runs during sign-out. Await the results that belonged
+            // to the ending session before presenting the signed-out page.
+            var promptResults = SnapshotPromptResults();
+            if (!tryBegin())
+                return false;
+
+            EnsureRuntimeServices();
+            if (_popoverService != null)
+                TeardownService(
+                    _popoverService,
+                    _popoverService.CloseAll,
+                    NavigationTraceCloseReasons.IdleTimeout);
+
+            await WaitForPromptResultsAsync(promptResults);
+            return true;
         }
 
         private void EnsureRuntimeServices()
@@ -192,6 +225,8 @@ namespace NekoLib.Navigation.Runtime.Core
                 _promptService = (IPromptService)services.Get(typeof(IPromptService));
                 AttachDiagnostics(_promptService);
                 AttachInteractionBlocker(_promptService);
+                _ctx.Session.SignedOut += ClosePromptsOnSignOut;
+                _ctx.Session.Changed += ClearPromptDrafts;
             }
 
                 if (_popoverService == null && services.CanResolve(typeof(IPopoverService)))
@@ -329,7 +364,8 @@ namespace NekoLib.Navigation.Runtime.Core
 
         private Task<T> RunOnUiAsync<T>(
             Func<Task<T>> action,
-            Action? admissionCompleted = null)
+            Action? admissionCompleted = null,
+            HashSet<Task>? activeResults = null)
         {
             EnsureDispatcher();
 
@@ -338,6 +374,11 @@ namespace NekoLib.Navigation.Runtime.Core
 
             _dispatcher.BeginInvoke(async () =>
             {
+                if (activeResults != null)
+                {
+                    lock (activeResults)
+                        activeResults.Add(tcs.Task);
+                }
                 try
                 {
                     Task<T> pending;
@@ -361,6 +402,14 @@ namespace NekoLib.Navigation.Runtime.Core
                 catch (Exception ex)
                 {
                     tcs.TrySetException(ex);
+                }
+                finally
+                {
+                    if (activeResults != null)
+                    {
+                        lock (activeResults)
+                            activeResults.Remove(tcs.Task);
+                    }
                 }
             });
 
@@ -505,7 +554,8 @@ namespace NekoLib.Navigation.Runtime.Core
         private Task<NavigationResult> StartNavigateRequest(
             Type? pageType,
             NavigationArgs args,
-            NavigationTraceTrigger trigger)
+            NavigationTraceTrigger trigger,
+            Func<bool>? tryBeginIdleTimeout = null)
         {
             var requestedTarget = pageType?.FullName ?? "<null>";
             var trace = _diagnostics.StartRequest(
@@ -516,19 +566,23 @@ namespace NekoLib.Navigation.Runtime.Core
                 args,
                 trigger);
 
-            return ExecuteNavigateRequestAsync(trace, pageType, args);
+            return ExecuteNavigateRequestAsync(trace, pageType, args, tryBeginIdleTimeout);
         }
 
         private async Task<NavigationResult> ExecuteNavigateRequestAsync(
             NavigationTraceScope? trace,
             Type? pageType,
-            NavigationArgs args)
+            NavigationArgs args,
+            Func<bool>? tryBeginIdleTimeout)
         {
             try
             {
-                var result = await ExecuteRequestAsync(trace, async () =>
+                var result = await ExecuteRequestAsync<NavigationAttemptResult?>(trace, async () =>
                 {
-                    EnsureRuntimeServices();
+                    if (tryBeginIdleTimeout == null)
+                        EnsureRuntimeServices();
+                    else if (!await TryBeginIdleTimeoutAsync(tryBeginIdleTimeout))
+                        return null;
                     return await SwitchInternalAsync(
                         pageType,
                         args,
@@ -537,6 +591,12 @@ namespace NekoLib.Navigation.Runtime.Core
                         visited: null,
                         parentAttemptId: null);
                 });
+
+                if (result == null)
+                {
+                    trace?.Complete(NavigationTraceOutcome.Discarded, "IdleTimeoutSuperseded");
+                    return new NavigationResult(pageType!, null, false, false, null);
+                }
 
                 trace?.Complete(
                     result.RequestOutcome,
@@ -638,14 +698,103 @@ namespace NekoLib.Navigation.Runtime.Core
             Action? admissionCompleted = null)
             where TPrompt : class, IPromptView<TResult>
         {
+            var sessionGeneration = _ctx.Session.Generation;
+            var idlePromptGeneration = Volatile.Read(ref _idlePromptGeneration);
             EnsureRuntimeServices();
 
             if (_promptService == null)
                 throw new InvalidOperationException("IPromptService is not registered.");
 
             return RunOnUiAsync(
-                () => _promptService.ShowPromptAsync<TPrompt, TResult>(payload),
-                admissionCompleted);
+                () => _ctx.Session.Generation == sessionGeneration &&
+                      (idlePromptGeneration & 1) == 0 &&
+                      Volatile.Read(ref _idlePromptGeneration) == idlePromptGeneration
+                    ? OpenPromptAsync<TPrompt, TResult>(payload, sessionGeneration)
+                    : Task.FromResult<TResult?>(default),
+                admissionCompleted,
+                _activePromptResults);
+        }
+
+        private Task<TResult?> OpenPromptAsync<TPrompt, TResult>(object payload, int sessionGeneration)
+            where TPrompt : class, IPromptView<TResult>
+        {
+            if (_promptService is PromptService service && Current != null)
+            {
+                var pageType = Current.GetType();
+                return service.ShowPromptAsync<TPrompt, TResult>(payload, pageType, sessionGeneration,
+                    () => TakePromptDraft(pageType, typeof(TPrompt), sessionGeneration));
+            }
+
+            return _promptService.ShowPromptAsync<TPrompt, TResult>(payload);
+        }
+
+        private object? TakePromptDraft(Type pageType, Type promptType, int sessionGeneration)
+        {
+            lock (_promptDrafts)
+            {
+                if (!_ctx.Session.IsAuthenticated || _ctx.Session.Generation != sessionGeneration ||
+                    Current?.GetType() != pageType ||
+                    !_promptDrafts.TryGetValue((pageType, promptType), out var saved) ||
+                    saved.SessionGeneration != sessionGeneration)
+                    return null;
+
+                _promptDrafts.Remove((pageType, promptType));
+                return saved.Draft;
+            }
+        }
+
+        private void ClearPromptDrafts()
+        {
+            lock (_promptDrafts)
+                _promptDrafts.Clear();
+        }
+
+        private async Task ClosePromptsBeforeIdleAsync(bool canSaveDrafts)
+        {
+            var promptResults = SnapshotPromptResults();
+            if (canSaveDrafts && _ctx.Session.IsAuthenticated && _promptService is PromptService service)
+            {
+                var sessionGeneration = _ctx.Session.Generation;
+                var drafts = service.CloseAllAndCaptureDrafts(sessionGeneration);
+                lock (_promptDrafts)
+                {
+                    if (_ctx.Session.IsAuthenticated && _ctx.Session.Generation == sessionGeneration)
+                    {
+                        foreach (var draft in drafts)
+                            _promptDrafts[draft.Key] = (sessionGeneration, draft.Value);
+                    }
+                }
+            }
+            else
+            {
+                TeardownService(_promptService, _promptService.CloseAll, NavigationTraceCloseReasons.IdleNavigation);
+            }
+
+            await WaitForPromptResultsAsync(promptResults);
+        }
+
+        private void ClosePromptsOnSignOut() => _dispatcher.Invoke(() => TeardownService(
+            _promptService,
+            _promptService.CloseAll,
+            NavigationTraceCloseReasons.SessionEnded));
+
+        private Task[] SnapshotPromptResults()
+        {
+            lock (_activePromptResults)
+                return _activePromptResults.ToArray();
+        }
+
+        private static async Task WaitForPromptResultsAsync(Task[] promptResults)
+        {
+            if (promptResults.Length == 0)
+                return;
+
+            try { await Task.WhenAll(promptResults); }
+            catch
+            {
+                // Prompt callers observe their own failures. Cleanup has already
+                // removed the views, so these failures cannot block navigation.
+            }
         }
 
         internal Task<bool> ShowPopoverAsync<TPopover>(
@@ -668,6 +817,7 @@ namespace NekoLib.Navigation.Runtime.Core
             return ExecuteAsync(async () =>
             {
                 EnsureRuntimeServices();
+                ClearPromptDrafts();
                 var watch = _diagnostics.TraceEventsEnabled
                     ? System.Diagnostics.Stopwatch.StartNew()
                     : null;
@@ -735,6 +885,9 @@ namespace NekoLib.Navigation.Runtime.Core
             return new ValueTask(ExecuteSafeOnUiAsync(async () =>
             {
                 EnsureRuntimeServices();
+                _ctx.Session.SignedOut -= ClosePromptsOnSignOut;
+                _ctx.Session.Changed -= ClearPromptDrafts;
+                ClearPromptDrafts();
                 var watch = _diagnostics.TraceEventsEnabled
                     ? System.Diagnostics.Stopwatch.StartNew()
                     : null;
@@ -933,6 +1086,7 @@ namespace NekoLib.Navigation.Runtime.Core
             bool previousTransitionStarted = false;
             bool previousDetached = false;
             bool previousCleanupPending = false;
+            bool closingPromptsForIdle = false;
             var previousWasAttached =
                 from != null &&
                 (_attachedPages.Contains(from) || ReferenceEquals(Current, from));
@@ -1188,6 +1342,15 @@ namespace NekoLib.Navigation.Runtime.Core
                     }
                 }
 
+                if (ReferenceEquals(toDesc, _idleDescriptor) && _promptService != null)
+                {
+                    // Odd generations fence off prompt requests between removal
+                    // of the old surfaces and the first presentation of Idle.
+                    closingPromptsForIdle = true;
+                    Interlocked.Increment(ref _idlePromptGeneration);
+                    await ClosePromptsBeforeIdleAsync(from != null && !ReferenceEquals(fromDesc, _idleDescriptor));
+                }
+
                 attemptTrace?.SetStage(NavigationTraceStage.AttachPage);
                 targetWasAlreadyAttached = _attachedPages.Contains(to);
                 targetWasVisible = _visiblePages.Contains(to);
@@ -1222,6 +1385,11 @@ namespace NekoLib.Navigation.Runtime.Core
 
                 Current = to;
                 currentChangedToTarget = true;
+                if (closingPromptsForIdle)
+                {
+                    Interlocked.Increment(ref _idlePromptGeneration);
+                    closingPromptsForIdle = false;
+                }
                 RaiseSafely(CurrentChanged, Current, nameof(CurrentChanged));
                 EmitPageDecision(attemptTrace, to, "CurrentChanged");
 
@@ -1304,6 +1472,9 @@ namespace NekoLib.Navigation.Runtime.Core
             }
             catch (Exception ex)
             {
+                if (closingPromptsForIdle)
+                    Interlocked.Increment(ref _idlePromptGeneration);
+
                 if (previousTransitionStarted ||
                     targetAttached ||
                     targetShowAttempted ||

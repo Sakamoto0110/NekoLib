@@ -137,6 +137,11 @@ namespace NekoLib.Navigation.Contracts.Pages
         void BindCompletion(System.Action<bool> completionCallback);
         System.Threading.Tasks.Task OnShownAsync(object? payload);
     }
+    public interface IPromptDraftState
+    {
+        object? CaptureDraft();
+        void RestoreDraft(object draft);
+    }
     public interface IPromptView : NekoLib.Navigation.Contracts.Pages.IPageView, System.IDisposable
     {
         System.Threading.Tasks.Task OnShownAsync(object? payload);
@@ -469,6 +474,7 @@ namespace NekoLib.Navigation
         public static void DismissCurrentToast() { }
         public static System.Threading.Tasks.Task<bool> GoBackAsync() { }
         public static System.Threading.Tasks.Task GoIdleAsync() { }
+        public static void NotifyUserInteraction() { }
         public static System.Threading.Tasks.Task ResetAsync() { }
         public static System.Threading.Tasks.Task<bool> ShowDialogAsync<TDialog>(object? payload = null)
             where TDialog :  class, NekoLib.Navigation.Contracts.Pages.IDialogView { }

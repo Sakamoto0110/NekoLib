@@ -3,9 +3,11 @@ using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
+using NekoLib.Navigation.Runtime.Services;
 using NekoLib.Navigation.Tests.Unit.Fakes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -202,9 +204,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
             var navigations = 0;
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => { navigations++; return Task.CompletedTask; });
 
             try
@@ -242,9 +242,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
             var navigations = 0;
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => { navigations++; return Task.CompletedTask; });
 
             try
@@ -284,9 +282,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var observer = new TrackingObserver();
             var navigations = 0;
             NavigationBootstrapLifetime lifetime = null;
-            lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            lifetime = timer.CreateLifetime(observer,
                 () => { navigations++; return Task.CompletedTask; });
 
             try
@@ -320,9 +316,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => Task.CompletedTask);
 
             try
@@ -351,9 +345,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => Task.CompletedTask);
 
             try
@@ -386,7 +378,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             // No navigateIdle override: this lifetime owns the real GoIdleAsync and
             // can therefore verify — and skip — an already-settled idle state.
-            var lifetime = new NavigationBootstrapLifetime(observer, timer);
+            var lifetime = timer.CreateLifetime(observer);
 
             var navigations = 0;
             NavigationService.Navigated += (_, __, ___) => navigations++;
@@ -427,9 +419,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => Task.CompletedTask);
 
             try
@@ -518,9 +508,7 @@ namespace NekoLib.Navigation.Tests.Unit
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => navigation.Task);
 
             try
@@ -564,9 +552,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () => Task.FromException(
                     new InvalidOperationException("idle failed")));
 
@@ -615,9 +601,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
             int navigationCalls = 0;
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () =>
                 {
                     navigationCalls++;
@@ -657,9 +641,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
             int navigationCalls = 0;
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer,
+            var lifetime = timer.CreateLifetime(observer,
                 () =>
                 {
                     navigationCalls++;
@@ -699,9 +681,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             var timer = new TrackingTimer();
             var observer = new TrackingObserver();
-            var lifetime = new NavigationBootstrapLifetime(
-                observer,
-                timer);
+            var lifetime = timer.CreateLifetime(observer);
 
             try
             {
@@ -730,6 +710,482 @@ namespace NekoLib.Navigation.Tests.Unit
                 lifetime.Dispose();
                 await NavigationService.Shutdown();
             }
+        }
+
+        [Theory]
+        [InlineData("sidebar")]
+        [InlineData("observed host")]
+        [InlineData("programmatic")]
+        public async Task IdleDeadline_OnlyUserInputRenewsItAndInvalidatesStaleTicks(string source)
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>(typeof(StubA));
+            var timer = new TrackingTimer();
+            var observer = new TrackingObserver();
+            var lifetime = timer.CreateLifetime(observer);
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+
+            try
+            {
+                await NavigationService.GoIdleAsync();
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("first-operator");
+                var idleReached = ObserveIdlePresentation();
+
+                timer.Advance(900);
+                if (source == "sidebar")
+                    NavigationService.NotifyUserInteraction();
+                else if (source == "observed host")
+                    observer.RaiseInteraction();
+
+                await NavigationService.SwitchPage<StubA>();
+                timer.Advance(100);
+                timer.DeliverTick();
+
+                if (source != "programmatic")
+                {
+                    Assert.IsType<StubA>(NavigationService.Current);
+                    Assert.True(fixture.Context.Session.IsAuthenticated);
+                    Assert.Equal(900, timer.IntervalMilliseconds);
+                    timer.Advance(899);
+                    timer.DeliverTick();
+                    Assert.IsType<StubA>(NavigationService.Current);
+                    Assert.True(fixture.Context.Session.IsAuthenticated);
+                    timer.Advance(1);
+                    timer.DeliverTick();
+                }
+
+                await AssertCompletes(idleReached);
+                Assert.IsType<StubIdle>(NavigationService.Current);
+                Assert.False(fixture.Context.Session.IsAuthenticated);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleDeadline_UserInputWhileTimeoutWaitsForNavigationGateCancelsSignOut()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>(typeof(StubBlockingShutdownPage), typeof(StubA));
+            var timer = new TrackingTimer();
+            var lifetime = timer.CreateLifetime(new TrackingObserver());
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+            StubBlockingShutdownPage blockingPage = null;
+
+            try
+            {
+                await NavigationService.SwitchPage<StubBlockingShutdownPage>();
+                blockingPage = Assert.IsType<StubBlockingShutdownPage>(NavigationService.Current);
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("operator");
+                var idleDiscarded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                fixture.Context.Events.NavigationTrace += e =>
+                {
+                    if (e.Trigger == NavigationTraceTrigger.Idle && e.Outcome == NavigationTraceOutcome.Discarded)
+                        idleDiscarded.TrySetResult(true);
+                };
+
+                var pendingNavigation = NavigationService.SwitchPage<StubA>();
+                await AssertCompletes(blockingPage.LeaveStarted);
+                timer.RaiseTick();
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+                NavigationService.NotifyUserInteraction();
+                blockingPage.ReleaseLeave();
+
+                await AssertCompletes(pendingNavigation);
+                await AssertCompletes(idleDiscarded.Task);
+                Assert.IsType<StubA>(NavigationService.Current);
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+                Assert.True(timer.IsStarted);
+            }
+            finally
+            {
+                blockingPage?.ReleaseLeave();
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task AutomaticIdle_DetachesAndCancelsPreviousSessionPopoverBeforePresentingIdle(bool delaySetup)
+        {
+            await NavigationService.Shutdown();
+            var finishSetup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var fixture = RuntimeTestFixture.BuildWithServices<StubIdle>((services, host, factory) =>
+            {
+                factory.Register(typeof(StubPopoverView), () => delaySetup
+                    ? new DelayedPopoverView(finishSetup.Task)
+                    : new StubPopoverView());
+                services.Register<IPopoverService>(new PopoverService(host, factory));
+            }, typeof(StubA), typeof(StubB));
+            var timer = new TrackingTimer();
+            var lifetime = timer.CreateLifetime(new TrackingObserver());
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+
+            try
+            {
+                await NavigationService.SwitchPage<StubA>();
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("first-operator");
+                var result = NavigationService.ShowPopoverAsync<StubPopoverView>("first session content");
+                var previousPopover = Assert.IsAssignableFrom<StubPopoverView>(Assert.Single(fixture.Host.AddedViews));
+                Assert.Equal("first session content", previousPopover.LastShownPayload);
+
+                await NavigationService.SwitchPage<StubB>();
+                Assert.Empty(fixture.Host.RemovedViews);
+                Assert.False(result.IsCompleted);
+
+                var idleReached = ObserveIdlePresentation();
+                bool cleanedAtIdleAttach = false;
+                fixture.Host.OperationObserved = (operation, page) =>
+                {
+                    if (operation == "attach" && page is StubIdle)
+                        cleanedAtIdleAttach = !fixture.Context.Session.IsAuthenticated &&
+                            fixture.Host.RemovedViews.Contains(previousPopover) && previousPopover.IsDisposed;
+                };
+
+                timer.RaiseTick();
+                await AssertCompletes(idleReached);
+                Assert.True(cleanedAtIdleAttach);
+                await AssertCompletes(result);
+                Assert.False(await result);
+                previousPopover.CompletionCallback(true);
+                Assert.False(await result);
+                finishSetup.TrySetResult(true);
+
+                fixture.Context.Session.SignIn("second-operator");
+                await NavigationService.SwitchPage<StubA>();
+                Assert.Same(previousPopover, Assert.Single(fixture.Host.AddedViews));
+                Assert.Same(previousPopover, Assert.Single(fixture.Host.RemovedViews));
+
+                var resetResult = NavigationService.ShowPopoverAsync<StubPopoverView>("second session content");
+                var secondPopover = Assert.IsAssignableFrom<StubPopoverView>(fixture.Host.AddedViews.Last());
+                await NavigationService.ResetAsync();
+                await AssertCompletes(resetResult);
+                Assert.False(await resetResult);
+                Assert.Equal(new object[] { previousPopover, secondPopover }, fixture.Host.RemovedViews);
+            }
+            finally
+            {
+                finishSetup.TrySetResult(true);
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task AutomaticSignOut_CancelsPromptBeforeIdleIsPresented(bool delaySetup)
+        {
+            await NavigationService.Shutdown();
+            var finishSetup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var blocker = new DialogServiceTests.CountingInteractionBlocker();
+            var prompt = new SessionPromptView(delaySetup ? finishSetup.Task : Task.CompletedTask);
+            var fixture = BuildPromptFixture(prompt, blocker);
+            var timer = new TrackingTimer();
+            var lifetime = timer.CreateLifetime(new TrackingObserver());
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+
+            try
+            {
+                var promptClosures = new List<NavigationTraceEvent>();
+                fixture.Context.Events.NavigationTrace += e =>
+                {
+                    if (e.Kind == NavigationTraceKind.SurfaceClosed && e.SurfaceKind == NavigationTraceSurfaceKinds.Prompt)
+                        promptClosures.Add(e);
+                };
+                await NavigationService.SwitchPage<StubA>();
+                lifetime.ConfigureIdle(1_000, fixture.Context);
+                fixture.Context.Session.SignIn("first-operator");
+                var result = NavigationService.ShowPromptAsync<SessionPromptView, string>();
+                Assert.True(prompt.TryType("synthetic session text"));
+                Assert.Equal(1, blocker.Depth);
+                Assert.False(result.IsCompleted);
+
+                var stateAtIdle = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                NavigationService.CurrentChanged += page =>
+                {
+                    if (page is StubIdle)
+                        stateAtIdle.TrySetResult(!fixture.Context.Session.IsAuthenticated &&
+                            fixture.Host.RemovedViews.Contains(prompt) && prompt.IsDisposed &&
+                            !prompt.TryType("late input") && blocker.Depth == 0 &&
+                            result.Status == TaskStatus.RanToCompletion);
+                };
+
+                timer.RaiseTick();
+                await AssertCompletes(stateAtIdle.Task);
+                Assert.True(await stateAtIdle.Task);
+                Assert.Equal("synthetic session text", prompt.Text);
+                Assert.Null(await result);
+
+                prompt.CompletionCallback(prompt.Text);
+                Assert.Null(await result);
+                Assert.Same(prompt, Assert.Single(fixture.Host.RemovedViews));
+                Assert.Equal(1, prompt.DisposeCount);
+                Assert.Equal(1, blocker.UnblockCalls);
+                Assert.Equal(NavigationTraceCloseReasons.SessionEnded, Assert.Single(promptClosures).CloseReason);
+            }
+            finally
+            {
+                finishSetup.TrySetResult(true);
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData("idle")]
+        [InlineData("switch")]
+        [InlineData("back")]
+        public async Task NavigateToIdle_CancelsPromptBeforePresentationAndPreservesSession(string entryPoint)
+        {
+            await NavigationService.Shutdown();
+            var blocker = new DialogServiceTests.CountingInteractionBlocker();
+            var prompt = new SessionPromptView(Task.CompletedTask);
+            var fixture = BuildPromptFixture(prompt, blocker);
+            NavigationService.UseContext(fixture.Context);
+
+            try
+            {
+                await NavigationService.GoIdleAsync();
+                await NavigationService.SwitchPage<StubA>();
+                fixture.Context.Session.SignIn(new[] { "operator" }, new[] { "sale.confirm" });
+                var result = NavigationService.ShowPromptAsync<SessionPromptView, string>();
+                Assert.True(prompt.TryType("synthetic session text"));
+
+                var readyAtPresentation = false;
+                NavigationService.CurrentChanged += page =>
+                {
+                    if (page is StubIdle)
+                        readyAtPresentation = fixture.Context.Session.IsAuthenticated &&
+                            fixture.Host.RemovedViews.Contains(prompt) && prompt.IsDisposed &&
+                            !prompt.TryType("late input") && blocker.Depth == 0 &&
+                            result.Status == TaskStatus.RanToCompletion;
+                };
+
+                switch (entryPoint)
+                {
+                    case "switch":
+                        await NavigationService.SwitchPage<StubIdle>();
+                        break;
+                    case "back":
+                        Assert.True(await NavigationService.GoBackAsync());
+                        break;
+                    default:
+                        await NavigationService.GoIdleAsync();
+                        break;
+                }
+
+                Assert.IsType<StubIdle>(NavigationService.Current);
+                Assert.True(readyAtPresentation);
+                Assert.Equal(new[] { "operator" }, fixture.Context.Session.Roles);
+                Assert.Equal(new[] { "sale.confirm" }, fixture.Context.Session.Permissions);
+                Assert.Null(await result);
+
+                prompt.CompletionCallback(prompt.Text);
+                Assert.Null(await result);
+                Assert.Same(prompt, Assert.Single(fixture.Host.RemovedViews));
+                Assert.Equal(1, prompt.DisposeCount);
+                Assert.Equal(1, blocker.UnblockCalls);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task ExplicitSignOut_CancelsPromptAndKeepsTheCurrentPage()
+        {
+            await NavigationService.Shutdown();
+            var blocker = new DialogServiceTests.CountingInteractionBlocker();
+            var prompt = new SessionPromptView(Task.CompletedTask);
+            var fixture = BuildPromptFixture(prompt, blocker);
+            NavigationService.UseContext(fixture.Context);
+
+            try
+            {
+                await NavigationService.SwitchPage<StubA>();
+                fixture.Context.Session.SignIn("operator");
+                var result = NavigationService.ShowPromptAsync<SessionPromptView, string>();
+                Assert.True(prompt.TryType("synthetic session text"));
+
+                var dashboard = Assert.IsType<StubA>(NavigationService.Current);
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+                Assert.Empty(fixture.Host.RemovedViews);
+                Assert.False(result.IsCompleted);
+
+                NavigationService.Session.SignOut();
+                Assert.False(fixture.Context.Session.IsAuthenticated);
+                Assert.Same(dashboard, NavigationService.Current);
+                Assert.Same(prompt, Assert.Single(fixture.Host.RemovedViews));
+                Assert.True(prompt.IsDisposed);
+                Assert.Equal(0, blocker.Depth);
+                await AssertCompletes(result);
+                Assert.Null(await result);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData("same session")]
+        [InlineData("sign out")]
+        [InlineData("replace session")]
+        [InlineData("replace session before idle")]
+        [InlineData("reset")]
+        [InlineData("signed out")]
+        public async Task IdlePromptDraft_RefillsTheNextPromptOnlyOnItsOriginPageAndSession(string sessionChange)
+        {
+            await NavigationService.Shutdown();
+            var prompts = new List<DraftPromptView>();
+            var fixture = RuntimeTestFixture.BuildWithServices<StubIdle>((services, host, factory) =>
+            {
+                factory.Register(typeof(DraftPromptView), () =>
+                {
+                    var prompt = new DraftPromptView();
+                    prompts.Add(prompt);
+                    return prompt;
+                });
+                services.Register<IPromptService>(new PromptService(host, factory));
+            }, typeof(StubA), typeof(StubB));
+            NavigationService.UseContext(fixture.Context);
+
+            try
+            {
+                const string draft = "unfinished text";
+                await NavigationService.SwitchPage<StubA>();
+                if (sessionChange != "signed out")
+                    fixture.Context.Session.SignIn("first-operator");
+
+                var original = NavigationService.ShowPromptAsync<DraftPromptView, string>();
+                var sourcePrompt = Assert.Single(prompts);
+                Assert.True(sourcePrompt.TryType(draft));
+                if (sessionChange == "replace session before idle")
+                    fixture.Context.Session.SignIn("second-operator");
+
+                await NavigationService.GoIdleAsync();
+                Assert.True(sourcePrompt.IsDisposed);
+                Assert.Null(await original);
+                Assert.Same(sourcePrompt, Assert.Single(fixture.Host.AddedViews));
+
+                switch (sessionChange)
+                {
+                    case "sign out":
+                        fixture.Context.Session.SignOut();
+                        fixture.Context.Session.SignIn("second-operator");
+                        break;
+                    case "replace session":
+                        fixture.Context.Session.SignIn("second-operator");
+                        break;
+                    case "reset":
+                        await NavigationService.ResetAsync();
+                        break;
+                    case "same session":
+                        await NavigationService.SwitchPage<StubB>();
+                        var unrelated = NavigationService.ShowPromptAsync<DraftPromptView, string>();
+                        Assert.Null(prompts.Last().Text);
+                        prompts.Last().CompletionCallback(null);
+                        Assert.Null(await unrelated);
+                        break;
+                }
+
+                await NavigationService.SwitchPage<StubA>();
+                var reopened = NavigationService.ShowPromptAsync<DraftPromptView, string>();
+                var destination = prompts.Last();
+                var expected = sessionChange == "same session" ? draft : null;
+                Assert.Equal(expected, destination.Text);
+                Assert.False(reopened.IsCompleted);
+                destination.CompletionCallback(destination.Text);
+                Assert.Equal(expected, await reopened);
+
+                var subsequent = NavigationService.ShowPromptAsync<DraftPromptView, string>();
+                Assert.Null(prompts.Last().Text);
+                prompts.Last().CompletionCallback(null);
+                Assert.Null(await subsequent);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        private static RuntimeTestFixture BuildPromptFixture(SessionPromptView prompt, IInteractionBlocker blocker)
+            => RuntimeTestFixture.BuildWithServices<StubIdle>((services, host, factory) =>
+            {
+                factory.Register(typeof(SessionPromptView), () => prompt);
+                services.Register<IPromptService>(new PromptService(host, factory, blocker));
+            }, typeof(StubA));
+
+        private class SessionPromptView : StubPromptView
+        {
+            private readonly Task _finishSetup;
+
+            public SessionPromptView(Task finishSetup) => _finishSetup = finishSetup;
+
+            public string Text { get; private set; }
+            public int DisposeCount { get; private set; }
+
+            public bool TryType(string value)
+            {
+                if (IsDisposed)
+                    return false;
+
+                Text = value;
+                return true;
+            }
+
+            public override Task OnShownAsync(object payload) => _finishSetup;
+
+            public override void Dispose()
+            {
+                DisposeCount++;
+                base.Dispose();
+            }
+        }
+
+        private sealed class DraftPromptView : SessionPromptView, IPromptDraftState
+        {
+            public DraftPromptView() : base(Task.CompletedTask) { }
+
+            public object CaptureDraft() => Text;
+
+            public void RestoreDraft(object draft) => TryType((string)draft);
+        }
+
+        private sealed class DelayedPopoverView : StubPopoverView
+        {
+            private readonly Task _finishSetup;
+
+            public DelayedPopoverView(Task finishSetup) => _finishSetup = finishSetup;
+
+            public override async Task OnShownAsync(object payload)
+            {
+                await base.OnShownAsync(payload);
+                await _finishSetup;
+            }
+        }
+
+        private static Task ObserveIdlePresentation()
+        {
+            var reached = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NavigationService.CurrentChanged += page =>
+            {
+                if (page is StubIdle)
+                    reached.TrySetResult(true);
+            };
+            return reached.Task;
+        }
+
+        private static async Task AssertCompletes(Task task)
+        {
+            Assert.Same(task, await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5))));
+            await task;
         }
 
         private sealed class TrackingPlatformAdapter : IPlatformAdapter
@@ -761,6 +1217,7 @@ namespace NekoLib.Navigation.Tests.Unit
         private sealed class TrackingTimer : ITimerAdapter
         {
             private Action _tick;
+            private long _timestamp;
 
             public int IntervalMilliseconds { get; set; }
             public bool IsStarted { get; private set; }
@@ -786,8 +1243,22 @@ namespace NekoLib.Navigation.Tests.Unit
                 StopCalls++;
                 IsStarted = false;
             }
+            public NavigationBootstrapLifetime CreateLifetime(
+                TrackingObserver observer,
+                Func<Task> navigateIdle = null)
+                => new NavigationBootstrapLifetime(observer, this, navigateIdle,
+                    getTimestamp: () => _timestamp);
+
+            public void Advance(int milliseconds)
+                => _timestamp += milliseconds * Stopwatch.Frequency / 1_000;
+
+            public void DeliverTick() => _tick?.Invoke();
+
             public void RaiseTick()
-                => _tick?.Invoke();
+            {
+                Advance(IntervalMilliseconds);
+                DeliverTick();
+            }
 
             public void Dispose()
             {

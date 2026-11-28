@@ -74,6 +74,13 @@ stateful, native-UI, and adapter boundaries implemented by this family.
 
 **Acceptance criteria:** The complete focused suite passes with zero failed or skipped tests and preserves lifecycle order, guard outcomes, history/state, reuse, load modes, rollback, surfaces, idle/session behavior, observation, reset, shutdown, and static-facade isolation.
 
+The 2.0.0 candidate requires the following shared-core regressions before these issues can close. Record the agreed behavior and link each passing test and its execution result to the corresponding issue.
+
+- [NAV-ISSUE-002](ISSUES.md#nav-issue-002): Drive the idle timer deterministically up to its deadline. Exercise user navigation originating outside the observed host, activity inside the host, and programmatic navigation. Deliver an already scheduled tick after a renewal. Assert the current page and session state at the old and renewed deadlines.
+- [NAV-ISSUE-003](ISSUES.md#nav-issue-003): Open a popover with synthetic session-specific content and a pending result. Trigger automatic sign-out. At the first presentation of the signed-out Idle page, assert that the old surface has been detached and can receive no input. Check that its result settles exactly once and that signing in as a second user does not restore the surface. Cover ordinary navigation and explicit Reset as controls. Verify the corrected candidate through a package-only consumer.
+- [NAV-ISSUE-004](ISSUES.md#nav-issue-004) covers a prompt containing synthetic typed text. Exercise automatic sign-out and direct `GoIdleAsync()` independently. At the first Idle presentation in each case, verify that the view is gone, input is unavailable, the modal block is released, and the pending result has completed once without submitting the text. Assert that the automatic timeout signed the user out and that direct navigation preserved the signed-in user's roles and permissions. Also verify that explicit `Session.SignOut()` dismisses the prompt while keeping the current page.
+- For the optional prompt draft, reopen the same prompt type on its original page in the same session and confirm that the field is prefilled. The new call must remain pending until the user acts. Check that opening the prompt on another page does not consume the draft and that a new session cannot recover it.
+
 **Required evidence level:** automated-runtime
 
 **Rationale:** Navigation combines process-wide state, asynchronous lifecycle work, caches, timers, and synchronous callbacks; compilation cannot qualify their ordering or cleanup.

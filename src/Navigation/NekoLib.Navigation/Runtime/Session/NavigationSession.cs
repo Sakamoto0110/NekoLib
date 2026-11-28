@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using NekoLib.Navigation.Contracts.Guards;
 
 namespace NekoLib.Navigation.Runtime.Session
@@ -19,8 +20,11 @@ namespace NekoLib.Navigation.Runtime.Session
     public sealed class NavigationSession : IUserContext
     {
         private static readonly string[] Empty = new string[0];
+        private int _generation;
 
         internal event Action? Changed;
+        internal event Action? SignedOut;
+        internal int Generation => Volatile.Read(ref _generation);
 
         /// <inheritdoc />
         public bool IsAuthenticated { get; private set; }
@@ -40,6 +44,7 @@ namespace NekoLib.Navigation.Runtime.Session
                 ? (IReadOnlyCollection<string>)Array.AsReadOnly(copiedRoles)
                 : Empty;
             Permissions = Empty;
+            Interlocked.Increment(ref _generation);
             RaiseChanged();
         }
 
@@ -57,16 +62,19 @@ namespace NekoLib.Navigation.Runtime.Session
             IsAuthenticated = true;
             Roles = Array.AsReadOnly(copiedRoles);
             Permissions = Array.AsReadOnly(copiedPermissions);
+            Interlocked.Increment(ref _generation);
             RaiseChanged();
         }
 
-        /// <summary>Clear authentication state.</summary>
+        /// <summary>Clears authentication state and closes any open navigation prompts.</summary>
         public void SignOut()
         {
             IsAuthenticated = false;
             Roles = Empty;
             Permissions = Empty;
-            RaiseChanged();
+            Interlocked.Increment(ref _generation);
+            try { SignedOut?.Invoke(); }
+            finally { RaiseChanged(); }
         }
 
         private void RaiseChanged()

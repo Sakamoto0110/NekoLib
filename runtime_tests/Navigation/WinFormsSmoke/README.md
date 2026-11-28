@@ -28,11 +28,9 @@ Headless unit tests remain the automated contract. Only eight tests in
 covers dispatch, focus, the interaction observer, the timer, or any view base —
 this scenario is where that native behavior becomes observable.
 
-The left-hand control column sits **outside** the navigation host. That is
-intentional and has two consequences worth knowing before interpreting results:
-its buttons stay interactive while a modal blocks the host, and clicking them
-does **not** reset the idle timer, because the interaction observer only watches
-the host subtree.
+The left-hand control column sits outside the navigation host, so its buttons
+stay interactive while a modal blocks the host. The navigation buttons report
+user input explicitly because the observer watches the host subtree.
 
 ## Build
 
@@ -86,11 +84,12 @@ Run the procedure once per target family and record each result separately.
 6. **Popover interaction while a modal is open.** With a Popover open, open a
    Prompt. The popover must become disabled while the prompt stays interactive,
    and must become interactive again when the prompt closes.
-7. **Idle timeout.** Leave the pointer and keyboard away from the navigation
-   host for 20s while on Dashboard. The session must sign out and Navigation
-   must return to the Idle page. Clicking inside the host — for example the
-   Dashboard counter — must restart the interval; clicking the left-hand panel
-   must not.
+7. **Idle timeout.** Sign in and select Dashboard from the sidebar just before
+   the current 20-second interval expires. Dashboard and the session must survive
+   the old deadline. Click the Dashboard counter and confirm it also renews the
+   interval. Open a Popover and leave it untouched. The session must sign out and
+   the popover must be gone when Idle first appears. The log must report
+   `Popover -> False`.
 8. **Session guards.** Use SignIn("admin") and SignOut and confirm the logged
    authentication state changes.
 9. **Reset, shutdown, and repeated mounting.** Open a Popover, then press

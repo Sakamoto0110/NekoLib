@@ -23,9 +23,8 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
     /// WinForms counterpart of the WPF smoke window: same controls, same labels and
     /// the same navigation host layout, so the two platforms can be compared step by
     /// step. The left column sits OUTSIDE the navigation host, so its buttons stay
-    /// interactive while a modal blocks the host — and, deliberately, clicks there do
-    /// not reset the idle timer, because the interaction observer only watches the
-    /// host subtree.
+    /// interactive while a modal blocks the host. Navigation buttons explicitly
+    /// report input because the interaction observer watches the host subtree.
     /// </summary>
     internal sealed class MainForm : Form
     {
@@ -98,9 +97,9 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
             };
 
             buttons.Controls.Add(Header("Navegação"));
-            buttons.Controls.Add(Btn("Ir: Dashboard", async (_, __) => await Try(() => NavigationService.SwitchPage<DashboardPage>())));
-            buttons.Controls.Add(Btn("Ir: Idle", async (_, __) => await Try(() => NavigationService.GoIdleAsync())));
-            buttons.Controls.Add(Btn("Voltar (Back)", async (_, __) => await Try(async () => Log("GoBack -> " + await NavigationService.GoBackAsync()))));
+            buttons.Controls.Add(Btn("Ir: Dashboard", async (_, __) => await NavigateFromSidebar(() => NavigationService.SwitchPage<DashboardPage>())));
+            buttons.Controls.Add(Btn("Ir: Idle", async (_, __) => await NavigateFromSidebar(NavigationService.GoIdleAsync)));
+            buttons.Controls.Add(Btn("Voltar (Back)", async (_, __) => await NavigateFromSidebar(async () => Log("GoBack -> " + await NavigationService.GoBackAsync()))));
 
             buttons.Controls.Add(Header("Overlays (caixas, não tela cheia)"));
             buttons.Controls.Add(Btn("Dialog (modal, bool)", async (_, __) => await Try(async () => Log("Dialog -> " + await NavigationService.ShowDialogAsync<SampleDialog>()))));
@@ -201,6 +200,12 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
 
         // Every handler is guarded: after Shutdown the facade is unmounted, so any
         // navigation, surface, or session call throws until Start remounts it.
+        private Task NavigateFromSidebar(Func<Task> action) => Try(() =>
+        {
+            NavigationService.NotifyUserInteraction();
+            return action();
+        });
+
         private async Task Try(Func<Task> action)
         {
             try { await action(); }

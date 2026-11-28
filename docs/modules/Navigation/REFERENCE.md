@@ -363,16 +363,44 @@ A timeout declared on the idle page enables the timer on its own, so the global
 call is optional. Declaring `[PageTimeout]` or `.IdleTimeout()` on any **non-idle**
 page throws at bootstrap.
 
-Wiring is automatic in `Start()`: the platform `IInteractionObserverService`
-resets the timer on any input; on tick the timer stops, `Session.SignOut()` runs,
-then `GoIdleAsync()`. The timer starts immediately, so an unattended boot also
-lands on the idle page. The bootstrap lifetime stops and detaches the idle
-callbacks before runtime teardown, preventing a timer tick from enqueueing new
-work during shutdown. An interaction invalidates a stale tick before it can
-start navigation; a denied/failed idle navigation rearms a fresh interval, while
-`StopIdle()` prevents both rearming and new requests. If the platform has no
-interaction observer, navigation still starts and the Inspection idle snapshot
-reports `Unavailable`.
+`Start()` begins the timer immediately, so an unattended boot also lands on the
+idle page. The platform `IInteractionObserverService` renews the interval for
+activity within its observation scope. For a user-operated control outside that
+scope, call `NavigationService.NotifyUserInteraction()` in the input handler
+before requesting navigation. A programmatic page switch preserves the current
+deadline.
+
+```csharp
+NavigationService.NotifyUserInteraction();
+await NavigationService.SwitchPage<DashboardPage>();
+```
+
+At expiration, the runtime verifies the deadline and checks for newer activity
+before signing out. Sign-out removes open prompts, releases their modal input
+block, and completes pending prompt calls with the default result for their
+type. A text prompt returns `null` and discards unsubmitted input. The automatic
+transition also closes open popovers with `false` and waits for prompt results
+before presenting the idle page.
+
+An explicit `Session.SignOut()` also closes prompts and keeps the current page.
+Direct navigation to the configured Idle page releases the prompt's modal block
+and completes its pending result before presenting Idle. `GoIdleAsync()`
+preserves authentication, roles, and permissions. A text prompt completes with
+`null` when the runtime dismisses it.
+
+Prompts using the built-in `PromptService` can implement `IPromptDraftState`
+to retain unsubmitted input in memory while a signed-in session visits Idle.
+`CaptureDraft()` returns a detached copy of the fields to retain.
+`RestoreDraft(object)` receives that copy once, after setup, the next time the
+application opens the same prompt type on its original page. If several open
+prompts share a page and type, the most recent captured draft is used. The new
+prompt completes through its normal confirmation or cancellation callback.
+Sign-out, a new sign-in, reset, and shutdown discard any saved drafts.
+
+A denied or failed idle navigation rearms the timer. Shutdown stops and detaches
+idle callbacks before runtime teardown. If the platform has no interaction
+observer, navigation still starts and the Inspection idle snapshot reports
+`Unavailable`.
 
 ## Overlays
 

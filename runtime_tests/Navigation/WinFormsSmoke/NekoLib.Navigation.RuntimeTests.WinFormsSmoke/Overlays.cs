@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.WinForms.Hosting;
 
 namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
@@ -38,7 +39,7 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
     /// own input from <c>OnShownAsync</c>, exactly like the WPF scenario's prompt, so
     /// both platforms are compared under the same conditions.
     /// </summary>
-    public sealed class SamplePrompt : PromptViewBase<string>
+    public sealed class SamplePrompt : PromptViewBase<string>, IPromptDraftState
     {
         private readonly TextBox _input;
 
@@ -61,6 +62,10 @@ namespace NekoLib.Navigation.RuntimeTests.WinFormsSmoke
                 field: _input,
                 buttons: new[] { ok, cancel }));
         }
+
+        public object CaptureDraft() => _input.Text;
+
+        public void RestoreDraft(object draft) => _input.Text = (string)draft;
 
         protected override Task OnShownAsync(object payload)
         {

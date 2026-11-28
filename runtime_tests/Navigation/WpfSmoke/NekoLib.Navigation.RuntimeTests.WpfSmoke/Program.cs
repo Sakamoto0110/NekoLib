@@ -54,9 +54,9 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
 
             var buttons = new StackPanel();
             buttons.Children.Add(Header("Navegação"));
-            buttons.Children.Add(Btn("Ir: Dashboard", async (_, __) => await Try(() => NavigationService.SwitchPage<DashboardPage>())));
-            buttons.Children.Add(Btn("Ir: Idle", async (_, __) => await Try(() => NavigationService.GoIdleAsync())));
-            buttons.Children.Add(Btn("Voltar (Back)", async (_, __) => await Try(async () => Log("GoBack -> " + await NavigationService.GoBackAsync()))));
+            buttons.Children.Add(Btn("Ir: Dashboard", async (_, __) => await NavigateFromSidebar(() => NavigationService.SwitchPage<DashboardPage>())));
+            buttons.Children.Add(Btn("Ir: Idle", async (_, __) => await NavigateFromSidebar(NavigationService.GoIdleAsync)));
+            buttons.Children.Add(Btn("Voltar (Back)", async (_, __) => await NavigateFromSidebar(async () => Log("GoBack -> " + await NavigationService.GoBackAsync()))));
 
             buttons.Children.Add(Header("Overlays (caixas, não tela cheia)"));
             buttons.Children.Add(Btn("Dialog (modal, bool)", async (_, __) => await Try(async () => Log("Dialog -> " + await NavigationService.ShowDialogAsync<SampleDialog>()))));
@@ -152,6 +152,12 @@ namespace NekoLib.Navigation.RuntimeTests.WpfSmoke
 
         // Every handler is guarded: after Shutdown the facade is unmounted, so any
         // navigation, surface, or session call throws until Start remounts it.
+        private System.Threading.Tasks.Task NavigateFromSidebar(Func<System.Threading.Tasks.Task> action) => Try(() =>
+        {
+            NavigationService.NotifyUserInteraction();
+            return action();
+        });
+
         private async System.Threading.Tasks.Task Try(Func<System.Threading.Tasks.Task> action)
         {
             try { await action(); }

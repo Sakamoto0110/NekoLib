@@ -33,6 +33,9 @@ namespace NekoLib.Navigation.Diagnostics
     internal static class NavigationTraceCloseReasons
     {
         public const string Timeout = "Timeout";
+        public const string IdleTimeout = "IdleTimeout";
+        public const string IdleNavigation = "IdleNavigation";
+        public const string SessionEnded = "SessionEnded";
         public const string Replaced = "Replaced";
         public const string DismissedByView = "DismissedByView";
         public const string CompletedByView = "CompletedByView";

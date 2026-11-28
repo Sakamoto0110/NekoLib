@@ -29,6 +29,13 @@ the removed signatures and upgrade steps.
 - `NekoLib.Navigation` directs callers to `PageNavBootstrap.Start()` and
   `NavigationService.Shutdown()` when a mounted-context property is read
   outside the active lifetime or a second bootstrap is attempted.
+- `NekoLib.Navigation` adds `NavigationService.NotifyUserInteraction()` for
+  input outside the observed host, rejects stale inactivity ticks after renewal,
+  and dismisses open popovers before showing Idle after automatic sign-out.
+  See the [idle timeout contract](docs/modules/Navigation/REFERENCE.md#idle-system).
+- `NekoLib.Navigation` cancels open prompts on session sign-out or before
+  presenting Idle. Prompts can implement `IPromptDraftState` to prefill the
+  next opening on the same page after a signed-in visit to Idle. [Prompt issue](docs/modules/Navigation/ISSUES.md#nav-issue-004)
 - `NekoLib.Diagnostics` clarifies the existing crash-report defaults.
   Folder writing is enabled by default and requires a configured
   `CrashRootDirectory` for the text report. `DumpWriter` defaults to null.

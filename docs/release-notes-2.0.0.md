@@ -41,6 +41,18 @@ covers dictionary inputs, nulls and join types.
 - **Navigation.** Errors for reading an unmounted context or attempting a second
   bootstrap now name the recovery steps. Mount with `PageNavBootstrap.Start()`
   and await `NavigationService.Shutdown()` before starting another context.
+- **Navigation idle timeout.** In user-input handlers for controls outside the
+  observed host, call `NavigationService.NotifyUserInteraction()` before
+  requesting navigation. This gives the user a full inactivity interval even
+  when a previous timer tick was already scheduled. Automatic sign-out now
+  closes open popovers and resolves their pending results with `false` before
+  presenting Idle. Both fixes passed the focused suite and a package-only
+  WinForms probe on both supported targets. [Idle timeout contract](modules/Navigation/REFERENCE.md#idle-system)
+- **Navigation prompt cancellation and drafts.** Session sign-out and navigation
+  to Idle close open prompts and return the default result for their result type.
+  A text prompt returns `null`. Direct `GoIdleAsync()` preserves the session.
+  Implement `IPromptDraftState` to prefill the next opening on the same page in
+  that session. [Prompt issue](modules/Navigation/ISSUES.md#nav-issue-004)
 - **Diagnostics.** The existing folder-writing default requires a nonblank
   `CrashRootDirectory` to write the text report. `DumpWriter` defaults to null.
   To request a Windows minidump, apply `UseMiniDump()` to the options before

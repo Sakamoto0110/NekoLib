@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 
 namespace NekoLib.Navigation.Runtime.Services
 {
@@ -10,6 +11,30 @@ namespace NekoLib.Navigation.Runtime.Services
     /// </summary>
     internal static class SurfaceCleanup
     {
+        public static async Task<bool> WaitForSetupAsync(Task setup, Task result, string serviceName)
+        {
+            // Teardown can settle an attached view while its user-owned setup
+            // is still pending. Late setup failures cannot change that result.
+            if (!setup.IsCompleted && await Task.WhenAny(setup, result) != setup)
+            {
+                _ = ObserveLateSetupAsync(setup, serviceName);
+                return false;
+            }
+
+            await setup;
+            return true;
+        }
+
+        private static async Task ObserveLateSetupAsync(Task setup, string serviceName)
+        {
+            try { await setup.ConfigureAwait(false); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[" + serviceName + "] Setup failed after closure: " + ex);
+            }
+        }
+
         public static Exception? Run(
             Exception? firstError,
             Action action)

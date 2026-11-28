@@ -368,6 +368,28 @@ namespace NekoLib.Navigation
         public async static Task GoIdleAsync() =>
             await InvokeRuntimeAsync(runtime => runtime.GoIdleAsync());
 
+        /// <summary>
+        /// Renews the active idle timeout for user input outside the observed host,
+        /// such as a sidebar click. Call from the input handler before requesting
+        /// navigation. Does nothing when idle observation is inactive.
+        /// </summary>
+        public static void NotifyUserInteraction()
+        {
+            NavigationContext? context;
+            Bootstrap.NavigationBootstrapLifetime? lifetime;
+            lock (_lifecycleSync)
+            {
+                context = _context;
+                lifetime = _bootstrapLifetime as Bootstrap.NavigationBootstrapLifetime;
+            }
+
+            if (context != null)
+                lifetime?.NotifyUserInteraction(context);
+        }
+
+        internal static Task ExpireIdleAsync(NavigationContext context, Func<bool> tryBegin) =>
+            InvokeRuntimeAsync(runtime => runtime.ExpireIdleAsync(context, tryBegin));
+
         /// <summary>Navigate to the most recent back-stack entry, if any.</summary>
         public async static Task<bool> GoBackAsync() =>
             await InvokeRuntimeAsync(runtime => runtime.GoBackAsync());
