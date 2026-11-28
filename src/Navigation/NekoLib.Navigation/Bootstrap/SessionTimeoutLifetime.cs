@@ -10,7 +10,7 @@ namespace NekoLib.Navigation.Bootstrap
     internal sealed class SessionTimeoutLifetime : IDisposable
     {
         private readonly NavigationContext _context;
-        private readonly double _timeoutMilliseconds;
+        private readonly TimeSpan _timeout;
         private readonly Func<long> _getTimestamp;
         private readonly Func<int, CancellationToken, Task> _delay;
         private readonly object _sync = new object();
@@ -25,7 +25,7 @@ namespace NekoLib.Navigation.Bootstrap
             Func<int, CancellationToken, Task>? delay = null)
         {
             _context = context;
-            _timeoutMilliseconds = timeout.TotalMilliseconds;
+            _timeout = timeout;
             _getTimestamp = getTimestamp ?? Stopwatch.GetTimestamp;
             _delay = delay ?? Task.Delay;
             _context.Session.Changed += OnSessionChanged;
@@ -68,16 +68,13 @@ namespace NekoLib.Navigation.Bootstrap
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var elapsedMilliseconds = (_getTimestamp() - signedInTimestamp) * 1000d / Stopwatch.Frequency;
-                    var remainingMilliseconds = _timeoutMilliseconds - elapsedMilliseconds;
-                    if (remainingMilliseconds <= 0)
+                    var remaining = _timeout - TimeoutTiming.GetElapsedTime(signedInTimestamp, _getTimestamp());
+                    if (remaining <= TimeSpan.Zero)
                         break;
 
-                    // Task.Delay on .NET Framework accepts at most Int32.MaxValue ms.
-                    var delayMilliseconds = (int)Math.Min(int.MaxValue, Math.Ceiling(remainingMilliseconds));
                     // Preserve the caller's UI context when sign-in happens on the
                     // owner thread, including before a native host handle exists.
-                    await _delay(delayMilliseconds, cancellationToken);
+                    await _delay(TimeoutTiming.GetTimerIntervalMilliseconds(remaining), cancellationToken);
                 }
 
                 if (NavigationService.IsCurrentContext(_context))

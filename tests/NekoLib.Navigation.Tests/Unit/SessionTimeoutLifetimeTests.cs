@@ -81,7 +81,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var lifetime = timer.CreateLifetime(observer);
             var time = new ControlledTime(fixture.Context.Session);
             NavigationService.UseContext(fixture.Context, null, lifetime);
-            lifetime.ConfigureIdle(400, fixture.Context);
+            lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(400), fixture.Context);
             lifetime.ConfigureSessionTimeout(MaximumLifetime, fixture.Context, time.GetTimestamp, time.Delay);
 
             try
@@ -135,7 +135,7 @@ namespace NekoLib.Navigation.Tests.Unit
             var lifetime = timer.CreateLifetime(new TrackingObserver());
             var time = new ControlledTime(fixture.Context.Session);
             NavigationService.UseContext(fixture.Context, null, lifetime);
-            lifetime.ConfigureIdle(1_000, fixture.Context);
+            lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
             lifetime.ConfigureSessionTimeout(MaximumLifetime, fixture.Context, time.GetTimestamp, time.Delay);
             StubBlockingShutdownPage blockingPage = null;
 

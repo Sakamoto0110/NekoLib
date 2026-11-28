@@ -28,7 +28,7 @@ namespace NekoLib.Navigation.Bootstrap
         private Action? _tickHandler;
         private SessionTimeoutLifetime? _sessionTimeout;
         private NavigationDiagnostics? _diagnostics;
-        private int _idleIntervalMilliseconds;
+        private TimeSpan _idleInterval;
         private long _configuredTimestamp;
         private long _idleWindowTimestamp;
         private int _idleConfigured;
@@ -58,10 +58,10 @@ namespace NekoLib.Navigation.Bootstrap
             Func<int, CancellationToken, Task>? delay = null)
             => _sessionTimeout = new SessionTimeoutLifetime(context, timeout, getTimestamp, delay);
 
-        public void ConfigureIdle(int intervalMilliseconds, NavigationContext context)
+        public void ConfigureIdle(TimeSpan interval, NavigationContext context)
         {
-            if (intervalMilliseconds <= 0)
-                throw new ArgumentOutOfRangeException(nameof(intervalMilliseconds));
+            if (interval <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(interval));
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             if (Volatile.Read(ref _disposed) != 0)
@@ -75,7 +75,7 @@ namespace NekoLib.Navigation.Bootstrap
                 throw new InvalidOperationException("Idle timeout is already configured.");
 
             _diagnostics = context.Diagnostics;
-            _idleIntervalMilliseconds = intervalMilliseconds;
+            _idleInterval = interval;
             _configuredTimestamp = _getTimestamp();
             _idleWindowTimestamp = _configuredTimestamp;
 
@@ -90,14 +90,14 @@ namespace NekoLib.Navigation.Bootstrap
                 return;
             }
 
-            _timer.IntervalMilliseconds = intervalMilliseconds;
+            _timer.IntervalMilliseconds = TimeoutTiming.GetTimerIntervalMilliseconds(_idleInterval);
 
             _interactionHandler = () => RecordInteraction(context);
 
             _tickHandler = async () =>
             {
                 long interactionGeneration;
-                long elapsedMilliseconds;
+                TimeSpan elapsed;
                 int sessionGeneration;
 
                 // Evaluated before taking the idle lock: this reaches into the
@@ -113,12 +113,12 @@ namespace NekoLib.Navigation.Bootstrap
                         return;
                     }
 
-                    elapsedMilliseconds = ElapsedSince(_idleWindowTimestamp);
-                    if (elapsedMilliseconds < _idleIntervalMilliseconds)
+                    elapsed = ElapsedSince(_idleWindowTimestamp);
+                    if (elapsed < _idleInterval)
                     {
                         // A native tick may already have been queued when input
                         // renewed the window. Keep the new deadline intact.
-                        RestartTimer((int)(_idleIntervalMilliseconds - elapsedMilliseconds));
+                        RestartTimer(_idleInterval - elapsed);
                         return;
                     }
 
@@ -130,7 +130,7 @@ namespace NekoLib.Navigation.Bootstrap
                     if (settled)
                     {
                         _idleWindowTimestamp = _getTimestamp();
-                        RestartTimer(_idleIntervalMilliseconds);
+                        RestartTimer(_idleInterval);
                         return;
                     }
 
@@ -163,7 +163,7 @@ namespace NekoLib.Navigation.Bootstrap
                 {
                     EmitIdle(
                         NavigationTraceKind.IdleElapsed,
-                        elapsedMilliseconds: elapsedMilliseconds);
+                        elapsedMilliseconds: (long)elapsed.TotalMilliseconds);
 
                     if (_navigateIdle == null)
                         await NavigationService.ExpireIdleAsync(context, TryBeginTransition);
@@ -178,7 +178,7 @@ namespace NekoLib.Navigation.Bootstrap
                             outcome: NavigationTraceOutcome.Failed,
                             success: false,
                             decision: "IdlePageNotReached",
-                            elapsedMilliseconds: elapsedMilliseconds);
+                            elapsedMilliseconds: (long)elapsed.TotalMilliseconds);
                     }
                 }
                 catch (Exception ex)
@@ -192,7 +192,7 @@ namespace NekoLib.Navigation.Bootstrap
                             success: false,
                             decision: "IdleNavigationFailed",
                             errorType: ex.GetType().FullName ?? ex.GetType().Name,
-                            elapsedMilliseconds: elapsedMilliseconds);
+                            elapsedMilliseconds: (long)elapsed.TotalMilliseconds);
                     }
                     System.Diagnostics.Debug.WriteLine(
                         "[PageNavBootstrap] Idle timeout navigation failed: " + ex);
@@ -235,7 +235,7 @@ namespace NekoLib.Navigation.Bootstrap
 
                 _interactionGeneration++;
                 _idleWindowTimestamp = _getTimestamp();
-                RestartTimer(_idleIntervalMilliseconds);
+                RestartTimer(_idleInterval);
             }
 
             EmitIdle(
@@ -245,10 +245,10 @@ namespace NekoLib.Navigation.Bootstrap
                 decision: "TimerReset");
         }
 
-        private void RestartTimer(int intervalMilliseconds)
+        private void RestartTimer(TimeSpan interval)
         {
             _timer.Stop();
-            _timer.IntervalMilliseconds = intervalMilliseconds;
+            _timer.IntervalMilliseconds = TimeoutTiming.GetTimerIntervalMilliseconds(interval);
             _timer.Start();
         }
 
@@ -305,7 +305,7 @@ namespace NekoLib.Navigation.Bootstrap
                     outcome: NavigationTraceOutcome.Succeeded,
                     success: true,
                     decision: "Disposed",
-                    elapsedMilliseconds: ElapsedSince(_configuredTimestamp));
+                    elapsedMilliseconds: (long)ElapsedSince(_configuredTimestamp).TotalMilliseconds);
             }
         }
 
@@ -340,13 +340,13 @@ namespace NekoLib.Navigation.Bootstrap
                     {
                         // Keep watching after both successful and failed transitions.
                         _idleWindowTimestamp = _getTimestamp();
-                        _timer.IntervalMilliseconds = _idleIntervalMilliseconds;
+                        _timer.IntervalMilliseconds = TimeoutTiming.GetTimerIntervalMilliseconds(_idleInterval);
                         _timer.Start();
                     }
-                    else if (ElapsedSince(_idleWindowTimestamp) >= _idleIntervalMilliseconds)
+                    else if (ElapsedSince(_idleWindowTimestamp) >= _idleInterval)
                     {
                         // The renewed window expired while this tick was in flight.
-                        RestartTimer(1);
+                        RestartTimer(TimeSpan.FromMilliseconds(1));
                     }
                 }
             }
@@ -431,15 +431,12 @@ namespace NekoLib.Navigation.Bootstrap
                 decision: decision,
                 errorType: errorType,
                 success: success,
-                idleIntervalMilliseconds: _idleIntervalMilliseconds,
+                idleIntervalMilliseconds: (long)Math.Ceiling(_idleInterval.TotalMilliseconds),
                 timestampUtc: DateTime.UtcNow,
                 elapsedMilliseconds: elapsedMilliseconds));
         }
 
-        private long ElapsedSince(long startedTimestamp)
-        {
-            var elapsedTicks = _getTimestamp() - startedTimestamp;
-            return (long)(elapsedTicks * 1000d / Stopwatch.Frequency);
-        }
+        private TimeSpan ElapsedSince(long startedTimestamp)
+            => TimeoutTiming.GetElapsedTime(startedTimestamp, _getTimestamp());
     }
 }

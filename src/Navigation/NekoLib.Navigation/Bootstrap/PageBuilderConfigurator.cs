@@ -86,7 +86,7 @@ namespace NekoLib.Navigation.Bootstrap
 
         /// <summary>
         /// Idle timeout, in seconds, for the idle page. Overrides a <c>[PageTimeout]</c>
-        /// attribute and the global <c>UseIdleTimeout(ms)</c>. Only valid on the idle
+        /// attribute and the global <c>UseIdleTimeout</c> setting. Only valid on the idle
         /// page; the bootstrap throws if the page is not the idle page.
         /// </summary>
         /// <param name="seconds">Positive inactivity timeout in seconds.</param>

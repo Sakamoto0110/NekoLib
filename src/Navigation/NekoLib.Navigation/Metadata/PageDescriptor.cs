@@ -25,7 +25,7 @@ namespace NekoLib.Navigation.Metadata
         /// <summary>
         /// Idle timeout in seconds declared on the idle page, or <c>null</c> when the
         /// page declares none. Only the idle page may carry a value (enforced at
-        /// bootstrap); it overrides the global <c>UseIdleTimeout(milliseconds)</c>.
+        /// bootstrap); it overrides the global <c>UseIdleTimeout</c> setting.
         /// </summary>
         public int? IdleTimeoutSeconds { get; }
 

@@ -3,6 +3,7 @@ using NekoLib.Navigation.Contracts.Pages;
 using NekoLib.Navigation.Contracts.Platform;
 using NekoLib.Navigation.Contracts.Runtime;
 using NekoLib.Navigation.Diagnostics;
+using NekoLib.Navigation.Runtime.Registry;
 using NekoLib.Navigation.Runtime.Services;
 using NekoLib.Navigation.Tests.Unit.Fakes;
 using System;
@@ -80,6 +81,138 @@ namespace NekoLib.Navigation.Tests.Unit
                 Assert.False(adapter.Observer.IsDisposed);
             }
             finally { await NavigationService.Shutdown(); }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Start_ConfiguresTheSameIdleIntervalFromEitherOverload(bool useTimeSpan)
+        {
+            await NavigationService.Shutdown();
+            var bootstrap = PageNavBootstrap.Use<TrackingPlatformAdapter>(new object());
+            TimeSpan interval = TimeSpan.FromMinutes(30);
+            if (useTimeSpan)
+                bootstrap.UseIdleTimeout(interval);
+            else
+                bootstrap.UseIdleTimeout(1_800_000);
+
+            try
+            {
+                bootstrap.Start();
+                var timer = TrackingPlatformAdapter.LastCreated.Timer;
+                Assert.True(timer.IsStarted);
+                Assert.Equal(1_800_000, timer.IntervalMilliseconds);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData(3, 3000)]
+        [InlineData(int.MaxValue, int.MaxValue)]
+        public async Task Start_UsesTheIdlePageOverrideWithoutOverflow(int idleSeconds, int expectedTimerMilliseconds)
+        {
+            await NavigationService.Shutdown();
+            var bootstrap = PageNavBootstrap.Use<TrackingPlatformAdapter>(new object())
+                .UseIdleTimeout(TimeSpan.FromSeconds(2))
+                .UseRegistry(PageRegistry.Create(pages =>
+                    pages.RegisterType(typeof(StubIdle), descriptor => descriptor.IdleTimeoutSeconds = idleSeconds)));
+
+            try
+            {
+                bootstrap.Start();
+                var timer = TrackingPlatformAdapter.LastCreated.Timer;
+                Assert.True(timer.IsStarted);
+                Assert.Equal(expectedTimerMilliseconds, timer.IntervalMilliseconds);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void UseIdleTimeout_RejectsNonPositiveValuesInBothOverloads(int milliseconds)
+        {
+            var bootstrap = PageNavBootstrap.Use<FakePlatformAdapter>(new object());
+            Assert.Equal("milliseconds", Assert.Throws<ArgumentOutOfRangeException>(() =>
+                bootstrap.UseIdleTimeout(milliseconds)).ParamName);
+            Assert.Equal("timeout", Assert.Throws<ArgumentOutOfRangeException>(() =>
+                bootstrap.UseIdleTimeout(TimeSpan.FromMilliseconds(milliseconds))).ParamName);
+        }
+
+        [Fact]
+        public async Task IdleDeadline_UsesTheFullDurationAcrossNativeTimerSlices()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            var timer = new TrackingTimer();
+            var navigations = 0;
+            var lifetime = timer.CreateLifetime(new TrackingObserver(), () =>
+            {
+                navigations++;
+                return Task.CompletedTask;
+            });
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+
+            try
+            {
+                const long intervalMilliseconds = int.MaxValue + 2_000L;
+                NavigationTraceEvent configured = null;
+                fixture.Context.Events.NavigationTrace += e =>
+                {
+                    if (e.Kind == NavigationTraceKind.IdleConfigured)
+                        configured = e;
+                };
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(intervalMilliseconds), fixture.Context);
+                fixture.Context.Session.SignIn("operator");
+
+                Assert.Equal(intervalMilliseconds, configured.IdleIntervalMilliseconds);
+                Assert.Equal(int.MaxValue, timer.IntervalMilliseconds);
+                timer.RaiseTick();
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+                Assert.Equal(0, navigations);
+                Assert.Equal(2_000, timer.IntervalMilliseconds);
+
+                timer.RaiseTick();
+                Assert.False(fixture.Context.Session.IsAuthenticated);
+                Assert.Equal(1, navigations);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task IdleDeadline_RoundsTheTimerIntervalUpWithoutExpiringEarly()
+        {
+            await NavigationService.Shutdown();
+            var fixture = RuntimeTestFixture.Build<StubIdle>();
+            var timer = new TrackingTimer();
+            var lifetime = timer.CreateLifetime(new TrackingObserver(), () => Task.CompletedTask);
+            NavigationService.UseContext(fixture.Context, null, lifetime);
+
+            try
+            {
+                lifetime.ConfigureIdle(TimeSpan.FromTicks(1), fixture.Context);
+                fixture.Context.Session.SignIn("operator");
+
+                Assert.Equal(1, timer.IntervalMilliseconds);
+                timer.DeliverTick();
+                Assert.True(fixture.Context.Session.IsAuthenticated);
+
+                timer.RaiseTick();
+                Assert.False(fixture.Context.Session.IsAuthenticated);
+            }
+            finally
+            {
+                await NavigationService.Shutdown();
+            }
         }
 
         [Fact]
@@ -209,7 +342,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("operator");
 
                 // The application reacts to sign-out by touching its UI, which the
@@ -247,7 +380,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("operator");
 
                 // IdleElapsed is emitted after the tick starts and before the
@@ -287,7 +420,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
 
                 // Admission must still yield to teardown, which the relaxed
                 // post-sign-out check keeps revalidating.
@@ -321,7 +454,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 var startCallsBeforeTick = timer.StartCalls;
 
                 timer.RaiseTick();
@@ -350,7 +483,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 lifetime.StopIdle();
                 var startCallsAfterStop = timer.StartCalls;
 
@@ -385,7 +518,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
 
                 timer.RaiseTick();
                 await Task.Yield();
@@ -424,7 +557,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(1_234, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_234), fixture.Context);
                 observer.RaiseInteraction();
                 timer.RaiseTick();
                 lifetime.StopIdle();
@@ -477,7 +610,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(900, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(900), fixture.Context);
 
                 var configured = Assert.Single(
                     traces.Where(
@@ -513,7 +646,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(500, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(500), fixture.Context);
                 timer.RaiseTick();
                 lifetime.StopIdle();
                 navigation.TrySetException(
@@ -558,7 +691,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(750, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(750), fixture.Context);
                 timer.RaiseTick();
 
                 for (int i = 0;
@@ -615,7 +748,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(600, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(600), fixture.Context);
                 timer.RaiseTick();
 
                 Assert.True(fixture.Context.Session.IsAuthenticated);
@@ -655,7 +788,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(650, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(650), fixture.Context);
                 timer.RaiseTick();
 
                 Assert.True(fixture.Context.Session.IsAuthenticated);
@@ -685,7 +818,7 @@ namespace NekoLib.Navigation.Tests.Unit
 
             try
             {
-                lifetime.ConfigureIdle(700, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(700), fixture.Context);
                 timer.RaiseTick();
 
                 for (int i = 0;
@@ -728,7 +861,7 @@ namespace NekoLib.Navigation.Tests.Unit
             try
             {
                 await NavigationService.GoIdleAsync();
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("first-operator");
                 var idleReached = ObserveIdlePresentation();
 
@@ -779,7 +912,7 @@ namespace NekoLib.Navigation.Tests.Unit
             {
                 await NavigationService.SwitchPage<StubBlockingShutdownPage>();
                 blockingPage = Assert.IsType<StubBlockingShutdownPage>(NavigationService.Current);
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("operator");
                 var idleDiscarded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 fixture.Context.Events.NavigationTrace += e =>
@@ -829,7 +962,7 @@ namespace NekoLib.Navigation.Tests.Unit
             try
             {
                 await NavigationService.SwitchPage<StubA>();
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("first-operator");
                 var result = NavigationService.ShowPopoverAsync<StubPopoverView>("first session content");
                 var previousPopover = Assert.IsAssignableFrom<StubPopoverView>(Assert.Single(fixture.Host.AddedViews));
@@ -899,7 +1032,7 @@ namespace NekoLib.Navigation.Tests.Unit
                         promptClosures.Add(e);
                 };
                 await NavigationService.SwitchPage<StubA>();
-                lifetime.ConfigureIdle(1_000, fixture.Context);
+                lifetime.ConfigureIdle(TimeSpan.FromMilliseconds(1_000), fixture.Context);
                 fixture.Context.Session.SignIn("first-operator");
                 var result = NavigationService.ShowPromptAsync<SessionPromptView, string>();
                 Assert.True(prompt.TryType("synthetic session text"));

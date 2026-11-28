@@ -81,7 +81,7 @@ namespace NekoLib.Navigation.Diagnostics
         private DateTime? _idleLastInteractionUtc;
         private DateTime? _idleLastElapsedUtc;
         private DateTime? _idleDisposedUtc;
-        private int? _idleIntervalMilliseconds;
+        private long? _idleIntervalMilliseconds;
         private string? _idleErrorType;
 
         private string[] _historyBack = new string[0];
@@ -835,8 +835,7 @@ namespace NekoLib.Navigation.Diagnostics
                     new
                     {
                         runtimeId = e.RuntimeId,
-                        intervalMs = e.IdleIntervalMilliseconds ??
-                            _idleIntervalMilliseconds,
+                        intervalMs = BoxIdleInterval(e.IdleIntervalMilliseconds ?? _idleIntervalMilliseconds),
                         decision = e.Decision,
                         success = e.Success,
                         errorType = e.ErrorType,
@@ -844,6 +843,17 @@ namespace NekoLib.Navigation.Diagnostics
                         timestampUtc = e.TimestampUtc
                     }));
             }
+        }
+
+        private static object? BoxIdleInterval(long? milliseconds)
+        {
+            if (!milliseconds.HasValue)
+                return null;
+
+            // Preserve the existing Int32 value for in-process consumers.
+            return milliseconds.Value <= int.MaxValue
+                ? (object)(int)milliseconds.Value
+                : milliseconds.Value;
         }
 
         private static object SurfacePayload(NavigationTraceEvent e)
@@ -1296,7 +1306,7 @@ namespace NekoLib.Navigation.Diagnostics
                 {
                     status = _idleStatus,
                     decision = _idleDecision,
-                    intervalMs = _idleIntervalMilliseconds,
+                    intervalMs = BoxIdleInterval(_idleIntervalMilliseconds),
                     configuredUtc = _idleConfiguredUtc,
                     lastInteractionUtc = _idleLastInteractionUtc,
                     lastElapsedUtc = _idleLastElapsedUtc,

@@ -37,6 +37,8 @@ duplicating package hashes or release provenance.
 - `PageNavBootstrap.UseSessionTimeout(TimeSpan)` enables an absolute session
   deadline. Each successful sign-in starts a new interval. See the
   [configuration example](REFERENCE.md#maximum-authenticated-session-lifetime).
+- `PageNavBootstrap.UseIdleTimeout(TimeSpan)` uses the same duration format.
+  Existing calls passing milliseconds still work. [Idle system](REFERENCE.md#idle-system)
 
 ## 1.1.0
 

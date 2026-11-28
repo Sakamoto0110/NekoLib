@@ -70,7 +70,7 @@ PageNavBootstrap
     .Use<WinFormsPlatformAdapter>(mainPanel)
     .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
     .SetIdle<IdlePage>()
-    .UseIdleTimeout(10_000)
+    .UseIdleTimeout(TimeSpan.FromSeconds(10))
     .Start();
 ```
 
@@ -357,11 +357,14 @@ Idle timeout precedence, highest first:
 
 1. DSL `.IdleTimeout(seconds)` on the idle page
 2. `[PageTimeout(seconds)]` on the idle page
-3. Global `UseIdleTimeout(milliseconds)`
+3. Global `UseIdleTimeout(TimeSpan)`
 
 A timeout declared on the idle page enables the timer on its own, so the global
 call is optional. Declaring `[PageTimeout]` or `.IdleTimeout()` on any **non-idle**
 page throws at bootstrap.
+
+The `UseIdleTimeout(int)` overload also accepts milliseconds for existing
+bootstrap code.
 
 `Start()` begins the timer immediately, so an unattended boot also lands on the
 idle page. The platform `IInteractionObserverService` renews the interval for
@@ -413,7 +416,7 @@ that can be opened after sign-out through the application's normal guards.
 PageNavBootstrap.Use<WinFormsPlatformAdapter>(host)
     .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
     .SetIdle<IdlePage>()
-    .UseIdleTimeout(120_000)
+    .UseIdleTimeout(TimeSpan.FromMinutes(2))
     .UseSessionTimeout(TimeSpan.FromHours(8))
     .Start();
 ```

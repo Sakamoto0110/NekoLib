@@ -53,9 +53,12 @@ covers dictionary inputs, nulls and join types.
   A text prompt returns `null`. Direct `GoIdleAsync()` preserves the session.
   Implement `IPromptDraftState` to prefill the next opening on the same page in
   that session. [Prompt issue](modules/Navigation/ISSUES.md#nav-issue-004)
-- **Navigation session lifetime.** `UseSessionTimeout(TimeSpan)` opts in to a
+- **Navigation timeouts.** In 2.0, `UseIdleTimeout(TimeSpan.FromMinutes(5))`
+  expresses the same inactivity interval as the 1.x call `UseIdleTimeout(300_000)`.
+  Adding `UseSessionTimeout(TimeSpan.FromMinutes(30))` opts in to a
   fixed interval from each successful sign-in. The policy requires an Idle page
-  and operates independently of the inactivity timeout. [Configuration](modules/Navigation/REFERENCE.md#maximum-authenticated-session-lifetime)
+  and operates independently of the inactivity timeout. Both bootstrap options
+  accept `TimeSpan`, and `UseIdleTimeout(int)` still accepts milliseconds. [Configuration](modules/Navigation/REFERENCE.md#maximum-authenticated-session-lifetime)
 - **Diagnostics.** The existing folder-writing default requires a nonblank
   `CrashRootDirectory` to write the text report. `DumpWriter` defaults to null.
   To request a Windows minidump, apply `UseMiniDump()` to the options before

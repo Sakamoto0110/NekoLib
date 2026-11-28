@@ -43,7 +43,7 @@ namespace NekoLib.Navigation.Bootstrap
         private IInspectionRecorder? _inspection;
         private bool _useGlobalInspection;
 
-        private int _idleTimeoutMs;
+        private TimeSpan? _idleTimeout;
         private TimeSpan? _sessionTimeout;
 
         private Type? _idlePageType;
@@ -156,7 +156,22 @@ namespace NekoLib.Navigation.Bootstrap
         {
             if (milliseconds <= 0)
                 throw new ArgumentOutOfRangeException(nameof(milliseconds));
-            _idleTimeoutMs = milliseconds;
+
+            return UseIdleTimeout(TimeSpan.FromMilliseconds(milliseconds));
+        }
+
+        /// <summary>
+        /// Signs the session out and navigates to the idle page after the configured
+        /// time without observed user interaction. An idle-page timeout takes precedence.
+        /// </summary>
+        /// <param name="timeout">A positive inactivity duration.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero or negative.</exception>
+        public PageNavBootstrap UseIdleTimeout(TimeSpan timeout)
+        {
+            if (timeout <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+
+            _idleTimeout = timeout;
             return this;
         }
 
@@ -334,7 +349,7 @@ namespace NekoLib.Navigation.Bootstrap
                         $"Page '{d.PageType.FullName}' declares an idle timeout " +
                         $"({d.IdleTimeoutSeconds}s) but is not the idle page. Declare the " +
                         "timeout on the idle page (PageRole.Idle, an 'idle' tag, or a name " +
-                        "containing 'Idle'), or use UseIdleTimeout(ms) for the global timeout.");
+                        "containing 'Idle'), or use UseIdleTimeout for the global timeout.");
             }
 
             // ------------------------------------------------------------
@@ -528,13 +543,13 @@ namespace NekoLib.Navigation.Bootstrap
             // writes no timer/observer/session code.
             //
             // Effective interval (idle page wins, global is fallback):
-            //   idle page [PageTimeout]/.IdleTimeout(seconds)  ->  UseIdleTimeout(ms).
+            //   idle page [PageTimeout]/.IdleTimeout(seconds)  ->  UseIdleTimeout.
             // A timeout declared on the idle page also enables the timer on its
-            // own, so UseIdleTimeout(ms) is not required when the idle page sets one.
+            // own, so UseIdleTimeout is not required when the idle page sets one.
             // ------------------------------------------------------------
-            int effectiveIdleMs = _idleTimeoutMs;
-            if (idleDescriptor?.IdleTimeoutSeconds is int idleSeconds && idleSeconds > 0)
-                effectiveIdleMs = idleSeconds * 1000;
+            var effectiveIdleTimeout = idleDescriptor?.IdleTimeoutSeconds is int idleSeconds && idleSeconds > 0
+                ? TimeSpan.FromSeconds(idleSeconds)
+                : _idleTimeout;
 
             // Auto-mount on the facade so consumers don't need a second
             // NavigationService.UseContext(ctx) step. Tests of the bootstrap
@@ -554,8 +569,8 @@ namespace NekoLib.Navigation.Bootstrap
             {
                 // Attach diagnostics before idle configuration so the initial
                 // Configured/Unavailable state is visible in the debug snapshot.
-                if (effectiveIdleMs > 0)
-                    bootstrapLifetime.ConfigureIdle(effectiveIdleMs, context);
+                if (effectiveIdleTimeout.HasValue)
+                    bootstrapLifetime.ConfigureIdle(effectiveIdleTimeout.Value, context);
 
                 if (_sessionTimeout.HasValue)
                     bootstrapLifetime.ConfigureSessionTimeout(_sessionTimeout.Value, context);

@@ -27,6 +27,7 @@ namespace NekoLib.Navigation.Bootstrap
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap SetIdle<TPage>()
             where TPage : NekoLib.Navigation.Contracts.Pages.IPageView { }
         public NekoLib.Navigation.Runtime.Core.NavigationContext Start() { }
+        public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseIdleTimeout(System.TimeSpan timeout) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseIdleTimeout(int milliseconds) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInspection() { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInspection(NekoLib.Core.Inspection.IInspectionRecorder inspection) { }

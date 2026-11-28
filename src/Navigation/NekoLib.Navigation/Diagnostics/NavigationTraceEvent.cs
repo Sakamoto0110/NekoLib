@@ -121,7 +121,7 @@ namespace NekoLib.Navigation.Diagnostics
         public string? SurfaceKind { get; }
         public int? SurfaceDepth { get; }
         public string? CloseReason { get; }
-        public int? IdleIntervalMilliseconds { get; }
+        public long? IdleIntervalMilliseconds { get; }
 
         public DateTime TimestampUtc { get; }
         public long ElapsedMilliseconds { get; }
@@ -162,7 +162,7 @@ namespace NekoLib.Navigation.Diagnostics
             string? surfaceKind = null,
             int? surfaceDepth = null,
             string? closeReason = null,
-            int? idleIntervalMilliseconds = null,
+            long? idleIntervalMilliseconds = null,
             DateTime? timestampUtc = null,
             long elapsedMilliseconds = 0,
             long stageElapsedMilliseconds = 0)

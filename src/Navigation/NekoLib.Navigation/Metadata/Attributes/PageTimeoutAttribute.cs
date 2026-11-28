@@ -11,7 +11,7 @@ namespace NekoLib.Navigation.Metadata.Attributes
     /// <para>
     /// Precedence (highest first): the bootstrap DSL <c>.IdleTimeout(seconds)</c>
     /// overrides this attribute, which overrides the global
-    /// <c>UseIdleTimeout(milliseconds)</c> fallback.
+    /// <c>UseIdleTimeout</c> fallback.
     /// </para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]

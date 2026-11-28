@@ -39,6 +39,8 @@ the removed signatures and upgrade steps.
 - `NekoLib.Navigation` adds `PageNavBootstrap.UseSessionTimeout(TimeSpan)` to
   opt in to a fixed authenticated session lifetime. Expiration signs out and
   opens Idle even during continuous use. [Session timeout contract](docs/modules/Navigation/REFERENCE.md#maximum-authenticated-session-lifetime)
+- `NekoLib.Navigation` accepts `TimeSpan` in `UseIdleTimeout` and continues to
+  support the existing overload in milliseconds. [Idle configuration](docs/modules/Navigation/REFERENCE.md#idle-system)
 - `NekoLib.Diagnostics` clarifies the existing crash-report defaults.
   Folder writing is enabled by default and requires a configured
   `CrashRootDirectory` for the text report. `DumpWriter` defaults to null.
