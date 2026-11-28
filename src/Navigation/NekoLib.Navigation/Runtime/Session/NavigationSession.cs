@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using NekoLib.Navigation.Contracts.Guards;
 
@@ -13,14 +14,16 @@ namespace NekoLib.Navigation.Runtime.Session
     /// Implements <see cref="IUserContext"/> so guards (e.g.
     /// <c>[RequireRole]</c>, <c>[RequireAuthenticated]</c>) see live state without
     /// the consumer ever implementing an auth contract. The bootstrap's idle
-    /// timeout calls <see cref="SignOut"/> automatically when configured via
-    /// <c>PageNavBootstrap.UseIdleTimeout(int)</c>.
+    /// timeout and optional maximum session lifetime sign the session out
+    /// automatically when configured on <c>PageNavBootstrap</c>.
     /// </para>
     /// </summary>
     public sealed class NavigationSession : IUserContext
     {
         private static readonly string[] Empty = new string[0];
+        private readonly object _stateSync = new object();
         private int _generation;
+        private long _signedInTimestamp;
 
         internal event Action? Changed;
         internal event Action? SignedOut;
@@ -39,13 +42,9 @@ namespace NekoLib.Navigation.Runtime.Session
         {
             var copiedRoles = GuardContractValidation.CopyNames(roles, nameof(roles), "role");
 
-            IsAuthenticated = true;
-            Roles = copiedRoles.Length > 0
-                ? (IReadOnlyCollection<string>)Array.AsReadOnly(copiedRoles)
-                : Empty;
-            Permissions = Empty;
-            Interlocked.Increment(ref _generation);
-            RaiseChanged();
+            StartSession(
+                copiedRoles.Length > 0 ? Array.AsReadOnly(copiedRoles) : Empty,
+                Empty);
         }
 
         /// <summary>Marks the session authenticated with explicit roles and permissions.</summary>
@@ -59,22 +58,51 @@ namespace NekoLib.Navigation.Runtime.Session
                 nameof(permissions),
                 "permission");
 
-            IsAuthenticated = true;
-            Roles = Array.AsReadOnly(copiedRoles);
-            Permissions = Array.AsReadOnly(copiedPermissions);
-            Interlocked.Increment(ref _generation);
+            StartSession(Array.AsReadOnly(copiedRoles), Array.AsReadOnly(copiedPermissions));
+        }
+
+        private void StartSession(IReadOnlyCollection<string> roles, IReadOnlyCollection<string> permissions)
+        {
+            lock (_stateSync)
+            {
+                Roles = roles;
+                Permissions = permissions;
+                _signedInTimestamp = Stopwatch.GetTimestamp();
+                IsAuthenticated = true;
+                Interlocked.Increment(ref _generation);
+            }
+
             RaiseChanged();
         }
 
-        /// <summary>Clears authentication state and closes any open navigation prompts.</summary>
-        public void SignOut()
+        internal (int Generation, long SignedInTimestamp)? GetAuthenticatedLifetime()
         {
-            IsAuthenticated = false;
-            Roles = Empty;
-            Permissions = Empty;
-            Interlocked.Increment(ref _generation);
+            lock (_stateSync)
+                return IsAuthenticated ? (_generation, _signedInTimestamp) : null;
+        }
+
+        /// <summary>Clears authentication state and closes any open navigation prompts.</summary>
+        public void SignOut() => SignOutCore(expectedGeneration: null);
+
+        internal bool TrySignOut(int expectedGeneration) => SignOutCore(expectedGeneration);
+
+        private bool SignOutCore(int? expectedGeneration)
+        {
+            lock (_stateSync)
+            {
+                if (expectedGeneration.HasValue && _generation != expectedGeneration.Value)
+                    return false;
+
+                IsAuthenticated = false;
+                Roles = Empty;
+                Permissions = Empty;
+                _signedInTimestamp = 0;
+                Interlocked.Increment(ref _generation);
+            }
+
             try { SignedOut?.Invoke(); }
             finally { RaiseChanged(); }
+            return true;
         }
 
         private void RaiseChanged()

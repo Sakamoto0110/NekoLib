@@ -250,3 +250,33 @@ audit, scenario, and release record remains the detailed owner of each result.
 **Gaps:** This entry records automated source regressions. Human designer, visual/accessibility, multi-monitor DPI and long-soak acceptance retain their separate evidence requirements.
 
 **Supersedes:** earlier mounted-context error-message coverage for this source only
+
+## NAV-VALEVID-20261128-001
+
+**Requirement IDs:** `NAV-VALREQ-002`, `NAV-VALREQ-003`, `NAV-VALREQ-007`
+
+**Version:** `2.0.0-sessiontimeout.2`
+
+**Commit:** Working tree based on `b418aa69184b1006f006f13f114f3951c1597db7`
+
+**Tree state:** Local 2.0.0 candidate with the promoted maximum session lifetime and the preceding Navigation corrections
+
+**Environment:** Windows, SDK 10.0.403, Release
+
+**Targets:** `net481` and `net9.0-windows`
+
+**Command or scenario:** Focused Navigation suite, scoped API comparison, and isolated NuGet consumers exercising `UseSessionTimeout(TimeSpan)`
+
+**Execution:** automated
+
+**Evidence level:** automated-runtime
+
+**Result:** PASS
+
+**Artifacts:** `artifacts/navigation-session-timeout/final-unit.log`, `api-final.log`, `final-consumer-net481.log`, `final-consumer-net9.0-windows.log`, `wpf-consumer-build.log`, and `package-identity.log`
+
+**Observed:** Each focused target passed 341 tests, and all six Navigation API baselines passed with the one additive bootstrap method. The WinForms consumer observed ten input events on each target and still reached signed-out Idle at 2,011 ms on `net481` and 2,012 ms on `net9.0-windows` for a two-second session. The old prompt was detached and its result had settled to `null`. A worker-thread sign-in also expired through the live dispatcher on each target. The isolated WPF consumer built from the local feed on both targets.
+
+**Gaps:** The native runtime proof covers WinForms. WPF has package build evidence. Broader publication qualification remains tracked in the release work.
+
+**Supersedes:** The `2.0.0-sessiontimeout.1` probe that failed to dispatch expiry before the native WinForms host handle was created

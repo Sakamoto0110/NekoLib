@@ -96,3 +96,17 @@
   WinForms and WPF consumers.
 
 **Evidence:** [`../../audit/public-api-documentation-extensibility-review-2026-08-27.md`](../../audit/public-api-documentation-extensibility-review-2026-08-27.md)
+
+## 2026-11-28 — NAV-HISTORY-008 — Maximum session lifetime qualified
+
+**Release:** Unreleased 2.0.0, locally qualified with `2.0.0-sessiontimeout.2`
+
+- The owner promoted `NAV-PROPOSAL-002` for an opt-in maximum authenticated
+  session lifetime. Each successful sign-in starts its own deadline. Input and
+  direct Idle navigation preserve it, and expiry uses the existing serialized
+  sign-out and Idle path.
+- The implementation and tests were confined to bootstrap and session lifetime
+  handling. Both navigation deadlines now revalidate the session generation
+  before signing out, so a queued expiry cannot end a replacement session.
+
+**Evidence:** [Promoted proposal](../../proposals/navigation-session-timeout.md#nav-proposal-002), [local qualification](VALIDATIONS.md#nav-valevid-20261128-001).

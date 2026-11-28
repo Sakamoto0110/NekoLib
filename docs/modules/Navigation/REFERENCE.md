@@ -402,6 +402,30 @@ idle callbacks before runtime teardown. If the platform has no interaction
 observer, navigation still starts and the Inspection idle snapshot reports
 `Unavailable`.
 
+### Maximum authenticated session lifetime
+
+`UseSessionTimeout(TimeSpan)` sets an optional hard deadline starting at every
+successful call to either `Session.SignIn` overload. The policy is disabled by
+default. The duration must be positive, and bootstrap must resolve an Idle page
+that can be opened after sign-out through the application's normal guards.
+
+```csharp
+PageNavBootstrap.Use<WinFormsPlatformAdapter>(host)
+    .RegisterPagesFromAssembly(typeof(IdlePage).Assembly)
+    .SetIdle<IdlePage>()
+    .UseIdleTimeout(120_000)
+    .UseSessionTimeout(TimeSpan.FromHours(8))
+    .Start();
+```
+
+In this configuration, the session ends at the inactivity deadline or eight
+hours after sign-in, whichever comes first. Input can renew the inactivity
+interval. Page switches, input, and direct `GoIdleAsync()` preserve the sign-in
+deadline. Expiration uses the automatic sign-out and Idle transition, including
+prompt cancellation and draft removal. The expiry request enters the navigation
+queue and verifies the sign-in again before ending the session. A replacement
+sign-in receives its own full interval. Shutdown cancels the pending deadline.
+
 ## Overlays
 
 Four services, strictly partitioned by intent:

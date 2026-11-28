@@ -33,6 +33,7 @@ namespace NekoLib.Navigation.Bootstrap
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseInteractionObserver(System.Func<NekoLib.Navigation.Contracts.Runtime.IInteractionObserverService> factory) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseLogging(NekoLib.Core.Logging.ILogger logger) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseRegistry(NekoLib.Navigation.Runtime.Registry.PageRegistry registry) { }
+        public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseSessionTimeout(System.TimeSpan maximumLifetime) { }
         public NekoLib.Navigation.Bootstrap.PageNavBootstrap UseTelemetry(NekoLib.Core.Telemetry.ITelemetry telemetry) { }
         public static NekoLib.Navigation.Bootstrap.PageNavBootstrap Use<TPlatform>(object nativeHost)
             where TPlatform : NekoLib.Navigation.Contracts.Platform.IPlatformAdapter, new () { }

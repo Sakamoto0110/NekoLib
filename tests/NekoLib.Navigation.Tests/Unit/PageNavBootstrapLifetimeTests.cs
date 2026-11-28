@@ -1188,7 +1188,7 @@ namespace NekoLib.Navigation.Tests.Unit
             await task;
         }
 
-        private sealed class TrackingPlatformAdapter : IPlatformAdapter
+        internal sealed class TrackingPlatformAdapter : IPlatformAdapter
         {
             public static TrackingPlatformAdapter LastCreated { get; private set; }
 
@@ -1214,7 +1214,7 @@ namespace NekoLib.Navigation.Tests.Unit
             public Type GetDefaultLoadingMaskType() => null;
         }
 
-        private sealed class TrackingTimer : ITimerAdapter
+        internal sealed class TrackingTimer : ITimerAdapter
         {
             private Action _tick;
             private long _timestamp;
@@ -1267,7 +1267,7 @@ namespace NekoLib.Navigation.Tests.Unit
             }
         }
 
-        private sealed class TrackingObserver : IInteractionObserverService, IDisposable
+        internal sealed class TrackingObserver : IInteractionObserverService, IDisposable
         {
             private Action _interactionDetected;
 

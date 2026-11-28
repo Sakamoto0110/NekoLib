@@ -53,6 +53,9 @@ covers dictionary inputs, nulls and join types.
   A text prompt returns `null`. Direct `GoIdleAsync()` preserves the session.
   Implement `IPromptDraftState` to prefill the next opening on the same page in
   that session. [Prompt issue](modules/Navigation/ISSUES.md#nav-issue-004)
+- **Navigation session lifetime.** `UseSessionTimeout(TimeSpan)` opts in to a
+  fixed interval from each successful sign-in. The policy requires an Idle page
+  and operates independently of the inactivity timeout. [Configuration](modules/Navigation/REFERENCE.md#maximum-authenticated-session-lifetime)
 - **Diagnostics.** The existing folder-writing default requires a nonblank
   `CrashRootDirectory` to write the text report. `DumpWriter` defaults to null.
   To request a Windows minidump, apply `UseMiniDump()` to the options before

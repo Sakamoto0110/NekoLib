@@ -44,6 +44,7 @@ namespace NekoLib.Navigation.Bootstrap
         private bool _useGlobalInspection;
 
         private int _idleTimeoutMs;
+        private TimeSpan? _sessionTimeout;
 
         private Type? _idlePageType;
 
@@ -156,6 +157,21 @@ namespace NekoLib.Navigation.Bootstrap
             if (milliseconds <= 0)
                 throw new ArgumentOutOfRangeException(nameof(milliseconds));
             _idleTimeoutMs = milliseconds;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the maximum elapsed time from each successful sign-in. Expiration
+        /// signs the session out and navigates to the configured idle page.
+        /// </summary>
+        /// <param name="maximumLifetime">A positive duration independent of user activity.</param>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maximumLifetime"/> is zero or negative.</exception>
+        public PageNavBootstrap UseSessionTimeout(TimeSpan maximumLifetime)
+        {
+            if (maximumLifetime <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(maximumLifetime));
+
+            _sessionTimeout = maximumLifetime;
             return this;
         }
 
@@ -306,6 +322,10 @@ namespace NekoLib.Navigation.Bootstrap
             // ------------------------------------------------------------
             var allDescriptors = registry.AllDescriptors().ToList();
             var idleDescriptor = IdlePageRules.Resolve(allDescriptors);
+
+            if (_sessionTimeout.HasValue && idleDescriptor == null)
+                throw new InvalidOperationException(
+                    "UseSessionTimeout requires an idle page. Register one and use SetIdle<TPage>() or .AsIdle().");
 
             foreach (var d in allDescriptors)
             {
@@ -536,6 +556,9 @@ namespace NekoLib.Navigation.Bootstrap
                 // Configured/Unavailable state is visible in the debug snapshot.
                 if (effectiveIdleMs > 0)
                     bootstrapLifetime.ConfigureIdle(effectiveIdleMs, context);
+
+                if (_sessionTimeout.HasValue)
+                    bootstrapLifetime.ConfigureSessionTimeout(_sessionTimeout.Value, context);
 
                 NavigationService.UseContext(
                     context,

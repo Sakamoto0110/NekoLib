@@ -26,6 +26,7 @@ namespace NekoLib.Navigation.Bootstrap
 
         private Action? _interactionHandler;
         private Action? _tickHandler;
+        private SessionTimeoutLifetime? _sessionTimeout;
         private NavigationDiagnostics? _diagnostics;
         private int _idleIntervalMilliseconds;
         private long _configuredTimestamp;
@@ -49,6 +50,13 @@ namespace NekoLib.Navigation.Bootstrap
             _navigateIdle = navigateIdle;
             _getTimestamp = getTimestamp ?? Stopwatch.GetTimestamp;
         }
+
+        internal void ConfigureSessionTimeout(
+            TimeSpan timeout,
+            NavigationContext context,
+            Func<long>? getTimestamp = null,
+            Func<int, CancellationToken, Task>? delay = null)
+            => _sessionTimeout = new SessionTimeoutLifetime(context, timeout, getTimestamp, delay);
 
         public void ConfigureIdle(int intervalMilliseconds, NavigationContext context)
         {
@@ -90,6 +98,7 @@ namespace NekoLib.Navigation.Bootstrap
             {
                 long interactionGeneration;
                 long elapsedMilliseconds;
+                int sessionGeneration;
 
                 // Evaluated before taking the idle lock: this reaches into the
                 // runtime through NavigationService.Current, and the idle lock must
@@ -127,6 +136,7 @@ namespace NekoLib.Navigation.Bootstrap
 
                     _idleTickInProgress = 1;
                     interactionGeneration = _interactionGeneration;
+                    sessionGeneration = context.Session.Generation;
                     _timer.Stop();
                 }
 
@@ -137,14 +147,14 @@ namespace NekoLib.Navigation.Bootstrap
                     lock (_idleSync)
                     {
                         // Recheck after acquiring the runtime navigation gate.
-                        if (!CanContinueTick(context, interactionGeneration))
+                        if (!CanContinueTick(context, interactionGeneration) ||
+                            !context.Session.TrySignOut(sessionGeneration))
                             return false;
 
-                        context.Session.SignOut();
-
                         // A synchronous sign-out callback can itself report
-                        // activity. Only lifetime teardown can stop admission now.
-                        transitionStarted = CanHandleIdle(context);
+                        // activity. Teardown or a replacement sign-in can still
+                        // prevent the old session from changing the page.
+                        transitionStarted = CanHandleIdle(context) && !context.Session.IsAuthenticated;
                         return transitionStarted;
                     }
                 }
@@ -243,9 +253,8 @@ namespace NekoLib.Navigation.Bootstrap
         }
 
         /// <summary>
-        /// Stops idle activity without disposing the shared interaction observer.
-        /// Shutdown calls this before runtime teardown so a timer tick cannot enqueue
-        /// a fresh navigation while pages are being detached.
+        /// Stops inactivity and session deadlines before runtime teardown while
+        /// keeping the shared interaction observer alive for the runtime.
         /// </summary>
         internal void StopIdle()
         {
@@ -270,6 +279,9 @@ namespace NekoLib.Navigation.Bootstrap
                 _interactionHandler = null;
                 _tickHandler = null;
             }
+
+            _sessionTimeout?.Dispose();
+            _sessionTimeout = null;
 
             if (_observer != null && interactionHandler != null)
             {

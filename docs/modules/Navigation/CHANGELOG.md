@@ -28,11 +28,15 @@ duplicating package hashes or release provenance.
 
 **Packages:** `NekoLib.Navigation`
 
-**Compatibility class:** diagnostic message change, targeting `2.0.0`
+**Compatibility class:** additive API and diagnostic message changes, targeting `2.0.0`
 
 **Consumer impact:** Errors for accessing an unmounted context or attempting a second bootstrap now name the lifecycle calls. Mount with `PageNavBootstrap.Start()` and await `NavigationService.Shutdown()` before mounting a new context.
 
 **Migration:** none
+
+- `PageNavBootstrap.UseSessionTimeout(TimeSpan)` enables an absolute session
+  deadline. Each successful sign-in starts a new interval. See the
+  [configuration example](REFERENCE.md#maximum-authenticated-session-lifetime).
 
 ## 1.1.0
 

@@ -43,3 +43,4 @@ update its state, and link the outcome. Do not silently delete its provenance.
 | [`fleet-management-assessment.md`](fleet-management-assessment.md) | idea | F5 | Product-boundary investigation required |
 | [`portability-preparation.md`](portability-preparation.md) | idea | F6 | Real target decision required |
 | [`navigation-surface-regions.md`](navigation-surface-regions.md) | exploring | F7 | Bounded Navigation design review required |
+| [`navigation-session-timeout.md`](navigation-session-timeout.md) | promoted | — | [Implemented and qualified locally](../modules/Navigation/VALIDATIONS.md#nav-valevid-20261128-001) |

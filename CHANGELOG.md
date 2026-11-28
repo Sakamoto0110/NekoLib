@@ -36,6 +36,9 @@ the removed signatures and upgrade steps.
 - `NekoLib.Navigation` cancels open prompts on session sign-out or before
   presenting Idle. Prompts can implement `IPromptDraftState` to prefill the
   next opening on the same page after a signed-in visit to Idle. [Prompt issue](docs/modules/Navigation/ISSUES.md#nav-issue-004)
+- `NekoLib.Navigation` adds `PageNavBootstrap.UseSessionTimeout(TimeSpan)` to
+  opt in to a fixed authenticated session lifetime. Expiration signs out and
+  opens Idle even during continuous use. [Session timeout contract](docs/modules/Navigation/REFERENCE.md#maximum-authenticated-session-lifetime)
 - `NekoLib.Diagnostics` clarifies the existing crash-report defaults.
   Folder writing is enabled by default and requires a configured
   `CrashRootDirectory` for the text report. `DumpWriter` defaults to null.
